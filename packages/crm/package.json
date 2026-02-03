@@ -1,0 +1,19 @@
+{
+  "name": "@autodealers/crm",
+  "version": "1.0.0",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@autodealers/core": "*",
+    "firebase-admin": "^12.7.0",
+    "next": "16.1.6"
+  },
+  "devDependencies": {
+    "typescript": "^5.2.0"
+  }
+}

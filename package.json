@@ -1,0 +1,45 @@
+{
+  "name": "autodealers-platform",
+  "version": "1.0.0",
+  "description": "Plataforma SaaS multi-tenant para dealers y vendedores de autos",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev --concurrency=15",
+    "build": "turbo run build",
+    "build:firebase": "npm run build:all && echo '✅ Todos los builds completados. Ejecuta: firebase deploy --only hosting'",
+    "build:all": "npm run build:public && npm run build:admin && npm run build:dealer && npm run build:seller && npm run build:advertiser",
+    "build:public": "cd apps/public-web && npm run build",
+    "build:admin": "cd apps/admin && npm run build",
+    "build:dealer": "cd apps/dealer && npm run build",
+    "build:seller": "cd apps/seller && npm run build",
+    "build:advertiser": "cd apps/advertiser && npm run build",
+    "prepare-hosting": "node scripts/prepare-hosting.js",
+    "deploy:firebase": "npm run build:all && npm run prepare-hosting && firebase deploy --only hosting",
+    "deploy:public": "cd apps/public-web && npm run build && cd ../.. && npm run prepare-hosting && firebase deploy --only hosting:public-site",
+    "deploy:admin": "cd apps/admin && npm run build && firebase deploy --only hosting:admin-panel",
+    "deploy:dealer": "cd apps/dealer && npm run build && firebase deploy --only hosting:dealer-dashboard",
+    "deploy:seller": "cd apps/seller && npm run build && firebase deploy --only hosting:seller-dashboard",
+    "deploy:advertiser": "cd apps/advertiser && npm run build && firebase deploy --only hosting:advertiser-dashboard",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "clean": "turbo run clean"
+  },
+  "devDependencies": {
+    "turbo": "^1.10.0",
+    "typescript": "^5.2.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "dependencies": {
+    "firebase": "^11.0.0"
+  },
+  "overrides": {
+    "fast-xml-parser": "^5.3.3"
+  }
+}

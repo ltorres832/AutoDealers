@@ -1,0 +1,21 @@
+{
+  "name": "@autodealers/messaging",
+  "version": "1.0.0",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@autodealers/core": "*",
+    "@autodealers/crm": "*",
+    "axios": "^1.6.0",
+    "firebase-admin": "^12.7.0",
+    "next": "16.1.6"
+  },
+  "devDependencies": {
+    "typescript": "^5.2.0"
+  }
+}

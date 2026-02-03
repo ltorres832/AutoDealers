@@ -1,0 +1,115 @@
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "hosting": [
+    {
+      "target": "public-site",
+      "public": "apps/public-web/hosting",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [
+        { "source": "/_next/static/**", "destination": "/_next/static/**" },
+        { "source": "**", "destination": "/index.html" }
+      ],
+      "headers": [
+        { "source": "**/*.@(jpg|jpeg|gif|png|svg|webp|js|css|eot|otf|ttf|ttc|woff|woff2|font.css|ico)", "headers": [{ "key": "Cache-Control", "value": "max-age=604800" }] }
+      ],
+      "cleanUrls": true,
+      "trailingSlash": false
+    },
+    {
+      "target": "admin-panel",
+      "public": "apps/admin/hosting",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [
+        { "source": "/_next/static/**", "destination": "/_next/static/**" },
+        { "source": "**", "destination": "/index.html" }
+      ],
+      "headers": [
+        { "source": "**/*.@(jpg|jpeg|gif|png|svg|webp|js|css|eot|otf|ttf|ttc|woff|woff2|font.css|ico)", "headers": [{ "key": "Cache-Control", "value": "max-age=604800" }] }
+      ],
+      "cleanUrls": true,
+      "trailingSlash": false
+    },
+    {
+      "target": "dealer-dashboard",
+      "public": "apps/dealer/hosting",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [
+        { "source": "/_next/static/**", "destination": "/_next/static/**" },
+        { "source": "**", "destination": "/index.html" }
+      ],
+      "headers": [
+        { "source": "**/*.@(jpg|jpeg|gif|png|svg|webp|js|css|eot|otf|ttf|ttc|woff|woff2|font.css|ico)", "headers": [{ "key": "Cache-Control", "value": "max-age=604800" }] }
+      ],
+      "cleanUrls": true,
+      "trailingSlash": false
+    },
+    {
+      "target": "seller-dashboard",
+      "public": "apps/seller/hosting",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [
+        { "source": "/_next/static/**", "destination": "/_next/static/**" },
+        { "source": "**", "destination": "/index.html" }
+      ],
+      "headers": [
+        { "source": "**/*.@(jpg|jpeg|gif|png|svg|webp|js|css|eot|otf|ttf|ttc|woff|woff2|font.css|ico)", "headers": [{ "key": "Cache-Control", "value": "max-age=604800" }] }
+      ],
+      "cleanUrls": true,
+      "trailingSlash": false
+    },
+    {
+      "target": "advertiser-dashboard",
+      "public": "apps/advertiser/hosting",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [
+        { "source": "/_next/static/**", "destination": "/_next/static/**" },
+        { "source": "**", "destination": "/index.html" }
+      ],
+      "headers": [
+        { "source": "**/*.@(jpg|jpeg|gif|png|svg|webp|js|css|eot|otf|ttf|ttc|woff|woff2|font.css|ico)", "headers": [{ "key": "Cache-Control", "value": "max-age=604800" }] }
+      ],
+      "cleanUrls": true,
+      "trailingSlash": false
+    }
+  ],
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log"
+      ],
+      "predeploy": [
+        "node functions/predeploy.js"
+      ]
+    }
+  ],
+  "emulators": {
+    "auth": {
+      "port": 9099
+    },
+    "firestore": {
+      "port": 8080
+    },
+    "hosting": {
+      "port": 5000
+    },
+    "storage": {
+      "port": 9199
+    },
+    "ui": {
+      "enabled": true,
+      "port": 4000
+    },
+    "singleProjectMode": true
+  }
+}

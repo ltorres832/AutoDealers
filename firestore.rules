@@ -1,0 +1,204 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.role == 'admin';
+    }
+    
+    function isOwner(tenantId) {
+      return isAuthenticated() && 
+             (request.auth.token.role == 'admin' || 
+              request.auth.token.tenantId == tenantId ||
+              // Manager y dealer_admin también son owners si tienen el mismo tenantId
+              (request.auth.token.role in ['manager', 'dealer_admin'] && 
+               request.auth.token.tenantId == tenantId));
+    }
+    
+    function isDealer(tenantId) {
+      return isAuthenticated() && 
+             request.auth.token.role == 'dealer' && 
+             request.auth.token.tenantId == tenantId;
+    }
+    
+    // Helper para verificar si es manager o dealer_admin del tenant
+    function isManagerOrAdmin(tenantId) {
+      return isAuthenticated() && 
+             request.auth.token.role in ['manager', 'dealer_admin'] && 
+             request.auth.token.tenantId == tenantId;
+    }
+    
+    // Función isSeller removida - no se usa en las reglas actuales
+    
+    // Users collection
+    match /users/{userId} {
+      // Permitir lectura pública solo para sellers y dealers activos (para páginas públicas)
+      allow read: if true; // Público para webs (sin autenticación requerida)
+      // Permitir crear usuarios si es admin, dealer creando sellers/gerentes/admin, o dealer_admin creando otros usuarios
+      allow create: if isAdmin() || 
+                       (isAuthenticated() && 
+                        request.auth.token.role == 'dealer' &&
+                        request.resource.data.tenantId == request.auth.token.tenantId &&
+                        request.resource.data.role in ['seller', 'manager', 'dealer_admin']) ||
+                       (isAuthenticated() && 
+                        request.auth.token.role == 'dealer_admin' &&
+                        request.resource.data.tenantId == request.auth.token.tenantId &&
+                        request.resource.data.role in ['manager', 'dealer_admin']);
+      allow update: if isAdmin() || 
+                       (isAuthenticated() && request.auth.uid == userId) ||
+                       (isAuthenticated() && 
+                        request.auth.token.role == 'dealer_admin' &&
+                        resource.data.tenantId == request.auth.token.tenantId);
+      allow delete: if isAdmin() ||
+                       (isAuthenticated() && 
+                        request.auth.token.role == 'dealer_admin' &&
+                        resource.data.tenantId == request.auth.token.tenantId);
+    }
+    
+    // Tenants collection
+    match /tenants/{tenantId} {
+      allow read: if true; // Público para webs (sin autenticación requerida)
+      // Permitir crear tenants si es admin o si es dealer creando tenant para seller
+      allow create: if isAdmin() || 
+                       (isAuthenticated() && 
+                        request.auth.token.role == 'dealer' &&
+                        request.resource.data.type == 'seller');
+      allow update: if isAdmin() || isOwner(tenantId);
+      allow delete: if isAdmin();
+    }
+    
+    // Leads collection
+    match /tenants/{tenantId}/leads/{leadId} {
+      allow read: if isOwner(tenantId);
+      allow create: if isOwner(tenantId);
+      allow update: if isOwner(tenantId);
+      allow delete: if isAdmin() || isDealer(tenantId) || isManagerOrAdmin(tenantId);
+    }
+    
+    // Messages collection
+    match /tenants/{tenantId}/messages/{messageId} {
+      allow read: if isOwner(tenantId);
+      allow create: if isOwner(tenantId);
+      allow update: if isOwner(tenantId);
+      allow delete: if isAdmin() || isManagerOrAdmin(tenantId);
+    }
+    
+    // Vehicles collection
+    match /tenants/{tenantId}/vehicles/{vehicleId} {
+      allow read: if true; // Público para webs (sin autenticación requerida)
+      allow create: if isOwner(tenantId);
+      allow update: if isOwner(tenantId);
+      allow delete: if isAdmin() || isDealer(tenantId) || isManagerOrAdmin(tenantId);
+    }
+    
+    // Appointments collection
+    match /tenants/{tenantId}/appointments/{appointmentId} {
+      allow read: if isOwner(tenantId);
+      allow create: if isOwner(tenantId);
+      allow update: if isOwner(tenantId);
+      allow delete: if isAdmin() || isDealer(tenantId) || isManagerOrAdmin(tenantId);
+    }
+    
+    // Sales collection
+    match /tenants/{tenantId}/sales/{saleId} {
+      allow read: if isOwner(tenantId);
+      allow create: if isOwner(tenantId);
+      allow update: if isAdmin() || isDealer(tenantId) || isManagerOrAdmin(tenantId);
+      allow delete: if isAdmin() || isManagerOrAdmin(tenantId);
+    }
+    
+    // Subscriptions collection
+    match /subscriptions/{subscriptionId} {
+      allow read: if isAuthenticated() && 
+                     (isAdmin() || 
+                      resource.data.tenantId == request.auth.token.tenantId);
+      allow create: if isAuthenticated();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    // Memberships collection
+    match /memberships/{membershipId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    // Sub users collection (vendedores con tenant propio)
+    match /sub_users/{subUserId} {
+      allow read: if isAuthenticated() && 
+                     (isAdmin() || 
+                      resource.data.dealerTenantId == request.auth.token.tenantId ||
+                      resource.data.tenantId == request.auth.token.tenantId);
+      allow create: if isAuthenticated() && 
+                       (isAdmin() || 
+                        request.auth.token.role == 'dealer' &&
+                        request.resource.data.dealerTenantId == request.auth.token.tenantId);
+      allow update: if isAdmin() || 
+                       (isAuthenticated() && 
+                        request.auth.token.role == 'dealer' &&
+                        resource.data.dealerTenantId == request.auth.token.tenantId);
+      allow delete: if isAdmin();
+    }
+    
+    // Sub users subcollection (vendedores sin tenant propio)
+    match /tenants/{tenantId}/sub_users/{subUserId} {
+      allow read: if isOwner(tenantId);
+      allow create: if isOwner(tenantId);
+      allow update: if isOwner(tenantId);
+      allow delete: if isAdmin() || isDealer(tenantId) || isManagerOrAdmin(tenantId);
+    }
+    
+    // Integrations collection
+    match /tenants/{tenantId}/integrations/{integrationId} {
+      allow read: if isOwner(tenantId);
+      allow create: if isOwner(tenantId);
+      allow update: if isOwner(tenantId);
+      allow delete: if isAdmin() || isDealer(tenantId) || isManagerOrAdmin(tenantId);
+    }
+    
+    // Templates collection
+    match /templates/{templateId} {
+      allow read: if isAuthenticated() && 
+                     (isAdmin() || resource.data.tenantId == request.auth.token.tenantId);
+      allow create: if isAuthenticated() && 
+                       (isAdmin() || 
+                        (request.resource.data.tenantId == request.auth.token.tenantId && 
+                         request.auth.token.role in ['admin', 'dealer', 'manager', 'dealer_admin']));
+      allow update: if isAuthenticated() && 
+                       (isAdmin() || 
+                        (resource.data.tenantId == request.auth.token.tenantId && 
+                         resource.data.isEditable == true &&
+                         request.auth.token.role in ['admin', 'dealer', 'manager', 'dealer_admin']));
+      allow delete: if isAdmin() || 
+                       (isAuthenticated() && 
+                        resource.data.tenantId == request.auth.token.tenantId &&
+                        request.auth.token.role in ['admin', 'dealer', 'manager', 'dealer_admin']);
+    }
+    
+    // Audit logs collection
+    match /audit_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update: if false; // Immutable
+      allow delete: if isAdmin();
+    }
+    
+    // Public chat messages collection (chat público desde página web)
+    match /tenants/{tenantId}/public_chat_messages/{messageId} {
+      allow read: if true; // Público para leer mensajes de su sesión
+      allow create: if true; // Público para crear mensajes
+      allow update: if isOwner(tenantId); // Solo el tenant puede actualizar (marcar como leído)
+      allow delete: if isAdmin();
+    }
+  }
+}
+
+
+

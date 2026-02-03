@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vista Previa - Página Web AutoDealers</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .gradient-hero {
+            background: linear-gradient(135deg, #2563EB 0%, #1E40AF 100%);
+        }
+        .seller-photo {
+            width: 192px;
+            height: 192px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid white;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        .vehicle-card {
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .vehicle-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+        .review-card {
+            border-left: 4px solid #FCD34D;
+        }
+        .social-post-card {
+            border-top: 4px solid #3B82F6;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- HEADER -->
+    <header class="bg-blue-600 text-white shadow-lg sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-white rounded-lg flex items-center justify-center">
+                        <span class="text-blue-600 font-bold text-xl">🚗</span>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold">AutoDealers Premium</h1>
+                        <p class="text-white/80 text-sm">Tu concesionario de confianza</p>
+                    </div>
+                </div>
+                <nav class="hidden md:flex gap-4 items-center">
+                    <a href="#inventory" class="hover:text-white/80 font-medium">Inventario</a>
+                    <a href="#reviews" class="hover:text-white/80 font-medium">Reseñas</a>
+                    <a href="#social" class="hover:text-white/80 font-medium">Redes Sociales</a>
+                    <a href="#contact" class="hover:text-white/80 font-medium">Contacto</a>
+                    <a href="#appointment" class="hover:text-white/80 font-medium">Agendar Cita</a>
+                </nav>
+                <div class="flex gap-3">
+                    <button class="bg-green-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-600 flex items-center gap-2 text-sm">
+                        <span>💬</span> WhatsApp
+                    </button>
+                    <button class="bg-white text-blue-600 px-4 py-2 rounded-lg font-medium hover:bg-gray-100 text-sm">
+                        Contactar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- HERO SECTION -->
+    <section class="gradient-hero text-white py-20">
+        <div class="container mx-auto px-4 text-center">
+            <h2 class="text-5xl font-bold mb-4">Encuentra el vehículo perfecto para ti</h2>
+            <p class="text-xl mb-8">Tenemos 25 vehículos disponibles</p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <button class="bg-white text-blue-600 px-8 py-3 rounded-lg font-medium hover:bg-gray-100 text-lg">
+                    Ver Inventario
+                </button>
+                <button class="bg-white/20 backdrop-blur text-white px-8 py-3 rounded-lg font-medium hover:bg-white/30 text-lg border-2 border-white/50">
+                    📅 Agendar Cita
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- SELLER PROFILE SECTION -->
+    <section class="bg-white py-16">
+        <div class="container mx-auto px-4">
+            <div class="max-w-3xl mx-auto">
+                <h2 class="text-3xl font-bold mb-8 text-center">Conoce a tu Vendedor</h2>
+                <div class="bg-gray-50 rounded-lg p-8 flex flex-col md:flex-row items-center gap-8">
+                    <img src="https://via.placeholder.com/192x192/2563EB/FFFFFF?text=JD" 
+                         alt="Vendedor" 
+                         class="seller-photo">
+                    <div class="flex-1 text-center md:text-left">
+                        <h3 class="text-2xl font-bold mb-2">Juan Delgado</h3>
+                        <p class="text-gray-700 text-lg leading-relaxed mb-4">
+                            Con más de 10 años de experiencia en la industria automotriz, 
+                            estoy aquí para ayudarte a encontrar el vehículo perfecto que 
+                            se ajuste a tus necesidades y presupuesto.
+                        </p>
+                        <button class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-medium">
+                            📅 Agendar una Cita
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- REVIEWS SECTION -->
+    <section id="reviews" class="bg-gray-50 py-16">
+        <div class="container mx-auto px-4">
+            <div class="text-center mb-12">
+                <h2 class="text-4xl font-bold mb-4">Reseñas de Nuestros Clientes</h2>
+                <div class="flex items-center justify-center gap-2 mb-2">
+                    <span class="text-3xl font-bold">4.8</span>
+                    <div class="flex gap-1">
+                        <span class="text-yellow-400 text-lg">★</span>
+                        <span class="text-yellow-400 text-lg">★</span>
+                        <span class="text-yellow-400 text-lg">★</span>
+                        <span class="text-yellow-400 text-lg">★</span>
+                        <span class="text-yellow-400 text-lg">★</span>
+                    </div>
+                    <span class="text-gray-600">(25 reseñas)</span>
+                </div>
+                <a href="#" class="text-blue-600 hover:text-blue-700 font-medium">Ver todas las reseñas →</a>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Review 1 -->
+                <div class="bg-white rounded-lg shadow p-6 review-card">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="font-semibold text-gray-900">María González</div>
+                        <span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">⭐ Destacada</span>
+                    </div>
+                    <div class="flex gap-1 mb-3">
+                        <span class="text-yellow-400 text-lg">★</span>
+                        <span class="text-yellow-400 text-lg">★</span>
+                        <span class="text-yellow-400 text-lg">★</span>
+                        <span class="text-yellow-400 text-lg">★</span>
+                        <span class="text-yellow-400 text-lg">★</span>
+                    </div>
+                    <p class="text-gray-700 text-sm mb-3">Excelente servicio, muy profesionales y el vehículo está en perfecto estado. Lo recomiendo 100%.</p>
+                    <div class="flex gap-1 mb-2">
+                        <img src="https://via.placeholder.com/64x64" alt="Foto" class="w-16 h-16 object-cover rounded">
+                        <img src="https://via.placeholder.com/64x64" alt="Foto" class="w-16 h-16 object-cover rounded">
+                    </div>
+                    <p class="text-xs text-gray-400">15 de marzo, 2024</p>
+                </div>
+
+                <!-- Review 2 -->
+                <div class="bg-white rounded-lg shadow p-6 review-card">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="font-semibold text-gray-900">Carlos Rodríguez</div>
+                    </div>
+                    <div class="flex gap-1 mb-3">
+                        <span class="text-yellow-400 text-lg">★</span>
+                        <span class="text-yellow-400 text-lg">★</span>
+                        <span class="text-yellow-400 text-lg">★</span>
+                        <span class="text-yellow-400 text-lg">★</span>
+                        <span class="text-gray-300 text-lg">★</span>
+                    </div>
+                    <p class="text-gray-700 text-sm mb-3">Muy buen trato, el proceso fue rápido y sin complicaciones. El vendedor fue muy atento.</p>
+                    <p class="text-xs text-gray-400">10 de marzo, 2024</p>
+                </div>
+
+                <!-- Review 3 -->
+                <div class="bg-white rounded-lg shadow p-6 review-card">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="font-semibold text-gray-900">Ana Martínez</div>
+                    </div>
+                    <div class="flex gap-1 mb-3">
+                        <span class="text-yellow-400 text-lg">★</span>
+                        <span class="text-yellow-400 text-lg">★</span>
+                        <span class="text-yellow-400 text-lg">★</span>
+                        <span class="text-yellow-400 text-lg">★</span>
+                        <span class="text-yellow-400 text-lg">★</span>
+                    </div>
+                    <p class="text-gray-700 text-sm mb-3">Excelente experiencia, encontré exactamente lo que buscaba. Muy recomendado.</p>
+                    <p class="text-xs text-gray-400">5 de marzo, 2024</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SOCIAL MEDIA SECTION -->
+    <section id="social" class="bg-white py-16">
+        <div class="container mx-auto px-4">
+            <div class="text-center mb-12">
+                <h2 class="text-4xl font-bold mb-4">Síguenos en Redes Sociales</h2>
+                <p class="text-gray-600">Mira nuestras últimas publicaciones</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Post 1 -->
+                <div class="bg-gray-50 rounded-lg shadow overflow-hidden hover:shadow-lg transition social-post-card">
+                    <div class="relative h-48 bg-gradient-to-br from-blue-400 to-blue-600">
+                        <div class="absolute inset-0 flex items-center justify-center text-white text-4xl">🚗</div>
+                    </div>
+                    <div class="p-6">
+                        <div class="flex gap-2 mb-3">
+                            <span class="text-sm bg-blue-100 text-blue-700 px-2 py-1 rounded">📘 Facebook</span>
+                            <span class="text-sm bg-pink-100 text-pink-700 px-2 py-1 rounded">📷 Instagram</span>
+                        </div>
+                        <p class="text-gray-700 mb-3">¡Nuevo vehículo disponible! Ven a conocerlo...</p>
+                        <div class="flex flex-wrap gap-1 mb-3">
+                            <span class="text-xs text-blue-600">#autos</span>
+                            <span class="text-xs text-blue-600">#venta</span>
+                            <span class="text-xs text-blue-600">#calidad</span>
+                        </div>
+                        <p class="text-xs text-gray-400">Publicado el 20 de marzo, 2024</p>
+                    </div>
+                </div>
+
+                <!-- Post 2 -->
+                <div class="bg-gray-50 rounded-lg shadow overflow-hidden hover:shadow-lg transition social-post-card">
+                    <div class="relative h-48 bg-gradient-to-br from-purple-400 to-pink-500">
+                        <div class="absolute inset-0 flex items-center justify-center text-white text-4xl">✨</div>
+                    </div>
+                    <div class="p-6">
+                        <div class="flex gap-2 mb-3">
+                            <span class="text-sm bg-pink-100 text-pink-700 px-2 py-1 rounded">📷 Instagram</span>
+                        </div>
+                        <p class="text-gray-700 mb-3">Oferta especial este fin de semana...</p>
+                        <p class="text-xs text-gray-400">Publicado el 18 de marzo, 2024</p>
+                    </div>
+                </div>
+
+                <!-- Post 3 -->
+                <div class="bg-gray-50 rounded-lg shadow overflow-hidden hover:shadow-lg transition social-post-card">
+                    <div class="relative h-48 bg-gradient-to-br from-gray-800 to-black">
+                        <div class="absolute inset-0 flex items-center justify-center text-white text-4xl">🎵</div>
+                    </div>
+                    <div class="p-6">
+                        <div class="flex gap-2 mb-3">
+                            <span class="text-sm bg-black text-white px-2 py-1 rounded">🎵 TikTok</span>
+                        </div>
+                        <p class="text-gray-700 mb-3">Mira nuestro nuevo video...</p>
+                        <p class="text-xs text-gray-400">Publicado el 15 de marzo, 2024</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8 text-center">
+                <p class="text-gray-600 mb-4">Síguenos para más contenido:</p>
+                <div class="flex justify-center gap-4">
+                    <button class="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 flex items-center gap-2">
+                        📘 Facebook
+                    </button>
+                    <button class="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-lg font-medium hover:opacity-90 flex items-center gap-2">
+                        📷 Instagram
+                    </button>
+                    <button class="bg-black text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-800 flex items-center gap-2">
+                        🎵 TikTok
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- INVENTORY SECTION -->
+    <section id="inventory" class="container mx-auto px-4 py-12">
+        <div class="mb-8">
+            <h2 class="text-3xl font-bold mb-6">Nuestro Inventario</h2>
+            
+            <div class="flex flex-col md:flex-row gap-4 mb-6">
+                <div class="flex-1">
+                    <input type="text" 
+                           placeholder="Buscar por marca, modelo o descripción..." 
+                           class="w-full border rounded-lg px-4 py-2">
+                </div>
+                <select class="border rounded-lg px-4 py-2">
+                    <option>Todas las marcas</option>
+                    <option>Toyota</option>
+                    <option>Honda</option>
+                    <option>Ford</option>
+                </select>
+            </div>
+
+            <p class="text-gray-600 mb-6">Mostrando 15 de 25 vehículos</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Vehicle 1 -->
+                <div class="bg-white rounded-lg shadow overflow-hidden vehicle-card">
+                    <div class="h-48 bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
+                        <span class="text-white text-4xl">🚗</span>
+                    </div>
+                    <div class="p-6">
+                        <h3 class="font-bold text-xl mb-2">2024 Toyota Camry</h3>
+                        <p class="text-2xl font-bold text-blue-600 mb-4">$25,000 USD</p>
+                        <div class="text-sm text-gray-600 mb-4 space-y-1">
+                            <p>Kilometraje: 50,000 km</p>
+                            <p>Condición: Usado</p>
+                            <p>Transmisión: Automática</p>
+                            <p>Combustible: Gasolina</p>
+                        </div>
+                        <button class="block w-full text-center bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                            Agendar Cita
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Vehicle 2 -->
+                <div class="bg-white rounded-lg shadow overflow-hidden vehicle-card">
+                    <div class="h-48 bg-gradient-to-br from-red-400 to-red-600 flex items-center justify-center">
+                        <span class="text-white text-4xl">🚙</span>
+                    </div>
+                    <div class="p-6">
+                        <h3 class="font-bold text-xl mb-2">2023 Honda CR-V</h3>
+                        <p class="text-2xl font-bold text-blue-600 mb-4">$20,000 USD</p>
+                        <div class="text-sm text-gray-600 mb-4 space-y-1">
+                            <p>Kilometraje: 30,000 km</p>
+                            <p>Condición: Usado</p>
+                            <p>Transmisión: Automática</p>
+                            <p>Combustible: Híbrido</p>
+                        </div>
+                        <button class="block w-full text-center bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                            Agendar Cita
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Vehicle 3 -->
+                <div class="bg-white rounded-lg shadow overflow-hidden vehicle-card">
+                    <div class="h-48 bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center">
+                        <span class="text-white text-4xl">🚐</span>
+                    </div>
+                    <div class="p-6">
+                        <h3 class="font-bold text-xl mb-2">2024 Ford F-150</h3>
+                        <p class="text-2xl font-bold text-blue-600 mb-4">$30,000 USD</p>
+                        <div class="text-sm text-gray-600 mb-4 space-y-1">
+                            <p>Kilometraje: 20,000 km</p>
+                            <p>Condición: Usado</p>
+                            <p>Transmisión: Automática</p>
+                            <p>Combustible: Gasolina</p>
+                        </div>
+                        <button class="block w-full text-center bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                            Agendar Cita
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CONTACT SECTION -->
+    <section id="contact" class="bg-gray-100 py-16">
+        <div class="container mx-auto px-4">
+            <h2 class="text-3xl font-bold mb-8 text-center">Contáctanos</h2>
+            <div class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-xl font-bold mb-4">Información de Contacto</h3>
+                    <div class="space-y-3">
+                        <div class="flex items-center space-x-3">
+                            <span class="text-2xl">📞</span>
+                            <div>
+                                <p class="text-sm text-gray-600">Teléfono</p>
+                                <p class="text-blue-600">+1 (555) 123-4567</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <span class="text-2xl">✉️</span>
+                            <div>
+                                <p class="text-sm text-gray-600">Email</p>
+                                <p class="text-blue-600">contacto@autodealers.com</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start space-x-3">
+                            <span class="text-2xl">📍</span>
+                            <div>
+                                <p class="text-sm text-gray-600">Dirección</p>
+                                <p class="text-gray-900">123 Calle Principal, Ciudad, Estado</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-xl font-bold mb-4">Envíanos un Mensaje</h3>
+                    <div class="space-y-3">
+                        <button class="w-full bg-green-500 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-600 flex items-center justify-center gap-2">
+                            <span>💬</span> Escribir por WhatsApp
+                        </button>
+                        <button class="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700">
+                            Abrir Formulario de Contacto
+                        </button>
+                        <button class="w-full bg-gray-200 text-gray-800 px-6 py-3 rounded-lg font-medium hover:bg-gray-300">
+                            Agendar una Cita
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="bg-gray-900 text-white py-8">
+        <div class="container mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div>
+                    <h3 class="text-lg font-bold mb-4">AutoDealers Premium</h3>
+                    <p class="text-gray-400 text-sm">Tu concesionario de confianza con más de 10 años de experiencia...</p>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4">Contacto</h4>
+                    <div class="space-y-2 text-sm text-gray-400">
+                        <p>📞 +1 (555) 123-4567</p>
+                        <p>✉️ contacto@autodealers.com</p>
+                        <p>📍 123 Calle Principal, Ciudad</p>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4">Enlaces</h4>
+                    <div class="space-y-2 text-sm">
+                        <a href="#inventory" class="text-gray-400 hover:text-white block">Inventario</a>
+                        <a href="#reviews" class="text-gray-400 hover:text-white block">Reseñas</a>
+                        <a href="#social" class="text-gray-400 hover:text-white block">Redes Sociales</a>
+                        <a href="#contact" class="text-gray-400 hover:text-white block">Contacto</a>
+                    </div>
+                </div>
+            </div>
+            <div class="border-t border-gray-800 mt-8 pt-6 text-center text-sm text-gray-400">
+                <p>© 2024 AutoDealers Premium. Todos los derechos reservados.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- CHAT WIDGET (Floating) -->
+    <div class="fixed bottom-6 right-6 z-50">
+        <div class="bg-white rounded-lg shadow-2xl border border-gray-200 w-80">
+            <div class="bg-blue-600 text-white px-4 py-3 rounded-t-lg flex justify-between items-center">
+                <span class="font-medium">💬 Chat</span>
+                <button class="text-white/80 hover:text-white">×</button>
+            </div>
+            <div class="p-4 h-64 bg-gray-50 overflow-y-auto">
+                <div class="space-y-3">
+                    <div class="bg-white rounded-lg p-3 shadow-sm">
+                        <p class="text-sm">Hola, ¿tienen el vehículo disponible?</p>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 border-t border-gray-200">
+                <div class="flex gap-2">
+                    <input type="text" 
+                           placeholder="Escribe un mensaje..." 
+                           class="flex-1 border rounded px-3 py-2 text-sm">
+                    <button class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                        Enviar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+
+

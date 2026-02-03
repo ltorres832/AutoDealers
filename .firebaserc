@@ -1,0 +1,27 @@
+{
+  "projects": {
+    "default": "autodealers-7f62e"
+  },
+  "targets": {
+    "autodealers-7f62e": {
+      "hosting": {
+        "public-site": [
+          "autodealers-7f62e"
+        ],
+        "admin-panel": [
+          "autodealers-admin"
+        ],
+        "dealer-dashboard": [
+          "autodealers-dealer"
+        ],
+        "seller-dashboard": [
+          "autodealers-seller"
+        ],
+        "advertiser-dashboard": [
+          "autodealers-advertiser"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

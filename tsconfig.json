@@ -1,0 +1,44 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["ES2020"],
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "outDir": "./dist",
+    "rootDir": "./",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "composite": true,
+    "incremental": true,
+    "baseUrl": ".",
+    "paths": {
+      "@autodealers/core": ["./packages/core/src"],
+      "@autodealers/core/*": ["./packages/core/src/*"],
+      "@autodealers/crm": ["./packages/crm/src"],
+      "@autodealers/crm/*": ["./packages/crm/src/*"],
+      "@autodealers/messaging": ["./packages/messaging/src"],
+      "@autodealers/messaging/*": ["./packages/messaging/src/*"],
+      "@autodealers/inventory": ["./packages/inventory/src"],
+      "@autodealers/inventory/*": ["./packages/inventory/src/*"],
+      "@autodealers/ai": ["./packages/ai/src"],
+      "@autodealers/ai/*": ["./packages/ai/src/*"],
+      "@autodealers/billing": ["./packages/billing/src"],
+      "@autodealers/billing/*": ["./packages/billing/src/*"],
+      "@autodealers/shared": ["./packages/shared/src"],
+      "@autodealers/shared/*": ["./packages/shared/src/*"]
+    }
+  },
+  "exclude": ["node_modules", "dist", ".next", "out"]
+}
+
+
+
+
+

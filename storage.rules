@@ -1,0 +1,57 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.role == 'admin';
+    }
+    
+    function isOwner(tenantId) {
+      return isAuthenticated() && 
+             (request.auth.token.role == 'admin' || 
+              request.auth.token.tenantId == tenantId);
+    }
+    
+    // Vehicle photos
+    match /tenants/{tenantId}/vehicles/{vehicleId}/{allPaths=**} {
+      allow read: if true; // Público para webs
+      allow write: if isOwner(tenantId) && 
+                      request.resource.size < 10 * 1024 * 1024 && // 10MB
+                      request.resource.contentType.matches('image/.*');
+    }
+    
+    // User avatars
+    match /users/{userId}/avatar/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAuthenticated() && 
+                      (isAdmin() || request.auth.uid == userId) &&
+                      request.resource.size < 5 * 1024 * 1024 && // 5MB
+                      request.resource.contentType.matches('image/.*');
+    }
+    
+    // Documents (sales, etc)
+    match /tenants/{tenantId}/documents/{allPaths=**} {
+      allow read: if isOwner(tenantId);
+      allow write: if isOwner(tenantId) && 
+                      request.resource.size < 50 * 1024 * 1024; // 50MB
+    }
+    
+    // Branding (logos, favicons)
+    match /tenants/{tenantId}/branding/{allPaths=**} {
+      allow read: if true; // Público
+      allow write: if isOwner(tenantId) && 
+                      request.resource.size < 2 * 1024 * 1024 && // 2MB
+                      request.resource.contentType.matches('image/.*');
+    }
+  }
+}
+
+
+
+
+

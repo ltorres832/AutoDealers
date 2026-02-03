@@ -1,0 +1,47 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "target": "ES2020",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./src/*"],
+      "@autodealers/core": ["../../packages/core/src"],
+      "@autodealers/core/*": ["../../packages/core/src/*"],
+      "@autodealers/crm": ["../../packages/crm/src"],
+      "@autodealers/crm/*": ["../../packages/crm/src/*"],
+      "@autodealers/inventory": ["../../packages/inventory/src"],
+      "@autodealers/inventory/*": ["../../packages/inventory/src/*"],
+      "@autodealers/messaging": ["../../packages/messaging/src"],
+      "@autodealers/messaging/*": ["../../packages/messaging/src/*"],
+      "@autodealers/ai": ["../../packages/ai/src"],
+      "@autodealers/ai/*": ["../../packages/ai/src/*"],
+      "@autodealers/shared": ["../../packages/shared/src"],
+      "@autodealers/shared/*": ["../../packages/shared/src/*"],
+      "@autodealers/billing": ["../../packages/billing/src"],
+      "@autodealers/billing/*": ["../../packages/billing/src/*"]
+    }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}
+
+
+
