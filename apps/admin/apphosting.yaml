@@ -1,9 +1,12 @@
 buildConfig:
   runtime: nodejs20
-  buildCommand: npm ci && npm run build:admin
+  # Para monorepos: instalar desde la raíz y luego construir con turbo
+  # Firebase App Hosting ejecuta desde apps/admin, pero necesita acceso a la raíz del repo
+  buildCommand: cd ../.. && npm ci && npx turbo run build --filter=@autodealers/admin && cd apps/admin
 runConfig:
   cpu: 1
   memoryMiB: 512
   maxInstances: 10
   minInstances: 0
   concurrency: 80
+  startCommand: npm start
