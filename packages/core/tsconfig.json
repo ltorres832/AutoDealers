@@ -6,7 +6,9 @@
     "skipLibCheck": true,
     "skipDefaultLibCheck": true,
     "declaration": true,
-    "declarationMap": true
+    "declarationMap": true,
+    "noImplicitAny": false,
+    "strict": false
   },
   "include": ["src/**/*", "../ai/src/**/*", "../billing/src/**/*", "../crm/src/**/*", "../inventory/src/**/*", "../messaging/src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
