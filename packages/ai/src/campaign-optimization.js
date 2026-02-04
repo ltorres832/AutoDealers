@@ -9,6 +9,7 @@ exports.suggestTargetAudience = suggestTargetAudience;
 exports.optimizePostingSchedule = optimizePostingSchedule;
 const core_1 = require("@autodealers/core");
 const core_2 = require("@autodealers/core");
+const crm_1 = require("@autodealers/crm");
 const openai_1 = __importDefault(require("openai"));
 const db = (0, core_1.getFirestore)();
 /**
@@ -83,13 +84,13 @@ Responde en formato JSON:`;
  */
 async function suggestTargetAudience(tenantId, campaignType, apiKey) {
     try {
-        const sales = await getTenantSales(tenantId);
+        const sales = await (0, crm_1.getTenantSales)(tenantId);
         const completedSales = sales.filter(s => s.status === 'completed');
         const openai = new openai_1.default({ apiKey });
         const prompt = `Sugiere audiencia objetivo para una campaña de tipo: ${campaignType}
 
 Datos de ventas históricas:
-${completedSales.slice(0, 20).map(s => `- Cliente: ${s.buyer?.fullName || 'N/A'}, Vehículo: ${s.vehicle?.make} ${s.vehicle?.model}`).join('\n')}
+${completedSales.slice(0, 20).map((s) => `- Cliente: ${s.buyer?.fullName || 'N/A'}, Vehículo ID: ${s.vehicleId || 'N/A'}`).join('\n')}
 
 Sugiere:
 1. Rango de edad

@@ -1,3 +1,6 @@
+buildConfig:
+  runtime: nodejs20
+  buildCommand: npm run build:admin
 runConfig:
   cpu: 1
   memoryMiB: 512

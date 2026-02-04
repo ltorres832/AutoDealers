@@ -115,7 +115,7 @@ Leads totales: ${leads.length}
 Tasa de conversión: ${leads.length > 0 ? (completedSales.length / leads.length * 100).toFixed(2) : 0}%
 
 Ventas más exitosas:
-${completedSales.slice(0, 10).map(s => `- ${s.vehicle?.make} ${s.vehicle?.model} vendido por $${s.salePrice || s.total || 0}`).join('\n')}
+${completedSales.slice(0, 10).map(s => `- ${s.vehicle?.make || 'N/A'} ${s.vehicle?.model || 'N/A'} vendido por $${s.salePrice || s.total || 0}`).join('\n')}
 
 Identifica:
 1. Prácticas que llevan al éxito

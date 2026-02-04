@@ -1,5 +1,4 @@
-// Temporary file to fix Next.js build error
-// This file re-exports from types.ts to prevent "file not found" errors
-module.exports = require('./types.ts');
-
-
+"use strict";
+// Tipos del módulo de inventario
+Object.defineProperty(exports, "__esModule", { value: true });
+//# sourceMappingURL=types.js.map

@@ -29,7 +29,7 @@ Ventas completadas: ${completedSales.length}
 Vehículos vendidos: ${soldVehicles.length}
 
 Vehículos más vendidos:
-${completedSales.slice(0, 20).map(s => `${s.vehicle?.make} ${s.vehicle?.model} ${s.vehicle?.year} - Vendido por $${s.salePrice || s.total || 0}`).join('\n')}
+${completedSales.slice(0, 20).map((s) => `${s.vehicle?.make || 'N/A'} ${s.vehicle?.model || 'N/A'} ${s.vehicle?.year || 'N/A'} - Vendido por $${s.salePrice || s.total || 0}`).join('\n')}
 
 Inventario actual:
 ${vehicles.filter(v => v.status === 'available').slice(0, 10).map(v => `${v.make} ${v.model} ${v.year} - $${v.price}`).join('\n')}

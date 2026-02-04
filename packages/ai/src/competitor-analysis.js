@@ -8,6 +8,7 @@ exports.analyzeMarketPricing = analyzeMarketPricing;
 exports.identifyMarketOpportunities = identifyMarketOpportunities;
 exports.analyzeIndustryTrends = analyzeIndustryTrends;
 const core_1 = require("@autodealers/core");
+const crm_1 = require("@autodealers/crm");
 const inventory_1 = require("@autodealers/inventory");
 const openai_1 = __importDefault(require("openai"));
 const db = (0, core_1.getFirestore)();
@@ -88,7 +89,7 @@ async function identifyMarketOpportunities(tenantId, apiKey) {
     try {
         const vehicles = await (0, inventory_1.getVehicles)(tenantId);
         const availableVehicles = vehicles.filter(v => v.status === 'available');
-        const sales = await getTenantSales(tenantId);
+        const sales = await (0, crm_1.getTenantSales)(tenantId);
         const completedSales = sales.filter(s => s.status === 'completed');
         const openai = new openai_1.default({ apiKey });
         const prompt = `Identifica oportunidades de mercado basado en estos datos:
@@ -97,7 +98,7 @@ Inventario disponible: ${availableVehicles.length}
 Ventas completadas: ${completedSales.length}
 
 Vehículos más vendidos:
-${completedSales.slice(0, 10).map(s => `${s.vehicle?.make} ${s.vehicle?.model}`).join('\n')}
+${completedSales.slice(0, 10).map((s) => `${s.vehicle?.make || 'N/A'} ${s.vehicle?.model || 'N/A'}`).join('\n')}
 
 Inventario actual:
 ${availableVehicles.slice(0, 10).map(v => `${v.make} ${v.model} - $${v.price}`).join('\n')}
@@ -138,7 +139,7 @@ Responde en formato JSON con opportunities (array):`;
 async function analyzeIndustryTrends(tenantId, apiKey) {
     try {
         const vehicles = await (0, inventory_1.getVehicles)(tenantId);
-        const sales = await getTenantSales(tenantId);
+        const sales = await (0, crm_1.getTenantSales)(tenantId);
         const completedSales = sales.filter(s => s.status === 'completed');
         const openai = new openai_1.default({ apiKey });
         const prompt = `Analiza tendencias del sector automotriz basado en estos datos:
@@ -147,7 +148,7 @@ Ventas totales: ${completedSales.length}
 Inventario: ${vehicles.length}
 
 Vehículos más vendidos:
-${completedSales.slice(0, 15).map(s => `${s.vehicle?.make} ${s.vehicle?.model} ${s.vehicle?.year}`).join('\n')}
+${completedSales.slice(0, 15).map((s) => `${s.vehicle?.make || 'N/A'} ${s.vehicle?.model || 'N/A'} ${s.vehicle?.year || 'N/A'}`).join('\n')}
 
 Identifica tendencias en:
 1. Marcas y modelos populares

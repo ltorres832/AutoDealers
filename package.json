@@ -13,7 +13,7 @@
     "build:firebase": "npm run build:all && echo '✅ Todos los builds completados. Ejecuta: firebase deploy --only hosting'",
     "build:all": "npm run build:public && npm run build:admin && npm run build:dealer && npm run build:seller && npm run build:advertiser",
     "build:public": "cd apps/public-web && npm run build",
-    "build:admin": "cd apps/admin && npm run build",
+    "build:admin": "turbo run build --filter=@autodealers/admin",
     "build:dealer": "cd apps/dealer && npm run build",
     "build:seller": "cd apps/seller && npm run build",
     "build:advertiser": "cd apps/advertiser && npm run build",

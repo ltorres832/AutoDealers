@@ -19,7 +19,7 @@ const db = (0, core_1.getFirestore)();
 async function autoEscalateCriticalLeads(tenantId, apiKey) {
     try {
         const leads = await (0, crm_1.getLeads)(tenantId);
-        const activeLeads = leads.filter(l => l.status === 'active' || l.status === 'new');
+        const activeLeads = leads.filter(l => l.status === 'new' || l.status === 'contacted' || l.status === 'qualified');
         const openai = new openai_1.default({ apiKey });
         const prompt = `Identifica leads críticos que necesitan escalación:
 
@@ -80,7 +80,7 @@ async function autoAssignLeadsToSellers(tenantId, leadId, apiKey) {
         if (sellers.length === 0) {
             return null;
         }
-        const sales = await getTenantSales(tenantId);
+        const sales = await (0, crm_1.getTenantSales)(tenantId);
         const sellerPerformance = sellers.map(seller => {
             const sellerSales = sales.filter(s => s.sellerId === seller.id && s.status === 'completed');
             return {

@@ -92,7 +92,7 @@ Ventas completadas: ${completedSales.length}
 Inventario disponible: ${vehicles.length}
 
 Ventas por marca/modelo:
-${completedSales.slice(0, 20).map(s => `${s.vehicle?.make} ${s.vehicle?.model}`).join('\n')}
+${completedSales.slice(0, 20).map((s) => `${s.vehicle?.make || 'N/A'} ${s.vehicle?.model || 'N/A'}`).join('\n')}
 
 Predice la demanda para los próximos 30 días por tipo de vehículo.
 Responde en formato JSON con array de predictions:`;

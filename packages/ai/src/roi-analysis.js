@@ -32,7 +32,7 @@ async function calculateCampaignROI(tenantId, campaignId, apiKey) {
         const totalSpent = campaign?.budgets?.reduce((sum, b) => sum + b.amount, 0) || 0;
         const leadsGenerated = campaign?.metrics?.leads || 0;
         const sales = await (0, crm_1.getTenantSales)(tenantId);
-        const campaignSales = sales.filter(s => s.source === campaign?.name ||
+        const campaignSales = sales.filter((s) => s.source === campaign?.name ||
             s.metadata?.campaignId === campaignId);
         const totalRevenue = campaignSales.reduce((sum, s) => sum + (s.salePrice || s.total || 0), 0);
         const roi = totalSpent > 0 ? ((totalRevenue - totalSpent) / totalSpent) * 100 : 0;
