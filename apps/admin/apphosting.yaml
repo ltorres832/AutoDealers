@@ -4,7 +4,3 @@ runConfig:
   maxInstances: 10
   minInstances: 0
   concurrency: 80
-
-env:
-  - variable: NODE_ENV
-    value: production
