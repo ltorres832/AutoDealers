@@ -2,11 +2,21 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "jsx": "react",
-    "skipLibCheck": true
+    "rootDir": "./src",
+    "jsx": "react"
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "../../apps/**/*"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "../ai/src",
+    "../billing/src",
+    "../core/src",
+    "../crm/src",
+    "../inventory/src",
+    "../messaging/src",
+    "../reports/src"
+  ]
 }
-
-

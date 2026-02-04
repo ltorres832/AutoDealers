@@ -2,13 +2,20 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "skipLibCheck": true,
-    "skipDefaultLibCheck": true,
-    "declaration": true,
-    "declarationMap": true,
-    "strict": false,
-    "noImplicitAny": false
+    "rootDir": "./src"
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "../ai/src",
+    "../billing/src",
+    "../core/src",
+    "../crm/src",
+    "../inventory/src",
+    "../messaging/src",
+    "../shared/src"
+  ]
 }
