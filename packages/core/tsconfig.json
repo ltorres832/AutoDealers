@@ -36,7 +36,7 @@
       "@autodealers/shared/*": ["./packages/shared/src/*"]
     }
   },
-  "include": ["src/**/*", "../ai/src/**/*", "../billing/src/**/*", "../crm/src/**/*", "../inventory/src/**/*", "../messaging/src/**/*"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
 }
 
