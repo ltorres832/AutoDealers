@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
 
     // Inicializar core modules
     await initializeCore();
-    
+
     // Obtener el usuario de Firebase
     let auth;
     let db;
@@ -116,26 +116,26 @@ export async function POST(request: NextRequest) {
     } catch (firebaseError: any) {
       console.error('❌ Error inicializando Firebase Admin:', firebaseError.message);
       return NextResponse.json(
-        { 
+        {
           error: 'Error de configuración del servidor',
           details: 'Firebase Admin no está configurado correctamente. Ejecuta: node apps/admin/create-admin-user.js'
         },
         { status: 500 }
       );
     }
-    
+
     let user;
     try {
       user = await auth.getUserByEmail(email);
       console.log(`✅ Usuario encontrado: ${user.uid}`);
-      
+
       // Verificar si el usuario está deshabilitado
       if (user.disabled) {
         console.log('⚠️ Usuario está deshabilitado, habilitándolo...');
         await auth.updateUser(user.uid, { disabled: false });
         console.log('✅ Usuario habilitado');
       }
-      
+
       // Verificar si existe en admin_users, si no, crearlo
       const adminDoc = await db.collection('admin_users').doc(user.uid).get();
       if (!adminDoc.exists) {
@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
       console.error('❌ Error buscando usuario:', error.message);
       console.error('❌ Error code:', error.code);
       console.error('❌ Error stack:', error.stack);
-      
+
       // Si el error es que el usuario no existe, crear el usuario automáticamente
       if (error.code === 'auth/user-not-found') {
         console.log('📝 Usuario no existe, creándolo automáticamente...');
@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
             password,
             displayName: 'Administrador',
           });
-          
+
           // Crear documento en admin_users (colección específica para admins)
           await db.collection('admin_users').doc(user.uid).set({
             email,
@@ -178,7 +178,7 @@ export async function POST(request: NextRequest) {
             createdBy: 'system',
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           });
-          
+
           // También crear en users para compatibilidad (opcional)
           await db.collection('users').doc(user.uid).set({
             email,
@@ -191,28 +191,28 @@ export async function POST(request: NextRequest) {
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           });
-          
+
           // Establecer custom claims
           await auth.setCustomUserClaims(user.uid, {
             role: 'admin',
           });
-          
+
           console.log(`✅ Usuario creado automáticamente: ${user.uid}`);
         } catch (createError: any) {
           console.error('❌ Error creando usuario:', createError.message);
           return NextResponse.json(
-            { 
+            {
               error: 'Error al crear usuario',
-              details: createError.message 
+              details: createError.message
             },
             { status: 500 }
           );
         }
       } else {
         return NextResponse.json(
-          { 
+          {
             error: 'Error al buscar usuario',
-            details: error.message 
+            details: error.message
           },
           { status: 500 }
         );
@@ -221,7 +221,7 @@ export async function POST(request: NextRequest) {
 
     // Generar un sessionId único y seguro
     const sessionId = randomBytes(32).toString('hex');
-    
+
     console.log('💾 Creando sesión en Firestore...');
 
     // Crear sesión en Firestore
@@ -240,22 +240,22 @@ export async function POST(request: NextRequest) {
 
     // Actualizar lastLogin y lastAccess en el documento del usuario
     const now = admin.firestore.Timestamp.now();
-    await db.collection('users').doc(user.uid).update({
+    await db.collection('users').doc(user.uid).set({
       lastLogin: now,
       lastAccess: now,
-    });
+    }, { merge: true });
 
     // Si el usuario tiene tenantId, también actualizar en la colección de tenants/users
     const adminDoc = await db.collection('admin_users').doc(user.uid).get();
     const adminData = adminDoc.exists ? adminDoc.data() : null;
-    
+
     if (adminData?.tenantId) {
       const tenantUserRef = db
         .collection('tenants')
         .doc(adminData.tenantId)
         .collection('users')
         .doc(user.uid);
-      
+
       const tenantUserDoc = await tenantUserRef.get();
       if (tenantUserDoc.exists) {
         await tenantUserRef.update({

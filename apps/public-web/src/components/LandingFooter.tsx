@@ -57,7 +57,7 @@ export default function LandingFooter() {
                                 { name: 'Concesionarios', href: '/dealers' },
                                 { name: 'Vende tu Auto', href: '/vender' },
                                 { name: 'Financiamiento', href: '/finance' },
-                                { name: 'Publicidad', href: '/advertiser' }
+                                { name: 'Publicidad', href: '/advertise' }
                             ].map((link) => (
                                 <li key={link.name}>
                                     <Link

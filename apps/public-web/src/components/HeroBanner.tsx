@@ -76,7 +76,7 @@ export default function HeroBanner() {
               Publica tu anuncio en la posición más visible de nuestra plataforma y aumenta tu visibilidad exponencialmente
             </p>
             <a
-              href="/advertiser"
+              href="/advertise"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-3 bg-gradient-to-r from-white to-blue-50 text-blue-700 px-8 py-4 rounded-xl font-bold text-lg hover:from-blue-50 hover:to-white transition-all shadow-2xl hover:shadow-white/50 hover:scale-105 transform"

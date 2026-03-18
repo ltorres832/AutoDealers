@@ -36,7 +36,7 @@ const PremiumPlaceholder = ({ variant }: { variant: 'blue' | 'green' }) => {
         </p>
 
         <a
-          href="/advertiser"
+          href="/advertise"
           target="_blank"
           rel="noopener noreferrer"
           className="mt-auto block w-full bg-white/95 text-slate-900 px-5 py-3.5 rounded-xl font-bold tracking-wide hover:bg-white transition-all shadow-lg group-hover:shadow-[0_0_20px_rgba(255,255,255,0.3)] backdrop-blur-sm"

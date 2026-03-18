@@ -16,22 +16,22 @@ export function middleware(request: NextRequest) {
 
   const hostname = request.headers.get('host') || '';
   const parts = hostname.split('.');
-  
+
   // Dominios base de Firebase (NO tienen subdominio)
   const firebaseBaseDomains = [
     'autodealers-7f62e.web.app',
     'autodealers-7f62e.firebaseapp.com',
     'localhost',
   ];
-  
+
   // Si es el dominio base de Firebase, NO buscar subdominio
   if (firebaseBaseDomains.includes(hostname) || firebaseBaseDomains.some(base => hostname.startsWith(base + ':'))) {
     return NextResponse.next();
   }
-  
+
   // Detectar subdominio
   let subdomain: string | null = null;
-  
+
   // En localhost: subdomain.localhost:3000
   if (hostname.includes('localhost')) {
     const localhostParts = hostname.split(':');
@@ -44,7 +44,12 @@ export function middleware(request: NextRequest) {
     if (parts.length >= 3) {
       const firstPart = parts[0];
       const lastParts = parts.slice(-2).join('.');
-      
+
+      // IGNORAR subdominios de Firebase App Hosting (suelen contener '---')
+      if (firstPart.includes('---')) {
+        return NextResponse.next();
+      }
+
       // Si termina con .web.app o .firebaseapp.com, la primera parte podría ser un subdominio
       // PERO si es autodealers-7f62e.web.app, NO es un subdominio
       if (lastParts === 'web.app' || lastParts === 'firebaseapp.com') {
@@ -65,7 +70,7 @@ export function middleware(request: NextRequest) {
   // Si hay subdominio y no es 'www' ni 'admin' ni 'app' ni 'seller' ni 'advertiser', redirigir a la página del tenant
   if (subdomain && subdomain !== 'www' && subdomain !== 'admin' && subdomain !== 'app' && subdomain !== 'seller' && subdomain !== 'advertiser') {
     const url = request.nextUrl.clone();
-    
+
     // Si ya está en la ruta del subdominio, no hacer nada
     if (!url.pathname.startsWith(`/${subdomain}`)) {
       url.pathname = `/${subdomain}${url.pathname === '/' ? '' : url.pathname}`;

@@ -47,14 +47,48 @@ function RegisterPageContent() {
       return;
     }
 
+    if (!formData.name) {
+      setError('El nombre es obligatorio');
+      return;
+    }
+
+    if (!formData.email) {
+      setError('El correo electrónico es obligatorio');
+      return;
+    }
+
+    if (!formData.phone) {
+      setError('El teléfono es obligatorio');
+      return;
+    }
+
+    if (!formData.subdomain) {
+      setError('El subdominio es obligatorio para tu página web');
+      return;
+    }
+
     if (formData.password.length < 6) {
       setError('La contraseña debe tener al menos 6 caracteres');
       return;
     }
 
-    if (accountType === 'dealer' && !formData.companyName) {
-      setError('Debes ingresar el nombre de la compañía');
-      return;
+    if (accountType === 'dealer') {
+      if (!formData.companyName) {
+        setError('Debes ingresar el nombre de la compañía');
+        return;
+      }
+      if (!formData.taxId) {
+        setError('El RNC/Tax ID es obligatorio para concesionarios');
+        return;
+      }
+      if (!formData.address) {
+        setError('La dirección fiscal es obligatoria');
+        return;
+      }
+      if (!formData.city) {
+        setError('La ciudad es obligatoria');
+        return;
+      }
     }
 
     setLoading(true);
@@ -371,6 +405,7 @@ function RegisterPageContent() {
                   className="w-full bg-slate-50/50 border-2 border-transparent focus:border-blue-600/20 rounded-[1.5rem] px-8 py-5 pr-40 focus:ring-4 focus:ring-blue-600/5 focus:bg-white text-slate-900 font-bold transition-all outline-none"
                   placeholder="tu-marca"
                   pattern="[a-z0-9-]+"
+                  required
                 />
                 <span className="absolute right-8 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-300 uppercase tracking-widest pointer-events-none">.autodealers.com</span>
               </div>

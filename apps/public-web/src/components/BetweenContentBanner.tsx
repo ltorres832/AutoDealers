@@ -86,7 +86,7 @@ export default function BetweenContentBanner() {
 
           <div className="flex-shrink-0">
             <a
-              href="/advertiser"
+              href="/advertise"
               target="_blank"
               rel="noopener noreferrer"
               className="group inline-flex items-center gap-3 bg-white text-indigo-900 px-8 py-4 rounded-xl font-bold hover:bg-slate-50 transition-all shadow-xl hover:shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:-translate-y-1 text-lg whitespace-nowrap"

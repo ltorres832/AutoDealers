@@ -193,7 +193,7 @@ export default function SponsoredContent() {
                     <svg className="w-5 h-5 transform group-hover/btn:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
                   </a>
                   <a
-                    href="/advertiser"
+                    href="/advertise"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block w-full text-center py-2 text-slate-400 hover:text-slate-600 font-medium text-xs transition-colors uppercase tracking-wider"

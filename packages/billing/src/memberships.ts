@@ -41,7 +41,7 @@ export async function getMemberships(
   type?: MembershipType
 ): Promise<Membership[]> {
   console.log(`🔍 getMemberships: Obteniendo membresías${type ? ` (tipo: ${type})` : ' (todas)'}`);
-  
+
   try {
     // Primero intentar sin orderBy para evitar problemas de índice
     let query: admin.firestore.Query = getDb().collection('memberships');
@@ -52,7 +52,7 @@ export async function getMemberships(
 
     console.log(`📡 Ejecutando query de Firestore...`);
     const snapshot = await query.get();
-    
+
     console.log(`📊 getMemberships: Encontradas ${snapshot.size} membresías en Firestore`);
 
     if (snapshot.empty) {
@@ -79,25 +79,25 @@ export async function getMemberships(
         ...data,
         createdAt: data?.createdAt?.toDate() || new Date(),
       } as Membership;
-      
+
       console.log(`  ✓ ${membership.name} (${membership.type}) - $${membership.price} - Activa: ${membership.isActive}`);
       return membership;
     });
 
     // Ordenar manualmente por precio (más confiable que orderBy en query)
     memberships.sort((a, b) => (a.price || 0) - (b.price || 0));
-    
+
     console.log(`✅ getMemberships: Retornando ${memberships.length} membresías ordenadas`);
     return memberships;
   } catch (error: any) {
     console.error(`❌ Error in getMemberships:`, error);
     console.error(`Stack:`, error.stack);
-    
+
     // Último recurso: obtener todas sin filtros
     try {
       console.log(`🔄 Intentando obtener todas las membresías sin filtros...`);
       const allSnapshot = await getDb().collection('memberships').get();
-      
+
       if (allSnapshot.empty) {
         console.warn(`⚠️ No hay membresías en Firestore`);
         return [];
@@ -113,13 +113,13 @@ export async function getMemberships(
       });
 
       // Filtrar por tipo si se especificó
-      const filtered = type 
-        ? allMemberships.filter(m => m.type === type)
+      const filtered = type
+        ? allMemberships.filter(m => m.type?.toLowerCase() === type.toLowerCase())
         : allMemberships;
 
       // Ordenar por precio
       filtered.sort((a, b) => (a.price || 0) - (b.price || 0));
-      
+
       console.log(`✅ getMemberships (fallback): Retornando ${filtered.length} membresías`);
       return filtered;
     } catch (finalError) {
@@ -136,7 +136,7 @@ export async function getActiveMemberships(
   type?: MembershipType
 ): Promise<Membership[]> {
   console.log(`🔍 getActiveMemberships: Obteniendo membresías activas${type ? ` (tipo: ${type})` : ' (todas)'}`);
-  
+
   try {
     // Primero intentar sin orderBy para evitar problemas de índice
     let query: admin.firestore.Query = getDb()
@@ -149,7 +149,7 @@ export async function getActiveMemberships(
 
     console.log(`📡 Ejecutando query de Firestore para membresías activas...`);
     const snapshot = await query.get();
-    
+
     console.log(`📊 getActiveMemberships: Encontradas ${snapshot.size} membresías activas en Firestore`);
 
     if (snapshot.empty) {
@@ -180,25 +180,25 @@ export async function getActiveMemberships(
         ...data,
         createdAt: data?.createdAt?.toDate() || new Date(),
       } as Membership;
-      
+
       console.log(`  ✓ ${membership.name} (${membership.type}) - $${membership.price}`);
       return membership;
     });
 
     // Ordenar manualmente por precio (más confiable que orderBy en query)
     memberships.sort((a, b) => (a.price || 0) - (b.price || 0));
-    
+
     console.log(`✅ getActiveMemberships: Retornando ${memberships.length} membresías activas ordenadas`);
     return memberships;
   } catch (error: any) {
     console.error(`❌ Error in getActiveMemberships:`, error);
     console.error(`Stack:`, error.stack);
-    
+
     // Fallback: obtener todas y filtrar manualmente
     try {
       console.log(`🔄 Intentando fallback: obtener todas las membresías y filtrar manualmente...`);
       const allSnapshot = await getDb().collection('memberships').get();
-      
+
       if (allSnapshot.empty) {
         console.warn(`⚠️ No hay membresías en Firestore`);
         return [];
@@ -216,12 +216,12 @@ export async function getActiveMemberships(
       // Filtrar por activas y tipo
       let filtered = allMemberships.filter(m => m.isActive === true);
       if (type) {
-        filtered = filtered.filter(m => m.type === type);
+        filtered = filtered.filter(m => m.type?.toLowerCase() === type.toLowerCase());
       }
 
       // Ordenar por precio
       filtered.sort((a, b) => (a.price || 0) - (b.price || 0));
-      
+
       console.log(`✅ getActiveMemberships (fallback): Retornando ${filtered.length} membresías activas`);
       return filtered;
     } catch (finalError: any) {
@@ -242,10 +242,10 @@ export async function getMembershipById(
     console.error('❌ getMembershipById: membershipId vacío o inválido');
     return null;
   }
-  
+
   try {
     console.log(`🔍 getMembershipById: Buscando membresía con ID: ${membershipId}`);
-    
+
     const membershipDoc = await getDb()
       .collection('memberships')
       .doc(membershipId)
@@ -271,13 +271,13 @@ export async function getMembershipById(
       console.warn(`⚠️ getMembershipById: Membership ${membershipId} exists but has no data`);
       return null;
     }
-    
+
     const membership = {
       id: membershipDoc.id,
       ...data,
       createdAt: data?.createdAt?.toDate() || new Date(),
     } as Membership;
-    
+
     console.log(`✅ getMembershipById: Encontrada membresía ${membership.name} (${membership.type}) - Activa: ${membership.isActive}`);
     return membership;
   } catch (error: any) {
@@ -287,47 +287,47 @@ export async function getMembershipById(
   }
 }
 
-  /**
-   * Actualiza una membresía
-   * Limpia todos los valores undefined antes de actualizar
-   */
-  export async function updateMembership(
-    membershipId: string,
-    updates: Partial<Membership>
-  ): Promise<void> {
-    // Función recursiva para limpiar undefined
-    function removeUndefined(obj: any): any {
-      if (obj === undefined || obj === null) {
-        return null; // Firestore acepta null, no undefined
-      }
-      if (Array.isArray(obj)) {
-        return obj.map(removeUndefined);
-      }
-      if (typeof obj === 'object' && obj !== null) {
-        const cleaned: any = {};
-        for (const key in obj) {
-          if (obj[key] !== undefined) {
-            cleaned[key] = removeUndefined(obj[key]);
-          }
-        }
-        return cleaned;
-      }
-      return obj;
+/**
+ * Actualiza una membresía
+ * Limpia todos los valores undefined antes de actualizar
+ */
+export async function updateMembership(
+  membershipId: string,
+  updates: Partial<Membership>
+): Promise<void> {
+  // Función recursiva para limpiar undefined
+  function removeUndefined(obj: any): any {
+    if (obj === undefined || obj === null) {
+      return null; // Firestore acepta null, no undefined
     }
-
-    const cleanedUpdates = removeUndefined(updates);
-    
-    // Asegurar que updatedAt y syncVersion estén presentes
-    const finalUpdates = {
-      ...cleanedUpdates,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      syncVersion: admin.firestore.FieldValue.increment(1),
-    };
-
-    console.log('💾 updateMembership - Final updates (no undefined):', JSON.stringify(finalUpdates, null, 2));
-    
-    await getDb().collection('memberships').doc(membershipId).update(finalUpdates as any);
+    if (Array.isArray(obj)) {
+      return obj.map(removeUndefined);
+    }
+    if (typeof obj === 'object' && obj !== null) {
+      const cleaned: any = {};
+      for (const key in obj) {
+        if (obj[key] !== undefined) {
+          cleaned[key] = removeUndefined(obj[key]);
+        }
+      }
+      return cleaned;
+    }
+    return obj;
   }
+
+  const cleanedUpdates = removeUndefined(updates);
+
+  // Asegurar que updatedAt y syncVersion estén presentes
+  const finalUpdates = {
+    ...cleanedUpdates,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    syncVersion: admin.firestore.FieldValue.increment(1),
+  };
+
+  console.log('💾 updateMembership - Final updates (no undefined):', JSON.stringify(finalUpdates, null, 2));
+
+  await getDb().collection('memberships').doc(membershipId).update(finalUpdates as any);
+}
 
 /**
  * Verifica si una membresía tiene una feature específica

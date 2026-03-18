@@ -165,26 +165,22 @@ export function initializeFirebase(): AdminType['app']['App'] {
         privateKey = privateKey.replace(/\\n/g, '\n');
       }
 
-      // Validar que las credenciales estén disponibles
-      if (!projectId || !clientEmail || !privateKey) {
+      // Validar que al menos tengamos el Project ID o estemos en un entorno con ADC
+      if (!projectId && !process.env.GOOGLE_APPLICATION_CREDENTIALS && !process.env.K_SERVICE) {
         const error = new Error(
           '🔥 Firebase Admin: Credenciales no configuradas.\n\n' +
-          'El archivo .env.local existe pero las variables no están cargadas.\n' +
+          'No se encontró FIREBASE_PROJECT_ID ni credenciales por defecto (ADC).\n' +
           'SOLUCIÓN:\n' +
-          '1. Detén el servidor (Ctrl+C)\n' +
-          '2. Reinicia el servidor: npm run dev\n' +
-          '3. Si el error persiste, verifica que .env.local esté en: apps/admin/.env.local\n\n' +
-          'Para configurar desde cero:\n' +
-          '  node apps/admin/configure-firebase.js'
+          '1. Configura FIREBASE_PROJECT_ID en las variables de entorno.\n' +
+          '2. O proporciona un archivo de service account.'
         );
         initializationError = error;
 
-        console.error('❌ Firebase Admin - Variables de entorno no encontradas:', {
+        console.error('❌ Firebase Admin - Credenciales no encontradas:', {
           hasProjectId: !!projectId,
-          hasClientEmail: !!clientEmail,
-          hasPrivateKey: !!privateKey,
+          hasADC: !!process.env.GOOGLE_APPLICATION_CREDENTIALS,
+          isCloudRun: !!process.env.K_SERVICE,
           cwd: process.cwd(),
-          nodeEnv: process.env.NODE_ENV,
         });
 
         // En modo build, no lanzar error
@@ -192,7 +188,7 @@ export function initializeFirebase(): AdminType['app']['App'] {
           console.warn('⚠️  Firebase not initialized during build (expected if credentials are not available)');
           try {
             firebaseApp = admin.initializeApp({
-              projectId: 'mock-project',
+              projectId: projectId || 'autodealers-7f62e',
             }, '[DEFAULT]');
           } catch {
             firebaseApp = admin.apps.length > 0 ? admin.app() : null;
