@@ -1,6 +1,6 @@
 // Gestión de plantillas de contratos
 
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
 
 const db = getFirestore();

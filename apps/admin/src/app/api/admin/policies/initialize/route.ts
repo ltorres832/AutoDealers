@@ -215,7 +215,7 @@ Puede gestionar sus preferencias de cookies en la configuración de su navegador
     ];
 
     console.log('📝 Creando políticas por defecto...');
-    const createdPolicies = [];
+    const createdPolicies: any[] = [];
     for (const policyData of defaultPolicies) {
       try {
         console.log(`  - Creando política: ${policyData.type}`);

@@ -1,7 +1,7 @@
 // Gestión de ventas
 
 import { Sale } from './types';
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
 import { updateVehicleStatus } from '@autodealers/inventory';
 import { createPostSaleReminders } from './post-sale';

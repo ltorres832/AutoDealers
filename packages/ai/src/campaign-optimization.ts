@@ -1,6 +1,6 @@
 // Optimización de campañas con IA
 
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
 import { getCampaigns } from '@autodealers/core';
 import { getTenantSales } from '@autodealers/crm';
 import OpenAI from 'openai';

@@ -385,8 +385,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Crear todos los templates directamente en Firestore para evitar problemas
-    const createdTemplates = [];
-    const errors = [];
+    const createdTemplates: { id: string; name: string }[] = [];
+    const errors: { template: string; error: string }[] = [];
 
     for (const templateData of defaultTemplates) {
       try {
@@ -440,9 +440,9 @@ export async function POST(request: NextRequest) {
 
     if (createdTemplates.length === 0 && errors.length > 0) {
       return NextResponse.json(
-        { 
+        {
           error: 'Error al crear templates',
-          details: errors 
+          details: errors
         },
         { status: 500 }
       );
@@ -455,16 +455,16 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Error initializing templates:', error);
-    
+
     // Asegurar que siempre devolvemos JSON
     try {
       return NextResponse.json(
-        { 
-          error: 'Internal server error', 
+        {
+          error: 'Internal server error',
           details: error?.message || 'Unknown error',
           stack: process.env.NODE_ENV === 'development' ? error?.stack : undefined
         },
-        { 
+        {
           status: 500,
           headers: {
             'Content-Type': 'application/json',
@@ -475,7 +475,7 @@ export async function POST(request: NextRequest) {
       // Si ni siquiera podemos crear JSON, devolver error básico
       return new NextResponse(
         JSON.stringify({ error: 'Internal server error' }),
-        { 
+        {
           status: 500,
           headers: {
             'Content-Type': 'application/json',

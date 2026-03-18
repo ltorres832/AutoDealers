@@ -2,9 +2,13 @@
 // Gestión de leads, mensajes, citas, ventas
 
 export * from './leads';
+export { getLeads } from './leads';
 export * from './messages';
+export { createMessage, getLeadMessages, getMessagesByChannel } from './messages';
 export * from './appointments';
+export { updateAppointment, updateAppointmentStatus } from './appointments';
 export * from './sales';
+export { getTenantSales } from './sales';
 export * from './post-sale';
 export * from './internal-messages';
 export * from './public-chat';
@@ -42,15 +46,16 @@ export {
 } from './finance-insurance';
 export * from './types';
 export * from './corporate-email';
+export { getCorporateEmails, suspendCorporateEmail, activateCorporateEmail } from './corporate-email';
 export * from './email-aliases';
 export * from './tasks';
 export * from './scoring';
 export * from './workflows';
+export * from './tags';
 export * from './contracts';
 export * from './contract-templates';
 
-// Re-exportar funciones de búsqueda de leads
-export { findLeadByPhone, findLeadByPhoneInTenant } from './leads';
+// findLeadByPhone y findLeadByPhoneInTenant ya están exportadas con export * from './leads'
 
 // Re-exportar funciones de post-sale para fácil acceso
 export { getAllReminders, getPendingReminders, createPostSaleReminders, createReminder, markReminderAsSent } from './post-sale';

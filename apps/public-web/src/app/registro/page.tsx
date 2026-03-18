@@ -376,8 +376,8 @@ function RegistroPageContent() {
                   <div className="grid md:grid-cols-3 gap-6">
                     {memberships.map((membership, index) => {
                       const isPopular = index === Math.floor(memberships.length / 2);
-                      const features = [];
-                      const limits = [];
+                      const features: string[] = [];
+                      const limits: string[] = [];
                       
                       // Límites (esta es la diferencia principal entre planes)
                       if (membership.features.maxSellers !== undefined && membership.features.maxSellers !== null) {

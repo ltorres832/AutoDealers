@@ -4,12 +4,13 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc --build",
+    "build": "node build.js",
     "dev": "tsc --watch",
     "clean": "rm -rf dist"
   },
   "dependencies": {
     "@autodealers/core": "*",
+    "@autodealers/shared": "*",
     "firebase-admin": "^12.7.0",
     "next": "16.1.6"
   },

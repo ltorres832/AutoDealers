@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
     if (sellerIds.length > 0) {
       // Firestore limita 'in' a 10 elementos, así que hacemos múltiples consultas si es necesario
       const batchSize = 10;
-      const sellerBatches = [];
+      const sellerBatches: string[][] = [];
       for (let i = 0; i < sellerIds.length; i += batchSize) {
         sellerBatches.push(sellerIds.slice(i, i + batchSize));
       }
@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
 
     // Calcular ventas por día (solo para semana y mes)
     const byDayMap: Record<string, { sales: number; revenue: number }> = {};
-    
+
     if (period === 'week' || period === 'month') {
       sales.forEach((sale) => {
         const saleDate = sale.createdAt;

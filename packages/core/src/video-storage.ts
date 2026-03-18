@@ -2,16 +2,7 @@
 
 import * as admin from 'firebase-admin';
 
-function getStorage(): admin.storage.Storage {
-  if (!admin.apps.length) {
-    const serviceAccount = require(process.env.FIREBASE_SERVICE_ACCOUNT_PATH || './service-account.json');
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-      storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-    });
-  }
-  return admin.storage();
-}
+import { getStorage } from '@autodealers/shared';
 
 const storage = getStorage();
 

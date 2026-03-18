@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getFirestore, getAvailableCredits, useRewardCredit, getStripeService } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
+import { getAvailableCredits, useRewardCredit, getStripeService } from '@autodealers/core';
 import * as admin from 'firebase-admin';
 
 const db = getFirestore();

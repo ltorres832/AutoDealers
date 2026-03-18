@@ -21,6 +21,19 @@ module.exports = {
           900: '#1e3a8a',
         },
       },
+      keyframes: {
+        marquee: {
+          '0%': { transform: 'translateX(0%)' },
+          '100%': { transform: 'translateX(-50%)' },
+        },
+        shimmer: {
+          '100%': { transform: 'translateX(100%)' },
+        },
+      },
+      animation: {
+        marquee: 'marquee 40s linear infinite',
+        shimmer: 'shimmer 2s infinite',
+      },
     },
   },
   plugins: [],

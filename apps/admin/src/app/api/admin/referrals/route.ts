@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
 // import { hasAdminPermission } from '@autodealers/core';
 
 const db = getFirestore();

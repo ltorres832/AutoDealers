@@ -5,42 +5,38 @@
     "module": "commonjs",
     "moduleResolution": "node",
     "resolveJsonModule": true,
-    "allowJs": true,
+    "allowJs": false,
     "strict": false,
     "noImplicitAny": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "skipDefaultLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
     "composite": false,
     "incremental": false,
+    "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "@autodealers/core": ["./packages/core/dist", "./packages/core/src"],
-      "@autodealers/core/*": ["./packages/core/dist/*", "./packages/core/src/*"],
-      "@autodealers/crm": ["./packages/crm/dist", "./packages/crm/src"],
-      "@autodealers/crm/*": ["./packages/crm/dist/*", "./packages/crm/src/*"],
-      "@autodealers/messaging": ["./packages/messaging/dist", "./packages/messaging/src"],
-      "@autodealers/messaging/*": ["./packages/messaging/dist/*", "./packages/messaging/src/*"],
-      "@autodealers/inventory": ["./packages/inventory/dist", "./packages/inventory/src"],
-      "@autodealers/inventory/*": ["./packages/inventory/dist/*", "./packages/inventory/src/*"],
-      "@autodealers/ai": ["./packages/ai/dist", "./packages/ai/src"],
-      "@autodealers/ai/*": ["./packages/ai/dist/*", "./packages/ai/src/*"],
-      "@autodealers/billing": ["./packages/billing/dist", "./packages/billing/src"],
-      "@autodealers/billing/*": ["./packages/billing/dist/*", "./packages/billing/src/*"],
-      "@autodealers/shared": ["./packages/shared/dist", "./packages/shared/src"],
-      "@autodealers/shared/*": ["./packages/shared/dist/*", "./packages/shared/src/*"],
-      "@autodealers/reports": ["./packages/reports/dist", "./packages/reports/src"],
-      "@autodealers/reports/*": ["./packages/reports/dist/*", "./packages/reports/src/*"]
+      "@autodealers/core": ["./packages/core/dist"],
+      "@autodealers/core/*": ["./packages/core/dist/*"],
+      "@autodealers/crm": ["./packages/crm/dist"],
+      "@autodealers/crm/*": ["./packages/crm/dist/*"],
+      "@autodealers/messaging": ["./packages/messaging/dist"],
+      "@autodealers/messaging/*": ["./packages/messaging/dist/*"],
+      "@autodealers/inventory": ["./packages/inventory/dist"],
+      "@autodealers/inventory/*": ["./packages/inventory/dist/*"],
+      "@autodealers/ai": ["./packages/ai/dist"],
+      "@autodealers/ai/*": ["./packages/ai/dist/*"],
+      "@autodealers/billing": ["./packages/billing/dist"],
+      "@autodealers/billing/*": ["./packages/billing/dist/*"],
+      "@autodealers/shared": ["./packages/shared/dist"],
+      "@autodealers/shared/*": ["./packages/shared/dist/*"],
+      "@autodealers/reports": ["./packages/reports/dist"],
+      "@autodealers/reports/*": ["./packages/reports/dist/*"]
     }
   },
-  "exclude": ["node_modules", "dist", ".next", "out"]
+  "files": ["tsconfig.dummy.ts"]
 }
-
-
-
-
-

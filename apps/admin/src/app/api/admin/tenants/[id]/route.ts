@@ -5,7 +5,7 @@ import { getUsersByTenant } from '@autodealers/core';
 import { getVehicles } from '@autodealers/inventory';
 import { getLeads } from '@autodealers/crm';
 import { getTenantSales } from '@autodealers/crm';
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
 
 const db = getFirestore();
 

@@ -1,7 +1,7 @@
 // Gestión de usuarios
 
 import { User, UserRole, TenantType } from './types';
-import { getFirestore, getAuth } from './firebase';
+import { getFirestore, getAuth } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
 import { generateReferralCode } from './referrals';
 

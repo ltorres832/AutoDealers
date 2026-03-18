@@ -1,6 +1,6 @@
 // Sistema de notificaciones
 
-import { getFirestore } from './firebase';
+import { getFirestore } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
 import { EmailService } from '@autodealers/messaging';
 import { SMSService } from '@autodealers/messaging';

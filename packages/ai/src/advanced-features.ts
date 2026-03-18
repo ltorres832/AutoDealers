@@ -4,7 +4,7 @@ import { AIClassifier } from './classification';
 import { AIAssistant } from './assistant';
 import { AIContentGenerator } from './content';
 import { getAIConfig, getAIApiKey, isAIEnabled } from '@autodealers/core';
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
 
 const db = getFirestore();

@@ -2,20 +2,45 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./src"
+    "rootDir": "./src",
+    "composite": true,
+    "incremental": true,
+    "noImplicitAny": false,
+    "strict": false,
+    "skipLibCheck": true,
+    "noEmitOnError": false,
+    "declaration": true,
+    "noEmit": false,
+    "paths": {
+      "@autodealers/core": [
+        "../core/src"
+      ],
+      "@autodealers/core/*": [
+        "../core/src/*"
+      ],
+      "@autodealers/shared": [
+        "../shared/src"
+      ],
+      "@autodealers/shared/*": [
+        "../shared/src/*"
+      ],
+      "@autodealers/crm": [
+        "../crm/src"
+      ],
+      "@autodealers/crm/*": [
+        "../crm/src/*"
+      ]
+    }
   },
-  "include": ["src/**/*"],
+  "include": [
+    "src/**/*"
+  ],
   "exclude": [
     "node_modules",
     "dist",
     "**/*.test.ts",
     "**/*.spec.ts",
-    "../billing/src",
-    "../core/src",
-    "../crm/src",
-    "../inventory/src",
-    "../messaging/src",
-    "../shared/src",
-    "../reports/src"
-  ]
+    "../**"
+  ],
+  "files": []
 }

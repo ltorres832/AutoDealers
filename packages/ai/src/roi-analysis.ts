@@ -1,6 +1,6 @@
 // Análisis de ROI con IA
 
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
 import { getCampaigns } from '@autodealers/core';
 import { getPromotions } from '@autodealers/core';
 import { getTenantSales } from '@autodealers/crm';

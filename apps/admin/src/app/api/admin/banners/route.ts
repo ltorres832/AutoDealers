@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
     const bannersSnapshot = await query.orderBy('createdAt', 'desc').get();
 
-    const banners = [];
+    const banners: any[] = [];
     const tenantCache: Record<string, string> = {};
 
     for (const doc of bannersSnapshot.docs) {

@@ -2,8 +2,11 @@
 // Autenticación, autorización, multi-tenancy, usuarios
 
 // EXPORTS - FIREBASE PRIMERO (MUY IMPORTANTE)
-export { initializeFirebase, getFirestore, getAuth, getStorage } from './firebase';
+// Estas funciones antes se re-exportaban aquí. Ahora se deben importar de @autodealers/shared/firebase-server
+// o del archivo local lib/firebase-admin.ts
+
 export * from './firestore-utils';
+export * from './firebase';
 
 // Resto de exports
 export * from './auth';
@@ -70,6 +73,7 @@ export * from './email-aliases';
 export * from './multi-dealer-access';
 export * from './types';
 export * from './feature-flags';
+export type { FeatureConfig, DashboardType, DashboardFeatures } from './feature-flags';
 export * from './maintenance';
 export * from './announcements';
 export * from './document-branding';

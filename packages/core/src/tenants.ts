@@ -1,7 +1,7 @@
 // Gestión de tenants (dealers/vendedores)
 
 import { Tenant, TenantType } from './types';
-import { getFirestore } from './firebase';
+import { getFirestore } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
 
 // Lazy initialization - solo se inicializa cuando se necesita

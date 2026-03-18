@@ -1,4 +1,4 @@
-﻿export const dynamic = 'force-dynamic';
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getLeads, createLead } from '@autodealers/crm';
 import { verifyAuth } from '@/lib/auth';
@@ -49,6 +49,26 @@ export async function POST(request: NextRequest) {
     }
 
     const lead = await createLead(auth.tenantId, source, contact, notes);
+
+    // Crear notificación para el usuario que creó el lead o el asignado
+    try {
+      const { createNotification } = await import('@autodealers/core');
+      await createNotification({
+        tenantId: auth.tenantId,
+        userId: auth.userId || '',
+        type: 'lead_created',
+        title: 'Nuevo lead creado',
+        message: `Se ha creado un nuevo lead: ${contact.name}`,
+        channels: ['system'],
+        metadata: {
+          leadId: lead.id,
+          route: `/leads/${lead.id}`,
+        },
+      });
+    } catch (notifError) {
+      console.warn('No se pudo crear notificación:', notifError);
+      // No fallar si la notificación falla
+    }
 
     return NextResponse.json({ lead }, { status: 201 });
   } catch (error) {

@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRealtimeNotifications } from '@/hooks/useRealtimeNotifications';
+import { useRouter } from 'next/navigation';
+import { Timestamp } from 'firebase/firestore';
 
 interface Notification {
   id: string;
@@ -10,41 +13,25 @@ interface Notification {
   message: string;
   data?: Record<string, any>;
   read: boolean;
-  createdAt: Date;
+  createdAt: Date | Timestamp | string;
 }
 
 export function NotificationBell() {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const router = useRouter();
+  const { notifications, unreadCount, loading } = useRealtimeNotifications();
 
-  useEffect(() => {
-    // Cargar notificaciones vía API en lugar de Firestore directo
-    loadNotifications();
-    const interval = setInterval(loadNotifications, 30000); // Cada 30 segundos
-    return () => clearInterval(interval);
-  }, []);
-
-  async function loadNotifications() {
-    try {
-      const response = await fetch('/api/admin/notifications');
-      if (response.ok) {
-        const data = await response.json();
-        const notifs = data.notifications || [];
-        setNotifications(notifs);
-        setUnreadCount(notifs.filter((n: Notification) => !n.read).length);
-      }
-    } catch (error) {
-      console.error('Error loading notifications:', error);
-    }
-  }
-
-  async function markAsRead(notificationId: string) {
+  async function markAsRead(notificationId: string, notification?: Notification) {
     try {
       await fetch(`/api/admin/notifications/${notificationId}/read`, {
         method: 'POST',
       });
-      loadNotifications();
+      
+      // Navegar si la notificación tiene metadata con ruta
+      if (notification?.data?.route) {
+        router.push(notification.data.route);
+        setShowDropdown(false);
+      }
     } catch (error) {
       console.error('Error marking notification as read:', error);
     }
@@ -55,10 +42,13 @@ export function NotificationBell() {
       await fetch('/api/admin/notifications/mark-all-read', {
         method: 'POST',
       });
-      loadNotifications();
     } catch (error) {
       console.error('Error marking all as read:', error);
     }
+  }
+
+  function handleNotificationClick(notification: Notification) {
+    markAsRead(notification.id, notification);
   }
 
   function formatDate(date: Date) {
@@ -118,19 +108,23 @@ export function NotificationBell() {
               )}
             </div>
 
-            {notifications.length === 0 ? (
+            {loading ? (
+              <div className="p-8 text-center">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 mx-auto"></div>
+              </div>
+            ) : notifications.length === 0 ? (
               <div className="p-8 text-center text-gray-500">
                 No hay notificaciones
               </div>
             ) : (
-              <div className="divide-y">
-                {notifications.slice(0, 10).map((notif) => (
+              <div className="divide-y max-h-[500px] overflow-y-auto">
+                {notifications.slice(0, 20).map((notif) => (
                   <div
                     key={notif.id}
-                    className={`p-4 hover:bg-gray-50 cursor-pointer ${
-                      !notif.read ? 'bg-blue-50' : ''
+                    className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors ${
+                      !notif.read ? 'bg-blue-50 border-l-4 border-blue-500' : ''
                     }`}
-                    onClick={() => markAsRead(notif.id)}
+                    onClick={() => handleNotificationClick(notif)}
                   >
                     <div className="flex items-start gap-3">
                       <span className="text-2xl flex-shrink-0">
@@ -140,19 +134,34 @@ export function NotificationBell() {
                         <p className="font-medium text-sm text-gray-900">
                           {notif.title}
                         </p>
-                        <p className="text-sm text-gray-600 mt-1">
+                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">
                           {notif.message}
                         </p>
                         <p className="text-xs text-gray-500 mt-2">
-                          {formatDate(notif.createdAt)}
+                          {(() => {
+                            let date: Date;
+                            if (notif.createdAt instanceof Date) {
+                              date = notif.createdAt;
+                            } else if (notif.createdAt && typeof notif.createdAt === 'object' && 'toDate' in notif.createdAt) {
+                              date = (notif.createdAt as Timestamp).toDate();
+                            } else {
+                              date = new Date(notif.createdAt as string);
+                            }
+                            return formatDate(date);
+                          })()}
                         </p>
                       </div>
                       {!notif.read && (
-                        <div className="h-2 w-2 bg-blue-500 rounded-full flex-shrink-0"></div>
+                        <div className="h-2 w-2 bg-blue-500 rounded-full flex-shrink-0 mt-1 animate-pulse"></div>
                       )}
                     </div>
                   </div>
                 ))}
+                {notifications.length > 20 && (
+                  <div className="p-4 text-center text-sm text-gray-500">
+                    Mostrando las 20 más recientes
+                  </div>
+                )}
               </div>
             )}
           </div>

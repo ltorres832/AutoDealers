@@ -5,8 +5,17 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'AutoDealers - Tu Concesionario',
-  description: 'Encuentra el vehículo perfecto',
+  title: {
+    default: 'AutoDealers | La Mejor Plataforma de Venta de Vehículos',
+    template: '%s | AutoDealers'
+  },
+  description: 'Conectamos compradores con los mejores concesionarios certificados del país. Encuentra tu auto ideal en nuestro amplio inventario en tiempo real.',
+  keywords: ['autos', 'vehículos', 'venta', 'compra', 'concesionario', 'usados', 'nuevos'],
+  openGraph: {
+    title: 'AutoDealers | La Mejor Plataforma de Venta de Vehículos',
+    description: 'Conectamos compradores con los mejores concesionarios certificados del país.',
+    type: 'website',
+  },
 };
 
 export default function RootLayout({

@@ -1,6 +1,6 @@
 // Sistema de usuarios subordinados (personas asignadas por dealers/vendedores)
 
-import { getFirestore, getAuth } from './firebase';
+import { getFirestore, getAuth } from '@autodealers/shared';
 
 // Lazy initialization - solo se inicializa cuando se necesita
 function getDb() {

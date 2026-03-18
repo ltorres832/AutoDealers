@@ -1,6 +1,6 @@
 // Reporte de IA
 
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
 import { getMessagesByChannel } from '@autodealers/crm';
 import { getLeads } from '@autodealers/crm';
 import { AIReport, ReportFilters } from './types';

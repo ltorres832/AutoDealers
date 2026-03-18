@@ -1,7 +1,7 @@
 // Gestión de membresías
 
 import { Membership, MembershipType } from './types';
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
 
 // NO inicializar db aquí - se inicializa en cada función

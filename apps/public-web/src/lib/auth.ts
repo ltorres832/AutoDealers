@@ -1,7 +1,7 @@
 // Función de autenticación para public-web
 
 import { NextRequest } from 'next/server';
-import { getAuth } from '@autodealers/core';
+import { getAuth } from './firebase-admin';
 import { cookies } from 'next/headers';
 
 export interface AuthUser {
@@ -18,29 +18,29 @@ export interface AuthUser {
 export async function verifyAuth(request: NextRequest): Promise<AuthUser | null> {
   try {
     const cookieStore = await cookies();
-    const token = cookieStore.get('authToken')?.value || 
-                  request.headers.get('authorization')?.replace('Bearer ', '');
+    const token = cookieStore.get('authToken')?.value ||
+      request.headers.get('authorization')?.replace('Bearer ', '');
 
     if (!token) {
       return null;
     }
 
     const auth = getAuth();
-    
+
     try {
       const decodedToken = await auth.verifyIdToken(token);
-      
+
       // Obtener datos del usuario desde Firestore
-      const { getFirestore } = await import('@autodealers/core');
+      const { getFirestore } = await import('./firebase-admin');
       const db = getFirestore();
       const userDoc = await db.collection('users').doc(decodedToken.uid).get();
-      
+
       if (!userDoc.exists) {
         return null;
       }
 
       const userData = userDoc.data();
-      
+
       return {
         userId: decodedToken.uid,
         email: decodedToken.email || userData?.email || '',

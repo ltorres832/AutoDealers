@@ -1,7 +1,7 @@
 // Gestión de leads
 
 import { Lead, LeadStatus, LeadSource } from './types';
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
 
 // Lazy initialization - solo se inicializa cuando se necesita

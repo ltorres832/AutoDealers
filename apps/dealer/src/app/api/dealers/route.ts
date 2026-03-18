@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     // Si el usuario tiene dealers asociados, obtenerlos
     const associatedDealers = currentUserData?.associatedDealers || [];
 
-    const dealers = [];
+    const dealers: { id: string; name: string }[] = [];
 
     // Agregar el dealer actual
     const currentTenantDoc = await db.collection('tenants').doc(auth.tenantId).get();

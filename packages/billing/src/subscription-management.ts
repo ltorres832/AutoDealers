@@ -1,6 +1,6 @@
 // Gestión completa de suscripciones con estados, facturación automática y suspensión
 
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
 import { Subscription, SubscriptionStatus } from './types';
 import * as admin from 'firebase-admin';
 import { updateTenant } from '@autodealers/core';

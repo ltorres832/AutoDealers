@@ -62,23 +62,33 @@ export default function MessagesPage() {
   async function sendMessage() {
     if (!newMessage.trim() || !selectedLeadId) return;
 
+    const messageToSend = newMessage;
+    setNewMessage(''); // Optimistic update
+
     try {
       const response = await fetch('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           leadId: selectedLeadId,
-          channel: 'whatsapp', // Por defecto
-          content: newMessage,
+          channel: 'whatsapp', // Por defecto, se puede hacer seleccionable
+          content: messageToSend,
+          direction: 'outbound',
         }),
       });
 
-      if (response.ok) {
-        setNewMessage('');
-        // El listener en tiempo real actualizará automáticamente
+      if (!response.ok) {
+        // Revertir si falla
+        setNewMessage(messageToSend);
+        const errorData = await response.json().catch(() => ({ error: 'Error al enviar mensaje' }));
+        alert(errorData.error || 'Error al enviar mensaje');
       }
-    } catch (error) {
+      // El listener en tiempo real actualizará automáticamente
+    } catch (error: any) {
+      // Revertir si falla
+      setNewMessage(messageToSend);
       console.error('Error:', error);
+      alert('Error al enviar mensaje. Por favor, intenta de nuevo.');
     }
   }
 

@@ -1,0 +1,8 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "installCommand": "cd ../.. && rm -rf node_modules/.cache 2>/dev/null || true && npm cache clean --force 2>/dev/null || true && npm install --legacy-peer-deps --no-audit --prefer-offline || (sleep 2 && npm install --legacy-peer-deps --no-audit)"
+}
+
+

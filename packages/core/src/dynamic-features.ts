@@ -1,6 +1,6 @@
 // Sistema de Features Dinámicas - Permite crear features personalizadas
 
-import { getFirestore } from './firebase';
+import { getFirestore } from '@autodealers/shared';
 
 // Lazy initialization - solo se inicializa cuando se necesita
 function getDb() {

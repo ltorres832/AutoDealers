@@ -1,4 +1,4 @@
-﻿export const dynamic = 'force-dynamic';
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import {
   getAppointmentsBySeller,
@@ -65,6 +65,29 @@ export async function POST(request: NextRequest) {
       location,
       status: 'scheduled',
     });
+
+    // Crear notificación para el vendedor asignado
+    try {
+      const { createNotification } = await import('@autodealers/core');
+      const { getLeadById } = await import('@autodealers/crm');
+      const lead = await getLeadById(auth.tenantId, leadId);
+      
+      await createNotification({
+        tenantId: auth.tenantId,
+        userId: assignedTo,
+        type: 'appointment_created',
+        title: 'Nueva cita programada',
+        message: `Tienes una nueva ${type === 'consultation' ? 'consulta' : type === 'test_drive' ? 'prueba de manejo' : 'entrega'} con ${lead?.contact?.name || 'cliente'}`,
+        channels: ['system'],
+        metadata: {
+          appointmentId: appointment.id,
+          leadId,
+          route: `/appointments`,
+        },
+      });
+    } catch (notifError) {
+      console.warn('No se pudo crear notificación:', notifError);
+    }
 
     return NextResponse.json({ appointment }, { status: 201 });
   } catch (error) {

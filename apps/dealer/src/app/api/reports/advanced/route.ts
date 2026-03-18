@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { getLeads } from '@autodealers/crm';
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
 
 export async function GET(request: NextRequest) {
   try {
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
     ];
 
     // Pipeline data por fecha (últimos 7 días)
-    const pipelineData = [];
+    const pipelineData: { date: string; new: number; qualified: number; closed: number }[] = [];
     for (let i = 6; i >= 0; i--) {
       const date = new Date();
       date.setDate(date.getDate() - i);
@@ -143,8 +143,8 @@ export async function GET(request: NextRequest) {
     const avgTimeInPipeline =
       timesInPipeline.length > 0
         ? Math.round(
-            timesInPipeline.reduce((a, b) => a + b, 0) / timesInPipeline.length
-          )
+          timesInPipeline.reduce((a, b) => a + b, 0) / timesInPipeline.length
+        )
         : 0;
 
     // Canal con mejor ROI (simplificado - basado en conversión)

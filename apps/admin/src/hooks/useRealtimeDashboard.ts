@@ -29,6 +29,9 @@ export function useRealtimeDashboard(tenantId?: string) {
   const [loading, setLoading] = useState(true);
   const [recentLeads, setRecentLeads] = useState<any[]>([]);
   const [recentSales, setRecentSales] = useState<any[]>([]);
+  const [leadsTrend, setLeadsTrend] = useState<Array<{ date: string; count: number }>>([]);
+  const [salesTrend, setSalesTrend] = useState<Array<{ date: string; amount: number }>>([]);
+  const [leadsBySource, setLeadsBySource] = useState<Array<{ name: string; value: number }>>([]);
 
   useEffect(() => {
     if (!tenantId) {
@@ -66,7 +69,41 @@ export function useRealtimeDashboard(tenantId?: string) {
             createdAt: lead.createdAt.toISOString(),
           }));
 
+        // Calcular tendencia de leads (últimos 7 días)
+        const now = new Date();
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const recentLeadsData = leads.filter((l: any) => l.createdAt >= sevenDaysAgo);
+        
+        const leadsByDay: Record<string, number> = {};
+        recentLeadsData.forEach((lead: any) => {
+          const date = lead.createdAt.toISOString().split('T')[0];
+          leadsByDay[date] = (leadsByDay[date] || 0) + 1;
+        });
+
+        const trendData = Array.from({ length: 7 }, (_, i) => {
+          const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+          const dateStr = date.toISOString().split('T')[0];
+          return {
+            date: date.toLocaleDateString('es-ES', { weekday: 'short' }),
+            count: leadsByDay[dateStr] || 0,
+          };
+        }).reverse();
+
+        // Calcular leads por fuente
+        const sourceCounts: Record<string, number> = {};
+        leads.forEach((lead: any) => {
+          const source = lead.source || 'unknown';
+          sourceCounts[source] = (sourceCounts[source] || 0) + 1;
+        });
+
+        const sourceData = Object.entries(sourceCounts).map(([name, value]) => ({
+          name: name.charAt(0).toUpperCase() + name.slice(1),
+          value,
+        }));
+
         setRecentLeads(recent);
+        setLeadsTrend(trendData);
+        setLeadsBySource(sourceData);
         setStats(prev => ({
           ...prev,
           totalLeads: leads.length,
@@ -179,7 +216,7 @@ export function useRealtimeDashboard(tenantId?: string) {
     };
   }, [tenantId]);
 
-  return { stats, recentLeads, recentSales, loading };
+  return { stats, recentLeads, recentSales, leadsTrend, salesTrend, leadsBySource, loading };
 }
 
 

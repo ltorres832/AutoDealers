@@ -1,7 +1,7 @@
 // Sistema de Pre-Cualificación para Financiamiento
 
 import { PreQualification, PreQualificationStatus, EmploymentType, CreditHistory } from './types';
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
 import { createLead, assignLead } from './leads';
 import { getVehicles } from '@autodealers/inventory';

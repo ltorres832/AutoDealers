@@ -22,13 +22,13 @@ export function getFirestore(): admin.firestore.Firestore {
       const projectId = process.env.FIREBASE_PROJECT_ID;
       const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
       const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-      
+
       if (!projectId || !clientEmail || !privateKey) {
-        const missing = [];
+        const missing: string[] = [];
         if (!projectId) missing.push('FIREBASE_PROJECT_ID');
         if (!clientEmail) missing.push('FIREBASE_CLIENT_EMAIL');
         if (!privateKey) missing.push('FIREBASE_PRIVATE_KEY');
-        
+
         const error = new Error(
           `Firebase credentials missing: ${missing.join(', ')}. ` +
           `Please create .env.local file in apps/public-web/ with these variables. ` +
@@ -37,7 +37,7 @@ export function getFirestore(): admin.firestore.Firestore {
         initializationError = error;
         throw error;
       }
-      
+
       admin.initializeApp({
         credential: admin.credential.cert({
           projectId,
@@ -45,7 +45,7 @@ export function getFirestore(): admin.firestore.Firestore {
           privateKey,
         }),
       });
-      
+
       console.log('✅ Firebase Admin initialized successfully');
       firestoreInstance = admin.firestore();
       return firestoreInstance;
@@ -59,9 +59,19 @@ export function getFirestore(): admin.firestore.Firestore {
       throw error;
     }
   }
-  
+
   firestoreInstance = admin.firestore();
   return firestoreInstance;
+}
+
+/**
+ * Inicializa Firebase Admin y retorna Auth
+ */
+export function getAuth(): admin.auth.Auth {
+  if (!admin.apps.length) {
+    getFirestore(); // Inicializa si no está hecho
+  }
+  return admin.auth();
 }
 
 /**
@@ -75,18 +85,18 @@ export async function getTenantBySubdomain(subdomain: string) {
       .where('subdomain', '==', subdomain)
       .limit(1)
       .get();
-    
+
     if (snapshot.empty) {
       return null;
     }
-    
+
     const doc = snapshot.docs[0];
     const data = doc.data();
-    
+
     if (data.status !== 'active') {
       return null;
     }
-    
+
     return {
       id: doc.id,
       ...data,

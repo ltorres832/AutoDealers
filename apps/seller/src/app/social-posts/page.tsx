@@ -769,8 +769,8 @@ export default function SocialPostsPage() {
                   onChange={(e) => {
                     setSelectedVehicle(e.target.value);
                     const vehicle = vehicles.find(v => v.id === e.target.value);
-                    if (vehicle && vehicle.images?.[0]) {
-                      setPostContent(prev => ({ ...prev, imageUrl: vehicle.images![0] }));
+                    if (vehicle && vehicle.images && vehicle.images.length > 0) {
+                      setPostContent(prev => ({ ...prev, imageUrl: vehicle.images[0] }));
                     }
                   }}
                   className="w-full border rounded px-3 py-2"

@@ -10,6 +10,7 @@ import { MaintenanceBanner } from '@/components/MaintenanceBanner';
 import { AnnouncementsBanner } from '@/components/AnnouncementsBanner';
 import { PolicyAcceptanceModal } from '@/components/PolicyAcceptanceModal';
 import { useAuth } from '@/hooks/useAuth';
+import { useUpdateLastAccess } from '@/hooks/useUpdateLastAccess';
 
 export default function AdminLayout({
   children,
@@ -18,6 +19,9 @@ export default function AdminLayout({
 }) {
   const pathname = usePathname();
   const { auth } = useAuth();
+  
+  // Actualizar último acceso automáticamente cuando se accede a cualquier página del admin
+  useUpdateLastAccess();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [maintenanceActive, setMaintenanceActive] = useState(false);
   const [showPolicyModal, setShowPolicyModal] = useState(false);
@@ -130,8 +134,11 @@ export default function AdminLayout({
       { href: '/admin/public-chat', label: 'Chat Público', icon: '💬' },
       { href: '/admin/all-leads', label: 'Todos los Leads', icon: '📞' },
       { href: '/admin/all-leads/kanban', label: 'Pipeline Kanban', icon: '📋' },
+      { href: '/admin/scoring', label: 'Scoring Avanzado', icon: '⭐' },
+      { href: '/admin/tags-segments', label: 'Etiquetas y Segmentos', icon: '🏷️' },
       { href: '/admin/tasks', label: 'Tareas', icon: '✅' },
       { href: '/admin/workflows', label: 'Workflows', icon: '⚙️' },
+      { href: '/admin/advanced-reports', label: 'Reportes Avanzados', icon: '📊' },
       { href: '/admin/all-vehicles', label: 'Todos los Vehículos', icon: '🚗' },
       { href: '/admin/all-sales', label: 'Todas las Ventas', icon: '💰' },
       { href: '/admin/fi', label: 'F&I', icon: '💳' },

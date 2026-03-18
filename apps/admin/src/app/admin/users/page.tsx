@@ -7,7 +7,7 @@ interface User {
   id: string;
   email: string;
   name: string;
-  role: 'admin' | 'dealer' | 'seller';
+  role: 'admin' | 'dealer' | 'seller' | 'manager' | 'dealer_admin';
   tenantId?: string;
   dealerId?: string;
   status: 'active' | 'inactive' | 'suspended';
@@ -115,6 +115,8 @@ export default function AdminUsersPage() {
             <option value="admin">Admin</option>
             <option value="dealer">Dealer</option>
             <option value="seller">Seller</option>
+            <option value="manager">Gerente</option>
+            <option value="dealer_admin">Admin del Dealer</option>
           </select>
           <select
             value={filters.status}
@@ -401,7 +403,7 @@ function CreateUserModal({
     email: '',
     password: '',
     name: '',
-    role: 'seller' as 'admin' | 'dealer' | 'seller',
+    role: 'seller' as 'admin' | 'dealer' | 'seller' | 'manager' | 'dealer_admin',
     tenantId: '',
   });
   const [tenants, setTenants] = useState<any[]>([]);
@@ -489,6 +491,8 @@ function CreateUserModal({
             >
               <option value="admin">Admin</option>
               <option value="dealer">Dealer</option>
+              <option value="manager">Gerente del Dealer</option>
+              <option value="dealer_admin">Administrador del Dealer</option>
               <option value="seller">Seller</option>
             </select>
           </div>

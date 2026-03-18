@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { getFirestore } from '@autodealers/core';
+import * as admin from 'firebase-admin';
 
 export async function POST(
   request: NextRequest,
@@ -15,7 +16,21 @@ export async function POST(
 
     const { id } = await params;
     const db = getFirestore();
-    await db.collection('notifications').doc(id).update({ read: true });
+    
+    // Buscar en tenant si está disponible
+    const tenantId = auth.tenantId;
+    if (tenantId) {
+      await db.collection('tenants').doc(tenantId).collection('notifications').doc(id).update({ 
+        read: true,
+        readAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    } else {
+      // Fallback para admin
+      await db.collection('notifications').doc(id).update({ 
+        read: true,
+        readAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

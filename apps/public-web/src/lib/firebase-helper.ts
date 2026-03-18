@@ -1,6 +1,6 @@
 // Helper para validar y obtener Firestore de forma segura
 
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from './firebase-admin';
 import * as admin from 'firebase-admin';
 
 /**
@@ -10,21 +10,21 @@ import * as admin from 'firebase-admin';
 export function getValidFirestore(): admin.firestore.Firestore {
   try {
     const db = getFirestore();
-    
+
     // Validar que db es un objeto Firestore válido
     // Verificar que tiene los métodos necesarios
     if (!db) {
       throw new Error('Firestore retornó null o undefined');
     }
-    
+
     if (typeof db.collection !== 'function') {
       throw new Error('Firestore no tiene el método collection()');
     }
-    
+
     if (typeof db.collectionGroup !== 'function') {
       throw new Error('Firestore no tiene el método collectionGroup()');
     }
-    
+
     // Verificar que es una instancia de Firestore
     // Intentar crear una referencia de prueba (sin ejecutarla)
     try {
@@ -40,7 +40,7 @@ export function getValidFirestore(): admin.firestore.Firestore {
       }
       // Otros errores pueden ser normales (colección no existe, etc.)
     }
-    
+
     return db;
   } catch (error: any) {
     console.error('❌ Error obteniendo Firestore válido:', error);

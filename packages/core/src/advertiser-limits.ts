@@ -1,6 +1,6 @@
 // Sistema de límites y validaciones para advertisers según plan
 
-import { getFirestore } from './firebase';
+import { getFirestore } from '@autodealers/shared';
 import { getAdvertiserById } from './advertisers';
 import * as admin from 'firebase-admin';
 

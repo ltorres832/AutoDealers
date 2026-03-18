@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getVehicles } from '@autodealers/inventory';
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '../../../../lib/firebase-admin';
 
 export const dynamic = 'force-dynamic';
-export const revalidate = 60; // Revalidar cada 60 segundos
+export const revalidate = 0; // Disable cache for real-time updates
 
 export async function GET(request: NextRequest) {
   try {
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     // Buscar vehículos en paralelo para todos los tenants (más rápido)
     const vehiclePromises = tenantsSnapshot.docs.map(async (tenantDoc: any) => {
       const tenantId = tenantDoc.id;
-      
+
       try {
         // Agregar timeout individual de 5 segundos por tenant
         const timeoutPromise = new Promise<any[]>((_, reject) => {
@@ -48,18 +48,22 @@ export async function GET(request: NextRequest) {
 
         const vehicles = await Promise.race([vehiclesPromise, timeoutPromise]) as any[];
 
-        // Filtrar solo vehículos publicados en página pública
-        const publishedVehicles = vehicles.filter((v: any) => 
-          v.publishedOnPublicPage === true
-        );
+        // Relaxed filter: Allow vehicles explicitly published OR if the flag is missing but they are available
+        // This ensures new cars show up even if the Admin UI input for 'publishedOnPublicPage' was missed
+        const publishedVehicles = vehicles.filter((v: any) => {
+          const isPublished = v.publishedOnPublicPage === true;
+          const isAvailable = v.status === 'available';
+          // Si tiene el flag explícito, respetarlo. Si no tiene el flag, asumir público si está 'available'
+          return isPublished || (v.publishedOnPublicPage === undefined && isAvailable);
+        });
 
         return publishedVehicles;
       } catch (error: any) {
         // Si es timeout o error de índice, retornar array vacío
-        if (error.message?.includes('Timeout') || 
-            error.code === 9 || 
-            error.message?.includes('index') || 
-            error.details?.includes('index')) {
+        if (error.message?.includes('Timeout') ||
+          error.code === 9 ||
+          error.message?.includes('index') ||
+          error.details?.includes('index')) {
           console.warn(`⚠️ Tenant ${tenantId} omitido: ${error.message}`);
           return [];
         }
@@ -77,7 +81,7 @@ export async function GET(request: NextRequest) {
     ]).catch((error) => {
       console.warn(`⚠️ Timeout parcial, usando resultados disponibles: ${error.message}`);
       // Retornar resultados parciales si hay timeout
-      return Promise.allSettled(vehiclePromises).then(results => 
+      return Promise.allSettled(vehiclePromises).then(results =>
         results
           .filter((r): r is PromiseFulfilledResult<any[]> => r.status === 'fulfilled')
           .map(r => r.value)
@@ -100,7 +104,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ vehicles: sortedVehicles }, {
       headers: {
-        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+        'Cache-Control': 'no-store, max-age=0',
       },
     });
   } catch (error: any) {

@@ -54,7 +54,7 @@ export async function PUT(request: NextRequest) {
     const updateData: any = {
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
-    
+
     if (fiManagerId) {
       updateData.fiManagerId = fiManagerId;
       if (fiManagerPhone) updateData.fiManagerPhone = fiManagerPhone;
@@ -64,7 +64,7 @@ export async function PUT(request: NextRequest) {
       updateData.fiManagerPhone = admin.firestore.FieldValue.delete();
       updateData.fiManagerEmail = admin.firestore.FieldValue.delete();
     }
-    
+
     await db.collection('tenants').doc(user.tenantId).update(updateData);
 
     return NextResponse.json({
@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
     }
 
     const tenantData = tenantDoc.data();
-    let fiManager = null;
+    let fiManager: { id: string; name: any; email: any; role: any } | null = null;
 
     if (tenantData?.fiManagerId) {
       const managerDoc = await db.collection('users').doc(tenantData.fiManagerId).get();

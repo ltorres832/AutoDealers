@@ -24,7 +24,7 @@ export default function AdminTasksPage() {
         />
       </div>
 
-      <TasksList tenantId={selectedTenantId || undefined} />
+      <TasksList tenantId={selectedTenantId || undefined} assignedTo={undefined} />
     </div>
   );
 }

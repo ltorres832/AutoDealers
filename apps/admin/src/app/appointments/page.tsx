@@ -32,9 +32,30 @@ export default function AppointmentsPage() {
     scheduledAt: apt.scheduledAt instanceof Date ? apt.scheduledAt.toISOString() : apt.scheduledAt,
   })) as Appointment[];
 
+  // Obtener nombres de leads para mostrar en el calendario
+  const [leadNames, setLeadNames] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    async function fetchLeadNames() {
+      if (!auth?.tenantId) return;
+      try {
+        const { getLeads } = await import('@autodealers/crm');
+        const leads = await getLeads(auth.tenantId);
+        const namesMap: Record<string, string> = {};
+        leads.forEach(lead => {
+          namesMap[lead.id] = lead.contact.name || 'Sin nombre';
+        });
+        setLeadNames(namesMap);
+      } catch (error) {
+        console.error('Error fetching lead names:', error);
+      }
+    }
+    fetchLeadNames();
+  }, [auth?.tenantId]);
+
   const calendarEvents = appointments.map((apt) => ({
     id: apt.id,
-    title: `${apt.type} - ${apt.leadId}`,
+    title: `${apt.type === 'consultation' ? 'Consulta' : apt.type === 'test_drive' ? 'Prueba' : 'Entrega'} - ${leadNames[apt.leadId] || apt.leadId}`,
     start: apt.scheduledAt,
     end: new Date(
       new Date(apt.scheduledAt).getTime() + apt.duration * 60 * 1000
@@ -44,8 +65,65 @@ export default function AppointmentsPage() {
         ? '#10B981'
         : apt.status === 'completed'
         ? '#6B7280'
+        : apt.status === 'cancelled'
+        ? '#EF4444'
         : '#3B82F6',
+    extendedProps: {
+      appointment: apt,
+    },
   }));
+
+  async function handleEventDrop(eventInfo: any) {
+    const appointment = eventInfo.event.extendedProps.appointment;
+    const newStart = eventInfo.event.start;
+    
+    try {
+      const response = await fetch(`/api/appointments/${appointment.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scheduledAt: newStart.toISOString(),
+        }),
+      });
+
+      if (!response.ok) {
+        // Revertir el cambio si falla
+        eventInfo.revert();
+        alert('Error al actualizar la cita');
+      } else {
+        // Crear notificación de cambio
+        if (auth?.tenantId) {
+          try {
+            const { createNotification } = await import('@autodealers/core');
+            await createNotification({
+              tenantId: auth.tenantId,
+              userId: appointment.assignedTo,
+              type: 'appointment_created',
+              title: 'Cita reprogramada',
+              message: `La cita ha sido reprogramada para ${newStart.toLocaleString()}`,
+              channels: ['system'],
+              metadata: {
+                appointmentId: appointment.id,
+                route: `/appointments`,
+              },
+            });
+          } catch (notifError) {
+            console.warn('No se pudo crear notificación:', notifError);
+          }
+        }
+      }
+    } catch (error) {
+      eventInfo.revert();
+      console.error('Error:', error);
+      alert('Error al actualizar la cita');
+    }
+  }
+
+  function handleDateClick(arg: any) {
+    // Abrir modal de creación con la fecha seleccionada
+    setShowCreateModal(true);
+    // Se puede pasar la fecha al modal si se necesita
+  }
 
   if (loading) {
     return (
@@ -79,6 +157,24 @@ export default function AppointmentsPage() {
           }}
           height="auto"
           locale="es"
+          editable={true}
+          droppable={true}
+          eventDrop={handleEventDrop}
+          eventResize={handleEventDrop}
+          dateClick={handleDateClick}
+          eventClick={(info) => {
+            // Mostrar detalles de la cita al hacer click
+            const appointment = info.event.extendedProps.appointment;
+            alert(`Cita: ${info.event.title}\nEstado: ${appointment.status}\nDuración: ${appointment.duration} minutos`);
+          }}
+          slotMinTime="08:00:00"
+          slotMaxTime="20:00:00"
+          weekends={true}
+          businessHours={{
+            daysOfWeek: [1, 2, 3, 4, 5], // Lunes a Viernes
+            startTime: '09:00',
+            endTime: '18:00',
+          }}
         />
       </div>
 

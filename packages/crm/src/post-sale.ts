@@ -30,7 +30,7 @@ export interface PostSaleReminder {
   createdAt: Date;
 }
 
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
 
 const db = getFirestore();

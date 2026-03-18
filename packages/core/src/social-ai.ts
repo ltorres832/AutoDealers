@@ -1,6 +1,6 @@
 // IA para generar contenido de redes sociales automáticamente
 
-import { getFirestore } from './firebase';
+import { getFirestore } from '@autodealers/shared';
 
 export interface VehicleData {
   id: string;

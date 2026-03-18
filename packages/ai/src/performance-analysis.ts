@@ -1,6 +1,6 @@
 // Análisis de rendimiento con IA
 
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
 import { getTenantSales } from '@autodealers/crm';
 import { getLeads } from '@autodealers/crm';
 import { getVehicles } from '@autodealers/inventory';

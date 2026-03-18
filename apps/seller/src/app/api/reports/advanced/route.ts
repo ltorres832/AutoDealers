@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { getLeads } from '@autodealers/crm';
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
 
 export async function GET(request: NextRequest) {
   try {
@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
     ];
 
     // Pipeline data por fecha (últimos 7 días)
-    const pipelineData = [];
+    const pipelineData: Array<{ date: string; new: number; qualified: number; closed: number }> = [];
     for (let i = 6; i >= 0; i--) {
       const date = new Date();
       date.setDate(date.getDate() - i);

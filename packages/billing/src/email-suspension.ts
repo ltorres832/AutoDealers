@@ -1,6 +1,6 @@
 // Suspensión automática de emails corporativos cuando expira la membresía
 
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
 import { suspendCorporateEmail, getCorporateEmails } from '@autodealers/crm';
 import * as admin from 'firebase-admin';
 

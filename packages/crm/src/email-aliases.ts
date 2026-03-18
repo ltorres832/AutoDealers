@@ -2,7 +2,8 @@
 
 import { EmailAlias, Dealer, EmailAliasUsage, EmailAliasStatus } from '@autodealers/core';
 import { ZohoMailService } from '@autodealers/messaging';
-import { getFirestore, getUserById, getTenantById } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
+import { getUserById, getTenantById } from '@autodealers/core';
 import { getMembershipById } from '@autodealers/billing';
 import * as admin from 'firebase-admin';
 

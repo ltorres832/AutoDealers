@@ -2,7 +2,7 @@
  * Gestión de Usuarios Admin
  */
 
-import { getAuth, getFirestore } from './firebase';
+import { getAuth, getFirestore } from '@autodealers/shared';
 import { AdminUser, AdminPermission, ADMIN_ROLES } from './admin-permissions';
 import * as admin from 'firebase-admin';
 

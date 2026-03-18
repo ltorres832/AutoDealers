@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   try {
     const db = getFirestore();
-    
+
     let body;
     try {
       body = await request.json();
@@ -27,6 +27,11 @@ export async function POST(request: NextRequest) {
       subdomain,
       accountType,
       referralCode,
+      taxId,
+      address,
+      city,
+      country,
+      website,
     } = body;
 
     // Validaciones básicas
@@ -54,7 +59,7 @@ export async function POST(request: NextRequest) {
 
     // Crear usuario sin membresía (se asignará después)
     const role = accountType === 'dealer' ? 'dealer' : 'seller';
-    
+
     // Crear tenant primero
     const tenantRef = db.collection('tenants').doc();
     const tenantId = tenantRef.id;
@@ -64,9 +69,14 @@ export async function POST(request: NextRequest) {
       type: accountType,
       status: 'active',
       subdomain: subdomain || null,
+      phone: phone || null,
+      taxId: taxId || null,
+      address: address || null,
+      city: city || null,
+      country: country || null,
+      website: website || null,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      // No incluir membershipId aquí - se asignará después
     });
 
     // Crear usuario
@@ -102,7 +112,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Error creating account:', error);
-    
+
     // Manejar errores específicos
     if (error.code === 'auth/email-already-in-use') {
       return NextResponse.json(

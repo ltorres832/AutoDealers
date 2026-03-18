@@ -16,26 +16,26 @@ export async function GET(request: NextRequest) {
     }
 
     const db = getFirestore();
-    
+
     // Obtener usuario completo
     const userDoc = await db.collection('users').doc(auth.userId).get();
     const userData = userDoc.exists ? userDoc.data() : null;
-    
+
     // Obtener tenant completo
     const tenantDoc = await db.collection('tenants').doc(auth.tenantId).get();
     const tenantData = tenantDoc.exists ? tenantDoc.data() : null;
-    
+
     // Obtener suscripción
     const subscription = await getSubscriptionByTenantId(auth.tenantId);
-    
+
     // Buscar todas las suscripciones del tenant
     const allSubscriptions = await db
       .collection('subscriptions')
       .where('tenantId', '==', auth.tenantId)
       .get();
-    
+
     // Obtener membresía si existe
-    let membershipData = null;
+    let membershipData: any = null;
     if (userData?.membershipId) {
       const membershipDoc = await db.collection('memberships').doc(userData.membershipId).get();
       membershipData = membershipDoc.exists ? membershipDoc.data() : null;

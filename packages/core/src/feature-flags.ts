@@ -1,7 +1,7 @@
 // Sistema de Feature Flags por Dashboard
 // Permite habilitar/deshabilitar funciones específicas por dashboard
 
-import { getFirestore } from './firebase';
+import { getFirestore } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
 
 // Lazy initialization - solo se inicializa cuando se necesita

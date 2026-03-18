@@ -1,6 +1,6 @@
 // Gestión de configuración de WhatsApp por tenant
 
-import { getFirestore } from './firebase';
+import { getFirestore } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
 
 const db = getFirestore();

@@ -1,6 +1,6 @@
 // Gestión de almacenamiento de archivos
 
-import { getStorage } from './firebase';
+import { getStorage } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
 
 const storage = getStorage();

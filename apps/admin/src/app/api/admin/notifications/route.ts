@@ -12,10 +12,22 @@ export async function GET(request: NextRequest) {
 
     const db = getFirestore();
     
+    // Obtener tenantId del usuario si no es admin
+    const tenantId = auth.tenantId || (auth.role === 'admin' ? null : null);
+    
+    if (!tenantId && auth.role !== 'admin') {
+      return NextResponse.json({ error: 'Tenant ID required' }, { status: 400 });
+    }
+    
+    // Para admin, buscar en todas las colecciones de tenants
+    // Para otros roles, buscar en su tenant específico
+    const notificationsCollection = tenantId 
+      ? db.collection('tenants').doc(tenantId).collection('notifications')
+      : db.collection('notifications'); // Fallback para admin
+    
     // Intentar obtener notificaciones con orderBy
     try {
-      const notificationsSnapshot = await db
-        .collection('notifications')
+      const notificationsSnapshot = await notificationsCollection
         .where('userId', '==', auth.userId)
         .orderBy('createdAt', 'desc')
         .limit(20)
@@ -33,8 +45,7 @@ export async function GET(request: NextRequest) {
       if (queryError.code === 9 || queryError.message?.includes('index')) {
         console.warn('⚠️ Índice faltante en Firestore para notificaciones. Obteniendo sin orderBy...');
         
-        const notificationsSnapshot = await db
-          .collection('notifications')
+        const notificationsSnapshot = await notificationsCollection
           .where('userId', '==', auth.userId)
           .limit(20)
           .get();

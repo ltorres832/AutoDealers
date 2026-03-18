@@ -3,7 +3,7 @@
  * El acceso es válido por 48 horas después de la aprobación
  */
 
-import { getFirestore } from './firebase';
+import { getFirestore } from '@autodealers/shared';
 
 // Lazy initialization - solo se inicializa cuando se necesita
 function getDb() {
@@ -67,7 +67,7 @@ export async function checkMultiDealerAccess(userId: string): Promise<MultiDeale
       });
 
       // Deshabilitar usuario
-      const { getAuth } = await import('./firebase');
+      const { getAuth } = await import('@autodealers/shared');
       const auth = getAuth();
       try {
         await auth.updateUser(userId, {

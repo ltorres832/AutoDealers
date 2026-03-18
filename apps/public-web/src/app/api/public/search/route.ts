@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '../../../../lib/firebase-admin';
 import { getVehicles } from '@autodealers/inventory';
 
 export const dynamic = 'force-dynamic';
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
           const vehicles = await Promise.race([vehiclesPromise, timeoutPromise]) as any[];
 
           // Filtrar solo vehículos publicados en página pública
-          const publishedVehicles = vehicles.filter((v: any) => 
+          const publishedVehicles = vehicles.filter((v: any) =>
             v.publishedOnPublicPage === true
           );
 
@@ -55,11 +55,11 @@ export async function GET(request: NextRequest) {
               const model = (v.model || '').toLowerCase();
               const year = (v.year || '').toString();
               const description = (v.description || '').toLowerCase();
-              
+
               return make.includes(searchTerm) ||
-                     model.includes(searchTerm) ||
-                     year.includes(searchTerm) ||
-                     description.includes(searchTerm);
+                model.includes(searchTerm) ||
+                year.includes(searchTerm) ||
+                description.includes(searchTerm);
             });
           }
 
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
         })
       ]).catch(() => {
         // Retornar resultados parciales si hay timeout
-        return Promise.allSettled(vehiclePromises).then(results => 
+        return Promise.allSettled(vehiclePromises).then(results =>
           results
             .filter((r): r is PromiseFulfilledResult<any[]> => r.status === 'fulfilled')
             .map(r => r.value)
@@ -120,12 +120,12 @@ export async function GET(request: NextRequest) {
 
       // OPTIMIZADO: Obtener información del tenant en batch y reducir consultas
       const tenantIds = [...new Set(dealers.map((d: any) => d.tenantId).filter(Boolean))] as string[];
-      
+
       // Obtener todos los tenants en paralelo
       const tenantDocs = await Promise.all(
         tenantIds.map(id => db.collection('tenants').doc(id).get())
       );
-      
+
       const tenantsMap = new Map();
       tenantDocs.forEach((doc, index) => {
         if (doc.exists) {
@@ -137,7 +137,7 @@ export async function GET(request: NextRequest) {
       const dealerDocs = await Promise.all(
         dealers.map((d: any) => db.collection('users').doc(d.id).get())
       );
-      
+
       const dealerRatingsMap = new Map();
       dealerDocs.forEach((doc, index) => {
         if (doc.exists) {
@@ -164,10 +164,10 @@ export async function GET(request: NextRequest) {
           const availableVehicles = vehiclesSnapshot.docs
             .map((doc: any) => doc.data())
             .filter((vehicle: any) => {
-              const isExcluded = vehicle.status === 'sold' || 
-                               vehicle.status === 'deleted' || 
-                               vehicle.status === 'inactive' ||
-                               vehicle.deleted === true;
+              const isExcluded = vehicle.status === 'sold' ||
+                vehicle.status === 'deleted' ||
+                vehicle.status === 'inactive' ||
+                vehicle.deleted === true;
               return !isExcluded;
             });
 
@@ -243,12 +243,12 @@ export async function GET(request: NextRequest) {
 
       // OPTIMIZADO: Obtener información del tenant y vehículos en batch
       const sellerTenantIds = [...new Set(sellers.map((s: any) => s.tenantId).filter(Boolean))] as string[];
-      
+
       // Obtener todos los tenants en paralelo
       const sellerTenantDocs = await Promise.all(
         sellerTenantIds.map(id => db.collection('tenants').doc(id).get())
       );
-      
+
       const sellerTenantsMap = new Map();
       sellerTenantDocs.forEach((doc, index) => {
         if (doc.exists) {
@@ -264,7 +264,7 @@ export async function GET(request: NextRequest) {
             .doc(tenantId)
             .collection('vehicles')
             .get();
-          
+
           return {
             tenantId,
             vehicles: vehiclesSnapshot.docs.map((doc: any) => ({
@@ -288,12 +288,12 @@ export async function GET(request: NextRequest) {
 
         // Filtrar vehículos del seller
         const sellerVehicles = tenantVehicles.filter((vehicle: any) => {
-          const belongsToSeller = vehicle.sellerId === seller.id || 
-                                 (vehicle.assignedTo === seller.id && !vehicle.sellerId);
-          const isExcluded = vehicle.status === 'sold' || 
-                           vehicle.status === 'deleted' || 
-                           vehicle.status === 'inactive' ||
-                           vehicle.deleted === true;
+          const belongsToSeller = vehicle.sellerId === seller.id ||
+            (vehicle.assignedTo === seller.id && !vehicle.sellerId);
+          const isExcluded = vehicle.status === 'sold' ||
+            vehicle.status === 'deleted' ||
+            vehicle.status === 'inactive' ||
+            vehicle.deleted === true;
           return belongsToSeller && !isExcluded;
         });
 

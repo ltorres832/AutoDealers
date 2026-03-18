@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { getFirestore } from 'firebase-admin/firestore';
-import { initializeFirebase } from '@autodealers/core';
+import { initializeFirebase } from '@autodealers/shared';
 
 initializeFirebase();
 

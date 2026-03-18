@@ -1,7 +1,7 @@
 // Sistema de envío automático de comunicaciones
 
 import * as admin from 'firebase-admin';
-import { getFirestore } from './firebase';
+import { getFirestore } from '@autodealers/shared';
 import { 
   getActiveTemplateForEvent, 
   replaceTemplateVariables,

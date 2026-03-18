@@ -1,5 +1,9 @@
 // Shared components and utilities
 
+// Firebase (Solo para uso en servidor, seguro para exportar gracias a dynamic require)
+export { initializeFirebase, getFirestore, getAuth, getStorage } from './firebase';
+export * from './firebase-server';
+
 export * from './components/Logo';
 export * from './components/Header';
 export * from './components/Sidebar';

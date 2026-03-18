@@ -1,6 +1,6 @@
 // Sistema de preguntas frecuentes automáticas
 
-import { getFirestore } from './firebase';
+import { getFirestore } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
 
 const db = getFirestore();

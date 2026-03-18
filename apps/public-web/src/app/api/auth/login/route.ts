@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth, getUserByEmail } from '@autodealers/core';
-import { getFirestore } from '@autodealers/core';
+import { getAuth } from '../../../../lib/firebase-admin';
+import { getUserByEmail } from '@autodealers/core';
+import { getFirestore } from '../../../../lib/firebase-admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
         const auth = getAuth();
         const decodedToken = await auth.verifyIdToken(token);
         const db = getFirestore();
-        
+
         const userDoc = await db.collection('users').doc(decodedToken.uid).get();
 
         if (!userDoc.exists) {
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
         }
 
         const userData = userDoc.data();
-        
+
         // Verificar que el usuario esté activo
         if (userData?.status !== 'active') {
           return NextResponse.json(
@@ -70,7 +71,7 @@ export async function POST(request: NextRequest) {
 
     try {
       const auth = getAuth();
-      
+
       // Autenticar con Firebase Admin SDK
       // Nota: Firebase Admin no tiene signInWithEmailAndPassword directamente
       // Necesitamos obtener el usuario y verificar la contraseña
@@ -90,10 +91,10 @@ export async function POST(request: NextRequest) {
       // Verificar la contraseña usando Firebase Auth REST API
       // O mejor: usar Firebase Admin para verificar el usuario y luego obtener token
       // Por ahora, vamos a usar un enfoque diferente: verificar en Firestore y generar token
-      
+
       const db = getFirestore();
       const userDoc = await db.collection('users').where('email', '==', email).limit(1).get();
-      
+
       if (userDoc.empty) {
         return NextResponse.json(
           { error: 'Email o contraseña incorrectos' },
@@ -116,7 +117,7 @@ export async function POST(request: NextRequest) {
       // Necesitamos hacer una llamada a Firebase Auth REST API para verificar la contraseña
       const firebaseApiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'AIzaSyC68yc67kmfrNEgxz8zGzmCCjsOUT7u4y0';
       const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'autodealers-7f62e.firebaseapp.com';
-      
+
       try {
         // Verificar credenciales con Firebase Auth REST API
         const verifyResponse = await fetch(

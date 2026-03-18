@@ -2,7 +2,7 @@
 
 import { AdminUserType, AdminPermissions, UserStatus } from './types';
 import { AdminUser } from './admin-permissions';
-import { getFirestore, getAuth } from './firebase';
+import { getFirestore, getAuth } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
 
 const db = getFirestore();

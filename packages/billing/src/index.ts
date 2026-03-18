@@ -19,3 +19,10 @@ export {
   reactivateAccountAfterPayment,
 } from './subscription-management';
 
+export {
+  getMembershipById,
+  getMemberships,
+  createMembership,
+  updateMembership,
+} from './memberships';
+

@@ -1,6 +1,6 @@
 // Sistema de templates de comunicación (Email, SMS, WhatsApp)
 
-import { getFirestore } from './firebase';
+import { getFirestore } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
 import { notifyAdminTemplateCreated } from './communication-logs';
 

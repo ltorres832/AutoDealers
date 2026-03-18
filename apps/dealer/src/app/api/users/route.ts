@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getFirestore, getAuth } from '@autodealers/core';
+import { getFirestore, getAuth } from '@autodealers/shared';
 import { createNotification } from '@autodealers/core';
 import * as admin from 'firebase-admin';
 

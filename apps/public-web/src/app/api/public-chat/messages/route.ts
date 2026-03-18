@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getFirestore } from '@autodealers/core';
 import * as admin from 'firebase-admin';
 
-const db = getFirestore();
+// Defer db initialization to avoid build errors
 
 interface ChatMessage {
   id: string;
@@ -17,6 +17,7 @@ interface ChatMessage {
 }
 
 export async function GET(request: NextRequest) {
+  const db = getFirestore();
   try {
     const { searchParams } = new URL(request.url);
     const sessionId = searchParams.get('sessionId');
@@ -86,6 +87,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const db = getFirestore();
   try {
     const body = await request.json();
     const { tenantId, sessionId, clientName, clientEmail, clientPhone, content } = body;
@@ -141,7 +143,7 @@ export async function POST(request: NextRequest) {
         .where('status', '==', 'active')
         .limit(1)
         .get();
-      
+
       if (!usersSnapshot.empty) {
         sellerId = usersSnapshot.docs[0].id;
       }
@@ -189,7 +191,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { 
+      {
         success: true,
         messageId: clientMessageRef.id,
       },

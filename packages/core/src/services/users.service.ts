@@ -1,7 +1,7 @@
 // Servicio completo de usuarios con Firebase
 
 import * as admin from 'firebase-admin';
-import { getFirestore, getAuth } from '../firebase';
+import { getFirestore, getAuth } from '@autodealers/shared';
 import { User, UserRole, TenantType } from '../types';
 import { generateReferralCode } from '../referrals';
 

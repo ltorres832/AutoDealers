@@ -8,6 +8,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '@/hooks/useAuth';
 import { CollaborationIndicator } from '@/components/CollaborationIndicator';
 import { RealtimeIndicator } from '@/components/RealtimeIndicator';
+import TasksList from '@/components/TasksList';
 
 interface Lead {
   id: string;
@@ -375,6 +376,11 @@ export default function LeadDetailPage() {
             Agregar Nota
           </button>
         </div>
+      </div>
+
+      {/* Tareas del Lead */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <TasksList leadId={lead.id} />
       </div>
     </div>
   );

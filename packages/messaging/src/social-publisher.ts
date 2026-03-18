@@ -1,6 +1,6 @@
 // Servicio para publicar posts en Facebook e Instagram usando credenciales del tenant
 
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
 
 export interface PostContent {
   text: string;
@@ -120,7 +120,7 @@ export class SocialPublisherService {
         }
       );
 
-      const data = await response.json();
+      const data = await response.json() as any;
 
       if (!response.ok) {
         throw new Error(data.error?.message || 'Error al publicar en Facebook');
@@ -199,7 +199,7 @@ export class SocialPublisherService {
         }
       );
 
-      const data = await response.json();
+      const data = await response.json() as any;
 
       if (!response.ok) {
         throw new Error(data.error?.message || 'Error al publicar en Instagram');
@@ -250,7 +250,7 @@ export class SocialPublisherService {
       }
     );
 
-    const uploadData = await uploadResponse.json();
+    const uploadData = await uploadResponse.json() as any;
 
     if (!uploadResponse.ok) {
       throw new Error(uploadData.error?.message || 'Error al subir imagen');
@@ -283,7 +283,7 @@ export class SocialPublisherService {
       }
     );
 
-    const data = await response.json();
+    const data = await response.json() as any;
 
     if (!response.ok) {
       throw new Error(data.error?.message || 'Error al crear contenedor de imagen');

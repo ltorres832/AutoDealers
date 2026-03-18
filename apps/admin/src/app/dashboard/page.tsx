@@ -1,6 +1,8 @@
 'use client';
 
+import { useEffect } from 'react';
 import DashboardStats from '@/components/DashboardStats';
+import DashboardCharts from '@/components/DashboardCharts';
 import RecentActivity from '@/components/RecentActivity';
 import QuickActions from '@/components/QuickActions';
 import Link from 'next/link';
@@ -10,7 +12,22 @@ import { RealtimeIndicator } from '@/components/RealtimeIndicator';
 
 export default function DashboardPage() {
   const { auth } = useAuth();
-  const { stats, recentLeads, recentSales, loading } = useRealtimeDashboard(auth?.tenantId);
+  const { stats, recentLeads, recentSales, leadsTrend, salesTrend, leadsBySource, loading } = useRealtimeDashboard(auth?.tenantId);
+
+  // Actualizar último acceso cuando se carga el dashboard
+  useEffect(() => {
+    if (auth?.userId) {
+      fetch('/api/users/update-last-access', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      }).catch(err => {
+        console.warn('No se pudo actualizar último acceso:', err);
+      });
+    }
+  }, [auth?.userId]);
 
   const data = {
     stats,
@@ -45,6 +62,15 @@ export default function DashboardPage() {
       </div>
 
       <DashboardStats stats={data.stats} />
+
+      {/* Gráficos de tendencias */}
+      {leadsTrend.length > 0 && (
+        <DashboardCharts
+          leadsData={leadsTrend}
+          salesData={salesTrend}
+          sourceData={leadsBySource}
+        />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
         <div className="lg:col-span-2">

@@ -5,7 +5,8 @@ import { getVehicles } from '@autodealers/inventory';
 import { getTenantSales } from '@autodealers/crm';
 import { getAppointmentsBySeller } from '@autodealers/crm';
 import { getMessagesByChannel } from '@autodealers/crm';
-import { getUsersByTenant, getFirestore, getSubUsers } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
+import { getUsersByTenant, getSubUsers } from '@autodealers/core';
 import * as admin from 'firebase-admin';
 
 const db = getFirestore();

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { getWorkflows } from '@autodealers/crm';
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
 
 export async function PATCH(
   request: NextRequest,

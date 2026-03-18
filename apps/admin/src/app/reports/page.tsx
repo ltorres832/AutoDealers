@@ -1,102 +1,42 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts';
+import { useAuth } from '@/hooks/useAuth';
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-interface SalesReport {
-  total: number;
-  totalRevenue: number;
-  bySeller: Record<string, { count: number; revenue: number }>;
-  byMonth: Record<string, { count: number; revenue: number }>;
-  averageSalePrice: number;
-  conversionRate: number;
-}
+const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
 
-interface LeadsReport {
-  total: number;
-  bySource: Record<string, number>;
-  byStatus: Record<string, number>;
-  byMonth: Record<string, number>;
+interface ReportData {
+  leads: Array<{ date: string; count: number }>;
+  sales: Array<{ date: string; amount: number; count: number }>;
+  leadsBySource: Array<{ name: string; value: number }>;
+  leadsByStatus: Array<{ name: string; value: number }>;
+  salesBySeller: Array<{ name: string; value: number }>;
   conversionRate: number;
 }
 
 export default function ReportsPage() {
-  const [salesReport, setSalesReport] = useState<SalesReport | null>(null);
-  const [leadsReport, setLeadsReport] = useState<LeadsReport | null>(null);
+  const { auth } = useAuth();
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<'week' | 'month' | 'year'>('month');
+  const [reportData, setReportData] = useState<ReportData | null>(null);
 
   useEffect(() => {
-    fetchReports();
-  }, [period]);
+    loadReport();
+  }, [period, auth?.tenantId]);
 
-  async function fetchReports() {
+  async function loadReport() {
+    if (!auth?.tenantId) return;
+
     setLoading(true);
     try {
-      const [salesRes, leadsRes] = await Promise.all([
-        fetch(`/api/reports/sales?period=${period}`, {
-          cache: 'no-store',
-        }),
-        fetch(`/api/reports/leads?period=${period}`, {
-          cache: 'no-store',
-        }),
-      ]);
-
-      if (!salesRes.ok || !leadsRes.ok) {
-        throw new Error('Error al cargar reportes');
+      const response = await fetch(`/api/reports/leads?period=${period}`);
+      if (response.ok) {
+        const data = await response.json();
+        setReportData(data);
       }
-
-      const salesData = await salesRes.json().catch(() => ({ report: null }));
-      const leadsData = await leadsRes.json().catch(() => ({ report: null }));
-
-      setSalesReport(salesData.report || {
-        total: 0,
-        totalRevenue: 0,
-        bySeller: {},
-        byMonth: {},
-        averageSalePrice: 0,
-        conversionRate: 0,
-      });
-      
-      setLeadsReport(leadsData.report || {
-        total: 0,
-        bySource: {},
-        byStatus: {},
-        byMonth: {},
-        conversionRate: 0,
-      });
-    } catch (error: any) {
-      console.error('Error fetching reports:', error);
-      // Establecer datos vacíos en caso de error
-      setSalesReport({
-        total: 0,
-        totalRevenue: 0,
-        bySeller: {},
-        byMonth: {},
-        averageSalePrice: 0,
-        conversionRate: 0,
-      });
-      setLeadsReport({
-        total: 0,
-        bySource: {},
-        byStatus: {},
-        byMonth: {},
-        conversionRate: 0,
-      });
+    } catch (error) {
+      console.error('Error loading report:', error);
     } finally {
       setLoading(false);
     }
@@ -110,221 +50,149 @@ export default function ReportsPage() {
     );
   }
 
-  // Preparar datos para gráficos
-  const salesByMonthData = salesReport?.byMonth
-    ? Object.entries(salesReport.byMonth).map(([month, data]) => ({
-        month,
-        ventas: data.count,
-        revenue: data.revenue,
-      }))
-    : [];
-
-  const salesBySellerData = salesReport?.bySeller
-    ? Object.entries(salesReport.bySeller).map(([seller, data]) => ({
-        seller,
-        ventas: data.count,
-        revenue: data.revenue,
-      }))
-    : [];
-
-  const leadsBySourceData = leadsReport?.bySource
-    ? Object.entries(leadsReport.bySource).map(([source, count]) => ({
-        source,
-        count,
-      }))
-    : [];
-
-  const leadsByStatusData = leadsReport?.byStatus
-    ? Object.entries(leadsReport.byStatus).map(([status, count]) => ({
-        status,
-        count,
-      }))
-    : [];
-
-  const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
-
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Reportes y Estadísticas</h1>
-          <p className="text-gray-600 mt-2">
-            Análisis detallado de ventas y leads en la plataforma
-          </p>
+          <h1 className="text-3xl font-bold">Reportes</h1>
+          <p className="text-gray-600 mt-2">Análisis y métricas de tu negocio</p>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setPeriod('week')}
-            className={`px-4 py-2 rounded ${
-              period === 'week'
-                ? 'bg-primary-600 text-white'
-                : 'bg-gray-200 text-gray-700'
-            }`}
-          >
-            Semana
-          </button>
-          <button
-            onClick={() => setPeriod('month')}
-            className={`px-4 py-2 rounded ${
-              period === 'month'
-                ? 'bg-primary-600 text-white'
-                : 'bg-gray-200 text-gray-700'
-            }`}
-          >
-            Mes
-          </button>
-          <button
-            onClick={() => setPeriod('year')}
-            className={`px-4 py-2 rounded ${
-              period === 'year'
-                ? 'bg-primary-600 text-white'
-                : 'bg-gray-200 text-gray-700'
-            }`}
-          >
-            Año
-          </button>
-        </div>
+        <select
+          value={period}
+          onChange={(e) => setPeriod(e.target.value as any)}
+          className="border rounded px-4 py-2"
+        >
+          <option value="week">Última Semana</option>
+          <option value="month">Último Mes</option>
+          <option value="year">Último Año</option>
+        </select>
       </div>
 
-      {/* Resumen de Ventas */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow p-6">
-          <p className="text-sm text-gray-600 mb-2">Total de Ventas</p>
-          <p className="text-3xl font-bold">{salesReport?.total || 0}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-6">
-          <p className="text-sm text-gray-600 mb-2">Revenue Total</p>
-          <p className="text-3xl font-bold">
-            ${salesReport?.totalRevenue.toLocaleString() || 0}
-          </p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-6">
-          <p className="text-sm text-gray-600 mb-2">Precio Promedio</p>
-          <p className="text-3xl font-bold">
-            ${salesReport?.averageSalePrice.toLocaleString() || 0}
-          </p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-6">
-          <p className="text-sm text-gray-600 mb-2">Tasa de Conversión</p>
-          <p className="text-3xl font-bold">
-            {salesReport?.conversionRate.toFixed(1) || 0}%
-          </p>
-        </div>
-      </div>
+      {reportData ? (
+        <div className="space-y-6">
+          {/* Métricas principales */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-white rounded-lg shadow p-6">
+              <p className="text-sm text-gray-600">Tasa de Conversión</p>
+              <p className="text-3xl font-bold text-primary-600">
+                {reportData.conversionRate.toFixed(1)}%
+              </p>
+            </div>
+            <div className="bg-white rounded-lg shadow p-6">
+              <p className="text-sm text-gray-600">Total Leads</p>
+              <p className="text-3xl font-bold">
+                {reportData.leads.reduce((sum, d) => sum + d.count, 0)}
+              </p>
+            </div>
+            <div className="bg-white rounded-lg shadow p-6">
+              <p className="text-sm text-gray-600">Total Ventas</p>
+              <p className="text-3xl font-bold">
+                {reportData.sales.reduce((sum, d) => sum + d.count, 0)}
+              </p>
+            </div>
+            <div className="bg-white rounded-lg shadow p-6">
+              <p className="text-sm text-gray-600">Revenue Total</p>
+              <p className="text-3xl font-bold text-green-600">
+                ${reportData.sales.reduce((sum, d) => sum + d.amount, 0).toLocaleString()}
+              </p>
+            </div>
+          </div>
 
-      {/* Gráficos de Ventas */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-bold mb-4">Ventas por Mes</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={salesByMonthData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Line
-                type="monotone"
-                dataKey="ventas"
-                stroke="#3B82F6"
-                name="Ventas"
-              />
-              <Line
-                type="monotone"
-                dataKey="revenue"
-                stroke="#10B981"
-                name="Revenue"
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+          {/* Gráficos */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Tendencia de Leads */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-lg font-bold mb-4">Tendencia de Leads</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={reportData.leads}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="count" stroke="#3B82F6" strokeWidth={2} name="Leads" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-bold mb-4">Ventas por Vendedor</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={salesBySellerData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="seller" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="ventas" fill="#3B82F6" name="Ventas" />
-              <Bar dataKey="revenue" fill="#10B981" name="Revenue" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+            {/* Ventas por Día */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-lg font-bold mb-4">Ventas por Día</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={reportData.sales}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip formatter={(value: any) => `$${value.toLocaleString()}`} />
+                  <Legend />
+                  <Bar dataKey="amount" fill="#10B981" name="Revenue ($)" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
 
-      {/* Resumen de Leads */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow p-6">
-          <p className="text-sm text-gray-600 mb-2">Total de Leads</p>
-          <p className="text-3xl font-bold">{leadsReport?.total || 0}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-6">
-          <p className="text-sm text-gray-600 mb-2">Tasa de Conversión</p>
-          <p className="text-3xl font-bold">
-            {leadsReport?.conversionRate.toFixed(1) || 0}%
-          </p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-6">
-          <p className="text-sm text-gray-600 mb-2">Leads por Mes</p>
-          <p className="text-3xl font-bold">
-            {Object.values(leadsReport?.byMonth || {}).reduce(
-              (a, b) => a + b,
-              0
+            {/* Leads por Fuente */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-lg font-bold mb-4">Leads por Fuente</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={reportData.leadsBySource}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {reportData.leadsBySource.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Leads por Estado */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-lg font-bold mb-4">Leads por Estado</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={reportData.leadsByStatus}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="value" fill="#8B5CF6" name="Cantidad" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Ventas por Vendedor */}
+            {reportData.salesBySeller.length > 0 && (
+              <div className="bg-white rounded-lg shadow p-6 lg:col-span-2">
+                <h3 className="text-lg font-bold mb-4">Ventas por Vendedor</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={reportData.salesBySeller}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip formatter={(value: any) => `$${value.toLocaleString()}`} />
+                    <Legend />
+                    <Bar dataKey="value" fill="#F59E0B" name="Ventas ($)" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             )}
-          </p>
+          </div>
         </div>
-      </div>
-
-      {/* Gráficos de Leads */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-bold mb-4">Leads por Fuente</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={leadsBySourceData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ source, percent }) =>
-                  `${source}: ${(percent * 100).toFixed(0)}%`
-                }
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="count"
-              >
-                {leadsBySourceData.map((entry, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={COLORS[index % COLORS.length]}
-                  />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
+      ) : (
+        <div className="bg-white rounded-lg shadow p-12 text-center">
+          <p className="text-gray-500">No hay datos disponibles para el período seleccionado</p>
         </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-bold mb-4">Leads por Estado</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={leadsByStatusData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="status" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="count" fill="#3B82F6" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
-
-
-
-

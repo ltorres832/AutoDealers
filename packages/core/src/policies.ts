@@ -1,6 +1,6 @@
 // Sistema de Políticas y Disclosures
 
-import { getFirestore } from './firebase';
+import { getFirestore } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
 
 // Lazy initialization - solo se inicializa cuando se necesita

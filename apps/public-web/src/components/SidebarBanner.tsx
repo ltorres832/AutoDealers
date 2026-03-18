@@ -3,6 +3,51 @@
 import { useRealtimeSponsoredContent } from '../hooks/useRealtimeSponsoredContent';
 import { useEffect, useRef } from 'react';
 
+const PremiumPlaceholder = ({ variant }: { variant: 'blue' | 'green' }) => {
+  const isBlue = variant === 'blue';
+  return (
+    <div className={`group relative overflow-hidden rounded-3xl shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:shadow-[0_20px_40px_-10px_rgba(0,0,0,0.2)] transition-all duration-500 border border-white/40 hover:-translate-y-1.5 ${isBlue ? 'bg-gradient-to-br from-blue-600 via-indigo-700 to-violet-800' : 'bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-700'
+      }`}>
+      {/* Immersive background elements */}
+      <div className="absolute top-0 right-0 -mr-12 -mt-12 w-48 h-48 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 transition-all duration-700 ease-in-out"></div>
+      <div className="absolute bottom-0 left-0 -ml-12 -mb-12 w-48 h-48 bg-black/10 rounded-full blur-3xl group-hover:bg-black/20 transition-all duration-700 ease-in-out"></div>
+
+      {/* Shimmer effect */}
+      <div className="absolute inset-0 translate-x-[-100%] bg-gradient-to-r from-transparent via-white/10 to-transparent group-hover:animate-[shimmer_2s_infinite] skew-x-12"></div>
+
+      <div className="relative z-10 p-7 flex flex-col h-full text-center items-center">
+        <div className="w-16 h-16 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 flex items-center justify-center mb-5 shadow-2xl group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500">
+          {isBlue ? (
+            <svg className="w-8 h-8 text-white drop-shadow-md" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+            </svg>
+          ) : (
+            <svg className="w-8 h-8 text-white drop-shadow-md" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+            </svg>
+          )}
+        </div>
+
+        <h4 className="font-extrabold text-white text-2xl mb-2 tracking-tight drop-shadow-sm leading-tight">
+          {isBlue ? 'Promociona Tu Negocio' : 'Aumenta Tu Visibilidad'}
+        </h4>
+        <p className="text-sm text-white/80 mb-8 font-medium max-w-[200px] leading-relaxed">
+          {isBlue ? 'Llega a miles de compradores activos hoy' : 'Destaca fácilmente entre la competencia local'}
+        </p>
+
+        <a
+          href="/advertiser"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-auto block w-full bg-white/95 text-slate-900 px-5 py-3.5 rounded-xl font-bold tracking-wide hover:bg-white transition-all shadow-lg group-hover:shadow-[0_0_20px_rgba(255,255,255,0.3)] backdrop-blur-sm"
+        >
+          Crear Anuncio Ahora
+        </a>
+      </div>
+    </div>
+  );
+};
+
 export default function SidebarBanner() {
   const { content, loading } = useRealtimeSponsoredContent('sidebar', 10);
   const trackedImpressions = useRef<Set<string>>(new Set());
@@ -41,209 +86,93 @@ export default function SidebarBanner() {
     return () => observer.disconnect();
   }, [content]);
 
-  // Si está cargando o no hay contenido, mostrar 2 banners promocionales uno debajo del otro
+  // Si está cargando o no hay contenido, mostrar 2 banners promocionales
   if (loading || content.length === 0) {
     return (
-      <div className="space-y-4">
-        {/* Banner superior promocional */}
-        <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 rounded-xl shadow-xl p-6 text-center border-2 border-white/20 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-black/30 to-transparent"></div>
-          <div className="relative z-10">
-            <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
-              </svg>
-            </div>
-            <h4 className="font-bold text-white text-lg mb-2">Promociona Tu Negocio</h4>
-            <p className="text-sm text-white/90 mb-4">Llega a miles de compradores</p>
-            <a
-              href="http://localhost:3004"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block w-full bg-white text-blue-600 px-4 py-3 rounded-lg font-bold hover:bg-blue-50 transition-all shadow-lg"
-            >
-              Crear Anuncio
-            </a>
-          </div>
-        </div>
-        {/* Banner inferior promocional */}
-        <div className="bg-gradient-to-br from-green-600 via-emerald-600 to-teal-600 rounded-xl shadow-xl p-6 text-center border-2 border-white/20 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-black/30 to-transparent"></div>
-          <div className="relative z-10">
-            <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-              </svg>
-            </div>
-            <h4 className="font-bold text-white text-lg mb-2">Aumenta Tu Visibilidad</h4>
-            <p className="text-sm text-white/90 mb-4">Destaca entre la competencia</p>
-            <a
-              href="http://localhost:3004"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block w-full bg-white text-green-600 px-4 py-3 rounded-lg font-bold hover:bg-green-50 transition-all shadow-lg"
-            >
-              Crear Anuncio
-            </a>
-          </div>
-        </div>
+      <div className="space-y-6">
+        <PremiumPlaceholder variant="blue" />
+        <PremiumPlaceholder variant="green" />
       </div>
     );
   }
 
-  // Siempre mostrar los primeros 2 banners uno debajo del otro (sin slider)
+  // Banners Reales
+  const renderRealBanner = (banner: any) => {
+    return (
+      <div
+        key={banner.id}
+        data-content-id={banner.id}
+        className="group bg-white rounded-3xl shadow-[0_10px_30px_-10px_rgba(0,0,0,0.08)] hover:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.15)] overflow-hidden border border-slate-200 mb-6 transition-all duration-500 hover:-translate-y-1.5 flex flex-col"
+      >
+        <a
+          href={banner.linkUrl}
+          target={banner.linkType === 'external' ? '_blank' : '_self'}
+          rel={banner.linkType === 'external' ? 'noopener noreferrer' : undefined}
+          onClick={() => {
+            fetch(`/api/public/sponsored-content/${banner.id}/click`, {
+              method: 'POST',
+            }).catch(console.error);
+          }}
+          className="block h-full flex flex-col relative"
+        >
+          {banner.imageUrl ? (
+            <div className="relative h-60 overflow-hidden bg-slate-900">
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/40 to-transparent z-10 transition-opacity duration-500 group-hover:opacity-80"></div>
+              <img
+                src={banner.imageUrl}
+                alt={banner.title}
+                className="w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-110"
+                referrerPolicy="no-referrer"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23f1f5f9" width="400" height="300"/%3E%3Ctext fill="%2394a3b8" font-family="sans-serif" font-size="20" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3E📢%3C/text%3E%3C/svg%3E';
+                  target.onerror = null;
+                }}
+              />
+              <div className="absolute top-4 right-4 z-20 bg-white/10 backdrop-blur-md border border-white/20 text-white px-3 py-1.5 rounded-full text-[10px] font-bold tracking-widest shadow-[0_4px_12px_rgba(0,0,0,0.2)] uppercase flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
+                PATROCINADO
+              </div>
+            </div>
+          ) : (
+            <div className="relative h-48 bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center border-b border-slate-200 overflow-hidden">
+              {/* Decorative elements for missing image */}
+              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-100 rounded-full blur-3xl opacity-50 -mr-16 -mt-16"></div>
+              <div className="absolute bottom-0 left-0 w-32 h-32 bg-purple-100 rounded-full blur-3xl opacity-50 -ml-16 -mb-16"></div>
+
+              <div className="text-slate-300 relative z-10 group-hover:scale-110 transition-transform duration-500">
+                <svg className="w-16 h-16 drop-shadow-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" /></svg>
+              </div>
+              <div className="absolute top-4 right-4 z-20 bg-slate-900/60 backdrop-blur-md border border-slate-700/50 text-white px-3 py-1.5 rounded-full text-[10px] font-bold tracking-widest shadow-md uppercase">
+                PATROCINADO
+              </div>
+            </div>
+          )}
+
+          <div className="p-6 flex flex-col flex-grow bg-white relative">
+            <h4 className="font-extrabold text-slate-900 text-xl mb-3 line-clamp-2 leading-tight group-hover:text-blue-600 transition-colors">{banner.title}</h4>
+            <p className="text-sm text-slate-600 line-clamp-3 mb-6 leading-relaxed font-medium">{banner.description}</p>
+            <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
+              <span className="inline-flex items-center gap-2 text-blue-600 font-bold text-sm tracking-wide">
+                Ver oferta
+              </span>
+              <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
+                <svg className="w-4 h-4 transform group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
+              </div>
+            </div>
+          </div>
+        </a>
+      </div>
+    );
+  };
+
   const firstBanner = content[0];
   const secondBanner = content[1] || null;
 
   return (
-    <div className="space-y-4">
-      {/* Banner superior - siempre el primero */}
-      {firstBanner ? (
-        <div
-          key={firstBanner.id}
-          data-content-id={firstBanner.id}
-          className="bg-white rounded-lg shadow-lg overflow-hidden border-2 border-purple-200 mb-4"
-        >
-          <a
-            href={firstBanner.linkUrl}
-            target={firstBanner.linkType === 'external' ? '_blank' : '_self'}
-            rel={firstBanner.linkType === 'external' ? 'noopener noreferrer' : undefined}
-            onClick={() => {
-              fetch(`/api/public/sponsored-content/${firstBanner.id}/click`, {
-                method: 'POST',
-              }).catch(console.error);
-            }}
-            className="block group"
-          >
-            {firstBanner.imageUrl && (
-              <div className="relative h-48 overflow-hidden">
-                <img
-                  src={firstBanner.imageUrl}
-                  alt={firstBanner.title}
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  referrerPolicy="no-referrer"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23ddd" width="400" height="300"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="20" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3E📢%3C/text%3E%3C/svg%3E';
-                    target.onerror = null;
-                  }}
-                />
-                <div className="absolute top-2 right-2 bg-purple-600 text-white px-2 py-1 rounded text-xs font-bold">
-                  PATROCINADO
-                </div>
-              </div>
-            )}
-            <div className="p-4">
-              <h4 className="font-semibold text-gray-900 mb-1 line-clamp-2">{firstBanner.title}</h4>
-              <p className="text-sm text-gray-600 line-clamp-2 mb-3">{firstBanner.description}</p>
-              <a
-                href="http://localhost:3004"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block w-full text-center bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-gray-200 transition-all"
-                onClick={(e) => e.stopPropagation()}
-              >
-                📢 Promociona Aquí
-              </a>
-            </div>
-          </a>
-        </div>
-      ) : (
-        <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 rounded-xl shadow-xl p-6 text-center border-2 border-white/20 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-black/30 to-transparent"></div>
-          <div className="relative z-10">
-            <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
-              </svg>
-            </div>
-            <h4 className="font-bold text-white text-lg mb-2">Promociona Tu Negocio</h4>
-            <p className="text-sm text-white/90 mb-4">Llega a miles de compradores</p>
-            <a
-              href="http://localhost:3004"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block w-full bg-white text-blue-600 px-4 py-3 rounded-lg font-bold hover:bg-blue-50 transition-all shadow-lg"
-            >
-              Crear Anuncio
-            </a>
-          </div>
-        </div>
-      )}
-
-      {/* Banner inferior - siempre el segundo (o promocional si no hay) */}
-      {secondBanner ? (
-        <div
-          key={secondBanner.id}
-          data-content-id={secondBanner.id}
-          className="bg-white rounded-lg shadow-lg overflow-hidden border-2 border-purple-200"
-        >
-          <a
-            href={secondBanner.linkUrl}
-            target={secondBanner.linkType === 'external' ? '_blank' : '_self'}
-            rel={secondBanner.linkType === 'external' ? 'noopener noreferrer' : undefined}
-            onClick={() => {
-              fetch(`/api/public/sponsored-content/${secondBanner.id}/click`, {
-                method: 'POST',
-              }).catch(console.error);
-            }}
-            className="block group"
-          >
-            {secondBanner.imageUrl && (
-              <div className="relative h-48 overflow-hidden">
-                <img
-                  src={secondBanner.imageUrl}
-                  alt={secondBanner.title}
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  referrerPolicy="no-referrer"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23ddd" width="400" height="300"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="20" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3E📢%3C/text%3E%3C/svg%3E';
-                    target.onerror = null;
-                  }}
-                />
-                <div className="absolute top-2 right-2 bg-purple-600 text-white px-2 py-1 rounded text-xs font-bold">
-                  PATROCINADO
-                </div>
-              </div>
-            )}
-            <div className="p-4">
-              <h4 className="font-semibold text-gray-900 mb-1 line-clamp-2">{secondBanner.title}</h4>
-              <p className="text-sm text-gray-600 line-clamp-2 mb-3">{secondBanner.description}</p>
-              <a
-                href="http://localhost:3004"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block w-full text-center bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-gray-200 transition-all"
-                onClick={(e) => e.stopPropagation()}
-              >
-                📢 Promociona Aquí
-              </a>
-            </div>
-          </a>
-        </div>
-      ) : (
-        <div className="bg-gradient-to-br from-green-600 via-emerald-600 to-teal-600 rounded-xl shadow-xl p-6 text-center border-2 border-white/20 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-black/30 to-transparent"></div>
-          <div className="relative z-10">
-            <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-              </svg>
-            </div>
-            <h4 className="font-bold text-white text-lg mb-2">Aumenta Tu Visibilidad</h4>
-            <p className="text-sm text-white/90 mb-4">Destaca entre la competencia</p>
-            <a
-              href="http://localhost:3004"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block w-full bg-white text-green-600 px-4 py-3 rounded-lg font-bold hover:bg-green-50 transition-all shadow-lg"
-            >
-              Crear Anuncio
-            </a>
-          </div>
-        </div>
-      )}
+    <div className="space-y-6">
+      {firstBanner ? renderRealBanner(firstBanner) : <PremiumPlaceholder variant="blue" />}
+      {secondBanner ? renderRealBanner(secondBanner) : <PremiumPlaceholder variant="green" />}
     </div>
   );
 }

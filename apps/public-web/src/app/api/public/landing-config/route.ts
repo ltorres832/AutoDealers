@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '../../../../lib/firebase-admin';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 300; // Revalidar cada 5 minutos (configuración cambia poco)

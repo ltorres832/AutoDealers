@@ -203,8 +203,8 @@ export default function WebsiteSettingsPage() {
     );
   }
 
-  const publicUrl = subdomain 
-    ? `http://${subdomain}.localhost:3000` 
+  const publicUrl = typeof window !== 'undefined' && subdomain
+    ? `${window.location.protocol}//${subdomain}.${window.location.hostname}${window.location.port ? ':' + window.location.port : ''}`
     : 'Configura un subdominio primero';
 
   return (
@@ -289,8 +289,8 @@ export default function WebsiteSettingsPage() {
       )}
 
       {showPreview ? (
-        <WebsitePreview 
-          settings={settings} 
+        <WebsitePreview
+          settings={settings}
           branding={branding}
           profile={profile}
           sellerInfo={sellerInfo}
@@ -300,335 +300,335 @@ export default function WebsiteSettingsPage() {
         />
       ) : (
         <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-6">
-        {/* Hero Section */}
-        <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
-          <h2 className="text-xl font-bold mb-4">Sección Principal (Hero)</h2>
-          
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Título Principal *</label>
-              <input
-                type="text"
-                value={settings.hero.title}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    hero: { ...settings.hero, title: e.target.value },
-                  })
-                }
-                className="w-full border rounded px-3 py-2"
-                required
-                placeholder="Ej: Encuentra el vehículo perfecto para ti"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Este título aparecerá en la sección principal de tu página web
-              </p>
-            </div>
+          {/* Hero Section */}
+          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
+            <h2 className="text-xl font-bold mb-4">Sección Principal (Hero)</h2>
 
-            <div>
-              <label className="block text-sm font-medium mb-2">Subtítulo</label>
-              <input
-                type="text"
-                value={settings.hero.subtitle}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    hero: { ...settings.hero, subtitle: e.target.value },
-                  })
-                }
-                className="w-full border rounded px-3 py-2"
-                placeholder="Ej: Tenemos la mejor selección de vehículos"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Si no especificas un subtítulo, se mostrará el conteo de vehículos disponibles
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">Texto del Botón CTA</label>
-              <input
-                type="text"
-                value={settings.hero.ctaText}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    hero: { ...settings.hero, ctaText: e.target.value },
-                  })
-                }
-                className="w-full border rounded px-3 py-2"
-                placeholder="Ej: Ver Inventario"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                El botón llevará a los visitantes directamente al inventario
-              </p>
-            </div>
-          </div>
-          
-          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-800">
-              💡 <strong>Nota:</strong> La información de contacto (teléfono, email, dirección, horarios, redes sociales) 
-              se toma automáticamente de tu <Link href="/settings/profile" className="underline">Perfil</Link>. 
-              Asegúrate de tener toda tu información actualizada allí.
-            </p>
-          </div>
-        </div>
-
-        {/* Sections */}
-        <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
-          <h2 className="text-xl font-bold mb-4">Secciones de la Página</h2>
-
-          {/* About Section */}
-          <div className="border-b pb-4 mb-4">
-            <div className="flex items-center justify-between mb-3">
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={settings.sections.about.enabled}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      sections: {
-                        ...settings.sections,
-                        about: { ...settings.sections.about, enabled: e.target.checked },
-                      },
-                    })
-                  }
-                  className="w-4 h-4 text-primary-600 rounded"
-                />
-                <span className="font-medium">Sección "Sobre Nosotros"</span>
-              </label>
-            </div>
-            {settings.sections.about.enabled && (
-              <div className="ml-6 space-y-3">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Título</label>
-                  <input
-                    type="text"
-                    value={settings.sections.about.title}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        sections: {
-                          ...settings.sections,
-                          about: { ...settings.sections.about, title: e.target.value },
-                        },
-                      })
-                    }
-                    className="w-full border rounded px-3 py-2"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Contenido</label>
-                  <textarea
-                    value={settings.sections.about.content}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        sections: {
-                          ...settings.sections,
-                          about: { ...settings.sections.about, content: e.target.value },
-                        },
-                      })
-                    }
-                    className="w-full border rounded px-3 py-2"
-                    rows={4}
-                    placeholder="Describe tu negocio..."
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Services Section */}
-          <div className="border-b pb-4 mb-4">
-            <div className="flex items-center justify-between mb-3">
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={settings.sections.services.enabled}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      sections: {
-                        ...settings.sections,
-                        services: { ...settings.sections.services, enabled: e.target.checked },
-                      },
-                    })
-                  }
-                  className="w-4 h-4 text-primary-600 rounded"
-                />
-                <span className="font-medium">Sección "Servicios"</span>
-              </label>
-            </div>
-            {settings.sections.services.enabled && (
-              <div className="ml-6">
-                <label className="block text-sm font-medium mb-2">Título</label>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Título Principal *</label>
                 <input
                   type="text"
-                  value={settings.sections.services.title}
+                  value={settings.hero.title}
                   onChange={(e) =>
                     setSettings({
                       ...settings,
-                      sections: {
-                        ...settings.sections,
-                        services: { ...settings.sections.services, title: e.target.value },
-                      },
+                      hero: { ...settings.hero, title: e.target.value },
                     })
                   }
-                  className="w-full border rounded px-3 py-2 mb-3"
+                  className="w-full border rounded px-3 py-2"
+                  required
+                  placeholder="Ej: Encuentra el vehículo perfecto para ti"
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Este título aparecerá en la sección principal de tu página web
+                </p>
               </div>
-            )}
-          </div>
 
-          {/* Testimonials Section */}
-          <div className="border-b pb-4 mb-4">
-            <label className="flex items-center space-x-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={settings.sections.testimonials.enabled}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    sections: {
-                      ...settings.sections,
-                      testimonials: { ...settings.sections.testimonials, enabled: e.target.checked },
-                    },
-                  })
-                }
-                className="w-4 h-4 text-primary-600 rounded"
-              />
-              <span className="font-medium">Sección "Testimonios"</span>
-            </label>
-          </div>
-
-          {/* Contact Section */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <label className="flex items-center space-x-2 cursor-pointer">
+              <div>
+                <label className="block text-sm font-medium mb-2">Subtítulo</label>
                 <input
-                  type="checkbox"
-                  checked={settings.sections.contact.enabled}
+                  type="text"
+                  value={settings.hero.subtitle}
                   onChange={(e) =>
                     setSettings({
                       ...settings,
-                      sections: {
-                        ...settings.sections,
-                        contact: { ...settings.sections.contact, enabled: e.target.checked },
-                      },
+                      hero: { ...settings.hero, subtitle: e.target.value },
                     })
                   }
-                  className="w-4 h-4 text-primary-600 rounded"
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="Ej: Tenemos la mejor selección de vehículos"
                 />
-                <span className="font-medium">Sección "Contacto"</span>
-              </label>
+                <p className="text-xs text-gray-500 mt-1">
+                  Si no especificas un subtítulo, se mostrará el conteo de vehículos disponibles
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Texto del Botón CTA</label>
+                <input
+                  type="text"
+                  value={settings.hero.ctaText}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      hero: { ...settings.hero, ctaText: e.target.value },
+                    })
+                  }
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="Ej: Ver Inventario"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  El botón llevará a los visitantes directamente al inventario
+                </p>
+              </div>
             </div>
-            {settings.sections.contact.enabled && (
-              <div className="ml-6 space-y-3">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Título</label>
-                  <input
-                    type="text"
-                    value={settings.sections.contact.title}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        sections: {
-                          ...settings.sections,
-                          contact: { ...settings.sections.contact, title: e.target.value },
-                        },
-                      })
-                    }
-                    className="w-full border rounded px-3 py-2"
-                  />
-                </div>
+
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800">
+                💡 <strong>Nota:</strong> La información de contacto (teléfono, email, dirección, horarios, redes sociales)
+                se toma automáticamente de tu <Link href="/settings/profile" className="underline">Perfil</Link>.
+                Asegúrate de tener toda tu información actualizada allí.
+              </p>
+            </div>
+          </div>
+
+          {/* Sections */}
+          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
+            <h2 className="text-xl font-bold mb-4">Secciones de la Página</h2>
+
+            {/* About Section */}
+            <div className="border-b pb-4 mb-4">
+              <div className="flex items-center justify-between mb-3">
                 <label className="flex items-center space-x-2 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={settings.sections.contact.showMap}
+                    checked={settings.sections.about.enabled}
                     onChange={(e) =>
                       setSettings({
                         ...settings,
                         sections: {
                           ...settings.sections,
-                          contact: { ...settings.sections.contact, showMap: e.target.checked },
+                          about: { ...settings.sections.about, enabled: e.target.checked },
                         },
                       })
                     }
                     className="w-4 h-4 text-primary-600 rounded"
                   />
-                  <span className="text-sm">Mostrar mapa de ubicación</span>
+                  <span className="font-medium">Sección "Sobre Nosotros"</span>
                 </label>
               </div>
-            )}
+              {settings.sections.about.enabled && (
+                <div className="ml-6 space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Título</label>
+                    <input
+                      type="text"
+                      value={settings.sections.about.title}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          sections: {
+                            ...settings.sections,
+                            about: { ...settings.sections.about, title: e.target.value },
+                          },
+                        })
+                      }
+                      className="w-full border rounded px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Contenido</label>
+                    <textarea
+                      value={settings.sections.about.content}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          sections: {
+                            ...settings.sections,
+                            about: { ...settings.sections.about, content: e.target.value },
+                          },
+                        })
+                      }
+                      className="w-full border rounded px-3 py-2"
+                      rows={4}
+                      placeholder="Describe tu negocio..."
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Services Section */}
+            <div className="border-b pb-4 mb-4">
+              <div className="flex items-center justify-between mb-3">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={settings.sections.services.enabled}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        sections: {
+                          ...settings.sections,
+                          services: { ...settings.sections.services, enabled: e.target.checked },
+                        },
+                      })
+                    }
+                    className="w-4 h-4 text-primary-600 rounded"
+                  />
+                  <span className="font-medium">Sección "Servicios"</span>
+                </label>
+              </div>
+              {settings.sections.services.enabled && (
+                <div className="ml-6">
+                  <label className="block text-sm font-medium mb-2">Título</label>
+                  <input
+                    type="text"
+                    value={settings.sections.services.title}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        sections: {
+                          ...settings.sections,
+                          services: { ...settings.sections.services, title: e.target.value },
+                        },
+                      })
+                    }
+                    className="w-full border rounded px-3 py-2 mb-3"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Testimonials Section */}
+            <div className="border-b pb-4 mb-4">
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={settings.sections.testimonials.enabled}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      sections: {
+                        ...settings.sections,
+                        testimonials: { ...settings.sections.testimonials, enabled: e.target.checked },
+                      },
+                    })
+                  }
+                  className="w-4 h-4 text-primary-600 rounded"
+                />
+                <span className="font-medium">Sección "Testimonios"</span>
+              </label>
+            </div>
+
+            {/* Contact Section */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={settings.sections.contact.enabled}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        sections: {
+                          ...settings.sections,
+                          contact: { ...settings.sections.contact, enabled: e.target.checked },
+                        },
+                      })
+                    }
+                    className="w-4 h-4 text-primary-600 rounded"
+                  />
+                  <span className="font-medium">Sección "Contacto"</span>
+                </label>
+              </div>
+              {settings.sections.contact.enabled && (
+                <div className="ml-6 space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Título</label>
+                    <input
+                      type="text"
+                      value={settings.sections.contact.title}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          sections: {
+                            ...settings.sections,
+                            contact: { ...settings.sections.contact, title: e.target.value },
+                          },
+                        })
+                      }
+                      className="w-full border rounded px-3 py-2"
+                    />
+                  </div>
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={settings.sections.contact.showMap}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          sections: {
+                            ...settings.sections,
+                            contact: { ...settings.sections.contact, showMap: e.target.checked },
+                          },
+                        })
+                      }
+                      className="w-4 h-4 text-primary-600 rounded"
+                    />
+                    <span className="text-sm">Mostrar mapa de ubicación</span>
+                  </label>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* SEO Settings */}
-        <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
-          <h2 className="text-xl font-bold mb-4">Configuración SEO</h2>
-          
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Meta Título</label>
-              <input
-                type="text"
-                value={settings.seo.metaTitle}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    seo: { ...settings.seo, metaTitle: e.target.value },
-                  })
-                }
-                className="w-full border rounded px-3 py-2"
-                placeholder="Título para buscadores"
-              />
-            </div>
+          {/* SEO Settings */}
+          <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
+            <h2 className="text-xl font-bold mb-4">Configuración SEO</h2>
 
-            <div>
-              <label className="block text-sm font-medium mb-2">Meta Descripción</label>
-              <textarea
-                value={settings.seo.metaDescription}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    seo: { ...settings.seo, metaDescription: e.target.value },
-                  })
-                }
-                className="w-full border rounded px-3 py-2"
-                rows={3}
-                placeholder="Descripción para buscadores"
-              />
-            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Meta Título</label>
+                <input
+                  type="text"
+                  value={settings.seo.metaTitle}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      seo: { ...settings.seo, metaTitle: e.target.value },
+                    })
+                  }
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="Título para buscadores"
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-2">Palabras Clave</label>
-              <input
-                type="text"
-                value={settings.seo.keywords}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    seo: { ...settings.seo, keywords: e.target.value },
-                  })
-                }
-                className="w-full border rounded px-3 py-2"
-                placeholder="palabra1, palabra2, palabra3"
-              />
+              <div>
+                <label className="block text-sm font-medium mb-2">Meta Descripción</label>
+                <textarea
+                  value={settings.seo.metaDescription}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      seo: { ...settings.seo, metaDescription: e.target.value },
+                    })
+                  }
+                  className="w-full border rounded px-3 py-2"
+                  rows={3}
+                  placeholder="Descripción para buscadores"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Palabras Clave</label>
+                <input
+                  type="text"
+                  value={settings.seo.keywords}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      seo: { ...settings.seo, keywords: e.target.value },
+                    })
+                  }
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="palabra1, palabra2, palabra3"
+                />
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="flex justify-end">
-          <button
-            type="submit"
-            disabled={saving}
-            className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium disabled:opacity-50"
-          >
-            {saving ? 'Guardando...' : 'Guardar Cambios'}
-          </button>
-        </div>
-      </form>
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium disabled:opacity-50"
+            >
+              {saving ? 'Guardando...' : 'Guardar Cambios'}
+            </button>
+          </div>
+        </form>
       )}
     </div>
   );

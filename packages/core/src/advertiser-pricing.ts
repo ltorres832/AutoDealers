@@ -1,7 +1,7 @@
 // Configuración de precios para advertisers (empresas externas)
 // Sincronización automática con Stripe
 
-import { getFirestore } from './firebase';
+import { getFirestore } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
 import Stripe from 'stripe';
 

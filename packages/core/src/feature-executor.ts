@@ -6,7 +6,7 @@ import { getTenantMembership } from './membership-validation';
 // Los tipos reales se obtienen en tiempo de ejecución
 type MembershipFeatures = any;
 type Membership = any;
-import { getFirestore } from './firebase';
+import { getFirestore } from '@autodealers/shared';
 
 // Lazy initialization - solo se inicializa cuando se necesita
 function getDb() {

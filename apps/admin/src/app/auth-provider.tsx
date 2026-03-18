@@ -13,11 +13,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Sobrescribir fetch global
     window.fetch = async function(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-      // Obtener la URL
-      const url = typeof input === 'string' ? input : (input as Request).url;
+      // Obtener la URL de forma segura
+      let url: string | undefined;
+      if (typeof input === 'string') {
+        url = input;
+      } else if (input instanceof URL) {
+        url = input.href;
+      } else if (input instanceof Request) {
+        url = input.url;
+      } else {
+        // Si no podemos determinar la URL, usar fetch original
+        return originalFetch(input, init);
+      }
 
-      // Solo interceptar peticiones a /api
-      if (url.includes('/api')) {
+      // Solo interceptar peticiones a /api si tenemos una URL válida
+      if (url && url.includes('/api')) {
         // Obtener token de autenticación
         const token = localStorage.getItem('authToken') || 
                       document.cookie.split(';').find(c => c.trim().startsWith('authToken='))?.split('=')[1];

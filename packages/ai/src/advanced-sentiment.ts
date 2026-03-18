@@ -1,6 +1,6 @@
 // Análisis de sentimiento avanzado con IA
 
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
 import OpenAI from 'openai';
 
 const db = getFirestore();

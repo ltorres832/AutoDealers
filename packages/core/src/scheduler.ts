@@ -2,7 +2,7 @@
 
 import { getPendingReminders, markReminderAsSent } from '@autodealers/crm';
 import { createNotification } from './notifications';
-import { getFirestore } from './firebase';
+import { getFirestore } from '@autodealers/shared';
 
 // Lazy initialization - solo se inicializa cuando se necesita
 function getDb() {

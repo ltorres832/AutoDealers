@@ -1,25 +1,54 @@
 'use client';
 
 import LeadsList from '@/components/LeadsList';
+import LeadsKanbanEnhanced from '@/components/LeadsKanbanEnhanced';
 import { useState } from 'react';
 import Link from 'next/link';
 
+type ViewMode = 'list' | 'kanban';
+
 export default function LeadsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('kanban');
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Leads</h1>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="bg-primary-600 text-white px-4 py-2 rounded hover:bg-primary-700"
-        >
-          Nuevo Lead
-        </button>
+        <div className="flex items-center gap-4">
+          {/* Toggle de vista */}
+          <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
+                viewMode === 'list'
+                  ? 'bg-white text-primary-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              📋 Lista
+            </button>
+            <button
+              onClick={() => setViewMode('kanban')}
+              className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
+                viewMode === 'kanban'
+                  ? 'bg-white text-primary-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              📊 Kanban
+            </button>
+          </div>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="bg-primary-600 text-white px-4 py-2 rounded hover:bg-primary-700"
+          >
+            Nuevo Lead
+          </button>
+        </div>
       </div>
 
-      <LeadsList />
+      {viewMode === 'list' ? <LeadsList /> : <LeadsKanbanEnhanced />}
 
       {showCreateModal && (
         <CreateLeadModal onClose={() => setShowCreateModal(false)} />

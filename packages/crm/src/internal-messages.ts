@@ -1,6 +1,6 @@
 // Gestión de mensajes internos (dealer <-> sellers)
 
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
 
 // Lazy initialization - solo se inicializa cuando se necesita

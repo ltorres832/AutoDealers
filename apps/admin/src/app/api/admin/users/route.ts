@@ -1,4 +1,4 @@
-﻿export const dynamic = 'force-dynamic';
+export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
@@ -32,11 +32,17 @@ export async function GET(request: NextRequest) {
     const snapshot = await query.get();
     let users = snapshot.docs.map((doc: any) => {
       const data = doc.data();
+      // Intentar obtener lastLogin de múltiples campos posibles
+      const lastLogin = data?.lastLogin?.toDate?.() 
+        || data?.lastAccess?.toDate?.() 
+        || (data?.lastLogin instanceof Date ? data.lastLogin : null)
+        || (data?.lastAccess instanceof Date ? data.lastAccess : null);
+      
       return {
         id: doc.id,
         ...data,
         createdAt: data?.createdAt?.toDate()?.toISOString() || new Date().toISOString(),
-        lastLogin: data?.lastLogin?.toDate()?.toISOString(),
+        lastLogin: lastLogin ? lastLogin.toISOString() : undefined,
         // Calificaciones
         sellerRating: data?.sellerRating || 0,
         sellerRatingCount: data?.sellerRatingCount || 0,

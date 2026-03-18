@@ -76,7 +76,7 @@ export default function HeroBanner() {
               Publica tu anuncio en la posición más visible de nuestra plataforma y aumenta tu visibilidad exponencialmente
             </p>
             <a
-              href="http://localhost:3004"
+              href="/advertiser"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-3 bg-gradient-to-r from-white to-blue-50 text-blue-700 px-8 py-4 rounded-xl font-bold text-lg hover:from-blue-50 hover:to-white transition-all shadow-2xl hover:shadow-white/50 hover:scale-105 transform"
@@ -115,19 +115,14 @@ export default function HeroBanner() {
   };
 
   return (
-    <div 
-      className="relative w-full h-64 md:h-80 lg:h-96 rounded-xl overflow-hidden mb-8 shadow-2xl border-2 border-white/20"
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
-    >
-      {/* Slider de banners */}
+    <div className="relative w-full h-[500px] md:h-[600px] rounded-3xl overflow-hidden shadow-[0_30px_100px_-15px_rgba(0,0,0,0.5)] border border-white/5 bg-slate-900 group/hero">
+      {/* Premium Content Slider */}
       <div className="relative w-full h-full">
         {content.map((banner, index) => (
           <div
             key={banner.id}
-            className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
-              index === currentIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'
-            }`}
+            className={`absolute inset-0 transition-all duration-1000 ease-in-out ${index === currentIndex ? 'opacity-100 scale-100 z-10' : 'opacity-0 scale-105 z-0'
+              }`}
           >
             <a
               href={banner.linkUrl}
@@ -138,119 +133,121 @@ export default function HeroBanner() {
                   method: 'POST',
                 }).catch(console.error);
               }}
-              className="block w-full h-full relative group cursor-pointer"
+              className="block w-full h-full relative group cursor-pointer overflow-hidden"
             >
               {banner.imageUrl ? (
-                <img
-                  src={banner.imageUrl}
-                  alt={banner.title}
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                  referrerPolicy="no-referrer"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="800" height="400"%3E%3Crect fill="%23ddd" width="800" height="400"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="24" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3E📢%3C/text%3E%3C/svg%3E';
-                    target.onerror = null;
-                  }}
-                />
+                <>
+                  <img
+                    src={banner.imageUrl}
+                    alt={banner.title}
+                    className="w-full h-full object-cover transition-transform duration-[10000ms] ease-linear group-hover:scale-125"
+                    referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="800" height="400"%3E%3Crect fill="%231e293b" width="800" height="400"/%3E%3Ctext fill="%23475569" font-family="sans-serif" font-size="24" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3E🚗 Imagen no disponible%3C/text%3E%3C/svg%3E';
+                      target.onerror = null;
+                    }}
+                  />
+                  {/* Advanced Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-900/60 to-transparent"></div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent"></div>
+                </>
               ) : (
-                <div className="w-full h-full bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center">
-                  <div className="text-white text-center">
-                    <div className="text-6xl mb-4">📢</div>
-                    <h3 className="text-3xl font-bold">{banner.title}</h3>
+                <div className="w-full h-full bg-gradient-to-br from-indigo-900 via-slate-900 to-slate-950 flex items-center justify-center">
+                  <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '40px 40px' }}></div>
+                  <div className="text-center z-10">
+                    <div className="text-7xl mb-6 animate-pulse">✨</div>
                   </div>
                 </div>
               )}
-              
-              {/* Overlay con información mejorado */}
-              <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/60 to-transparent flex items-center">
-                <div className="px-6 md:px-12 text-white max-w-3xl">
-                  <div className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 px-5 py-2 rounded-full text-xs font-bold mb-4 shadow-xl">
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                    </svg>
-                    <span>ANUNCIO PATROCINADO</span>
-                  </div>
-                  <h3 className="text-4xl md:text-5xl lg:text-6xl font-black mb-4 leading-tight drop-shadow-2xl">
-                    {banner.title}
+
+              {/* Premium Floating Label */}
+              <div className="absolute top-8 left-8 z-30 flex items-center gap-3">
+                <span className="bg-blue-600/90 text-white px-4 py-1.5 rounded-full text-[10px] font-black tracking-[0.2em] shadow-lg backdrop-blur-md uppercase border border-blue-400/30">
+                  Exclusivo
+                </span>
+                <span className="bg-white/10 text-white/80 px-4 py-1.5 rounded-full text-[10px] font-bold tracking-widest backdrop-blur-md border border-white/10 uppercase">
+                  Oportunidad Premium
+                </span>
+              </div>
+
+              {/* Main Information - Ultra Responsive and Elegant */}
+              <div className="absolute inset-0 flex items-center">
+                <div className="px-8 md:px-16 lg:px-24 text-white max-w-4xl">
+                  <h3 className="text-5xl md:text-6xl lg:text-7xl font-black mb-6 leading-[1.1] tracking-tight drop-shadow-2xl">
+                    {banner.title.split(' ').map((word, i) => (
+                      <span key={i} className={i % 2 === 1 ? "text-blue-400" : ""}> {word}</span>
+                    ))}
                   </h3>
-                  <p className="text-xl md:text-2xl text-white/95 line-clamp-2 mb-6 font-semibold drop-shadow-lg">
+                  <p className="text-xl md:text-2xl text-slate-200/90 line-clamp-2 mb-10 font-medium max-w-2xl leading-relaxed">
                     {banner.description}
                   </p>
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    <div className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-white to-blue-50 text-blue-700 px-8 py-4 rounded-xl font-bold text-base hover:from-blue-50 hover:to-white transition-all shadow-2xl hover:shadow-blue-500/50 hover:scale-105 transform">
-                      <span>Descubrir Más</span>
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+
+                  <div className="flex flex-col sm:flex-row gap-5 items-start">
+                    <div className="group/btn relative inline-flex items-center justify-center gap-3 bg-white text-slate-950 px-10 py-5 rounded-2xl font-black text-lg transition-all shadow-[0_20px_50px_rgba(255,255,255,0.2)] hover:shadow-[0_20px_50px_rgba(255,255,255,0.4)] hover:scale-105 transform active:scale-95">
+                      <span>Ver Detalles</span>
+                      <svg className="w-6 h-6 group-hover/btn:translate-x-1.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                       </svg>
                     </div>
                   </div>
                 </div>
               </div>
-              
-              {/* Badge "Promociona Tu Negocio" en la esquina superior derecha */}
-              <div className="absolute top-4 right-4 z-30">
-                <a
-                  href="http://localhost:3004"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-full font-bold text-sm shadow-2xl hover:from-green-600 hover:to-emerald-700 transition-all hover:scale-110 transform backdrop-blur-sm border-2 border-white/30"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
-                  </svg>
-                  <span>Promociona Tu Negocio Aquí</span>
-                </a>
+
+              {/* Status Info */}
+              <div className="absolute bottom-10 right-10 z-30 hidden md:flex items-center gap-6 text-white/50 text-xs font-bold tracking-widest uppercase">
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-ping"></div>
+                  <span>Verificado</span>
+                </div>
+                <div className="w-px h-4 bg-white/20"></div>
+                <div>Garantía Oficial</div>
               </div>
             </a>
           </div>
         ))}
       </div>
 
-      {/* Controles de navegación */}
+      {/* Navigation Controls - Ultra Minimalist */}
       {content.length > 1 && (
         <>
-          {/* Botón anterior */}
-          <button
-            onClick={prevSlide}
-            className="absolute left-4 top-1/2 transform -translate-y-1/2 z-20 bg-white/90 hover:bg-white text-gray-900 p-3 rounded-full shadow-lg transition-all hover:scale-110"
-            aria-label="Banner anterior"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-
-          {/* Botón siguiente */}
-          <button
-            onClick={nextSlide}
-            className="absolute right-4 top-1/2 transform -translate-y-1/2 z-20 bg-white/90 hover:bg-white text-gray-900 p-3 rounded-full shadow-lg transition-all hover:scale-110"
-            aria-label="Banner siguiente"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-
-          {/* Indicadores de rotación mejorados */}
-          <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-20 flex gap-2 bg-black/30 backdrop-blur-sm px-4 py-2 rounded-full">
-            {content.map((_, index) => (
-              <button
-                key={index}
-                onClick={() => goToSlide(index)}
-                className={`h-2.5 rounded-full transition-all duration-300 ${
-                  index === currentIndex 
-                    ? 'w-8 bg-white shadow-lg' 
-                    : 'w-2 bg-white/60 hover:bg-white/80'
-                }`}
-                aria-label={`Ir al banner ${index + 1}`}
-              />
-            ))}
+          {/* Progress indicators */}
+          <div className="absolute bottom-10 left-10 md:left-24 z-40 flex items-center gap-4">
+            <div className="flex gap-2">
+              {content.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => goToSlide(index)}
+                  className="group relative h-10 w-2 flex items-center overflow-hidden"
+                  aria-label={`Slide ${index + 1}`}
+                >
+                  <div className={`h-full w-full rounded-full transition-all duration-500 ${index === currentIndex ? 'bg-blue-500' : 'bg-white/20 group-hover:bg-white/40'
+                    }`} />
+                </button>
+              ))}
+            </div>
+            <div className="text-white/40 text-sm font-black tracking-widest">
+              <span className="text-white">0{currentIndex + 1}</span> / 0{content.length}
+            </div>
           </div>
 
-          {/* Contador de banners */}
-          <div className="absolute top-4 right-4 z-20 bg-black/50 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs font-semibold">
-            {currentIndex + 1} / {content.length}
+          <div className="absolute bottom-10 right-10 md:right-24 z-40 flex gap-4">
+            <button
+              onClick={prevSlide}
+              className="w-12 h-12 bg-white/10 hover:bg-white/20 backdrop-blur-xl text-white rounded-xl flex items-center justify-center transition-all border border-white/10 group overflow-hidden"
+            >
+              <svg className="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <button
+              onClick={nextSlide}
+              className="w-12 h-12 bg-white/10 hover:bg-white/20 backdrop-blur-xl text-white rounded-xl flex items-center justify-center transition-all border border-white/10 group overflow-hidden"
+            >
+              <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
           </div>
         </>
       )}

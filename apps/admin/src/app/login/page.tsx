@@ -24,7 +24,29 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
+      // Verificar Content-Type antes de parsear JSON
+      const contentType = response.headers.get('content-type');
+      let data: any;
+      
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        // Si no es JSON, leer como texto para ver el error
+        const text = await response.text();
+        console.error('❌ Respuesta no JSON del servidor:', text.substring(0, 500));
+        
+        // Intentar extraer información útil del error HTML
+        let errorMessage = 'Error del servidor';
+        if (response.status === 500) {
+          errorMessage = 'Error interno del servidor. Por favor, revisa los logs del servidor o contacta al administrador.';
+        } else if (response.status === 503) {
+          errorMessage = 'Servicio no disponible temporalmente. Por favor, intenta más tarde.';
+        } else {
+          errorMessage = `Error del servidor (${response.status}). Por favor, intenta más tarde.`;
+        }
+        
+        throw new Error(errorMessage);
+      }
 
       if (!response.ok) {
         throw new Error(data.error || 'Error al autenticar');
@@ -38,6 +60,22 @@ export default function LoginPage() {
       localStorage.setItem('authToken', data.token);
       localStorage.setItem('userEmail', data.user.email);
       localStorage.setItem('userId', data.user.uid);
+
+      // Actualizar último acceso
+      try {
+        await fetch('/api/users/update-last-access', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${data.token}`,
+          },
+          credentials: 'include',
+        });
+        console.log('✅ Último acceso actualizado');
+      } catch (error) {
+        console.warn('⚠️ No se pudo actualizar último acceso:', error);
+        // No bloquear el login si falla
+      }
 
       console.log('🚀 Redirigiendo al dashboard...');
 

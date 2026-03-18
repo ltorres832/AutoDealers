@@ -14,11 +14,12 @@ import * as admin from 'firebase-admin';
  */
 export async function GET(request: NextRequest) {
   const db = getFirestore();
-  
+
   const { searchParams } = new URL(request.url);
   const type = searchParams.get('type') as 'dealer' | 'seller' | null;
   const userId = searchParams.get('userId'); // Opcional: para verificar acceso Multi Dealer
-  
+  const showMultiDealer = searchParams.get('showMultiDealer') === 'true'; // Para permitir ver planes en registro
+
   try {
     // Usar la misma función que el admin para obtener membresías
     let allMemberships;
@@ -29,28 +30,30 @@ export async function GET(request: NextRequest) {
       // Continuar con fallback
       allMemberships = [];
     }
-    
+
     // Filtrar solo las activas (el admin puede ver inactivas, pero el público solo activas)
-    let memberships = Array.isArray(allMemberships) 
+    let memberships = Array.isArray(allMemberships)
       ? allMemberships.filter((m) => m.isActive === true)
       : [];
 
     // IMPORTANTE: Filtrar membresías Multi Dealer
     // Solo mostrarlas si el usuario tiene acceso aprobado y activo (dentro de 48 horas)
-    const filteredMemberships = [];
-    
+    const filteredMemberships: any[] = [];
+
     for (const membership of memberships) {
       const isMultiDealer = membership.features?.multiDealerEnabled === true;
-      
+
       if (!isMultiDealer) {
         // Membresías normales: siempre visibles
         filteredMemberships.push(membership);
       } else {
         // Membresías Multi Dealer: NO se muestran hasta que el admin apruebe la solicitud
-        // Solo visibles si el usuario tiene acceso aprobado y activo (dentro de 48 horas)
-        if (userId) {
+        // EXCEPCIÓN: Si showMultiDealer=true (para el formulario de registro inicial)
+        if (showMultiDealer) {
+          filteredMemberships.push(membership);
+        } else if (userId) {
           const access = await checkMultiDealerAccess(userId);
-          
+
           if (access.hasAccess && !access.isExpired) {
             // Verificar que la membresía coincida con la aprobada
             const requestDoc = await db.collection('multi_dealer_requests').doc(userId).get();
@@ -61,9 +64,7 @@ export async function GET(request: NextRequest) {
               }
             }
           }
-          // Si no tiene acceso o expiró, no se muestra (silencio)
         }
-        // Si no hay userId, NO mostrar membresías Multi Dealer (requieren aprobación)
       }
     }
 
@@ -73,7 +74,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Error fetching memberships:', error);
-    
+
     // Fallback: intentar obtener directamente de Firestore si getMemberships falla
     try {
       console.log('🔄 Intentando fallback directo de Firestore...');
@@ -96,10 +97,12 @@ export async function GET(request: NextRequest) {
       });
 
       // Filtrar Multi Dealer igual que arriba
-      const filtered = [];
+      const filtered: any[] = [];
       for (const membership of fallbackMemberships as any[]) {
         const isMultiDealer = membership.features?.multiDealerEnabled === true;
         if (!isMultiDealer) {
+          filtered.push(membership);
+        } else if (showMultiDealer) {
           filtered.push(membership);
         } else if (userId) {
           const access = await checkMultiDealerAccess(userId);

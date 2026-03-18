@@ -2,7 +2,7 @@
 
 import { CorporateEmail, CorporateEmailStatus, CorporateEmailUsage } from '@autodealers/core';
 import { ZohoMailService, ZohoEmailAccount } from '@autodealers/messaging';
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
 import { getMembershipById } from '@autodealers/billing';
 import { getUserById } from '@autodealers/core';
 import { getTenantById } from '@autodealers/core';

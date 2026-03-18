@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getFirestore, getStripeService } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
+import { getStripeService } from '@autodealers/core';
 import * as admin from 'firebase-admin';
 
 export async function POST(request: NextRequest) {

@@ -4,7 +4,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { InstagramMessagingService } from '@autodealers/messaging';
 import { UnifiedMessagingService } from '@autodealers/messaging';
 import { createLead, findLeadByPhoneInTenant, updateLead, addInteraction } from '@autodealers/crm';
-import { createNotification, getFirestore } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
+import { createNotification } from '@autodealers/core';
 import * as admin from 'firebase-admin';
 
 const db = getFirestore();

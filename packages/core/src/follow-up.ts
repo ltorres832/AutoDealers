@@ -1,6 +1,6 @@
 // Sistema de seguimiento de clientes sin compra
 
-import { getFirestore } from './firebase';
+import { getFirestore } from '@autodealers/shared';
 
 // Lazy initialization - solo se inicializa cuando se necesita
 function getDb() {

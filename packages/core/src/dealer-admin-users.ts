@@ -1,7 +1,7 @@
 // Gestión de usuarios administradores de dealers
 
 import { DealerAdminUser, DealerAdminPermissions, UserStatus } from './types';
-import { getFirestore, getAuth } from './firebase';
+import { getFirestore, getAuth } from '@autodealers/shared';
 
 // Lazy initialization - solo se inicializa cuando se necesita
 function getDb() {

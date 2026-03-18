@@ -1,6 +1,6 @@
 // Sistema de scoring avanzado de leads
 
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
 import { Lead, ScoreHistory } from './types';
 import * as admin from 'firebase-admin';
 

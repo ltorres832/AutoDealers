@@ -271,7 +271,7 @@ export default function AdminMembershipsPage() {
 
       if (!response.ok) {
         let errorText = '';
-        let errorData = null;
+        let errorData: { error?: string; details?: string } | null = null;
         
         try {
           errorText = await response.text();

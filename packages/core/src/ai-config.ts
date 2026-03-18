@@ -1,6 +1,6 @@
 // Gestión de configuración de IA por tenant
 
-import { getFirestore } from './firebase';
+import { getFirestore } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
 
 const db = getFirestore();
@@ -12,6 +12,7 @@ export interface AIConfig {
   model?: string;
   autoClassifyLeads: boolean;
   autoRespondMessages: boolean;
+  autoRespondEmails: boolean;
   autoSuggestFollowUps: boolean;
   autoGenerateContent: boolean;
   classificationSettings: {
@@ -50,6 +51,7 @@ const DEFAULT_AI_CONFIG: AIConfig = {
   provider: 'none',
   autoClassifyLeads: false,
   autoRespondMessages: false,
+  autoRespondEmails: false,
   autoSuggestFollowUps: false,
   autoGenerateContent: false,
   classificationSettings: {
@@ -181,5 +183,25 @@ export async function getAIModel(
       return config.contentSettings.model || 'gpt-4-turbo-preview';
     default:
       return config.model || 'gpt-4-turbo-preview';
+  }
+}
+
+/**
+ * Verifica si la IA puede responder automáticamente para un canal específico
+ */
+export async function canAutoRespond(
+  tenantId: string,
+  channel: 'emails' | 'messages'
+): Promise<boolean> {
+  const config = await getAIConfig(tenantId);
+  
+  if (!config.enabled || !config.responseSettings.enabled) {
+    return false;
+  }
+  
+  if (channel === 'emails') {
+    return config.autoRespondEmails || false;
+  } else {
+    return config.autoRespondMessages || false;
   }
 }

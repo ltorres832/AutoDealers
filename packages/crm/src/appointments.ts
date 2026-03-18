@@ -1,7 +1,7 @@
 // Gestión de citas
 
 import { Appointment, Reminder } from './types';
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
 
 const db = getFirestore();
@@ -216,6 +216,41 @@ export async function getLeadAppointments(
       updatedAt: data?.updatedAt?.toDate() || new Date(),
     } as Appointment;
   });
+}
+
+/**
+ * Actualiza una cita (campos parciales)
+ */
+export async function updateAppointment(
+  tenantId: string,
+  appointmentId: string,
+  updates: Partial<Omit<Appointment, 'id' | 'createdAt' | 'reminders'>>
+): Promise<Appointment> {
+  const appointmentRef = db
+    .collection('tenants')
+    .doc(tenantId)
+    .collection('appointments')
+    .doc(appointmentId);
+
+  await appointmentRef.update({
+    ...updates,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  } as any);
+
+  const updatedDoc = await appointmentRef.get();
+  if (!updatedDoc.exists) {
+    throw new Error('Appointment not found');
+  }
+
+  const data = updatedDoc.data();
+  return {
+    id: updatedDoc.id,
+    ...data,
+    scheduledAt: data?.scheduledAt?.toDate?.() || new Date(data?.scheduledAt),
+    createdAt: data?.createdAt?.toDate?.() || new Date(data?.createdAt),
+    updatedAt: data?.updatedAt?.toDate?.() || new Date(data?.updatedAt),
+    reminders: data?.reminders || [],
+  } as Appointment;
 }
 
 /**

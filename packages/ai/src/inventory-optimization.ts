@@ -1,6 +1,6 @@
 // Optimización de inventario con IA
 
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
 import { getVehicles } from '@autodealers/inventory';
 import { getTenantSales } from '@autodealers/crm';
 import OpenAI from 'openai';

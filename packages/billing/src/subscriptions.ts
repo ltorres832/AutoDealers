@@ -49,7 +49,7 @@ export class SubscriptionService {
     );
 
     // Guardar en Firestore
-    const { getFirestore } = await import('@autodealers/core');
+    const { getFirestore } = await import('@autodealers/shared');
     const db = getFirestore();
     const docRef = db.collection('subscriptions').doc();
 

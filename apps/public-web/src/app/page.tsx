@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback, useMemo, Fragment, useRef } from 'react';
 import Link from 'next/link';
@@ -10,12 +10,16 @@ import FeaturedVehicles from '../components/FeaturedVehicles';
 import FinanceCalculator from '../components/FinanceCalculator';
 import FeaturedDealers from '../components/FeaturedDealers';
 import VehicleCategories from '../components/VehicleCategories';
+import EvGaragePromo from '../components/EvGaragePromo';
 import ReviewsSection from '../components/ReviewsSection';
 import SponsoredContent from '../components/SponsoredContent';
 import HeroBanner from '../components/HeroBanner';
+import BrandGrid from '../components/BrandGrid';
+import PremiumPromotions from '../components/PremiumPromotions';
 import SidebarBanner from '../components/SidebarBanner';
 import BetweenContentBanner from '../components/BetweenContentBanner';
 import ContactForm from '../components/ContactForm';
+import LandingFooter from '../components/LandingFooter';
 import { SITE_INFO as DEFAULT_SITE_INFO, getSiteInfo } from '../config/site-info';
 
 interface Banner {
@@ -69,6 +73,9 @@ interface Vehicle {
     transmission?: string;
     fuelType?: string;
   };
+  stockNumber?: string;
+  isFeatured?: boolean;
+  location?: string;
 }
 
 export default function LandingPage() {
@@ -76,14 +83,11 @@ export default function LandingPage() {
   const bannersLoading = false;
   const realtimePromotions: Promotion[] = [];
   const promotionsLoading = false;
-  
+
   const [banners, setBanners] = useState<Banner[]>([]);
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showDebug, setShowDebug] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<any[]>([]);
-  const [debugLogs, setDebugLogs] = useState<string[]>([]);
   const [filters, setFilters] = useState({
     make: 'all',
     model: '',
@@ -101,6 +105,15 @@ export default function LandingPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState<'price-asc' | 'price-desc' | 'year-desc' | 'mileage-asc'>('price-asc');
   const [selectedVehicles, setSelectedVehicles] = useState<string[]>([]);
+  const [comparisonError, setComparisonError] = useState<string | null>(null);
+
+  // Auto-hide comparison error
+  useEffect(() => {
+    if (comparisonError) {
+      const timer = setTimeout(() => setComparisonError(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [comparisonError]);
   const [filteredVehicles, setFilteredVehicles] = useState<Vehicle[]>([]);
   const [featuredDealers, setFeaturedDealers] = useState<any[]>([]);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
@@ -108,14 +121,6 @@ export default function LandingPage() {
   const [scrolled, setScrolled] = useState(false);
   const [siteInfo, setSiteInfo] = useState(DEFAULT_SITE_INFO);
   const fetchingVehiclesRef = useRef(false);
-
-  // Función helper para agregar logs al panel de debug
-  const addDebugLog = useCallback((message: string) => {
-    const timestamp = new Date().toLocaleTimeString();
-    const logMessage = `[${timestamp}] ${message}`;
-    console.log(logMessage);
-    setDebugLogs(prev => [...prev.slice(-49), logMessage]); // Mantener últimos 50 logs
-  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -173,7 +178,7 @@ export default function LandingPage() {
 
     if (filters.model) {
       const modelLower = filters.model.toLowerCase();
-      filtered = filtered.filter(v => 
+      filtered = filtered.filter(v =>
         v.model.toLowerCase().includes(modelLower)
       );
     }
@@ -222,7 +227,7 @@ export default function LandingPage() {
     }
 
     if (filters.location) {
-      filtered = filtered.filter(v => 
+      filtered = filtered.filter(v =>
         v.description?.toLowerCase().includes(filters.location.toLowerCase()) ||
         (v as any)?.specifications?.location?.toLowerCase()?.includes(filters.location.toLowerCase())
       );
@@ -259,52 +264,38 @@ export default function LandingPage() {
     vehicles.forEach((v: any) => {
       const bodyType = v.bodyType || v.specifications?.bodyType;
       if (bodyType) {
-        // Normalizar: convertir a string, quitar espacios, convertir a minúsculas
-        const normalizedBodyType = String(bodyType).trim().toLowerCase();
-        if (normalizedBodyType && normalizedBodyType !== 'undefined' && normalizedBodyType !== 'null') {
-          counts[normalizedBodyType] = (counts[normalizedBodyType] || 0) + 1;
+        // Normalizar: convertir a string, quitar espacios, convertir a minúsculas y quitar acentos
+        const normalizedBodyType = String(bodyType)
+          .trim()
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, ""); // Quitar acentos
+
+        // Mapear variantes comunes
+        let finalKey = normalizedBodyType;
+        if (normalizedBodyType === 'deportivo' || normalizedBodyType === 'sport' || normalizedBodyType === 'coupe') finalKey = 'deportivo';
+        if (normalizedBodyType === 'van' || normalizedBodyType === 'minivan') finalKey = 'minivan';
+        if (normalizedBodyType === 'electric' || normalizedBodyType === 'hybrid' || normalizedBodyType === 'hibrido-ev' || normalizedBodyType === 'hibrido') finalKey = 'hibrido-ev';
+        if (normalizedBodyType === 'pick-up' || normalizedBodyType === 'pickup' || normalizedBodyType === 'camioneta') finalKey = 'pickup';
+
+        if (finalKey && finalKey !== 'undefined' && finalKey !== 'null') {
+          counts[finalKey] = (counts[finalKey] || 0) + 1;
         }
       }
     });
     return counts;
   }, [vehicles]);
 
-  // Log temporal para debug de bodyTypes
-  useEffect(() => {
-    if (vehicles.length > 0) {
-      const bodyTypesFound: string[] = [];
-      const vehiclesWithoutBodyType: string[] = [];
-      vehicles.forEach((v: any, index: number) => {
-        const bodyType = v.bodyType || v.specifications?.bodyType;
-        if (bodyType) {
-          const normalized = String(bodyType).trim().toLowerCase();
-          if (normalized && !bodyTypesFound.includes(normalized)) {
-            bodyTypesFound.push(normalized);
-          }
-          addDebugLog(`📊 Vehículo ${index + 1}: ${v.year} ${v.make} ${v.model} - bodyType: "${bodyType}" (normalizado: "${normalized}")`);
-        } else {
-          vehiclesWithoutBodyType.push(`${v.year} ${v.make} ${v.model}`);
-          addDebugLog(`⚠️ Vehículo ${index + 1}: ${v.year} ${v.make} ${v.model} - NO TIENE bodyType`);
-        }
-      });
-      addDebugLog(`📊 BodyTypes encontrados: ${bodyTypesFound.length > 0 ? bodyTypesFound.join(', ') : 'NINGUNO'}`);
-      addDebugLog(`📊 Conteos por tipo: ${JSON.stringify(vehicleCountsByBodyType)}`);
-      if (vehiclesWithoutBodyType.length > 0) {
-        addDebugLog(`⚠️ ${vehiclesWithoutBodyType.length} vehículos SIN bodyType: ${vehiclesWithoutBodyType.join(', ')}`);
-      }
-    }
-  }, [vehicles, vehicleCountsByBodyType, addDebugLog]);
-
   const fetchFeaturedDealers = useCallback(async () => {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 segundos timeout
-      
+
       const response = await fetch('/api/public/search?type=dealers&q=*', {
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
-      
+
       if (response.ok) {
         const data = await response.json();
         const dealers = (data.dealers || []).sort((a: any, b: any) => {
@@ -335,12 +326,12 @@ export default function LandingPage() {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 segundos timeout
-      
+
       const response = await fetch('/api/public/banners?status=active&limit=4', {
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
-      
+
       if (response.ok) {
         const data = await response.json();
         const banners = data.banners || [];
@@ -367,12 +358,12 @@ export default function LandingPage() {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 segundos timeout
-      
+
       const response = await fetch('/api/public/promotions?limit=12', {
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
-      
+
       if (response.ok) {
         const data = await response.json();
         const promotions = data.promotions || [];
@@ -398,121 +389,73 @@ export default function LandingPage() {
   const fetchVehicles = useCallback(async () => {
     // Evitar múltiples fetches simultáneos
     if (fetchingVehiclesRef.current) {
-      addDebugLog('⚠️ Fetch ya en progreso, ignorando llamada duplicada');
       return;
     }
-    
+
     try {
       fetchingVehiclesRef.current = true;
-      addDebugLog('🚀 Iniciando fetch de vehículos...');
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos timeout (aumentado para dar más tiempo al servidor)
-      
+
       const response = await fetch('/api/public/vehicles?status=available', {
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
-      
-      addDebugLog(`📡 Respuesta recibida: ${response.status} ${response.statusText}`);
-      
+
       if (response.ok) {
         const data = await response.json();
-        addDebugLog(`📦 Datos recibidos. Tipo: ${typeof data.vehicles}, Es array: ${Array.isArray(data.vehicles)}`);
-        addDebugLog(`✅ API devolvió: ${data.vehicles?.length || 0} vehículos`);
-        
+
         if (!data.vehicles || !Array.isArray(data.vehicles)) {
-          addDebugLog(`❌ ERROR: data.vehicles no es un array. Tipo: ${typeof data.vehicles}`);
-          addDebugLog(`❌ Datos recibidos: ${JSON.stringify(data).substring(0, 200)}`);
           setVehicles([]);
           setFilteredVehicles([]);
           setLoading(false);
           return;
         }
-        
-        const debugData: any[] = [];
+
         const vehiclesWithPhotos = (data.vehicles || []).map((vehicle: any) => {
-          addDebugLog(`📸 Procesando vehículo ${vehicle.id}: ${vehicle.year} ${vehicle.make} ${vehicle.model}`);
-          addDebugLog(`📸 Fotos originales: ${vehicle.photos?.length || 0}, Tipo: ${typeof vehicle.photos}, Es array: ${Array.isArray(vehicle.photos)}`);
-          
-          const photos = Array.isArray(vehicle.photos) 
-            ? vehicle.photos.filter((photo: string) => 
-                photo && typeof photo === 'string' && photo.trim() !== '' && photo !== 'undefined' && !photo.includes('undefined')
-              )
+
+          const photos = Array.isArray(vehicle.photos)
+            ? vehicle.photos.filter((photo: string) =>
+              photo && typeof photo === 'string' && photo.trim() !== '' && photo !== 'undefined' && !photo.includes('undefined')
+            )
             : [];
-          
-          addDebugLog(`📸 Fotos después del filtro: ${photos.length}`);
-          if (photos.length > 0) {
-            addDebugLog(`📸 Primera foto: ${photos[0].substring(0, 100)}...`);
-          } else if (vehicle.photos && vehicle.photos.length > 0) {
-            addDebugLog(`⚠️ Fotos filtradas. Ejemplo original: ${JSON.stringify(vehicle.photos[0])}`);
-          }
-          
+
           const stockNumber = vehicle.stockNumber || vehicle.specifications?.stockNumber;
-          
-          debugData.push({
-            id: vehicle.id,
-            name: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
-            stockNumber: stockNumber || 'NO TIENE',
-            photosCount: photos.length,
-            originalPhotosCount: vehicle.photos?.length || 0,
-            firstPhoto: photos[0] || 'NO TIENE',
-            publishedOnPublicPage: vehicle.publishedOnPublicPage,
-            status: vehicle.status,
-          });
-          
+
           return {
             ...vehicle,
             stockNumber,
             photos,
           };
         });
-        
-        // FORZAR ACTUALIZACIÓN INMEDIATA
-        addDebugLog(`💾 Estableciendo ${vehiclesWithPhotos.length} vehículos en estado`);
-        if (vehiclesWithPhotos.length > 0) {
-          const firstVehicle = vehiclesWithPhotos[0];
-          addDebugLog(`📋 Primer vehículo: ${firstVehicle.year} ${firstVehicle.make} ${firstVehicle.model} (ID: ${firstVehicle.id})`);
-          addDebugLog(`📸 Primer vehículo tiene ${firstVehicle.photos?.length || 0} fotos`);
-          if (firstVehicle.photos && firstVehicle.photos.length > 0) {
-            addDebugLog(`📸 URL primera foto: ${firstVehicle.photos[0]}`);
-          } else {
-            addDebugLog(`⚠️ Primer vehículo NO tiene fotos`);
-          }
-        }
+
         setVehicles(vehiclesWithPhotos);
         setFilteredVehicles(vehiclesWithPhotos);
-        setDebugInfo(debugData);
         setLoading(false);
-        
+
         // Guardar en sessionStorage para persistencia
         try {
           sessionStorage.setItem('vehicles_cache', JSON.stringify(vehiclesWithPhotos));
           sessionStorage.setItem('vehicles_cache_timestamp', Date.now().toString());
-          addDebugLog(`💾 Vehículos guardados en caché (${vehiclesWithPhotos.length} vehículos)`);
         } catch (e) {
           // Ignorar errores de sessionStorage (puede estar deshabilitado)
         }
-        
-        addDebugLog(`✅ Estado actualizado. Vehículos en estado: ${vehiclesWithPhotos.length}`);
+
       } else {
-        addDebugLog(`❌ Respuesta no OK: ${response.status} ${response.statusText}`);
         const errorText = await response.text();
-        addDebugLog(`❌ Cuerpo de error: ${errorText.substring(0, 200)}`);
         setVehicles([]);
         setFilteredVehicles([]);
       }
     } catch (error: any) {
       if (error.name !== 'AbortError') {
-        addDebugLog(`❌ Error fetching vehicles: ${error.message || error}`);
+        console.error(`Error fetching vehicles: ${error.message || error}`);
       } else {
-        addDebugLog('⏱️ Fetch cancelado por timeout - intentando cargar desde caché...');
         // Si hay timeout, intentar cargar desde caché como último recurso
         try {
           const savedVehicles = sessionStorage.getItem('vehicles_cache');
           if (savedVehicles) {
             const parsedVehicles = JSON.parse(savedVehicles);
             if (Array.isArray(parsedVehicles) && parsedVehicles.length > 0) {
-              addDebugLog(`💾 Cargando ${parsedVehicles.length} vehículos desde caché (timeout)`);
               setVehicles(parsedVehicles);
               setFilteredVehicles(parsedVehicles);
               setLoading(false);
@@ -521,7 +464,7 @@ export default function LandingPage() {
             }
           }
         } catch (cacheError) {
-          addDebugLog(`⚠️ Error cargando desde caché: ${cacheError}`);
+          console.error(`Error cargando desde caché: ${cacheError}`);
         }
       }
       // Solo limpiar si realmente no hay datos
@@ -533,13 +476,12 @@ export default function LandingPage() {
     } finally {
       setLoading(false);
       fetchingVehiclesRef.current = false;
-      addDebugLog('🏁 fetchVehicles terminado');
     }
-  }, [addDebugLog]);
+  }, []);
 
   const handleBannerClick = useCallback((banner: Banner) => {
     fetch(`/api/public/banners/${banner.id}/click`, { method: 'POST' }).catch(console.error);
-    
+
     if (banner.linkType === 'vehicle' && banner.linkValue) {
       const vehicle = vehicles.find(v => v.id === banner.linkValue);
       if (vehicle) {
@@ -556,7 +498,7 @@ export default function LandingPage() {
 
   const handlePromotionClick = useCallback((promotion: Promotion) => {
     fetch(`/api/public/promotions/${promotion.id}/click`, { method: 'POST' }).catch(console.error);
-    
+
     if (promotion.vehicleId) {
       window.location.href = `/${promotion.tenantId}/vehicle/${promotion.vehicleId}`;
     } else if (promotion.promotionScope === 'dealer' || promotion.promotionScope === 'seller') {
@@ -567,22 +509,21 @@ export default function LandingPage() {
   // Cargar datos desde sessionStorage al montar
   useEffect(() => {
     const CACHE_MAX_AGE = 5 * 60 * 1000; // 5 minutos
-    
+
     // Cargar vehículos desde caché
     try {
       const savedVehicles = sessionStorage.getItem('vehicles_cache');
       const savedTimestamp = sessionStorage.getItem('vehicles_cache_timestamp');
-      
+
       if (savedVehicles && savedTimestamp) {
         const timestamp = parseInt(savedTimestamp);
         const now = Date.now();
         const cacheAge = now - timestamp;
-        
+
         if (cacheAge < CACHE_MAX_AGE) {
           try {
             const parsedVehicles = JSON.parse(savedVehicles);
             if (Array.isArray(parsedVehicles) && parsedVehicles.length > 0) {
-              addDebugLog(`💾 Cargando ${parsedVehicles.length} vehículos desde caché (${Math.round(cacheAge / 1000)}s de antigüedad)`);
               setVehicles(parsedVehicles);
               setFilteredVehicles(parsedVehicles);
               setLoading(false);
@@ -595,7 +536,6 @@ export default function LandingPage() {
             fetchVehicles();
           }
         } else {
-          addDebugLog(`⏰ Caché de vehículos expirado (${Math.round(cacheAge / 1000)}s), recargando...`);
           fetchVehicles();
         }
       } else {
@@ -604,7 +544,7 @@ export default function LandingPage() {
     } catch (e) {
       fetchVehicles();
     }
-    
+
     // Cargar dealers desde caché
     try {
       const savedDealers = sessionStorage.getItem('dealers_cache');
@@ -634,7 +574,7 @@ export default function LandingPage() {
     } catch (e) {
       fetchFeaturedDealers();
     }
-    
+
     // Cargar banners desde caché
     try {
       const savedBanners = sessionStorage.getItem('banners_cache');
@@ -664,7 +604,7 @@ export default function LandingPage() {
     } catch (e) {
       fetchBanners();
     }
-    
+
     // Cargar promotions desde caché
     try {
       const savedPromotions = sessionStorage.getItem('promotions_cache');
@@ -694,129 +634,13 @@ export default function LandingPage() {
     } catch (e) {
       fetchPromotions();
     }
-    
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // FORZAR RE-RENDER CUANDO CAMBIEN LOS VEHÍCULOS
-  useEffect(() => {
-    addDebugLog(`🔄 Estado de vehicles cambió: ${vehicles.length} vehículos`);
-    if (vehicles.length > 0) {
-      addDebugLog(`✅ Vehículos en estado: ${vehicles.length}`);
-      addDebugLog(`📋 Primer vehículo: ${vehicles[0].year} ${vehicles[0].make} ${vehicles[0].model}`);
-    } else {
-      addDebugLog('⚠️ NO HAY VEHÍCULOS EN ESTADO');
-    }
-  }, [vehicles, addDebugLog]);
-
   return (
     <div className="min-h-screen bg-white">
-      {/* PANEL DE DEBUG TEMPORAL - QUITAR DESPUÉS */}
-      <button
-        onClick={() => setShowDebug(!showDebug)}
-        className="fixed bottom-4 left-4 z-[9999] bg-red-600 text-white px-4 py-2 rounded-lg shadow-lg hover:bg-red-700 transition-all font-bold"
-        style={{ fontSize: '14px' }}
-      >
-        🐛 DEBUG
-      </button>
-      
-      {showDebug && (
-        <div className="fixed bottom-20 left-4 z-[9999] bg-white border-4 border-red-600 rounded-lg shadow-2xl p-6 max-w-md max-h-[80vh] overflow-auto">
-          <div className="space-y-4">
-            <h3 className="text-xl font-bold text-red-600 border-b-2 border-red-600 pb-2">
-              🔍 INFORMACIÓN DE DEBUG
-            </h3>
-            
-            <div className="space-y-2 text-sm">
-              <div className="bg-blue-50 p-3 rounded border-l-4 border-blue-500">
-                <p className="font-bold text-blue-900">🚗 Vehículos:</p>
-                <p className="text-blue-700">
-                  Total cargados: <span className="font-bold text-xl">{vehicles.length}</span>
-                </p>
-                <p className="text-blue-700">
-                  Filtrados visibles: <span className="font-bold text-xl">{filteredVehicles.length}</span>
-                </p>
-              </div>
 
-              <div className="bg-green-50 p-3 rounded border-l-4 border-green-500">
-                <p className="font-bold text-green-900">🏢 Dealers:</p>
-                <p className="text-green-700">
-                  Total: <span className="font-bold text-xl">{featuredDealers.length}</span>
-                </p>
-              </div>
-
-              <div className="bg-purple-50 p-3 rounded border-l-4 border-purple-500">
-                <p className="font-bold text-purple-900">📢 Banners:</p>
-                <p className="text-purple-700">
-                  Total: <span className="font-bold text-xl">{banners.length}</span>
-                </p>
-              </div>
-
-              <div className="bg-yellow-50 p-3 rounded border-l-4 border-yellow-500">
-                <p className="font-bold text-yellow-900">🎁 Promociones:</p>
-                <p className="text-yellow-700">
-                  Total: <span className="font-bold text-xl">{promotions.length}</span>
-                </p>
-              </div>
-
-              <div className="bg-gray-50 p-3 rounded border-l-4 border-gray-500">
-                <p className="font-bold text-gray-900">⏳ Estado:</p>
-                <p className="text-gray-700">
-                  Loading: <span className="font-bold">{loading ? '✅ SÍ' : '❌ NO'}</span>
-                </p>
-              </div>
-
-              {debugInfo.length > 0 && (
-                <div className="bg-indigo-50 p-3 rounded border-l-4 border-indigo-500 max-h-64 overflow-auto">
-                  <p className="font-bold text-indigo-900 mb-2">📋 Detalles de Vehículos:</p>
-                  {debugInfo.slice(0, 5).map((info, idx) => (
-                    <div key={idx} className="text-xs text-indigo-700 mb-2 bg-white p-2 rounded">
-                      <p><strong>{info.name}</strong></p>
-                      <p>ID: {info.id}</p>
-                      <p>Stock: {info.stockNumber}</p>
-                      <p>Fotos: {info.photosCount}</p>
-                      <p>Publicado: {info.publishedOnPublicPage ? '✅' : '❌'}</p>
-                      <p>Status: {info.status}</p>
-                    </div>
-                  ))}
-                  {debugInfo.length > 5 && (
-                    <p className="text-xs text-indigo-600 italic">... y {debugInfo.length - 5} más</p>
-                  )}
-                </div>
-              )}
-
-              <div className="bg-black text-green-400 p-3 rounded border-l-4 border-green-500 max-h-96 overflow-auto font-mono text-xs">
-                <p className="font-bold text-green-300 mb-2">📜 LOGS DE DEBUG:</p>
-                {debugLogs.length === 0 ? (
-                  <p className="text-gray-500 italic">No hay logs aún...</p>
-                ) : (
-                  <div className="space-y-1">
-                    {debugLogs.map((log, idx) => (
-                      <div key={idx} className="text-green-400 whitespace-pre-wrap break-words">
-                        {log}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <button
-              onClick={() => {
-                fetchVehicles();
-                fetchFeaturedDealers();
-                fetchBanners();
-                fetchPromotions();
-              }}
-              className="w-full bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition font-bold"
-            >
-              🔄 RECARGAR DATOS
-            </button>
-          </div>
-        </div>
-      )}
-      {/* FIN PANEL DE DEBUG TEMPORAL */}
-      
       {/* Navbar Profesional y Corporativo */}
       <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-white shadow-md border-b border-gray-200' : 'bg-white/80 backdrop-blur-sm'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -862,14 +686,18 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* Hero Banner */}
-      <HeroBanner />
+      {/* Hero Banner - Spacing adjusted for fixed header to prevent overlap */}
+      <div className="pt-40 pb-8 bg-slate-900 border-b border-slate-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <HeroBanner />
+        </div>
+      </div>
 
       {/* Hero Section Ultra Profesional con Imagen de Fondo */}
-      <section className="relative pt-32 pb-32 min-h-[90vh] flex items-center overflow-hidden">
+      <section className="relative pt-12 pb-24 min-h-[85vh] flex items-center overflow-hidden">
         {/* Background con gradiente profesional */}
         <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900"></div>
-        <div 
+        <div
           className="absolute inset-0 opacity-20"
           style={{
             backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
@@ -908,12 +736,11 @@ export default function LandingPage() {
             <p className="text-lg text-white/70 mb-12 max-w-2xl mx-auto">
               Financiamiento aprobado • Garantías verificadas • Transacciones 100% seguras • Inspección profesional incluida
             </p>
-            
-            {/* Hero Search Component con diseño premium */}
+
             <div className="max-w-4xl mx-auto mb-16">
               <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-8 border border-white/20">
-                <HeroSearch onSearch={(query) => {
-                  setFilters(prev => ({ ...prev, model: query }));
+                <HeroSearch onSearch={(filters) => {
+                  setFilters(prev => ({ ...prev, ...filters as any }));
                   document.getElementById('vehicles-section')?.scrollIntoView({ behavior: 'smooth' });
                 }} />
               </div>
@@ -994,135 +821,298 @@ export default function LandingPage() {
       </section>
 
       {/* Categorías de Vehículos */}
-      <VehicleCategories 
+      <VehicleCategories
         vehicleCounts={vehicleCountsByBodyType}
       />
 
-      {/* Vehículos Destacados - SIEMPRE VISIBLE */}
-      <section className="py-16 bg-gradient-to-br from-gray-50 via-white to-blue-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 rounded-full mb-4">
-              <span className="text-blue-600 font-semibold text-sm">✨ NUEVO</span>
-            </div>
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Recién Agregados
-            </h2>
-            <p className="text-xl text-gray-600">
-              Los vehículos más recientes en nuestro inventario
-            </p>
-          </div>
+      {/* Promoción EV & Garage */}
+      <EvGaragePromo config={landingConfig?.config?.promos} />
 
-          {/* AUTOS - SIEMPRE VISIBLE - NO TOCAR HERO */}
-          {vehicles && Array.isArray(vehicles) && vehicles.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {vehicles.slice(0, 6).map((vehicle: any) => (
-                <div
-                  key={vehicle.id}
-                  className="bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all overflow-hidden group cursor-pointer border-2 border-transparent hover:border-blue-500 relative"
-                  onClick={() => {
-                    window.location.href = `/${vehicle.tenantId}/vehicle/${vehicle.id}`;
-                  }}
-                >
-                  <div className="absolute top-4 right-4 z-10 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg flex items-center gap-1">
-                    <span>🆕</span>
-                    <span>Nuevo</span>
-                  </div>
+      {/* Marcas Populares */}
 
-                  {vehicle.photos && vehicle.photos.length > 0 && vehicle.photos[0] ? (
-                    <div className="relative h-56 bg-gray-200">
-                      <img
-                        src={vehicle.photos[0].trim()}
-                        alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                        loading="lazy"
-                        referrerPolicy="no-referrer"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23ddd" width="400" height="300"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="20" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3E🚗%3C/text%3E%3C/svg%3E';
-                          target.onerror = null;
-                        }}
-                      />
-                    </div>
-                  ) : (
-                    <div className="h-56 bg-gray-200 flex items-center justify-center">
-                      <div className="text-gray-400 text-6xl">🚗</div>
-                    </div>
-                  )}
 
-                  <div className="p-6">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <h3 className="text-xl font-bold text-gray-900 mb-1 group-hover:text-blue-600 transition">
-                          {vehicle.year} {vehicle.make} {vehicle.model}
-                        </h3>
-                        {vehicle.stockNumber && (
-                          <span className="text-xs text-gray-500">Stock: #{vehicle.stockNumber}</span>
-                        )}
-                      </div>
-                      <p className="text-2xl font-bold text-green-600">
-                        {vehicle.currency} {vehicle.price.toLocaleString()}
-                      </p>
-                    </div>
-
-                    {vehicle.mileage && (
-                      <div className="flex items-center gap-4 text-sm text-gray-600 mb-4">
-                        <span>📏 {vehicle.mileage.toLocaleString()} millas</span>
-                      </div>
-                    )}
-
-                    <button className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-lg hover:from-blue-700 hover:to-indigo-700 font-semibold transition-all transform hover:scale-105">
-                      Ver Detalles
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12 bg-yellow-50 border-2 border-yellow-200 rounded-lg p-8">
-              <p className="text-lg font-semibold text-yellow-800 mb-2">
-                {loading ? '⏳ Cargando vehículos...' : `⚠️ No hay vehículos (Estado: ${vehicles?.length || 0})`}
-              </p>
-              {!loading && (
-                <div className="text-sm text-yellow-700">
-                  <p>Revisa la consola (F12) - Busca "✅ API devolvió"</p>
-                  <p className="mt-1">El servidor dice que hay 7 vehículos disponibles</p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </section>
+      {/* Vehículos Destacados - PREMIUM CAROUSEL */}
+      <FeaturedVehicles vehicles={vehicles} />
 
       {/* Listado General de Vehículos con Sidebar */}
-      <section id="vehicles" className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            {/* Sidebar con anuncios */}
-            <aside className="lg:col-span-1 order-2 lg:order-1">
-              <div className="sticky top-24">
-                <SidebarBanner />
-              </div>
-            </aside>
-            
-            {/* Contenido principal */}
-            <div className="lg:col-span-3 order-1 lg:order-2">
-              <div className="text-center mb-12">
-                <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-4">
-                  Catálogo Completo
+      <section id="vehicles" className="py-32 bg-slate-50 relative overflow-hidden">
+        {/* Subtle Decorative Elements */}
+        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent"></div>
+        <div className="absolute top-[20%] right-0 w-[500px] h-[500px] bg-blue-100/30 rounded-full blur-[120px] -z-0"></div>
+        <div className="absolute bottom-[20%] -left-24 w-[400px] h-[400px] bg-indigo-100/30 rounded-full blur-[100px] -z-0"></div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="flex flex-col mb-20">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-10 pb-12 border-b border-slate-200/60">
+              <div className="relative">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="h-1.5 w-12 bg-blue-600 rounded-full"></div>
+                  <span className="text-blue-600 font-black text-[10px] uppercase tracking-[0.4em] mb-0.5">Marketplace Nacional</span>
+                </div>
+                <h2 className="text-5xl md:text-7xl font-black text-slate-900 tracking-tight leading-[0.9] mb-8">
+                  Explora Nuestro <br />
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-800">Inventario Premium</span>
                 </h2>
-                <p className="text-xl text-gray-600">
-                  {filteredVehicles.length} vehículos disponibles para ti
+                <p className="text-xl text-slate-500 max-w-xl font-medium leading-relaxed">
+                  Accede a la selección más rigurosa del mercado. Más de <span className="text-slate-900 font-black underline decoration-blue-500/30 underline-offset-4">{vehicles.length}</span> unidades certificadas con garantía de satisfacción total.
                 </p>
               </div>
 
-              {/* Controles de vista y ordenamiento */}
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 bg-slate-50 p-4 rounded-lg border border-slate-200">
-                <div className="flex items-center gap-4">
+              <div className="flex items-center gap-8 bg-white p-4 rounded-[2rem] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] border border-slate-100 min-w-[280px]">
+                <div className="flex-1 text-center border-r border-slate-100 px-4">
+                  <span className="block text-3xl font-black text-slate-900 tracking-tighter">{filteredVehicles.length}</span>
+                  <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Coincidencias</span>
+                </div>
+                <div className="flex-1 text-center px-4">
+                  <div className="flex items-center justify-center gap-1 text-blue-600 mb-0.5">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                    <span className="text-sm font-black tracking-tighter italic">CERTIFIED</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Calidad Garantizada</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Body Type Selector - Top of Catalog */}
+          <div className="relative mb-20 px-1">
+            <div className="flex overflow-x-auto gap-6 pb-8 scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
+              {[
+                { id: 'all', label: 'Todos los Vehículos', img: '/sedan_category_1773634522734.png', color: 'bg-slate-900' },
+                { id: 'sedan', label: 'Sedán', img: '/sedan_category_1773634522734.png', color: 'bg-blue-600' },
+                { id: 'suv', label: 'SUV', img: '/suv_category_1773634541924.png', color: 'bg-emerald-600' },
+                { id: 'pickup', label: 'Pickup', img: '/pickup_category_1773634558726.png', color: 'bg-amber-600' },
+                { id: 'coupe', label: 'Deportivo', img: '/sports_category_1773634575517.png', color: 'bg-rose-600' },
+                { id: 'van', label: 'Miniván', img: '/minivan_category_1773634597825.png', color: 'bg-indigo-600' },
+                { id: 'hybrid', label: 'Híbrido / EV', img: '/electric_category_1773634619169.png', color: 'bg-teal-500' },
+              ].map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setFilters({ ...filters, bodyType: cat.id })}
+                  className={`flex-shrink-0 relative group flex flex-col items-center justify-center w-36 h-44 rounded-[2.5rem] transition-all duration-500 ${filters.bodyType === cat.id
+                    ? `${cat.color} text-white shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] -translate-y-3 scale-110 ring-4 ring-white`
+                    : 'bg-white text-slate-600 border border-slate-100 hover:border-blue-400/50 hover:shadow-2xl hover:shadow-slate-200/60 hover:-translate-y-2'
+                    }`}
+                >
+                  <div className="w-24 h-24 rounded-2xl overflow-hidden mb-4 shadow-md group-hover:scale-110 transition-transform duration-500 border border-white/20">
+                    <img src={cat.img} alt={cat.label} className="w-full h-full object-cover" />
+                  </div>
+                  <span className="text-[11px] font-black uppercase tracking-[0.1em] text-center px-2">{cat.label}</span>
+                  {filters.bodyType === cat.id && (
+                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-white rounded-full shadow-sm"></div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Brands Slider Section - Premium Marquee */}
+        <div className="bg-slate-50/50 py-12 border-y border-slate-100 overflow-hidden relative">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8 text-center">
+            <span className="text-[10px] font-black uppercase tracking-[0.5em] text-slate-400">Marcas Certificadas</span>
+          </div>
+
+          <div className="flex overflow-hidden group">
+            <div className="flex gap-16 animate-marquee whitespace-nowrap py-8">
+              {[
+                { name: 'Toyota', logo: 'https://logo.clearbit.com/toyota.com' },
+                { name: 'Honda', logo: 'https://logo.clearbit.com/honda.com' },
+                { name: 'Ford', logo: 'https://logo.clearbit.com/ford.com' },
+                { name: 'Chevrolet', logo: 'https://logo.clearbit.com/chevrolet.com' },
+                { name: 'Nissan', logo: 'https://logo.clearbit.com/nissanusa.com' },
+                { name: 'Jeep', logo: 'https://logo.clearbit.com/jeep.com' },
+                { name: 'BMW', logo: 'https://logo.clearbit.com/bmw.com' },
+                { name: 'Mercedes-Benz', logo: 'https://logo.clearbit.com/mercedes-benz.com' },
+                { name: 'Audi', logo: 'https://logo.clearbit.com/audi.com' },
+                { name: 'Lexus', logo: 'https://logo.clearbit.com/lexus.com' },
+                { name: 'Mazda', logo: 'https://logo.clearbit.com/mazda.com' },
+                { name: 'Tesla', logo: 'https://logo.clearbit.com/tesla.com' },
+              ].map((brand) => (
+                <div key={brand.name} className="flex flex-col items-center gap-4 group/brand">
+                  <div className="w-24 h-24 bg-white rounded-3xl shadow-md border border-slate-100 flex items-center justify-center p-5 grayscale group-hover/brand:grayscale-0 transition-all duration-700 hover:shadow-xl hover:border-blue-200">
+                    <img src={brand.logo} alt={brand.name} className="max-w-full max-h-full object-contain transform group-hover/brand:scale-110 transition-transform duration-500" />
+                  </div>
+                  <span className="text-[11px] font-black text-slate-400 group-hover/brand:text-blue-600 uppercase tracking-widest transition-colors">{brand.name}</span>
+                </div>
+              ))}
+            </div>
+            {/* Repeat for seamless loop */}
+            <div className="flex gap-16 animate-marquee whitespace-nowrap py-8" aria-hidden="true">
+              {[
+                { name: 'Toyota', logo: 'https://logo.clearbit.com/toyota.com' },
+                { name: 'Honda', logo: 'https://logo.clearbit.com/honda.com' },
+                { name: 'Ford', logo: 'https://logo.clearbit.com/ford.com' },
+                { name: 'Chevrolet', logo: 'https://logo.clearbit.com/chevrolet.com' },
+                { name: 'Nissan', logo: 'https://logo.clearbit.com/nissanusa.com' },
+                { name: 'Jeep', logo: 'https://logo.clearbit.com/jeep.com' },
+                { name: 'BMW', logo: 'https://logo.clearbit.com/bmw.com' },
+                { name: 'Mercedes-Benz', logo: 'https://logo.clearbit.com/mercedes-benz.com' },
+                { name: 'Audi', logo: 'https://logo.clearbit.com/audi.com' },
+                { name: 'Lexus', logo: 'https://logo.clearbit.com/lexus.com' },
+                { name: 'Mazda', logo: 'https://logo.clearbit.com/mazda.com' },
+                { name: 'Tesla', logo: 'https://logo.clearbit.com/tesla.com' },
+              ].map((brand) => (
+                <div key={`${brand.name}-loop`} className="flex flex-col items-center gap-4 group/brand">
+                  <div className="w-24 h-24 bg-white rounded-3xl shadow-md border border-slate-100 flex items-center justify-center p-5 grayscale group-hover/brand:grayscale-0 transition-all duration-700 hover:shadow-xl hover:border-blue-200">
+                    <img src={brand.logo} alt={brand.name} className="max-w-full max-h-full object-contain transform group-hover/brand:scale-110 transition-transform duration-500" />
+                  </div>
+                  <span className="text-[11px] font-black text-slate-400 group-hover/brand:text-blue-600 uppercase tracking-widest transition-colors">{brand.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <style jsx>{`
+            @keyframes marquee {
+              0% { transform: translateX(0); }
+              100% { transform: translateX(-50%); }
+            }
+            .animate-marquee {
+              animation: marquee 30s linear infinite;
+            }
+            .animate-marquee:hover {
+              animation-play-state: paused;
+            }
+          `}</style>
+        </div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-10">
+            {/* Sidebar con anuncios y filtros rápidos */}
+            <aside className="lg:col-span-1 order-2 lg:order-1 flex flex-col gap-8">
+              <div className="sticky top-24 flex flex-col gap-8">
+                {/* Advanced Search Context Card */}
+                <div className="bg-slate-900 rounded-3xl p-6 text-white shadow-2xl relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/20 rounded-full blur-3xl group-hover:bg-blue-600/40 transition-all"></div>
+                  <h4 className="text-sm font-bold opacity-60 uppercase tracking-widest mb-4">Filtrado Inteligente</h4>
+                  <p className="text-lg font-bold mb-6 leading-snug">Refina tu búsqueda por características técnicas</p>
+
+                  <div className="space-y-5 mb-6">
+                    {/* Transmisión */}
+                    <div className="flex flex-col gap-2">
+                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest pl-1">Transmisión</span>
+                      <div className="relative">
+                        <select
+                          value={filters.transmission}
+                          onChange={(e) => setFilters({ ...filters, transmission: e.target.value })}
+                          className="w-full bg-white/5 text-sm font-bold p-3 rounded-xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500/50 appearance-none cursor-pointer"
+                        >
+                          <option value="all" className="bg-slate-900">Todas</option>
+                          <option value="automatic" className="bg-slate-900">Automática</option>
+                          <option value="manual" className="bg-slate-900">Manual</option>
+                        </select>
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/30">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Combustible */}
+                    <div className="flex flex-col gap-2">
+                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest pl-1">Combustible</span>
+                      <div className="relative">
+                        <select
+                          value={filters.fuelType}
+                          onChange={(e) => setFilters({ ...filters, fuelType: e.target.value })}
+                          className="w-full bg-white/5 text-sm font-bold p-3 rounded-xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500/50 appearance-none cursor-pointer"
+                        >
+                          <option value="all" className="bg-slate-900">Todos</option>
+                          <option value="gasoline" className="bg-slate-900">Gasolina</option>
+                          <option value="electric" className="bg-slate-900">Eléctrico</option>
+                          <option value="hybrid" className="bg-slate-900">Híbrido</option>
+                        </select>
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/30">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Rango de Precio */}
+                    <div className="flex flex-col gap-2">
+                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest pl-1">Rango de Precio</span>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="number"
+                          placeholder="Min"
+                          value={filters.priceMin}
+                          onChange={(e) => setFilters({ ...filters, priceMin: e.target.value })}
+                          className="w-full bg-white/5 text-sm font-bold p-3 rounded-xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder:text-white/20"
+                        />
+                        <input
+                          type="number"
+                          placeholder="Max"
+                          value={filters.priceMax}
+                          onChange={(e) => setFilters({ ...filters, priceMax: e.target.value })}
+                          className="w-full bg-white/5 text-sm font-bold p-3 rounded-xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder:text-white/20"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Rango de Año */}
+                    <div className="flex flex-col gap-2 pb-4">
+                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest pl-1">Rango de Año</span>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="number"
+                          placeholder="Desde"
+                          value={filters.yearMin}
+                          onChange={(e) => setFilters({ ...filters, yearMin: e.target.value })}
+                          className="w-full bg-white/5 text-sm font-bold p-3 rounded-xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder:text-white/20"
+                        />
+                        <input
+                          type="number"
+                          placeholder="Hasta"
+                          value={filters.yearMax}
+                          onChange={(e) => setFilters({ ...filters, yearMax: e.target.value })}
+                          className="w-full bg-white/5 text-sm font-bold p-3 rounded-xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder:text-white/20"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setFilters({
+                      ...filters,
+                      transmission: 'all',
+                      fuelType: 'all',
+                      priceMin: '',
+                      priceMax: '',
+                      yearMin: '',
+                      yearMax: ''
+                    })}
+                    className="w-full py-3 text-[10px] font-black uppercase tracking-[0.2em] text-blue-400 border border-blue-400/30 rounded-xl hover:bg-blue-400 hover:text-white transition-all"
+                  >
+                    Limpiar Filtros
+                  </button>
+                </div>
+
+                <SidebarBanner />
+
+                {/* Sell CTA Mini */}
+                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm text-center">
+                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 text-green-600">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  </div>
+                  <h5 className="font-bold text-slate-900 mb-2">¿Quieres vender?</h5>
+                  <p className="text-xs text-slate-500 mb-4 font-medium">Publica tu auto hoy mismo y llega a millones</p>
+                  <Link href="/partners/register" className="block w-full py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-blue-600 transition-colors">
+                    Publicar Gratis
+                  </Link>
+                </div>
+              </div>
+            </aside>
+
+            <div className="lg:col-span-3 order-1 lg:order-2">
+              {/* Controles de vista y ordenamiento - Premium */}
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8 bg-white p-4 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.05)] border border-gray-100">
+                <div className="flex items-center w-full sm:w-auto">
+                  <span className="text-gray-500 text-sm font-medium mr-3 hidden sm:block">Ordenar por:</span>
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as any)}
-                    className="border border-slate-300 rounded-md px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900 bg-white font-medium text-sm text-slate-700"
+                    className="w-full sm:w-auto border-0 bg-gray-50 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white text-gray-700 font-semibold cursor-pointer transition-colors appearance-none"
+                    style={{ backgroundImage: 'url("data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 20 20\'%3e%3cpath stroke=\'%236b7280\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'M6 8l4 4 4-4\'/%3e%3c/svg%3e")', backgroundPosition: 'right 0.5rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em', paddingRight: '2.5rem' }}
                   >
                     <option value="price-asc">Precio: Menor a Mayor</option>
                     <option value="price-desc">Precio: Mayor a Menor</option>
@@ -1130,31 +1120,29 @@ export default function LandingPage() {
                     <option value="mileage-asc">Millas: Menor a Mayor</option>
                   </select>
                 </div>
-                
-                <div className="flex border border-slate-300 rounded-md overflow-hidden bg-white">
+
+                <div className="flex p-1 bg-gray-50 rounded-xl w-full sm:w-auto">
                   <button
                     onClick={() => setViewMode('grid')}
-                    className={`px-4 py-2.5 transition-all text-sm font-medium ${
-                      viewMode === 'grid' 
-                        ? 'bg-slate-900 text-white' 
-                        : 'bg-white text-slate-700 hover:bg-slate-50'
-                    }`}
+                    className={`flex-1 sm:flex-none px-6 py-2.5 transition-all text-sm font-bold rounded-lg ${viewMode === 'grid'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-900'
+                      }`}
                   >
-                    Grid
+                    Cuadrícula
                   </button>
                   <button
                     onClick={() => setViewMode('list')}
-                    className={`px-4 py-2.5 transition-all text-sm font-medium border-l border-slate-300 ${
-                      viewMode === 'list' 
-                        ? 'bg-slate-900 text-white' 
-                        : 'bg-white text-slate-700 hover:bg-slate-50'
-                    }`}
+                    className={`flex-1 sm:flex-none px-6 py-2.5 transition-all text-sm font-bold rounded-lg ${viewMode === 'list'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-900'
+                      }`}
                   >
                     Lista
                   </button>
                 </div>
               </div>
-              
+
               {/* Advanced Filters */}
               <div className="mb-8">
                 <AdvancedFilters
@@ -1163,55 +1151,26 @@ export default function LandingPage() {
                   availableMakes={uniqueMakes}
                 />
               </div>
-              
-              {/* Comparador de Vehículos */}
-              {selectedVehicles.length > 0 && (
-                <div className="bg-slate-50 border border-slate-200 rounded-lg p-6 mb-8">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div>
-                      <h3 className="font-semibold text-lg text-slate-900 mb-1">
-                        {selectedVehicles.length} vehículo(s) seleccionado(s)
-                      </h3>
-                      <p className="text-sm text-slate-600">
-                        Compara características y precios lado a lado
-                      </p>
-                    </div>
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() => {
-                          window.location.href = `/compare?vehicles=${selectedVehicles.join(',')}`;
-                        }}
-                        className="bg-slate-900 text-white px-6 py-2.5 rounded-md hover:bg-slate-800 font-medium text-sm transition-all"
-                      >
-                        Comparar Ahora
-                      </button>
-                      <button
-                        onClick={() => setSelectedVehicles([])}
-                        className="bg-gray-200 text-gray-700 px-4 py-2.5 rounded-lg hover:bg-gray-300 font-medium transition-all"
-                      >
-                        Limpiar
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
+
+              {/* El comparador ahora es un Sticky Bar al final de la página */}
 
               {/* Listado de Vehículos - Siempre visible */}
               {loading && vehicles.length === 0 ? (
-                <div className="flex justify-center py-20">
-                  <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-600 border-t-transparent"></div>
-                  <p className="ml-4 text-slate-600">Cargando vehículos...</p>
+                <div className="flex flex-col items-center justify-center py-32 bg-white rounded-3xl border border-slate-100 shadow-sm">
+                  <div className="relative w-20 h-20 mb-6">
+                    <div className="absolute inset-0 border-4 border-blue-600/20 rounded-full"></div>
+                    <div className="absolute inset-0 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                  <p className="text-slate-500 font-bold tracking-wide">Actualizando inventario...</p>
                 </div>
               ) : filteredVehicles.length === 0 ? (
-                <div className="text-center py-20 bg-slate-50 rounded-lg border border-slate-200">
-                  <div className="w-20 h-20 bg-slate-200 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <svg className="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
+                <div className="text-center py-24 bg-white rounded-3xl border-2 border-dashed border-slate-200">
+                  <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-8 text-4xl shadow-inner">
+                    🔍
                   </div>
-                  <h3 className="text-2xl font-semibold mb-3 text-slate-900">No se encontraron vehículos</h3>
-                  <p className="text-slate-600 mb-6 max-w-md mx-auto">
-                    Intenta ajustar los filtros de búsqueda para encontrar más resultados
+                  <h3 className="text-3xl font-black mb-4 text-slate-900">Sin coincidencias exactas</h3>
+                  <p className="text-slate-500 mb-10 max-w-sm mx-auto font-medium">
+                    Prueba quitando algunos filtros o buscando un modelo más general.
                   </p>
                   <button
                     onClick={() => setFilters({
@@ -1228,119 +1187,139 @@ export default function LandingPage() {
                       location: '',
                       bodyType: 'all',
                     })}
-                    className="bg-slate-900 text-white px-6 py-3 rounded-md hover:bg-slate-800 font-medium text-sm transition-all"
+                    className="px-10 py-4 bg-slate-900 text-white rounded-2xl hover:bg-blue-600 font-bold transition-all shadow-xl hover:shadow-blue-500/20"
                   >
-                    Limpiar Filtros
+                    Reiniciar Búsqueda
                   </button>
                 </div>
               ) : (
-                <>
-                  <p className="text-slate-600 mb-6 text-sm font-medium">
-                    Mostrando {filteredVehicles.length} de {vehicles.length} vehículos disponibles
-                  </p>
-                  
+                <div className="space-y-8">
+                  <div className="flex items-center justify-between text-sm">
+                    <p className="text-slate-500 font-bold">
+                      Mostrando <span className="text-slate-900">{filteredVehicles.length}</span> resultados de <span className="text-slate-900">{vehicles.length}</span>
+                    </p>
+                  </div>
+
                   {viewMode === 'grid' ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {filteredVehicles.map((vehicle) => (
-                        <div
-                          key={vehicle.id}
-                          className="bg-white rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden group cursor-pointer relative border-2 border-slate-200 hover:border-blue-500 transform hover:-translate-y-2"
-                          onClick={(e) => {
-                            if ((e.target as HTMLElement).closest('.compare-checkbox')) return;
-                            fetch(`/api/public/vehicles/${vehicle.id}/view`, { method: 'POST' }).catch(console.error);
-                            window.location.href = `/${vehicle.tenantId}/vehicle/${vehicle.id}`;
-                          }}
-                        >
-                          {/* Checkbox para comparar */}
-                          <div className="absolute top-3 left-3 z-10 compare-checkbox">
-                            <input
-                              type="checkbox"
-                              checked={selectedVehicles.includes(vehicle.id)}
-                              onChange={(e) => {
-                                e.stopPropagation();
-                                if (e.target.checked) {
-                                  if (selectedVehicles.length < 3) {
-                                    setSelectedVehicles([...selectedVehicles, vehicle.id]);
-                                  } else {
-                                    alert('Solo puedes comparar hasta 3 vehículos');
-                                  }
-                                } else {
-                                  setSelectedVehicles(selectedVehicles.filter(id => id !== vehicle.id));
-                                }
-                              }}
-                              className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 cursor-pointer"
-                            />
-                          </div>
-                          
-                          {/* Imagen del vehículo */}
-                          {vehicle.photos && Array.isArray(vehicle.photos) && vehicle.photos.length > 0 && vehicle.photos[0] ? (
-                            <div className="relative h-56 bg-gray-200 overflow-hidden">
-                              <img
-                                src={vehicle.photos[0].trim()}
-                                alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
-                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                                loading="lazy"
-                                referrerPolicy="no-referrer"
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23ddd" width="400" height="300"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="20" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3E🚗%3C/text%3E%3C/svg%3E';
-                                  target.onerror = null;
-                                }}
-                              />
-                              {vehicle.photos.length > 1 && (
-                                <div className="absolute top-3 right-3 bg-black/70 text-white px-3 py-1 rounded-full text-xs font-semibold backdrop-blur-sm">
-                                  +{vehicle.photos.length - 1} fotos
-                                </div>
-                              )}
-                              {(vehicle as any).stockNumber && (
-                                <div className="absolute bottom-3 left-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-lg text-xs font-bold text-blue-600">
-                                  #{(vehicle as any).stockNumber}
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="h-56 bg-slate-100 flex items-center justify-center relative">
-                              <svg className="w-16 h-16 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                              </svg>
-                              <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur-sm px-3 py-1 rounded-md text-xs text-slate-600 font-medium border border-slate-200">
-                                Sin fotos
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                      {filteredVehicles.map((vehicle, idx) => (
+                        <Fragment key={vehicle.id}>
+
+                          <div
+                            className="bg-white rounded-[2.5rem] shadow-[0_15px_45px_-15px_rgba(0,0,0,0.08)] hover:shadow-[0_30px_70px_-20px_rgba(0,0,0,0.15)] transition-all duration-700 overflow-hidden group cursor-pointer border border-slate-100 flex flex-col hover:-translate-y-3 relative active:scale-95"
+                            onClick={(e) => {
+                              if ((e.target as HTMLElement).closest('.compare-checkbox') || (e.target as HTMLElement).closest('button')) return;
+                              fetch(`/api/public/vehicles/${vehicle.id}/view`, { method: 'POST' }).catch(console.error);
+                              window.location.href = `/${vehicle.tenantId}/vehicle/${vehicle.id}`;
+                            }}
+                          >
+                            {/* Price Tag Overlay */}
+                            <div className="absolute top-6 left-6 z-20 pointer-events-none">
+                              <div className="bg-white/95 backdrop-blur-md px-5 py-2.5 rounded-2xl shadow-xl border border-white/50 group-hover:bg-blue-600 group-hover:text-white transition-all duration-500">
+                                <span className="text-xl font-black tracking-tighter">
+                                  {vehicle.currency} {vehicle.price.toLocaleString()}
+                                </span>
                               </div>
                             </div>
-                          )}
-                          
-                          {/* Información del vehículo */}
-                          <div className="p-5">
-                            <div className="flex items-start justify-between mb-2">
-                              <h3 className="font-bold text-lg group-hover:text-blue-600 transition line-clamp-2 flex-1">
-                                {vehicle.year} {vehicle.make} {vehicle.model}
-                              </h3>
+
+                            {/* Image Container */}
+                            <div className="relative h-72 bg-slate-100 overflow-hidden">
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent z-10 transition-opacity duration-500 opacity-40 group-hover:opacity-80"></div>
+                              {vehicle.photos && vehicle.photos.length > 0 && vehicle.photos[0] ? (
+                                <img
+                                  src={vehicle.photos[0].trim()}
+                                  alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
+                                  className="w-full h-full object-cover scale-105 group-hover:scale-115 transition-transform duration-[1.5s] ease-out"
+                                  loading="lazy"
+                                  referrerPolicy="no-referrer"
+                                />
+                              ) : (
+                                <div className="h-full w-full flex items-center justify-center bg-slate-50 text-slate-200">
+                                  <svg className="w-20 h-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                </div>
+                              )}
+
+                              {/* Stock Badge */}
+                              <div className="absolute bottom-6 right-6 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 translate-y-4 group-hover:translate-y-0">
+                                <span className="bg-white/20 backdrop-blur-md border border-white/30 text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">
+                                  #{vehicle.stockNumber || 'PREMIUM'}
+                                </span>
+                              </div>
                             </div>
-                            <p className="text-3xl font-extrabold text-green-600 mb-4">
-                              {vehicle.currency} {vehicle.price.toLocaleString()}
-                            </p>
-                            <div className="flex flex-wrap gap-3 mb-4 text-xs text-gray-600">
-                              {vehicle.mileage && (
-                                <span className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded">📏 {vehicle.mileage.toLocaleString()} km</span>
-                              )}
-                              {vehicle.specifications?.transmission && (
-                                <span className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded">⚙️ {vehicle.specifications.transmission}</span>
-                              )}
-                              {vehicle.specifications?.fuelType && (
-                                <span className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded">⛽ {vehicle.specifications.fuelType}</span>
-                              )}
+
+                            {/* Card Content */}
+                            <div className="p-10 flex-grow flex flex-col justify-between bg-white relative">
+                              <div>
+                                <div className="flex items-center gap-2 mb-3">
+                                  <span className="text-blue-600 font-black text-[10px] uppercase tracking-widest">{vehicle.condition === 'new' ? 'Nuevo' : 'Seminuevo'}</span>
+                                  <div className="w-1 h-1 bg-slate-300 rounded-full"></div>
+                                  <span className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">{vehicle.make}</span>
+                                </div>
+                                <h3 className="text-2xl font-black text-slate-900 mb-6 group-hover:text-blue-600 transition-colors leading-tight">
+                                  {vehicle.year} {vehicle.make} {vehicle.model}
+                                </h3>
+
+                                <div className="grid grid-cols-2 gap-4 mb-8">
+                                  <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-100/50">
+                                    <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center shadow-sm text-blue-600">
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                                    </div>
+                                    <div>
+                                      <span className="block text-[8px] font-black text-slate-400 uppercase tracking-tighter">Millas</span>
+                                      <span className="block text-xs font-black text-slate-900">{vehicle.mileage ? vehicle.mileage.toLocaleString() : '0'}</span>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-100/50">
+                                    <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center shadow-sm text-blue-600">
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                                    </div>
+                                    <div>
+                                      <span className="block text-[8px] font-black text-slate-400 uppercase tracking-tighter">Status</span>
+                                      <span className="block text-xs font-black text-slate-900">CERTIFIED</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center justify-between pt-8 border-t border-slate-100">
+                                <button className="flex items-center gap-3 text-slate-900 group/btn font-black text-xs tracking-widest uppercase">
+                                  <span className="relative">
+                                    Ver Detalles
+                                    <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-600 group-hover/btn:w-full transition-all duration-300"></div>
+                                  </span>
+                                  <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center group-hover/btn:bg-blue-600 transition-colors duration-300">
+                                    <svg className="w-4 h-4 transform group-hover/btn:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                                  </div>
+                                </button>
+
+                                <div className="compare-checkbox">
+                                  <label className="relative flex items-center cursor-pointer group/check">
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedVehicles.includes(vehicle.id)}
+                                      onChange={(e) => {
+                                        e.stopPropagation();
+                                        if (e.target.checked) {
+                                          if (selectedVehicles.length < 3) {
+                                            setSelectedVehicles([...selectedVehicles, vehicle.id]);
+                                          } else {
+                                            alert('Máximo 3 vehículos para comparar');
+                                          }
+                                        } else {
+                                          setSelectedVehicles(selectedVehicles.filter(id => id !== vehicle.id));
+                                        }
+                                      }}
+                                      className="peer sr-only"
+                                    />
+                                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border-2 transition-all shadow-sm ${selectedVehicles.includes(vehicle.id) ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-50 border-slate-100 text-slate-300 group-hover/check:border-blue-200 group-hover/check:text-blue-400'}`}>
+                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                    </div>
+                                  </label>
+                                </div>
+                              </div>
                             </div>
-                            {vehicle.tenantName && (
-                              <p className="text-xs text-gray-500 mb-3 font-medium">De: {vehicle.tenantName}</p>
-                            )}
-                            <p className="text-sm text-gray-700 line-clamp-2 mb-4">
-                              {vehicle.description}
-                            </p>
-                            <button className="w-full bg-slate-900 text-white px-4 py-3 rounded-md hover:bg-slate-800 font-medium text-sm transition-all">
-                              Ver Detalles
-                            </button>
                           </div>
-                        </div>
+                        </Fragment>
                       ))}
                     </div>
                   ) : (
@@ -1348,35 +1327,43 @@ export default function LandingPage() {
                       {filteredVehicles.map((vehicle) => (
                         <div
                           key={vehicle.id}
-                          className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden group cursor-pointer relative flex border border-gray-100"
+                          className="bg-white rounded-[3rem] shadow-[0_15px_40px_-15px_rgba(0,0,0,0.05)] hover:shadow-[0_30px_70px_-20px_rgba(0,0,0,0.12)] transition-all duration-500 overflow-hidden group cursor-pointer border border-slate-100 flex flex-col md:flex-row h-auto md:h-72 hover:-translate-y-1.5"
                           onClick={(e) => {
-                            if ((e.target as HTMLElement).closest('.compare-checkbox')) return;
+                            if ((e.target as HTMLElement).closest('.compare-checkbox') || (e.target as HTMLElement).closest('button')) return;
                             fetch(`/api/public/vehicles/${vehicle.id}/view`, { method: 'POST' }).catch(console.error);
                             window.location.href = `/${vehicle.tenantId}/vehicle/${vehicle.id}`;
                           }}
                         >
-                          {/* Imagen */}
-                          <div className="w-80 h-56 flex-shrink-0 relative">
+                          {/* Image Section */}
+                          <div className="relative w-full md:w-96 overflow-hidden bg-slate-100 flex-shrink-0">
                             {vehicle.photos && vehicle.photos.length > 0 && vehicle.photos[0] ? (
                               <img
                                 src={vehicle.photos[0].trim()}
                                 alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
-                                className="w-full h-full object-cover"
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 ease-out"
                                 loading="lazy"
                                 referrerPolicy="no-referrer"
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23ddd" width="400" height="300"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="20" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3E🚗%3C/text%3E%3C/svg%3E';
-                                  target.onerror = null;
-                                }}
                               />
                             ) : (
-                              <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                                <div className="text-gray-400 text-6xl">🚗</div>
+                              <div className="w-full h-full flex items-center justify-center text-slate-200">
+                                <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                               </div>
                             )}
-                            {/* Checkbox */}
-                            <div className="absolute top-3 left-3 compare-checkbox">
+
+                            {/* Badges on Image */}
+                            <div className="absolute top-6 left-6 z-10 flex flex-col gap-2">
+                              <span className="bg-blue-600/90 backdrop-blur-md text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-600/20">
+                                {vehicle.condition === 'new' ? 'Nuevo' : 'Certificado'}
+                              </span>
+                              {vehicle.isFeatured && (
+                                <span className="bg-amber-500/90 backdrop-blur-md text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-amber-500/20">
+                                  Destacado
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Compare Checkbox */}
+                            <label className="absolute bottom-6 left-6 z-20 cursor-pointer group/check">
                               <input
                                 type="checkbox"
                                 checked={selectedVehicles.includes(vehicle.id)}
@@ -1386,203 +1373,149 @@ export default function LandingPage() {
                                     if (selectedVehicles.length < 3) {
                                       setSelectedVehicles([...selectedVehicles, vehicle.id]);
                                     } else {
-                                      alert('Solo puedes comparar hasta 3 vehículos');
+                                      setComparisonError('Máximo 3 vehículos para comparar');
                                     }
                                   } else {
                                     setSelectedVehicles(selectedVehicles.filter(id => id !== vehicle.id));
                                   }
                                 }}
-                                className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 cursor-pointer"
+                                className="peer sr-only"
                               />
-                            </div>
+                              <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border-2 transition-all shadow-sm ${selectedVehicles.includes(vehicle.id) ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white/80 backdrop-blur-md border-white/40 text-slate-400'}`}>
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                              </div>
+                            </label>
                           </div>
-                          
-                          {/* Información */}
-                          <div className="flex-1 p-6">
-                            <div className="flex justify-between items-start mb-3">
-                              <div>
-                                <h3 className="text-2xl font-bold text-gray-900 mb-2">
+
+                          {/* Info Section */}
+                          <div className="p-10 flex-grow flex flex-col justify-between">
+                            <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-6">
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-blue-600 font-extrabold text-[10px] uppercase tracking-[0.2em]">{vehicle.make}</span>
+                                  <div className="w-1 h-1 bg-slate-300 rounded-full"></div>
+                                  <span className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">STOCK: #{vehicle.stockNumber || 'PREMIUM'}</span>
+                                </div>
+                                <h3 className="text-3xl font-black text-slate-900 group-hover:text-blue-600 transition-colors tracking-tight leading-tight">
                                   {vehicle.year} {vehicle.make} {vehicle.model}
                                 </h3>
-                                <p className="text-4xl font-extrabold text-green-600 mb-4">
-                                  {vehicle.currency} {vehicle.price.toLocaleString()}
-                                </p>
                               </div>
-                              {(vehicle as any).stockNumber && (
-                                <span className="text-xs font-bold bg-blue-100 text-blue-800 px-3 py-1.5 rounded-lg">
-                                  #{(vehicle as any).stockNumber}
+                              <div className="flex flex-col items-end">
+                                <span className="text-3xl font-black text-slate-900 tracking-tighter">
+                                  {vehicle.currency} {vehicle.price.toLocaleString()}
                                 </span>
-                              )}
+                                <span className="text-blue-500 text-[10px] font-black uppercase tracking-widest mt-1">Precio Online</span>
+                              </div>
                             </div>
-                            
-                            <div className="grid grid-cols-3 gap-4 mb-4 text-sm">
-                              {vehicle.mileage && (
-                                <div className="bg-gray-50 p-3 rounded-lg">
-                                  <div className="text-gray-600 text-xs mb-1">Millas</div>
-                                  <div className="font-bold">{vehicle.mileage.toLocaleString()}</div>
-                                </div>
-                              )}
-                              {vehicle.specifications?.transmission && (
-                                <div className="bg-gray-50 p-3 rounded-lg">
-                                  <div className="text-gray-600 text-xs mb-1">Transmisión</div>
-                                  <div className="font-bold">{vehicle.specifications.transmission}</div>
-                                </div>
-                              )}
-                              {vehicle.specifications?.fuelType && (
-                                <div className="bg-gray-50 p-3 rounded-lg">
-                                  <div className="text-gray-600 text-xs mb-1">Combustible</div>
-                                  <div className="font-bold">{vehicle.specifications.fuelType}</div>
-                                </div>
-                              )}
+
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                              <div className="flex items-center gap-2.5 p-2 bg-slate-50 rounded-xl border border-slate-100/50">
+                                <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                                <span className="text-xs font-bold text-slate-600">{vehicle.mileage ? vehicle.mileage.toLocaleString() : '0'} mi</span>
+                              </div>
+                              <div className="flex items-center gap-2.5 p-2 bg-slate-50 rounded-xl border border-slate-100/50">
+                                <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
+                                <span className="text-xs font-bold text-slate-600">{vehicle.specifications?.transmission || 'Auto'}</span>
+                              </div>
+                              <div className="flex items-center gap-2.5 p-2 bg-slate-50 rounded-xl border border-slate-100/50">
+                                <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.99 7.99 0 0120 13a7.989 7.989 0 01-2.343 5.657z" /></svg>
+                                <span className="text-xs font-bold text-slate-600">{vehicle.specifications?.fuelType || 'Gas'}</span>
+                              </div>
+                              <div className="flex items-center gap-2.5 p-2 bg-slate-50 rounded-xl border border-slate-100/50">
+                                <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /></svg>
+                                <span className="text-xs font-bold text-slate-600 whitespace-nowrap overflow-hidden text-ellipsis">{vehicle.location || 'Nacional'}</span>
+                              </div>
                             </div>
-                            
-                            <p className="text-gray-700 mb-6 line-clamp-2">
-                              {vehicle.description}
-                            </p>
-                            
-                            <div className="flex gap-3">
-                              <button className="bg-slate-900 text-white px-8 py-3 rounded-md hover:bg-slate-800 font-medium text-sm transition-all">
-                                Ver Detalles
-                              </button>
-                              <button className="border-2 border-gray-300 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-50 font-semibold transition-all">
-                                Contactar
-                              </button>
+
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-4">
+                                <button className="px-10 py-4 bg-slate-900 text-white rounded-2xl font-black text-sm hover:bg-blue-600 transition-all shadow-xl hover:shadow-blue-500/20 active:scale-95">
+                                  Ver Detalles
+                                </button>
+                                <button className="p-4 bg-slate-50 text-slate-400 rounded-2xl border border-slate-100 hover:text-blue-600 hover:bg-white transition-all">
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+                                </button>
+                              </div>
+                              <span className="text-xs text-slate-400 font-bold uppercase tracking-widest">{vehicle.tenantName || 'Dealer Premium'}</span>
                             </div>
                           </div>
                         </div>
                       ))}
                     </div>
                   )}
-                </>
+
+                  {/* Pagination / Load More Premium Button - Enhanced & Premium */}
+                  <div className="mt-32 flex flex-col items-center relative">
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-blue-600/5 rounded-full blur-3xl -z-10"></div>
+
+                    <div className="flex flex-col items-center text-center mb-12">
+                      <div className="w-16 h-1 bg-gradient-to-r from-transparent via-blue-600 to-transparent rounded-full mb-8"></div>
+                      <h4 className="text-2xl font-black text-slate-900 mb-4 tracking-tight uppercase tracking-widest">¿No encuentras lo que buscas?</h4>
+                      <p className="text-slate-500 font-medium max-w-lg leading-relaxed">
+                        Tenemos acceso exclusivo a inventarios de subastas y concesionarios premium en todo el país.
+                        Podemos encontrar exactamente el auto de tus sueños.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-6 items-center">
+                      <button className="group relative flex items-center gap-8 px-12 py-10 bg-slate-900 text-white rounded-[3rem] shadow-[0_30px_70px_-15px_rgba(0,0,0,0.4)] hover:shadow-blue-900/40 transition-all duration-700 hover:-translate-y-3 active:scale-95 overflow-hidden border border-white/10">
+                        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/0 via-blue-400/10 to-blue-600/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                        <div className="flex flex-col items-start relative z-10">
+                          <span className="text-[10px] font-black uppercase tracking-[0.5em] text-blue-400 mb-2">Inventario Certificado</span>
+                          <span className="text-xl font-black uppercase tracking-[0.1em]">Explorar Catálogo Full</span>
+                          <div className="mt-2 text-xs font-medium text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity duration-500">+10,000 unidades disponibles</div>
+                        </div>
+                        <div className="w-16 h-16 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-2xl group-hover:scale-110 group-hover:rotate-[360deg] transition-all duration-700 border border-white/20 relative z-10">
+                          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" /></svg>
+                        </div>
+                      </button>
+
+                      <Link href="/contacto" className="group flex items-center gap-4 px-10 py-8 bg-white border border-slate-200 rounded-[2.5rem] shadow-xl hover:shadow-slate-200 hover:-translate-y-2 transition-all duration-500 font-black text-sm uppercase tracking-widest text-slate-900">
+                        Pedido Especial
+                        <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-blue-50 transition-colors">
+                          <svg className="w-5 h-5 text-slate-400 group-hover:text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1 1 0 01-2-2V6a2 2 0 012-2H5a2 2 0 012 2v6a2 2 0 01-2 2h2v4l2-2z" /></svg>
+                        </div>
+                      </Link>
+                    </div>
+
+                    <div className="mt-16 flex items-center gap-3 text-slate-400 font-black text-[10px] uppercase tracking-[0.3em]">
+                      <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                      Actualizado hace 5 minutos • +2,500 vehículos en stock total
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           </div>
         </div>
       </section>
 
-      {/* Calculadora de Financiamiento */}
       <FinanceCalculator />
 
-      {/* Sección de Promociones Premium - Diseño Profesional */}
       <section id="promotions" className="py-24 bg-slate-50 relative overflow-hidden border-t border-slate-200">
+        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 bg-amber-200/20 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 bg-blue-200/20 rounded-full blur-3xl pointer-events-none"></div>
+
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 rounded-full mb-6">
-              <span className="text-white font-semibold text-xs uppercase tracking-wider">Promociones Especiales</span>
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-100 border border-amber-200 rounded-full mb-6 shadow-sm">
+              <span className="text-amber-700 font-bold text-[10px] uppercase tracking-[0.2em] flex items-center gap-1.5">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" /></svg>
+                Promociones Especiales
+              </span>
             </div>
-            <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4 tracking-tight">
+            <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-4 tracking-tight">
               Ofertas Exclusivas
             </h2>
-            <p className="text-lg text-slate-600 max-w-2xl mx-auto font-normal">
-              Promociones verificadas de nuestros concesionarios certificados
+            <p className="text-lg text-slate-600 max-w-2xl mx-auto font-medium">
+              Descubre los mejores descuentos y beneficios únicos directamente de nuestros concesionarios certificados.
             </p>
           </div>
-          
-          {promotions.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {promotions.slice(0, 12).map((promotion, index) => (
-                <div
-                  key={promotion.id}
-                  onClick={() => {
-                    if (promotion.vehicleId) {
-                      window.location.href = `/${promotion.tenantId}/vehicle/${promotion.vehicleId}`;
-                    }
-                  }}
-                  className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer overflow-hidden border-2 border-transparent hover:border-yellow-400 transform hover:-translate-y-2"
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  {promotion.imageUrl ? (
-                    <div className="relative h-56 overflow-hidden">
-                      <img
-                        src={promotion.imageUrl}
-                        alt={promotion.name}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
-                      <div className="absolute top-4 right-4">
-                        <span className="px-3 py-1.5 bg-amber-500 text-white text-xs font-semibold rounded uppercase tracking-wide">
-                          Premium
-                        </span>
-                      </div>
-                      {promotion.discount && (
-                        <div className="absolute bottom-4 left-4">
-                          <div className="bg-white/95 backdrop-blur-sm px-4 py-2 rounded-lg">
-                            <div className="text-2xl font-bold text-green-600">
-                              {promotion.discount.type === 'percentage'
-                                ? `${promotion.discount.value}% OFF`
-                                : `$${promotion.discount.value} OFF`}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="relative h-56 bg-gradient-to-br from-yellow-100 via-orange-100 to-pink-100 flex items-center justify-center">
-                      <div className="absolute top-4 right-4">
-                        <span className="px-3 py-1.5 bg-amber-500 text-white text-xs font-semibold rounded uppercase tracking-wide">
-                          Premium
-                        </span>
-                      </div>
-                      <svg className="w-16 h-16 text-slate-300 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
-                      </svg>
-                    </div>
-                  )}
-                  <div className="p-6">
-                    <h3 className="font-bold text-xl mb-2 group-hover:text-blue-600 transition line-clamp-2">
-                      {promotion.name}
-                    </h3>
-                    <p className="text-sm text-gray-600 mb-4 line-clamp-2">{promotion.description}</p>
-                    {promotion.tenantName && (
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                          {promotion.tenantName.charAt(0)}
-                        </div>
-                        <p className="text-xs text-gray-500 font-medium">De: {promotion.tenantName}</p>
-                      </div>
-                    )}
-                    {((promotion.sellerRating && promotion.sellerRating > 0) || (promotion.dealerRating && promotion.dealerRating > 0)) && (
-                      <div className="mb-4">
-                        <StarRating
-                          rating={promotion.sellerRating || promotion.dealerRating || 0}
-                          count={promotion.sellerRatingCount || promotion.dealerRatingCount || 0}
-                          size="sm"
-                          showCount={true}
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 border-2 border-dashed border-blue-300 rounded-xl p-12 text-center">
-              <div className="max-w-md mx-auto">
-                <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-                  <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
-                  </svg>
-                </div>
-                <h3 className="text-2xl font-bold text-slate-900 mb-2">Promociona Tu Negocio Aquí</h3>
-                <p className="text-slate-600 mb-4">Llega a miles de compradores de vehículos. Crea tu anuncio y aumenta tu visibilidad.</p>
-                <a
-                  href="http://localhost:3004"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg font-bold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  Crear Anuncio Ahora
-                </a>
-              </div>
-            </div>
-          )}
+
+          <PremiumPromotions />
         </div>
       </section>
 
-      {/* Dealers Destacados */}
       <section id="dealers" className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {featuredDealers.length > 0 ? (
@@ -1608,27 +1541,21 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Sección de Reseñas */}
       <ReviewsSection />
 
-      {/* Banner Entre Contenido */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <BetweenContentBanner />
       </div>
 
-      {/* Sección de Patrocinadores */}
       <SponsoredContent />
 
-      {/* Sección de Confianza y Garantías - ULTRA VISIBLE */}
       <section className="py-24 bg-gradient-to-b from-white to-slate-50 border-t-4 border-blue-600 relative overflow-hidden">
-        {/* Background decorativo */}
         <div className="absolute inset-0 opacity-5">
           <div className="absolute top-0 left-0 w-96 h-96 bg-blue-600 rounded-full blur-3xl"></div>
           <div className="absolute bottom-0 right-0 w-96 h-96 bg-purple-600 rounded-full blur-3xl"></div>
         </div>
-        
+
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          {/* Header destacado */}
           <div className="text-center mb-16">
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-full mb-6">
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -1645,102 +1572,65 @@ export default function LandingPage() {
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <div className="bg-white rounded-2xl p-8 shadow-xl border-2 border-blue-100 hover:border-blue-500 transition-all hover:shadow-2xl hover:-translate-y-2">
-              <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+            <div className="bg-white rounded-2xl p-8 shadow-xl border-2 border-blue-100 hover:border-blue-500 transition-all hover:shadow-2xl hover:-translate-y-2 text-center group">
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg transform group-hover:rotate-6 transition-transform">
                 <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-3 text-center">Búsqueda Avanzada</h3>
-              <p className="text-slate-600 text-center leading-relaxed">
-                Filtros inteligentes y búsqueda por múltiples criterios para encontrar exactamente lo que buscas
-              </p>
+              <h3 className="text-xl font-bold text-slate-900 mb-3">Búsqueda Avanzada</h3>
+              <p className="text-slate-600 leading-relaxed">Filtros inteligentes y búsqueda por múltiples criterios para encontrar exactamente lo que buscas.</p>
               <div className="mt-6 flex items-center justify-center gap-2">
                 <span className="text-2xl font-bold text-blue-600">✓</span>
                 <span className="text-sm font-semibold text-slate-700">Filtros Inteligentes</span>
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl p-8 shadow-xl border-2 border-green-100 hover:border-green-500 transition-all hover:shadow-2xl hover:-translate-y-2">
-              <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+            <div className="bg-white rounded-2xl p-8 shadow-xl border-2 border-green-100 hover:border-green-500 transition-all hover:shadow-2xl hover:-translate-y-2 text-center group">
+              <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg transform group-hover:-rotate-6 transition-transform">
                 <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-3 text-center">Chat en Tiempo Real</h3>
-              <p className="text-slate-600 text-center leading-relaxed">
-                Comunicación directa con dealers y vendedores a través de WhatsApp y mensajería integrada
-              </p>
+              <h3 className="text-xl font-bold text-slate-900 mb-3">Chat en Tiempo Real</h3>
+              <p className="text-slate-600 leading-relaxed">Comunicación directa con dealers y vendedores a través de WhatsApp y mensajería integrada.</p>
               <div className="mt-6 flex items-center justify-center gap-2">
                 <span className="text-2xl font-bold text-green-600">✓</span>
                 <span className="text-sm font-semibold text-slate-700">Comunicación Directa</span>
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl p-8 shadow-xl border-2 border-purple-100 hover:border-purple-500 transition-all hover:shadow-2xl hover:-translate-y-2">
-              <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+            <div className="bg-white rounded-2xl p-8 shadow-xl border-2 border-purple-100 hover:border-purple-500 transition-all hover:shadow-2xl hover:-translate-y-2 text-center group">
+              <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg transform group-hover:rotate-6 transition-transform">
                 <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2m0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-3 text-center">Gestión de Leads</h3>
-              <p className="text-slate-600 text-center leading-relaxed">
-                Sistema CRM integrado para seguimiento profesional de tus consultas y solicitudes
-              </p>
+              <h3 className="text-xl font-bold text-slate-900 mb-3">Gestión de Leads</h3>
+              <p className="text-slate-600 leading-relaxed">Sistema CRM integrado para seguimiento profesional de tus consultas y solicitudes.</p>
               <div className="mt-6 flex items-center justify-center gap-2">
                 <span className="text-2xl font-bold text-purple-600">✓</span>
                 <span className="text-sm font-semibold text-slate-700">CRM Integrado</span>
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl p-8 shadow-xl border-2 border-amber-100 hover:border-amber-500 transition-all hover:shadow-2xl hover:-translate-y-2">
-              <div className="w-20 h-20 bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+            <div className="bg-white rounded-2xl p-8 shadow-xl border-2 border-amber-100 hover:border-amber-500 transition-all hover:shadow-2xl hover:-translate-y-2 text-center group">
+              <div className="w-20 h-20 bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg transform group-hover:-rotate-6 transition-transform">
                 <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-3 text-center">Reportes y Analytics</h3>
-              <p className="text-slate-600 text-center leading-relaxed">
-                Estadísticas detalladas de inventario, ventas y rendimiento para dealers y vendedores
-              </p>
+              <h3 className="text-xl font-bold text-slate-900 mb-3">Soporte Premium</h3>
+              <p className="text-slate-600 leading-relaxed">Nuestro equipo de expertos está disponible en todo momento para asesorarte en tu compra.</p>
               <div className="mt-6 flex items-center justify-center gap-2">
                 <span className="text-2xl font-bold text-amber-600">✓</span>
-                <span className="text-sm font-semibold text-slate-700">Analytics Avanzado</span>
+                <span className="text-sm font-semibold text-slate-700">Atención 24/7</span>
               </div>
             </div>
           </div>
-
-          {/* Badges de confianza adicionales */}
-          {(siteInfo.statisticsVisibility?.satisfiedCustomers || 
-            siteInfo.statisticsVisibility?.averageRating || 
-            siteInfo.statisticsVisibility?.satisfactionRate) && (
-            <div className="mt-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white shadow-2xl">
-              <div className="grid md:grid-cols-3 gap-6 text-center">
-                {(siteInfo.statisticsVisibility?.satisfiedCustomers ?? true) && (
-                  <div>
-                    <div className="text-5xl font-bold mb-2">{siteInfo.statistics?.satisfiedCustomers || '10,000+'}</div>
-                    <div className="text-white/90 font-medium text-lg">Clientes Satisfechos</div>
-                  </div>
-                )}
-                {(siteInfo.statisticsVisibility?.averageRating ?? true) && (
-                  <div className={(siteInfo.statisticsVisibility?.satisfiedCustomers ?? true) && (siteInfo.statisticsVisibility?.satisfactionRate ?? true) ? 'border-x border-white/20' : ''}>
-                    <div className="text-5xl font-bold mb-2">{siteInfo.statistics?.averageRating || '4.9/5'}</div>
-                    <div className="text-white/90 font-medium text-lg">Calificación Promedio</div>
-                  </div>
-                )}
-                {(siteInfo.statisticsVisibility?.satisfactionRate ?? true) && (
-                  <div>
-                    <div className="text-5xl font-bold mb-2">{siteInfo.statistics?.satisfactionRate || '99.8%'}</div>
-                    <div className="text-white/90 font-medium text-lg">Tasa de Satisfacción</div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
         </div>
       </section>
 
-      {/* Contacto */}
       <section id="contact" className="py-24 bg-slate-50 border-t border-slate-200">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
@@ -1800,86 +1690,63 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Footer Moderno */}
-      <footer className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-4 gap-12 mb-12">
-            <div>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
-                  <span className="text-white font-bold text-xl">{siteInfo.logo}</span>
-                </div>
-                <span className="text-2xl font-bold">{siteInfo.name}</span>
-              </div>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                {siteInfo.description}
-              </p>
+      <LandingFooter />
+      {/* Comparison Error Notification */}
+      {comparisonError && (
+        <div className="fixed top-24 right-8 z-[100] animate-fade-in-right">
+          <div className="bg-red-600/90 backdrop-blur-xl text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4 border border-red-500/50">
+            <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
             </div>
             <div>
-              <h4 className="font-bold text-lg mb-4">Navegación</h4>
-              <ul className="space-y-3 text-sm text-gray-400">
-                {siteInfo.footerLinks.navigation.map((link) => (
-                  <li key={link.href}>
-                    <a href={link.href} className="hover:text-white transition">
-                      {link.label}
-                    </a>
-                  </li>
-                ))}
-              </ul>
+              <p className="font-black text-sm uppercase tracking-widest">Error de Selección</p>
+              <p className="text-sm font-bold opacity-90">{comparisonError}</p>
             </div>
-            <div>
-              <h4 className="font-bold text-lg mb-4">Contacto</h4>
-              <ul className="space-y-3 text-sm text-gray-400">
-                <li className="flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                  </svg>
-                  {siteInfo.contact.phone}
-                </li>
-                <li className="flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  {siteInfo.contact.email}
-                </li>
-                <li className="flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  {siteInfo.contact.address}
-                </li>
-                <li className="flex items-center gap-2 pt-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  {siteInfo.contact.hours}
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-bold text-lg mb-4">Legal</h4>
-              <ul className="space-y-3 text-sm text-gray-400">
-                {siteInfo.footerLinks.legal.map((link) => (
-                  <li key={link.href}>
-                    <Link href={link.href} className="hover:text-white transition">
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-          <div className="border-t border-gray-800 pt-8 text-center">
-            <p className="text-gray-400 text-sm mb-2">
-              © {siteInfo.copyright.year} {siteInfo.copyright.company}. {siteInfo.copyright.text}
-            </p>
-            <p className="text-xs text-gray-500">
-              {siteInfo.disclaimer}
-            </p>
+            <button onClick={() => setComparisonError(null)} className="ml-4 hover:rotate-90 transition-transform">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
           </div>
         </div>
-      </footer>
+      )}
+
+      {/* Sticky Comparison Bar - Ultra Premium */}
+      <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-[90] transition-all duration-700 ease-out w-[95%] max-w-4xl ${selectedVehicles.length > 0 ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-32 opacity-0 scale-95 pointer-events-none'}`}>
+        <div className="bg-slate-900/90 backdrop-blur-2xl px-1 sm:px-1 py-1 rounded-[2.5rem] shadow-[0_40px_100px_-20px_rgba(0,0,0,0.6)] border border-white/10 overflow-hidden relative group">
+          {/* Background effects */}
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 via-purple-600/10 to-transparent opacity-50"></div>
+
+          <div className="relative z-10 flex items-center justify-between pl-8 pr-2 py-4">
+            <div className="flex items-center gap-6">
+              <div className="flex items-center justify-center w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full text-white shadow-xl shadow-blue-500/30">
+                <span className="text-xl font-black">{selectedVehicles.length}</span>
+              </div>
+              <div className="hidden sm:block">
+                <h4 className="text-white font-black text-xs uppercase tracking-[0.2em] mb-1">Comparar Vehículos</h4>
+                <p className="text-white/50 text-xs font-bold">{selectedVehicles.length === 3 ? 'Selección Completa' : `Agrega ${3 - selectedVehicles.length} más para una mejor comparación`}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setSelectedVehicles([])}
+                className="text-white/40 hover:text-white px-6 py-3 font-black text-[10px] uppercase tracking-widest transition-all"
+              >
+                Limpiar Todo
+              </button>
+              <button
+                onClick={() => {
+                  window.location.href = `/compare?vehicles=${selectedVehicles.join(',')}`;
+                }}
+                className="bg-white text-slate-900 px-10 py-5 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-500 hover:text-white transition-all shadow-2xl shadow-white/5 hover:shadow-blue-500/20 active:scale-95"
+              >
+                Comparar Ahora
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

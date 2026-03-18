@@ -1,12 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import LeadsKanban from '@/components/LeadsKanban';
+import LeadsKanbanEnhanced from '@/components/LeadsKanbanEnhanced';
 import Link from 'next/link';
 
 export default function AdminLeadsKanbanPage() {
   const [selectedTenantId, setSelectedTenantId] = useState<string>('');
-  const [tenants, setTenants] = useState<any[]>([]);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -25,9 +24,16 @@ export default function AdminLeadsKanbanPage() {
         </div>
       </div>
 
-      <LeadsKanban tenantId={selectedTenantId || undefined} />
+      {/* Filtro opcional por tenant */}
+      {selectedTenantId && (
+        <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <p className="text-sm text-blue-700">
+            Filtrando por tenant: <strong>{selectedTenantId}</strong>
+          </p>
+        </div>
+      )}
+
+      <LeadsKanbanEnhanced tenantId={selectedTenantId || undefined} />
     </div>
   );
 }
-
-

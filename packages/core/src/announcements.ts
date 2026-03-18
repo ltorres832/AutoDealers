@@ -1,6 +1,6 @@
 // Sistema de Anuncios y Notificaciones Globales
 
-import { getFirestore } from './firebase';
+import { getFirestore } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
 import { createNotification } from './notifications';
 

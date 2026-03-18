@@ -1,6 +1,6 @@
 // Gestión de chat público (clientes desde página web)
 
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
 
 const db = getFirestore();

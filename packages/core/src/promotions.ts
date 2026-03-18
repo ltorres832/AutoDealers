@@ -1,12 +1,12 @@
 // Sistema de promociones y ofertas
 
-import { getFirestore } from './firebase';
+import { getFirestore } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
 // Importación dinámica para evitar dependencias circulares
 // import { getLeads } from '@autodealers/crm';
 // import { createMessage } from '@autodealers/crm';
 // import { UnifiedMessagingService } from '@autodealers/messaging';
-import { AIAssistant } from '@autodealers/ai';
+// AIAssistant se importa dinámicamente cuando se necesita
 
 // Lazy initialization - solo se inicializa cuando se necesita
 function getDb() {
@@ -219,6 +219,7 @@ export async function sendPromotionToLeads(
   const { UnifiedMessagingService } = await import('@autodealers/messaging');
   const unifiedService = new UnifiedMessagingService();
   const { getOpenAIApiKey } = await import('./credentials');
+  const { AIAssistant } = await import('@autodealers/ai');
   const apiKey = await getOpenAIApiKey() || '';
   const aiAssistant = new AIAssistant(apiKey);
 

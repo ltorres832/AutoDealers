@@ -1,0 +1,922 @@
+'use client';
+
+import { useState, useEffect, useCallback, useMemo, Fragment, useRef } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import StarRating from '../components/StarRating';
+import HeroSearch from '../components/HeroSearch';
+import AdvancedFilters from '../components/AdvancedFilters';
+import FeaturedVehicles from '../components/FeaturedVehicles';
+import FinanceCalculator from '../components/FinanceCalculator';
+import FeaturedDealers from '../components/FeaturedDealers';
+import VehicleCategories from '../components/VehicleCategories';
+import ReviewsSection from '../components/ReviewsSection';
+import SponsoredContent from '../components/SponsoredContent';
+import HeroBanner from '../components/HeroBanner';
+import SidebarBanner from '../components/SidebarBanner';
+import BetweenContentBanner from '../components/BetweenContentBanner';
+import ContactForm from '../components/ContactForm';
+import BrowseByBrand from '../components/BrowseByBrand';
+import ShopByBudget from '../components/ShopByBudget';
+import TrustPillars from '../components/TrustPillars';
+import SellYourCarMain from '../components/SellYourCarMain';
+import PromotionsCarousel from '../components/PromotionsCarousel';
+import { SITE_INFO as DEFAULT_SITE_INFO, getSiteInfo } from '../config/site-info';
+
+interface Banner {
+  id: string;
+  imageUrl: string;
+  title: string;
+  description: string;
+  ctaText: string;
+  linkType: 'vehicle' | 'dealer' | 'seller' | 'filter';
+  linkValue: string;
+  clicks: number;
+  views: number;
+}
+
+interface Promotion {
+  id: string;
+  name: string;
+  description: string;
+  discount?: {
+    type: 'percentage' | 'fixed';
+    value: number;
+  };
+  tenantId: string;
+  tenantName?: string;
+  vehicleId?: string;
+  promotionScope: 'vehicle' | 'dealer' | 'seller';
+  imageUrl?: string;
+  views: number;
+  clicks: number;
+  expiresAt?: string;
+  sellerRating?: number;
+  sellerRatingCount?: number;
+  dealerRating?: number;
+  dealerRatingCount?: number;
+}
+
+interface Vehicle {
+  id: string;
+  tenantId: string;
+  tenantName?: string;
+  make: string;
+  model: string;
+  year: number;
+  price: number;
+  currency: string;
+  photos: string[];
+  mileage?: number;
+  condition: string;
+  description: string;
+  specifications?: {
+    transmission?: string;
+    fuelType?: string;
+    bodyType?: string;
+    location?: string;
+    stockNumber?: string;
+  };
+  stockNumber?: string;
+  publishedOnPublicPage?: boolean;
+  status?: string;
+  createdAt?: string;
+}
+
+export default function LandingPage() {
+  const realtimeBanners: Banner[] = [];
+  const bannersLoading = false;
+  const realtimePromotions: Promotion[] = [];
+  const promotionsLoading = false;
+
+  const [banners, setBanners] = useState<Banner[]>([]);
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showDebug, setShowDebug] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<any[]>([]);
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+  const [filters, setFilters] = useState({
+    make: 'all',
+    model: '',
+    yearMin: '',
+    yearMax: '',
+    priceMin: '',
+    priceMax: '',
+    mileageMax: '',
+    fuelType: 'all',
+    transmission: 'all',
+    condition: 'all',
+    location: '',
+    bodyType: 'all',
+  });
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [sortBy, setSortBy] = useState<'price-asc' | 'price-desc' | 'year-desc' | 'mileage-asc'>('price-asc');
+  const [selectedVehicles, setSelectedVehicles] = useState<string[]>([]);
+  const [filteredVehicles, setFilteredVehicles] = useState<Vehicle[]>([]);
+  const [featuredDealers, setFeaturedDealers] = useState<any[]>([]);
+  const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
+  const [landingConfig, setLandingConfig] = useState<any>(null);
+  const [scrolled, setScrolled] = useState(false);
+  const [siteInfo, setSiteInfo] = useState(DEFAULT_SITE_INFO);
+  const fetchingVehiclesRef = useRef(false);
+
+  // Función helper para agregar logs al panel de debug
+  const addDebugLog = useCallback((message: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    const logMessage = `[${timestamp}] ${message}`;
+    console.log(logMessage);
+    setDebugLogs(prev => [...prev.slice(-49), logMessage]); // Mantener últimos 50 logs
+  }, []);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 50);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    async function loadSiteInfo() {
+      try {
+        const info = await getSiteInfo();
+        setSiteInfo(info);
+      } catch (error) {
+        console.error('Error loading site info:', error);
+        // Mantener DEFAULT_SITE_INFO si falla
+      }
+    }
+    loadSiteInfo();
+  }, []);
+
+  useEffect(() => {
+    if (banners.length > 1) {
+      const interval = setInterval(() => {
+        setCurrentBannerIndex((prev) => (prev + 1) % banners.length);
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [banners.length]);
+
+  useEffect(() => {
+    async function fetchLandingConfig() {
+      try {
+        const response = await fetch('/api/public/landing-config', {
+          next: { revalidate: 300 }, // Caché de 5 minutos
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setLandingConfig(data);
+        }
+      } catch (error) {
+        console.error('Error fetching landing config:', error);
+      }
+    }
+    fetchLandingConfig();
+  }, []);
+
+  const applyFilters = useCallback(() => {
+    let filtered = [...vehicles];
+
+    if (filters.make !== 'all') {
+      filtered = filtered.filter(v => v.make === filters.make);
+    }
+
+    if (filters.model) {
+      const modelLower = filters.model.toLowerCase();
+      filtered = filtered.filter(v =>
+        v.model.toLowerCase().includes(modelLower)
+      );
+    }
+
+    if (filters.yearMin) {
+      filtered = filtered.filter(v => v.year >= parseInt(filters.yearMin));
+    }
+
+    if (filters.yearMax) {
+      filtered = filtered.filter(v => v.year <= parseInt(filters.yearMax));
+    }
+
+    if (filters.priceMin) {
+      filtered = filtered.filter(v => v.price >= parseFloat(filters.priceMin));
+    }
+
+    if (filters.priceMax) {
+      filtered = filtered.filter(v => v.price <= parseFloat(filters.priceMax));
+    }
+
+    if (filters.mileageMax) {
+      filtered = filtered.filter(v => !v.mileage || v.mileage <= parseInt(filters.mileageMax));
+    }
+
+    if (filters.fuelType && filters.fuelType !== 'all') {
+      filtered = filtered.filter(v => v.specifications?.fuelType === filters.fuelType);
+    }
+
+    if (filters.transmission && filters.transmission !== 'all') {
+      filtered = filtered.filter(v => v.specifications?.transmission === filters.transmission);
+    }
+
+    if (filters.condition && filters.condition !== 'all') {
+      filtered = filtered.filter(v => v.condition === filters.condition);
+    }
+
+    if (filters.bodyType && filters.bodyType !== 'all') {
+      filtered = filtered.filter((v: any) => {
+        const vehicleBodyType = (v as any).bodyType || v.specifications?.bodyType;
+        if (!vehicleBodyType) return false;
+        // Normalizar ambos valores para comparar
+        const normalizedVehicleType = String(vehicleBodyType).trim().toLowerCase();
+        const normalizedFilterType = String(filters.bodyType).trim().toLowerCase();
+        return normalizedVehicleType === normalizedFilterType;
+      });
+    }
+
+    if (filters.location) {
+      filtered = filtered.filter(v =>
+        v.description?.toLowerCase().includes(filters.location.toLowerCase()) ||
+        (v as any)?.specifications?.location?.toLowerCase()?.includes(filters.location.toLowerCase())
+      );
+    }
+
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'price-asc':
+          return a.price - b.price;
+        case 'price-desc':
+          return b.price - a.price;
+        case 'year-desc':
+          return b.year - a.year;
+        case 'mileage-asc':
+          return (a.mileage || 0) - (b.mileage || 0);
+        default:
+          return 0;
+      }
+    });
+
+    setFilteredVehicles(filtered);
+  }, [vehicles, filters, sortBy]);
+
+  useEffect(() => {
+    applyFilters();
+  }, [applyFilters]);
+
+  const uniqueMakes = useMemo(() => {
+    return Array.from(new Set(vehicles.map(v => v.make))).sort();
+  }, [vehicles]);
+
+  const vehicleCountsByBodyType = useMemo(() => {
+    const counts: Record<string, number> = {};
+    vehicles.forEach((v: any) => {
+      const bodyType = v.bodyType || v.specifications?.bodyType;
+      if (bodyType) {
+        // Normalizar: convertir a string, quitar espacios, convertir a minúsculas
+        const normalizedBodyType = String(bodyType).trim().toLowerCase();
+        if (normalizedBodyType && normalizedBodyType !== 'undefined' && normalizedBodyType !== 'null') {
+          counts[normalizedBodyType] = (counts[normalizedBodyType] || 0) + 1;
+        }
+      }
+    });
+    return counts;
+  }, [vehicles]);
+
+  // Log temporal para debug de bodyTypes
+  useEffect(() => {
+    if (vehicles.length > 0) {
+      const bodyTypesFound: string[] = [];
+      const vehiclesWithoutBodyType: string[] = [];
+      vehicles.forEach((v: any, index: number) => {
+        const bodyType = v.bodyType || v.specifications?.bodyType;
+        if (bodyType) {
+          const normalized = String(bodyType).trim().toLowerCase();
+          if (normalized && !bodyTypesFound.includes(normalized)) {
+            bodyTypesFound.push(normalized);
+          }
+          addDebugLog(`📊 Vehículo ${index + 1}: ${v.year} ${v.make} ${v.model} - bodyType: "${bodyType}" (normalizado: "${normalized}")`);
+        } else {
+          vehiclesWithoutBodyType.push(`${v.year} ${v.make} ${v.model}`);
+          addDebugLog(`⚠️ Vehículo ${index + 1}: ${v.year} ${v.make} ${v.model} - NO TIENE bodyType`);
+        }
+      });
+      addDebugLog(`📊 BodyTypes encontrados: ${bodyTypesFound.length > 0 ? bodyTypesFound.join(', ') : 'NINGUNO'}`);
+      addDebugLog(`📊 Conteos por tipo: ${JSON.stringify(vehicleCountsByBodyType)}`);
+      if (vehiclesWithoutBodyType.length > 0) {
+        addDebugLog(`⚠️ ${vehiclesWithoutBodyType.length} vehículos SIN bodyType: ${vehiclesWithoutBodyType.join(', ')}`);
+      }
+    }
+  }, [vehicles, vehicleCountsByBodyType, addDebugLog]);
+
+  const fetchFeaturedDealers = useCallback(async () => {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 segundos timeout
+
+      const response = await fetch('/api/public/search?type=dealers&q=*', {
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        const data = await response.json();
+        const dealers = (data.dealers || []).sort((a: any, b: any) => {
+          const aScore = (a.dealerRating || 0) * 10 + (a.publishedVehiclesCount || 0);
+          const bScore = (b.dealerRating || 0) * 10 + (b.publishedVehiclesCount || 0);
+          return bScore - aScore;
+        }).slice(0, 6);
+        setFeaturedDealers(dealers);
+        // Guardar en sessionStorage
+        try {
+          sessionStorage.setItem('dealers_cache', JSON.stringify(dealers));
+          sessionStorage.setItem('dealers_cache_timestamp', Date.now().toString());
+        } catch (e) {
+          // Ignorar errores de sessionStorage
+        }
+      } else {
+        setFeaturedDealers([]);
+      }
+    } catch (error: any) {
+      if (error.name !== 'AbortError') {
+        console.error('Error fetching featured dealers:', error);
+      }
+      setFeaturedDealers([]);
+    }
+  }, []);
+
+  const fetchBanners = useCallback(async () => {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 segundos timeout
+
+      const response = await fetch('/api/public/banners?status=active&limit=4', {
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        const data = await response.json();
+        const banners = data.banners || [];
+        setBanners(banners);
+        // Guardar en sessionStorage
+        try {
+          sessionStorage.setItem('banners_cache', JSON.stringify(banners));
+          sessionStorage.setItem('banners_cache_timestamp', Date.now().toString());
+        } catch (e) {
+          // Ignorar errores de sessionStorage
+        }
+      } else {
+        setBanners([]);
+      }
+    } catch (error: any) {
+      if (error.name !== 'AbortError') {
+        console.error('Error fetching banners:', error);
+      }
+      setBanners([]);
+    }
+  }, []);
+
+  const fetchPromotions = useCallback(async () => {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 segundos timeout
+
+      const response = await fetch('/api/public/promotions?limit=12', {
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        const data = await response.json();
+        const promotions = data.promotions || [];
+        setPromotions(promotions);
+        // Guardar en sessionStorage
+        try {
+          sessionStorage.setItem('promotions_cache', JSON.stringify(promotions));
+          sessionStorage.setItem('promotions_cache_timestamp', Date.now().toString());
+        } catch (e) {
+          // Ignorar errores de sessionStorage
+        }
+      } else {
+        setPromotions([]);
+      }
+    } catch (error: any) {
+      if (error.name !== 'AbortError') {
+        console.error('Error fetching promotions:', error);
+      }
+      setPromotions([]);
+    }
+  }, []);
+
+  const fetchVehicles = useCallback(async () => {
+    // Evitar múltiples fetches simultáneos
+    if (fetchingVehiclesRef.current) {
+      addDebugLog('⚠️ Fetch ya en progreso, ignorando llamada duplicada');
+      return;
+    }
+
+    try {
+      fetchingVehiclesRef.current = true;
+      addDebugLog('🚀 Iniciando fetch de vehículos...');
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos timeout (aumentado para dar más tiempo al servidor)
+
+      const response = await fetch('/api/public/vehicles?status=available', {
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      addDebugLog(`📡 Respuesta recibida: ${response.status} ${response.statusText}`);
+
+      if (response.ok) {
+        const data = await response.json();
+        addDebugLog(`📦 Datos recibidos. Tipo: ${typeof data.vehicles}, Es array: ${Array.isArray(data.vehicles)}`);
+        addDebugLog(`✅ API devolvió: ${data.vehicles?.length || 0} vehículos`);
+
+        if (!data.vehicles || !Array.isArray(data.vehicles)) {
+          addDebugLog(`❌ ERROR: data.vehicles no es un array. Tipo: ${typeof data.vehicles}`);
+          addDebugLog(`❌ Datos recibidos: ${JSON.stringify(data).substring(0, 200)}`);
+          setVehicles([]);
+          setFilteredVehicles([]);
+          setLoading(false);
+          return;
+        }
+
+        const debugData: any[] = [];
+        const vehiclesWithPhotos = (data.vehicles || []).map((vehicle: any) => {
+          // Normalizar fotos
+          const photos = Array.isArray(vehicle.photos)
+            ? vehicle.photos.filter((photo: string) =>
+              photo && typeof photo === 'string' && photo.trim() !== '' && photo !== 'undefined' && !photo.includes('undefined')
+            )
+            : [];
+
+          const stockNumber = vehicle.stockNumber || vehicle.specifications?.stockNumber;
+
+          debugData.push({
+            id: vehicle.id,
+            name: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
+            stockNumber: stockNumber || 'NO TIENE',
+            photosCount: photos.length,
+            originalPhotosCount: vehicle.photos?.length || 0,
+            firstPhoto: photos[0] || 'NO TIENE',
+            publishedOnPublicPage: vehicle.publishedOnPublicPage,
+            status: vehicle.status,
+          });
+
+          return {
+            ...vehicle,
+            stockNumber,
+            photos,
+          };
+        });
+
+        // FORZAR ACTUALIZACIÓN INMEDIATA
+        setVehicles(vehiclesWithPhotos);
+        setFilteredVehicles(vehiclesWithPhotos);
+        setDebugInfo(debugData);
+        setLoading(false);
+
+        // Guardar en sessionStorage para persistencia
+        try {
+          sessionStorage.setItem('vehicles_cache', JSON.stringify(vehiclesWithPhotos));
+          sessionStorage.setItem('vehicles_cache_timestamp', Date.now().toString());
+          addDebugLog(`💾 Vehículos guardados en caché (${vehiclesWithPhotos.length} vehículos)`);
+        } catch (e) {
+          // Ignorar errores de sessionStorage (puede estar deshabilitado)
+        }
+
+        addDebugLog(`✅ Estado actualizado. Vehículos en estado: ${vehiclesWithPhotos.length}`);
+      } else {
+        addDebugLog(`❌ Respuesta no OK: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        addDebugLog(`❌ Cuerpo de error: ${errorText.substring(0, 200)}`);
+        setVehicles([]);
+        setFilteredVehicles([]);
+      }
+    } catch (error: any) {
+      if (error.name !== 'AbortError') {
+        addDebugLog(`❌ Error fetching vehicles: ${error.message || error}`);
+      } else {
+        addDebugLog('⏱️ Fetch cancelado por timeout - intentando cargar desde caché...');
+        try {
+          const savedVehicles = sessionStorage.getItem('vehicles_cache');
+          if (savedVehicles) {
+            const parsedVehicles = JSON.parse(savedVehicles);
+            if (Array.isArray(parsedVehicles) && parsedVehicles.length > 0) {
+              setVehicles(parsedVehicles);
+              setFilteredVehicles(parsedVehicles);
+              setLoading(false);
+              fetchingVehiclesRef.current = false;
+              return;
+            }
+          }
+        } catch (cacheError) {
+          addDebugLog(`⚠️ Error cargando desde caché: ${cacheError}`);
+        }
+      }
+      // Solo limpiar si realmente no hay datos
+      const hasCachedData = sessionStorage.getItem('vehicles_cache');
+      if (!hasCachedData) {
+        setVehicles([]);
+        setFilteredVehicles([]);
+      }
+    } finally {
+      setLoading(false);
+      fetchingVehiclesRef.current = false;
+      addDebugLog('🏁 fetchVehicles terminado');
+    }
+  }, [addDebugLog]);
+
+  const handleBannerClick = useCallback((banner: Banner) => {
+    fetch(`/api/public/banners/${banner.id}/click`, { method: 'POST' }).catch(console.error);
+
+    if (banner.linkType === 'vehicle' && banner.linkValue) {
+      const vehicle = vehicles.find(v => v.id === banner.linkValue);
+      if (vehicle) {
+        window.location.href = `/${vehicle.tenantId}/vehicle/${banner.linkValue}`;
+      }
+    } else if (banner.linkType === 'dealer' || banner.linkType === 'seller') {
+      window.location.href = `/${banner.linkValue}`;
+    } else if (banner.linkType === 'filter') {
+      const filterData = JSON.parse(banner.linkValue);
+      setFilters(prev => ({ ...prev, ...filterData }));
+      document.getElementById('vehicles-section')?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [vehicles]);
+
+  const handlePromotionClick = useCallback((promotion: Promotion) => {
+    fetch(`/api/public/promotions/${promotion.id}/click`, { method: 'POST' }).catch(console.error);
+
+    if (promotion.vehicleId) {
+      window.location.href = `/${promotion.tenantId}/vehicle/${promotion.vehicleId}`;
+    } else if (promotion.promotionScope === 'dealer' || promotion.promotionScope === 'seller') {
+      window.location.href = `/${promotion.tenantId}`;
+    }
+  }, []);
+
+  // Cargar datos desde sessionStorage al montar
+  useEffect(() => {
+    const CACHE_MAX_AGE = 5 * 60 * 1000; // 5 minutos
+
+    // Cargar vehículos desde caché
+    try {
+      const savedVehicles = sessionStorage.getItem('vehicles_cache');
+      const savedTimestamp = sessionStorage.getItem('vehicles_cache_timestamp');
+
+      if (savedVehicles && savedTimestamp) {
+        const timestamp = parseInt(savedTimestamp);
+        const now = Date.now();
+        const cacheAge = now - timestamp;
+
+        if (cacheAge < CACHE_MAX_AGE) {
+          try {
+            const parsedVehicles = JSON.parse(savedVehicles);
+            if (Array.isArray(parsedVehicles) && parsedVehicles.length > 0) {
+              setVehicles(parsedVehicles);
+              setFilteredVehicles(parsedVehicles);
+              setLoading(false);
+              // Hacer fetch en segundo plano para actualizar
+              fetchVehicles();
+            } else {
+              fetchVehicles();
+            }
+          } catch (e) {
+            fetchVehicles();
+          }
+        } else {
+          fetchVehicles();
+        }
+      } else {
+        fetchVehicles();
+      }
+    } catch (e) {
+      fetchVehicles();
+    }
+
+    // Cargar otros datos (dealers, banners)
+    fetchFeaturedDealers();
+    fetchBanners();
+    fetchPromotions();
+
+    // Polling cada 15 segundos para mantener sincronizado
+    const pollInterval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible' && !fetchingVehiclesRef.current) {
+        fetchVehicles();
+      }
+    }, 15000);
+
+    return () => clearInterval(pollInterval);
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-gray-50 font-sans text-slate-900">
+      {/* Navbar con efecto Glassmorphism y indicador de tiempo real */}
+      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm transition-all duration-300">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-20">
+            <div className="flex items-center gap-2">
+              <Link href="/" className="text-2xl font-black bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent transform hover:scale-105 transition-transform flex items-center gap-2">
+                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white text-lg">AD</div>
+                AutoDealers
+              </Link>
+              <div className="hidden sm:flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold animate-pulse">
+                <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                LIVE
+              </div>
+            </div>
+            <div className="hidden md:flex items-center space-x-8">
+              <a href="#vehicles-section" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">Inventario</a>
+              <Link href="/dealers" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">Concesionarios</Link>
+              <Link href="/sell" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">Vender</Link>
+            </div>
+            <div>
+              <Link href="/login" className="bg-gray-900 text-white px-6 py-2.5 rounded-full hover:bg-gray-800 transition-all font-medium shadow-lg hover:shadow-xl hover:-translate-y-0.5 transform active:scale-95">
+                Ingresar
+              </Link>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero Section con mejor diseño */}
+      <section className="relative bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 text-white py-24 overflow-hidden">
+        <div className="absolute inset-0 bg-black/40 mix-blend-overlay"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent"></div>
+
+        {/* Patrón de fondo abstracto */}
+        <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '40px 40px' }}></div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="max-w-3xl mx-auto text-center mb-16">
+            <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-8 drop-shadow-2xl leading-tight">
+              Encuentra tu Auto <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">Soñado</span>
+            </h1>
+            <p className="text-xl text-blue-100 mb-10 font-light max-w-2xl mx-auto">
+              Más de <span className="font-bold text-white">5,000+</span> vehículos verificados en tiempo real de los mejores concesionarios certificados.
+            </p>
+
+            <div className="bg-white/10 backdrop-blur-xl p-3 rounded-2xl shadow-2xl border border-white/20 transform hover:scale-[1.01] transition-transform duration-300">
+              <HeroSearch onSearch={(q) => {
+                setFilters(prev => ({ ...prev, model: q }));
+                document.getElementById('vehicles-section')?.scrollIntoView({ behavior: 'smooth' });
+              }} />
+            </div>
+          </div>
+
+          {/* Stats rápidas */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto mt-12 text-center">
+            {[
+              { label: 'Vehículos', val: '5,000+' },
+              { label: 'Concesionarios', val: '120+' },
+              { label: 'Ventas Mensuales', val: '850+' },
+              { label: 'Clientes Felices', val: '99%' },
+            ].map((stat, idx) => (
+              <div key={idx} className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10 hover:bg-white/10 transition-colors">
+                <div className="text-3xl font-bold text-white mb-1">{stat.val}</div>
+                <div className="text-sm text-blue-200 font-medium">{stat.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Categorías (MOVIDO ARRIBA para mejor UX) */}
+      <VehicleCategories vehicleCounts={vehicleCountsByBodyType} />
+
+      {/* Just Arrived - Horizontal Scroll */}
+      <FeaturedVehicles vehicles={vehicles} />
+
+      {/* Browse by Brand */}
+      <BrowseByBrand />
+
+      {/* Shop By Budget (NUEVO) */}
+      <ShopByBudget />
+
+      {/* Promociones Especiales (NUEVO) */}
+      <PromotionsCarousel />
+
+      {/* Sell Your Car CTA (NUEVO) */}
+      <SellYourCarMain />
+
+      {/* Featured Dealers */}
+      <FeaturedDealers dealers={featuredDealers} />
+
+      {/* Why Choose Us (NUEVO) */}
+      <TrustPillars />
+
+      {/* Main Vehicles Grid Section */}
+      <div id="vehicles-section" className="py-20 bg-gray-50 border-t border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            {/* Sidebar Filters */}
+            <aside className="lg:col-span-1 order-2 lg:order-1">
+              <div className="sticky top-24 space-y-8">
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                  <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
+                    Filtros Avanzados
+                  </h3>
+                  <AdvancedFilters
+                    filters={filters}
+                    onFiltersChange={setFilters}
+                    availableMakes={uniqueMakes}
+                  />
+                </div>
+                <SidebarBanner />
+              </div>
+            </aside>
+
+            {/* Main Grid */}
+            <div className="lg:col-span-3 order-1 lg:order-2">
+              <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Inventario Completo</h2>
+                  <p className="text-gray-500 text-sm">Mostrando {filteredVehicles.length} vehículos disponibles</p>
+                </div>
+                <div className="flex gap-4">
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as any)}
+                    className="border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="price-asc">Precio: Menor a Mayor</option>
+                    <option value="price-desc">Precio: Mayor a Menor</option>
+                    <option value="year-desc">Año: Más Reciente</option>
+                    <option value="mileage-asc">Millas: Menor a Mayor</option>
+                  </select>
+                  <div className="flex border border-gray-200 rounded-lg overflow-hidden">
+                    <button
+                      onClick={() => setViewMode('grid')}
+                      className={`p-2 ${viewMode === 'grid' ? 'bg-blue-50 text-blue-600' : 'bg-white text-gray-500'}`}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+                    </button>
+                    <button
+                      onClick={() => setViewMode('list')}
+                      className={`p-2 ${viewMode === 'list' ? 'bg-blue-50 text-blue-600' : 'bg-white text-gray-500'}`}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Grid Content */}
+              {loading ? (
+                <div className="flex flex-col items-center justify-center py-20">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+                  <p className="text-gray-500">Cargando inventario...</p>
+                </div>
+              ) : filteredVehicles.length > 0 ? (
+                <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "space-y-4"}>
+                  {filteredVehicles.map((vehicle) => (
+                    <div
+                      key={vehicle.id}
+                      className={`bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 group cursor-pointer ${viewMode === 'list' ? 'flex flex-row h-48' : 'flex flex-col'
+                        }`}
+                      onClick={() => window.location.href = `/${vehicle.tenantId}/vehicle/${vehicle.id}`}
+                    >
+                      {/* Image */}
+                      <div className={`relative bg-gray-200 overflow-hidden ${viewMode === 'list' ? 'w-72 h-full' : 'h-48 w-full'}`}>
+                        {vehicle.photos && vehicle.photos.length > 0 && vehicle.photos[0] ? (
+                          <img
+                            src={vehicle.photos[0]}
+                            alt={`${vehicle.year} ${vehicle.make}`}
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400">
+                            <span className="text-4xl">🚗</span>
+                          </div>
+                        )}
+                        <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-md text-xs font-bold shadow-sm">
+                          {vehicle.year}
+                        </div>
+                      </div>
+
+                      {/* Info */}
+                      <div className="p-5 flex-1 flex flex-col justify-between">
+                        <div>
+                          <h3 className="font-bold text-gray-900 mb-1 group-hover:text-blue-600 transition-colors">
+                            {vehicle.make} {vehicle.model}
+                          </h3>
+                          <p className="text-sm text-gray-500 mb-3 line-clamp-2">{vehicle.description}</p>
+                          <div className="flex gap-2 text-xs text-gray-600 mb-3">
+                            {vehicle.mileage && <span className="bg-gray-100 px-2 py-1 rounded">📏 {vehicle.mileage.toLocaleString()} mi</span>}
+                            {vehicle.specifications?.transmission && <span className="bg-gray-100 px-2 py-1 rounded">⚙️ {vehicle.specifications.transmission}</span>}
+                          </div>
+                        </div>
+                        <div className="flex justify-between items-end mt-2">
+                          <span className="text-xl font-bold text-green-600">{vehicle.currency} {vehicle.price.toLocaleString()}</span>
+                          <span className="text-sm text-blue-600 font-medium group-hover:underline">Ver detalles</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-20 bg-white rounded-xl border border-gray-100">
+                  <p className="text-gray-500 text-lg">No se encontraron vehículos con estos filtros.</p>
+                  <button
+                    onClick={() => setFilters({ ...filters, make: 'all', model: '', priceMax: '', priceMin: '' })}
+                    className="mt-4 text-blue-600 font-medium hover:underline"
+                  >
+                    Limpiar filtros
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <FinanceCalculator />
+      <ReviewsSection />
+
+      {/* Footer Moderno */}
+      <footer className="bg-slate-900 text-white py-16 border-t border-slate-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid md:grid-cols-4 gap-12 mb-12">
+            <div>
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-lg">AD</div>
+                <span className="text-2xl font-bold text-white">AutoDealers</span>
+              </div>
+              <p className="text-slate-400 text-sm leading-relaxed mb-6">
+                La plataforma líder en compra y venta de vehículos. Conectamos compradores con los mejores concesionarios certificados del país.
+              </p>
+              <div className="flex gap-4">
+                {/* Social Icons placeholders */}
+                <div className="w-8 h-8 bg-slate-800 rounded-full flex items-center justify-center hover:bg-blue-600 transition-colors cursor-pointer">FB</div>
+                <div className="w-8 h-8 bg-slate-800 rounded-full flex items-center justify-center hover:bg-blue-400 transition-colors cursor-pointer">TW</div>
+                <div className="w-8 h-8 bg-slate-800 rounded-full flex items-center justify-center hover:bg-pink-600 transition-colors cursor-pointer">IG</div>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="font-bold text-lg mb-6 text-white">Navegación</h4>
+              <ul className="space-y-3 text-sm text-slate-400">
+                <li><a href="#" className="hover:text-blue-400 transition-colors">Inicio</a></li>
+                <li><a href="#vehicles-section" className="hover:text-blue-400 transition-colors">Inventario</a></li>
+                <li><Link href="/dealers" className="hover:text-blue-400 transition-colors">Concesionarios</Link></li>
+                <li><Link href="/sell" className="hover:text-blue-400 transition-colors">Vender mi auto</Link></li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="font-bold text-lg mb-6 text-white">Soporte</h4>
+              <ul className="space-y-3 text-sm text-slate-400">
+                <li><a href="#" className="hover:text-blue-400 transition-colors">Centro de Ayuda</a></li>
+                <li><a href="#" className="hover:text-blue-400 transition-colors">Contacto</a></li>
+                <li><a href="#" className="hover:text-blue-400 transition-colors">Política de Privacidad</a></li>
+                <li><a href="#" className="hover:text-blue-400 transition-colors">Términos de Servicio</a></li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="font-bold text-lg mb-6 text-white">Contacto</h4>
+              <ul className="space-y-4 text-sm text-slate-400">
+                <li className="flex items-start gap-3">
+                  <svg className="w-5 h-5 text-blue-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                  <span>123 Auto Avenue, Suite 100<br />Miami, FL 33101</span>
+                </li>
+                <li className="flex items-center gap-3">
+                  <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                  <span>+1 (800) 123-4567</span>
+                </li>
+                <li className="flex items-center gap-3">
+                  <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                  <span>contacto@autodealers.com</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div className="border-t border-slate-800 pt-8 text-center text-slate-500 text-sm">
+            <p>© 2026 AutoDealers. Todos los derechos reservados.</p>
+          </div>
+        </div>
+      </footer>
+
+      {showDebug && (
+        <div className="fixed bottom-4 left-4 z-[9999] bg-white border-4 border-red-600 rounded-lg shadow-2xl p-4 max-w-md max-h-[80vh] overflow-auto">
+          <h3 className="text-xl font-bold text-red-600 mb-2">DEBUG MODE</h3>
+          <div className="text-xs text-gray-700 bg-gray-100 p-2 rounded">
+            <p>Vehicles: {vehicles.length}</p>
+            <p>Filtered: {filteredVehicles.length}</p>
+            <p>Logs: {debugLogs.length}</p>
+          </div>
+          <button onClick={() => setShowDebug(false)} className="mt-2 bg-red-600 text-white px-2 py-1 rounded text-xs">Close</button>
+        </div>
+      )}
+      <button
+        onClick={() => setShowDebug(!showDebug)}
+        className="fixed bottom-4 left-4 z-50 bg-red-600 text-white rounded-full p-2 shadow-lg opacity-50 hover:opacity-100 transition-opacity"
+        title="Debug"
+      >
+        🐛
+      </button>
+    </div>
+  );
+}

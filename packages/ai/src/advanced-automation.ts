@@ -1,6 +1,6 @@
 // Automatización avanzada con IA
 
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
 import { getLeads, getTenantSales } from '@autodealers/crm';
 import { getUsersByTenant } from '@autodealers/core';
 import OpenAI from 'openai';

@@ -1,21 +1,41 @@
 {
-  "extends": "../../tsconfig.json",
   "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM"],
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "allowJs": false,
+    "strict": false,
+    "noImplicitAny": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
     "outDir": "./dist",
-    "rootDir": "./src"
+    "rootDir": "./src",
+    "composite": false,
+    "incremental": false,
+    "noEmitOnError": false,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@autodealers/core": ["../../packages/core/dist"],
+      "@autodealers/core/*": ["../../packages/core/dist/*"],
+      "@autodealers/shared": ["../../packages/shared/dist"],
+      "@autodealers/shared/*": ["../../packages/shared/dist/*"]
+    }
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*.ts"],
   "exclude": [
     "node_modules",
     "dist",
+    "**/dist/**",
     "**/*.test.ts",
     "**/*.spec.ts",
-    "../ai/src",
-    "../billing/src",
-    "../core/src",
-    "../inventory/src",
-    "../messaging/src",
-    "../shared/src",
-    "../reports/src"
+    "**/*.d.ts"
   ]
 }

@@ -3,20 +3,20 @@
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",
-    "jsx": "react"
+    "jsx": "react",
+    "composite": true,
+    "incremental": true,
+    "declaration": true,
+    "noEmit": false
   },
-  "include": ["src/**/*"],
+  "files": [],
+  "include": [
+    "src/**/*"
+  ],
   "exclude": [
     "node_modules",
     "dist",
     "**/*.test.ts",
-    "**/*.spec.ts",
-    "../ai/src",
-    "../billing/src",
-    "../core/src",
-    "../crm/src",
-    "../inventory/src",
-    "../messaging/src",
-    "../reports/src"
+    "**/*.spec.ts"
   ]
 }

@@ -1,6 +1,6 @@
 // Scheduler de publicaciones en redes sociales
 
-import { getFirestore } from './firebase';
+import { getFirestore } from '@autodealers/shared';
 
 // Lazy initialization - solo se inicializa cuando se necesita
 function getDb() {

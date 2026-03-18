@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getActivePromotions } from '@autodealers/core';
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '../../../../lib/firebase-admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,10 +38,10 @@ export async function GET(request: NextRequest) {
           return promotions;
         } catch (error: any) {
           // Si es error de índice o timeout, retornar array vacío
-          if (error.code === 9 || 
-              error.message?.includes('index') || 
-              error.message?.includes('Timeout') ||
-              error.details?.includes('index')) {
+          if (error.code === 9 ||
+            error.message?.includes('index') ||
+            error.message?.includes('Timeout') ||
+            error.details?.includes('index')) {
             return [];
           }
           console.error(`Error fetching promotions for tenant ${tId}:`, error);
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
         })
       ]).catch(() => {
         // Retornar resultados parciales si hay timeout
-        return Promise.allSettled(promotionPromises).then(results => 
+        return Promise.allSettled(promotionPromises).then(results =>
           results
             .filter((r): r is PromiseFulfilledResult<any[]> => r.status === 'fulfilled')
             .map(r => r.value)
@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
     console.error('Error fetching promotions:', error);
     return NextResponse.json(
       { error: 'Internal server error', details: error.message },
-      { 
+      {
         status: 500,
         headers: {
           'Cache-Control': 'no-store',

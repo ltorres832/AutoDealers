@@ -1,6 +1,6 @@
 // Sistema de Notificaciones para Nuevas Versiones de Políticas
 
-import { getFirestore } from './firebase';
+import { getFirestore } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
 import { createNotification } from './notifications';
 import { getRequiredPoliciesForUser, hasUserAcceptedPolicy } from './policies';

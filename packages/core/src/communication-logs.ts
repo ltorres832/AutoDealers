@@ -1,7 +1,7 @@
 // Sistema de logs de comunicaciones enviadas
 
 import * as admin from 'firebase-admin';
-import { getFirestore } from './firebase';
+import { getFirestore } from '@autodealers/shared';
 import { TemplateType, TemplateEvent } from './communication-templates';
 
 let db: admin.firestore.Firestore | null = null;

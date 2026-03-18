@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { initializeFirebase, getFirestore } from '@autodealers/core';
+import { initializeFirebase, getFirestore } from '@autodealers/shared';
 import { verifyAuth } from '@/lib/auth';
 import * as admin from 'firebase-admin';
 import Stripe from 'stripe';
@@ -802,6 +802,9 @@ export async function POST(request: NextRequest) {
         // Verificar si ya existe en Firestore
         // Usar una estrategia más robusta: buscar por tipo primero, luego filtrar por nombre
         const dbInstance = getDb();
+        if (!dbInstance) {
+          throw new Error('Firestore no inicializado');
+        }
         let existing: admin.firestore.QuerySnapshot;
         
         try {

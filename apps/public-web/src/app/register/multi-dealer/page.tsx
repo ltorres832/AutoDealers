@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
@@ -15,42 +15,44 @@ interface MultiDealerMembership {
     maxCorporateEmails?: number | null;
     corporateEmailEnabled: boolean;
     emailAliases: boolean;
+    multiDealerEnabled?: boolean;
   };
 }
 
-export default function MultiDealerRegisterPage() {
+function MultiDealerContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const referralCodeFromUrl = searchParams.get('ref');
+
   const [memberships, setMemberships] = useState<MultiDealerMembership[]>([]);
   const [selectedMembership, setSelectedMembership] = useState<string>('');
   const [formData, setFormData] = useState({
-    // Información básica
     name: '',
     email: '',
     password: '',
     confirmPassword: '',
     phone: '',
-    // Información de la empresa
     companyName: '',
     companyAddress: '',
     companyCity: '',
     companyState: '',
     companyZip: '',
     companyCountry: '',
-    taxId: '', // Número de identificación fiscal
-    // Información del negocio
-    businessType: '', // Tipo de negocio
-    numberOfLocations: '', // Número de ubicaciones
-    yearsInBusiness: '', // Años en el negocio
-    currentInventory: '', // Inventario actual aproximado
-    expectedDealers: '', // Número de dealers que espera gestionar
-    // Información adicional
-    reasonForMultiDealer: '', // Razón para necesitar Multi Dealer
-    additionalInfo: '', // Información adicional
+    taxId: '',
+    businessType: '',
+    numberOfLocations: '',
+    yearsInBusiness: '',
+    currentInventory: '',
+    expectedDealers: '',
+    reasonForMultiDealer: '',
+    additionalInfo: '',
   });
+
+  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [acceptTerms, setAcceptTerms] = useState(false);
 
   useEffect(() => {
     fetchMultiDealerMemberships();
@@ -58,41 +60,26 @@ export default function MultiDealerRegisterPage() {
 
   async function fetchMultiDealerMemberships() {
     try {
-      // IMPORTANTE: Las membresías Multi Dealer NO se muestran hasta que el admin apruebe
-      // Por ahora, obtenemos todas las membresías dealer y las filtramos manualmente
-      // En producción, esto debería venir del backend con la lógica de aprobación
-      const response = await fetch('/api/public/memberships?type=dealer');
+      const response = await fetch('/api/public/memberships?type=dealer&showMultiDealer=true');
       const data = await response.json();
-      
-      // Filtrar solo membresías Multi Dealer
-      // NOTA: Estas membresías solo serán visibles después de la aprobación del admin
-      // El usuario debe completar el formulario primero para solicitar acceso
-      const multiDealerMemberships = (data.memberships || []).filter(
-        (m: any) => m.features?.multiDealerEnabled === true
-      );
-      
-      // Si no hay membresías Multi Dealer visibles, mostrar un mensaje
-      if (multiDealerMemberships.length === 0) {
-        // Esto es normal: las membresías Multi Dealer requieren aprobación previa
-        // El usuario puede completar el formulario y luego el admin las aprobará
-        console.log('No hay membresías Multi Dealer visibles (requieren aprobación)');
-      }
-      
-      setMemberships(multiDealerMemberships);
+      const filtered = (data.memberships || []).filter((m: any) => m.features?.multiDealerEnabled === true);
+      setMemberships(filtered);
     } catch (error) {
       console.error('Error fetching memberships:', error);
     }
   }
 
-  const selectedMembershipData = memberships.find((m) => m.id === selectedMembership);
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
 
-    // Validaciones básicas
     if (formData.password !== formData.confirmPassword) {
       setError('Las contraseñas no coinciden');
+      return;
+    }
+
+    if (!acceptTerms) {
+      setError('Debes aceptar los términos y condiciones');
       return;
     }
 
@@ -106,21 +93,9 @@ export default function MultiDealerRegisterPage() {
       return;
     }
 
-    // Validaciones de campos requeridos
-    if (!formData.companyName || !formData.companyAddress || !formData.companyCity) {
-      setError('Debes completar todos los campos de información de la empresa');
-      return;
-    }
-
-    if (!formData.reasonForMultiDealer) {
-      setError('Debes explicar la razón para necesitar Multi Dealer');
-      return;
-    }
-
     setLoading(true);
 
     try {
-      // Crear solicitud de Multi Dealer (pendiente de aprobación)
       const response = await fetch('/api/public/register/multi-dealer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -132,400 +107,232 @@ export default function MultiDealerRegisterPage() {
       });
 
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Error al registrar');
-      }
-
-      // Redirigir a página de confirmación
+      if (!response.ok) throw new Error(data.error || 'Error al registrar');
       router.push('/register/multi-dealer/success');
     } catch (error) {
-      console.error('Error:', error);
       setError(error instanceof Error ? error.message : 'Error al registrar');
-    } finally {
       setLoading(false);
     }
   }
 
+  const inputClasses = "w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600 outline-none transition-all font-medium text-slate-900 placeholder:text-slate-400";
+  const labelClasses = "block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 ml-1";
+
   return (
-    <div className="min-h-screen bg-gray-100 py-12 px-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-lg shadow-lg p-8">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Registro Multi Dealer
-            </h1>
-            <p className="text-gray-600">
-              Solicita acceso para gestionar múltiples dealers desde una sola cuenta
-            </p>
-            <p className="text-sm text-yellow-600 mt-2">
-              ⚠️ Esta membresía requiere aprobación del administrador
-            </p>
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center py-24 px-4 relative overflow-hidden">
+      <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-blue-50/50 to-transparent pointer-events-none"></div>
+
+      <div className="max-w-5xl w-full relative z-10 transition-all duration-700">
+        <div className="text-center mb-16">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-100 rounded-full mb-6">
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+            <span className="text-amber-600 font-black text-[10px] uppercase tracking-widest">Requiere Aprobación Elite</span>
           </div>
+          <h1 className="text-5xl md:text-6xl font-black text-slate-900 mb-6 tracking-tighter uppercase leading-none">
+            Registro <span className="text-blue-600">Multi Dealer</span>
+          </h1>
+          <p className="text-xl text-slate-500 max-w-2xl mx-auto font-medium leading-relaxed">
+            Gestiona flotas y múltiples concesionarios desde una infraestructura centralizada y potente.
+          </p>
+        </div>
 
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-700">{error}</p>
-            </div>
-          )}
+        {error && (
+          <div className="max-w-md mx-auto bg-red-50 border border-red-100 text-red-600 px-8 py-5 rounded-3xl text-sm font-bold mb-10 text-center animate-shake">
+            {error}
+          </div>
+        )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Selección de Membresía */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Selecciona tu Plan Multi Dealer *
-              </label>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {memberships.map((membership) => (
-                  <div
-                    key={membership.id}
-                    onClick={() => setSelectedMembership(membership.id)}
-                    className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                      selectedMembership === membership.id
-                        ? 'border-primary-600 bg-primary-50'
-                        : 'border-gray-200 hover:border-gray-300'
+        <form onSubmit={handleSubmit} className="space-y-12">
+          {/* Step 1: Plan Selection */}
+          <div className={`transition-all duration-500 ${step === 1 ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none absolute'}`}>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+              {memberships.map((membership) => (
+                <div
+                  key={membership.id}
+                  onClick={() => setSelectedMembership(membership.id)}
+                  className={`group relative bg-white rounded-[2.5rem] p-8 cursor-pointer transition-all duration-500 border-4 ${selectedMembership === membership.id
+                    ? 'border-blue-600 shadow-2xl shadow-blue-600/10 -translate-y-2'
+                    : 'border-white shadow-xl hover:border-slate-100 hover:-translate-y-1'
                     }`}
-                  >
-                    <h3 className="font-bold text-lg mb-2">{membership.name}</h3>
-                    <p className="text-2xl font-bold text-primary-600 mb-2">
-                      ${membership.price}
-                      <span className="text-sm text-gray-600">
-                        /{membership.billingCycle === 'monthly' ? 'mes' : 'año'}
-                      </span>
-                    </p>
-                    <div className="text-sm text-gray-600 space-y-2">
-                      <div className="bg-blue-50 p-2 rounded">
-                        <p className="font-semibold text-blue-900">
-                          🏢 Dealers Permitidos:{' '}
-                          {membership.features.maxDealers === null || membership.features.maxDealers === undefined
-                            ? 'Ilimitados'
-                            : membership.features.maxDealers}
-                        </p>
-                      </div>
-                      {membership.features.corporateEmailEnabled && (
-                        <p>
-                          📧 Emails:{' '}
-                          {membership.features.maxCorporateEmails === null || membership.features.maxCorporateEmails === undefined
-                            ? 'Ilimitados'
-                            : membership.features.maxCorporateEmails}
-                        </p>
-                      )}
-                      <p className="text-xs text-yellow-600 mt-2">
-                        ⚠️ Requiere aprobación del administrador
-                      </p>
-                    </div>
+                >
+                  <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-4 group-hover:text-blue-600 transition-colors">
+                    {membership.name}
+                  </h3>
+                  <div className="flex items-baseline gap-1 mb-8">
+                    <span className="text-4xl font-black text-slate-900">${membership.price}</span>
+                    <span className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">
+                      /{membership.billingCycle === 'monthly' ? 'Mes' : 'Año'}
+                    </span>
                   </div>
-                ))}
-              </div>
+                  <div className="space-y-3 mb-8">
+                    <div className="flex items-center gap-3 text-xs font-bold text-slate-600">
+                      <div className="w-5 h-5 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">🏢</div>
+                      {membership.features.maxDealers || 'Ilimitados'} Concesionarios
+                    </div>
+                    {membership.features.corporateEmailEnabled && (
+                      <div className="flex items-center gap-3 text-xs font-bold text-slate-600">
+                        <div className="w-5 h-5 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">📧</div>
+                        Emails Corporativos
+                      </div>
+                    )}
+                  </div>
+                  <div className={`h-12 rounded-xl flex items-center justify-center font-black text-[10px] uppercase tracking-[0.2em] transition-all ${selectedMembership === membership.id ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-400'
+                    }`}>
+                    {selectedMembership === membership.id ? 'Seleccionado' : 'Elegir'}
+                  </div>
+                </div>
+              ))}
+              {memberships.length === 0 && (
+                <div className="lg:col-span-3 text-center py-12 bg-white rounded-[2.5rem] border-2 border-dashed border-slate-200">
+                  <p className="text-slate-400 font-bold uppercase tracking-widest">Cargando planes de alto volumen...</p>
+                </div>
+              )}
             </div>
 
-            {/* Información Personal */}
-            <div className="border-t pt-6">
-              <h2 className="text-xl font-bold mb-4">Información Personal</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nombre Completo *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full border rounded px-3 py-2"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email *
-                  </label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full border rounded px-3 py-2"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Teléfono *
-                  </label>
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full border rounded px-3 py-2"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Contraseña *
-                  </label>
-                  <input
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="w-full border rounded px-3 py-2"
-                    required
-                    minLength={6}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Confirmar Contraseña *
-                  </label>
-                  <input
-                    type="password"
-                    value={formData.confirmPassword}
-                    onChange={(e) =>
-                      setFormData({ ...formData, confirmPassword: e.target.value })
-                    }
-                    className="w-full border rounded px-3 py-2"
-                    required
-                    minLength={6}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Información de la Empresa */}
-            <div className="border-t pt-6">
-              <h2 className="text-xl font-bold mb-4">Información de la Empresa</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nombre de la Empresa *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.companyName}
-                    onChange={(e) =>
-                      setFormData({ ...formData, companyName: e.target.value })
-                    }
-                    className="w-full border rounded px-3 py-2"
-                    required
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Dirección *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.companyAddress}
-                    onChange={(e) =>
-                      setFormData({ ...formData, companyAddress: e.target.value })
-                    }
-                    className="w-full border rounded px-3 py-2"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Ciudad *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.companyCity}
-                    onChange={(e) =>
-                      setFormData({ ...formData, companyCity: e.target.value })
-                    }
-                    className="w-full border rounded px-3 py-2"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Estado/Provincia
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.companyState}
-                    onChange={(e) =>
-                      setFormData({ ...formData, companyState: e.target.value })
-                    }
-                    className="w-full border rounded px-3 py-2"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Código Postal
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.companyZip}
-                    onChange={(e) =>
-                      setFormData({ ...formData, companyZip: e.target.value })
-                    }
-                    className="w-full border rounded px-3 py-2"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    País *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.companyCountry}
-                    onChange={(e) =>
-                      setFormData({ ...formData, companyCountry: e.target.value })
-                    }
-                    className="w-full border rounded px-3 py-2"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Número de Identificación Fiscal (Tax ID)
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.taxId}
-                    onChange={(e) => setFormData({ ...formData, taxId: e.target.value })}
-                    className="w-full border rounded px-3 py-2"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Información del Negocio */}
-            <div className="border-t pt-6">
-              <h2 className="text-xl font-bold mb-4">Información del Negocio</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Tipo de Negocio
-                  </label>
-                  <select
-                    value={formData.businessType}
-                    onChange={(e) =>
-                      setFormData({ ...formData, businessType: e.target.value })
-                    }
-                    className="w-full border rounded px-3 py-2"
-                  >
-                    <option value="">Seleccionar...</option>
-                    <option value="dealer_group">Grupo de Concesionarios</option>
-                    <option value="franchise">Franquicia</option>
-                    <option value="corporation">Corporación</option>
-                    <option value="other">Otro</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Número de Ubicaciones
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.numberOfLocations}
-                    onChange={(e) =>
-                      setFormData({ ...formData, numberOfLocations: e.target.value })
-                    }
-                    className="w-full border rounded px-3 py-2"
-                    min="1"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Años en el Negocio
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.yearsInBusiness}
-                    onChange={(e) =>
-                      setFormData({ ...formData, yearsInBusiness: e.target.value })
-                    }
-                    className="w-full border rounded px-3 py-2"
-                    min="0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Inventario Actual Aproximado
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.currentInventory}
-                    onChange={(e) =>
-                      setFormData({ ...formData, currentInventory: e.target.value })
-                    }
-                    className="w-full border rounded px-3 py-2"
-                    min="0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Número de Dealers que Espera Gestionar *
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.expectedDealers}
-                    onChange={(e) =>
-                      setFormData({ ...formData, expectedDealers: e.target.value })
-                    }
-                    className="w-full border rounded px-3 py-2"
-                    min="1"
-                    required
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Razón para Multi Dealer */}
-            <div className="border-t pt-6">
-              <h2 className="text-xl font-bold mb-4">Información Adicional</h2>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Razón para Necesitar Multi Dealer *
-                </label>
-                <textarea
-                  value={formData.reasonForMultiDealer}
-                  onChange={(e) =>
-                    setFormData({ ...formData, reasonForMultiDealer: e.target.value })
-                  }
-                  className="w-full border rounded px-3 py-2"
-                  rows={4}
-                  placeholder="Explica por qué necesitas gestionar múltiples dealers..."
-                  required
-                />
-              </div>
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Información Adicional
-                </label>
-                <textarea
-                  value={formData.additionalInfo}
-                  onChange={(e) =>
-                    setFormData({ ...formData, additionalInfo: e.target.value })
-                  }
-                  className="w-full border rounded px-3 py-2"
-                  rows={3}
-                  placeholder="Cualquier información adicional que consideres relevante..."
-                />
-              </div>
-            </div>
-
-            {/* Botones */}
-            <div className="flex gap-4 pt-6 border-t">
-              <Link
-                href="/register"
-                className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Cancelar
-              </Link>
+            <div className="flex justify-center">
               <button
-                type="submit"
-                disabled={loading}
-                className="flex-1 px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
+                type="button"
+                onClick={() => setStep(2)}
+                disabled={!selectedMembership}
+                className="group bg-slate-900 text-white h-20 px-12 rounded-[2rem] font-black text-xs uppercase tracking-[0.4em] transition-all hover:bg-blue-600 disabled:opacity-50"
               >
-                {loading ? 'Enviando Solicitud...' : 'Enviar Solicitud de Aprobación'}
+                Continuar al Formulario
               </button>
             </div>
-          </form>
-        </div>
+          </div>
+
+          {/* Step 2: Information Form */}
+          <div className={`transition-all duration-500 ${step === 2 ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none absolute'}`}>
+            <div className="bg-white rounded-[3rem] shadow-2xl p-10 md:p-16 border border-slate-100 space-y-12">
+              <section>
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center font-black text-xl">01</div>
+                  <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Identidad y Seguridad</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className={labelClasses}>Nombre Completo</label>
+                    <input type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className={inputClasses} required />
+                  </div>
+                  <div>
+                    <label className={labelClasses}>Correo Corporativo</label>
+                    <input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className={inputClasses} required />
+                  </div>
+                  <div>
+                    <label className={labelClasses}>Teléfono de Contacto</label>
+                    <input type="tel" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} className={inputClasses} required />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className={labelClasses}>Contraseña</label>
+                      <div className="relative">
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          value={formData.password}
+                          onChange={e => setFormData({ ...formData, password: e.target.value })}
+                          className={inputClasses}
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-300 hover:text-blue-600 transition-colors"
+                        >
+                          {showPassword ? (
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                          ) : (
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" /></svg>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <label className={labelClasses}>Confirmar Contraseña</label>
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        value={formData.confirmPassword}
+                        onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })}
+                        className={inputClasses}
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section>
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center font-black text-xl">02</div>
+                  <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Detalles de la Corporación</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className={labelClasses}>Razón Social / Nombre Comercial</label>
+                    <input type="text" value={formData.companyName} onChange={e => setFormData({ ...formData, companyName: e.target.value })} className={inputClasses} required />
+                  </div>
+                  <div>
+                    <label className={labelClasses}>RNC / Tax ID</label>
+                    <input type="text" value={formData.taxId} onChange={e => setFormData({ ...formData, taxId: e.target.value })} className={inputClasses} required />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className={labelClasses}>Dirección Principal</label>
+                    <input type="text" value={formData.companyAddress} onChange={e => setFormData({ ...formData, companyAddress: e.target.value })} className={inputClasses} required />
+                  </div>
+                  <div>
+                    <label className={labelClasses}>Ciudad</label>
+                    <input type="text" value={formData.companyCity} onChange={e => setFormData({ ...formData, companyCity: e.target.value })} className={inputClasses} required />
+                  </div>
+                  <div>
+                    <label className={labelClasses}>País</label>
+                    <input type="text" value={formData.companyCountry} onChange={e => setFormData({ ...formData, companyCountry: e.target.value })} className={inputClasses} required />
+                  </div>
+                </div>
+              </section>
+
+              <section>
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center font-black text-xl">03</div>
+                  <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Visión del Negocio</h3>
+                </div>
+                <div className="grid grid-cols-1 gap-6">
+                  <div>
+                    <label className={labelClasses}>¿Por qué necesitas Multi Dealer? (Mínimo 50 caracteres)</label>
+                    <textarea
+                      value={formData.reasonForMultiDealer}
+                      onChange={e => setFormData({ ...formData, reasonForMultiDealer: e.target.value })}
+                      className={inputClasses + " min-h-[150px] py-4"}
+                      placeholder="Cuéntanos sobre tu modelo de negocio y cómo planeas escalar..."
+                      required
+                    />
+                  </div>
+                </div>
+              </section>
+
+              <div className="flex flex-col md:flex-row gap-4 pt-10 border-t border-slate-100">
+                <button type="button" onClick={() => setStep(1)} className="px-10 h-20 rounded-[2rem] font-black text-[10px] uppercase tracking-widest text-slate-400 hover:text-slate-900 hover:bg-slate-50 transition-all">
+                  Volver a Planes
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 group bg-slate-900 text-white h-20 rounded-[2rem] font-black text-xs uppercase tracking-[0.4em] relative overflow-hidden shadow-2xl hover:bg-blue-600 transition-all duration-500 active:scale-[0.98]"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:animate-shimmer"></div>
+                  {loading ? 'Procesando Solicitud...' : 'Enviar para Aprobación'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </form>
       </div>
     </div>
   );
 }
 
+export default function MultiDealerRegisterPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center"><div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>}>
+      <MultiDealerContent />
+    </Suspense>
+  );
+}

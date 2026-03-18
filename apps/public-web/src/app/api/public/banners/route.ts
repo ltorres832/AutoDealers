@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '../../../../lib/firebase-admin';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 300; // Revalidar cada 5 minutos
@@ -34,14 +34,14 @@ export async function GET(request: NextRequest) {
       });
     } catch (queryError: any) {
       // Si falla por falta de índice, usar fallback
-      const isIndexError = queryError.code === 9 || 
-                           queryError.message?.includes('index') || 
-                           queryError.details?.includes('index') ||
-                           queryError.message?.includes('FAILED_PRECONDITION');
-      
+      const isIndexError = queryError.code === 9 ||
+        queryError.message?.includes('index') ||
+        queryError.details?.includes('index') ||
+        queryError.message?.includes('FAILED_PRECONDITION');
+
       if (isIndexError) {
         console.warn('⚠️ Consulta de banners falló por falta de índice, usando fallback...');
-        
+
         try {
           // Fallback 1: solo filtrar por status, luego ordenar en memoria
           snapshot = await db.collectionGroup('premium_banners')
@@ -70,16 +70,16 @@ export async function GET(request: NextRequest) {
           banners = banners.slice(0, limit);
         } catch (fallbackError: any) {
           // Fallback 2: obtener TODOS los banners y filtrar en memoria
-          const isFallbackIndexError = fallbackError.code === 9 || 
-                                       fallbackError.message?.includes('index') || 
-                                       fallbackError.details?.includes('index');
-          
+          const isFallbackIndexError = fallbackError.code === 9 ||
+            fallbackError.message?.includes('index') ||
+            fallbackError.details?.includes('index');
+
           if (isFallbackIndexError) {
             console.warn('⚠️ Fallback 1 también falló, usando fallback 2 (obtener todos y filtrar en memoria)...');
-            
+
             try {
               snapshot = await db.collectionGroup('premium_banners').get();
-              
+
               banners = snapshot.docs.map((doc: any) => {
                 const data = doc.data();
                 return {
@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
     console.error('Error fetching banners:', error);
     return NextResponse.json(
       { error: 'Internal server error', details: error.message },
-      { 
+      {
         status: 500,
         headers: {
           'Cache-Control': 'no-store',

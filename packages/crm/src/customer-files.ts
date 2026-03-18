@@ -1,7 +1,7 @@
 // Gestión de Customer Files (Casos de Cliente)
 
 import { CustomerFile, CustomerDocument, RequestedDocument, EvidenceItem } from './types';
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
 
 // Función para generar IDs aleatorios
@@ -292,7 +292,7 @@ export async function getCustomerFiles(
   // Eliminar duplicados por ID (por si acaso)
   const uniqueFiles = Array.from(
     new Map(files.map(file => [file.id, file])).values()
-  );
+  ) as CustomerFile[];
 
   return uniqueFiles;
 }

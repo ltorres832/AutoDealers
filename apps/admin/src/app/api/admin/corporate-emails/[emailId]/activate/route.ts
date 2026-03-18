@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { activateCorporateEmail } from '@autodealers/crm';
-import { initializeFirebase } from '@autodealers/core';
+import { initializeFirebase } from '@autodealers/shared';
 
 initializeFirebase();
 

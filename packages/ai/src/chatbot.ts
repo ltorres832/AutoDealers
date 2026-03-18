@@ -1,6 +1,6 @@
 // Chatbot avanzado con IA
 
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
 import { getVehicles } from '@autodealers/inventory';
 import OpenAI from 'openai';
 

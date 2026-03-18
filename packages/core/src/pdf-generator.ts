@@ -1,7 +1,7 @@
 // Generador de PDFs con Branding Configurable
 
 import { getDocumentTypeBranding, getOrderedBrandingElements } from './document-branding';
-import { getFirestore } from './firebase';
+import { getFirestore } from '@autodealers/shared';
 
 // Lazy initialization - solo se inicializa cuando se necesita
 function getDb() {

@@ -1,0 +1,866 @@
+﻿▲ Next.js 16.1.6 (Turbopack)
+- Environments: .env.local
+
+node.exe : ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: 
+https://nextjs.org/docs/messages/middleware-to-proxy
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (⚠ The "middlewa...leware-to-proxy:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  Creating an optimized production build ...
+Turbopack build encountered 1 warnings:
+./packages/shared/src/firebase.ts:74:22
+Module not found: Can't resolve 'fs'
+[0m [90m 72 |[39m       [36mif[39m ([36mtypeof[39m window [33m===[39m [32m'undefined'[39m [33m&&[39m 
+([33m![39mprojectId [33m||[39m [33m![39mclientEmail [33m||[39m [33m![39mprivateKey)) {
+ [90m 73 |[39m         [36mtry[39m {
+[31m[1m>[22m[39m[90m 74 |[39m           [36mconst[39m fs [33m=[39m require([32m'fs'[39m)[33m;[39m
+ [90m    |[39m                      [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 75 |[39m           [36mconst[39m path [33m=[39m require([32m'path'[39m)[33m;[39m
+ [90m 76 |[39m           [36mconst[39m envPath [33m=[39m path[33m.[39mjoin(process[33m.[39mcwd()[33m,[39m 
+[32m'.env.local'[39m)[33m;[39m
+ [90m 77 |[39m           [36mif[39m (fs[33m.[39mexistsSync(envPath)) {[0m
+
+
+
+Import traces:
+  App Route:
+    ./packages/shared/src/firebase.ts
+    ./apps/public-web/src/app/api/tenant/[subdomain]/route.ts
+
+  Client Component Browser:
+    ./packages/shared/src/firebase.ts [Client Component Browser]
+    ./packages/shared/src/firebase-server.ts [Client Component Browser]
+    ./packages/shared/src/index.ts [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./packages/shared/src/firebase.ts [Client Component SSR]
+    ./packages/shared/src/firebase-server.ts [Client Component SSR]
+    ./packages/shared/src/index.ts [Client Component SSR]
+    ./apps/public-web/src/app/registro/page.tsx [Client Component SSR]
+    ./apps/public-web/src/app/registro/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+
+> Build error occurred
+Error: Turbopack build failed with 23 errors:
+./node_modules/google-auth-library/build/src/auth/googleauth.js:29:25
+Module not found: Can't resolve 'child_process'
+[0m [90m 27 |[39m [33mObject[39m[33m.[39mdefineProperty(exports[33m,[39m [32m"__esModule"[39m[33m,[39m { 
+value[33m:[39m [36mtrue[39m })[33m;[39m
+ [90m 28 |[39m exports[33m.[39m[33mGoogleAuth[39m [33m=[39m 
+exports[33m.[39m[33mGoogleAuthExceptionMessages[39m [33m=[39m exports[33m.[39m[33mCLOUD_SDK_CLIENT_ID[39m 
+[33m=[39m [36mvoid[39m [35m0[39m[33m;[39m
+[31m[1m>[22m[39m[90m 29 |[39m [36mconst[39m child_process_1 [33m=[39m 
+require([32m"child_process"[39m)[33m;[39m
+ [90m    |[39m                         [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[3
+9m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[
+39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m
+[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m
+[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 30 |[39m [36mconst[39m fs [33m=[39m require([32m"fs"[39m)[33m;[39m
+ [90m 31 |[39m [36mconst[39m gcpMetadata [33m=[39m require([32m"gcp-metadata"[39m)[33m;[39m
+ [90m 32 |[39m [36mconst[39m os [33m=[39m require([32m"os"[39m)[33m;[39m[0m
+
+
+
+Import trace:
+  Client Component Browser:
+    ./node_modules/google-auth-library/build/src/auth/googleauth.js [Client Component Browser]
+    ./node_modules/google-auth-library/build/src/index.js [Client Component Browser]
+    ./node_modules/google-gax/build/src/fallback.js [Client Component Browser]
+    ./node_modules/@google-cloud/firestore/build/src/index.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/app/firebase-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/default-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/index.js [Client Component Browser]
+    ./packages/shared/src/firebase.ts [Client Component Browser]
+    ./packages/shared/src/firebase-server.ts [Client Component Browser]
+    ./packages/shared/src/index.ts [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./node_modules/google-auth-library/build/src/auth/pluggable-auth-handler.js:19:22
+Module not found: Can't resolve 'child_process'
+[0m [90m 17 |[39m [36mconst[39m pluggable_auth_client_1 [33m=[39m 
+require([32m"./pluggable-auth-client"[39m)[33m;[39m
+ [90m 18 |[39m [36mconst[39m executable_response_1 [33m=[39m 
+require([32m"./executable-response"[39m)[33m;[39m
+[31m[1m>[22m[39m[90m 19 |[39m [36mconst[39m childProcess [33m=[39m 
+require([32m"child_process"[39m)[33m;[39m
+ [90m    |[39m                      [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39
+m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[3
+9m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 20 |[39m [36mconst[39m fs [33m=[39m require([32m"fs"[39m)[33m;[39m
+ [90m 21 |[39m [90m/**[39m
+ [90m 22 |[39m [90m * A handler used to retrieve 3rd party token responses from user defined[39m[0m
+
+
+
+Import trace:
+  Client Component Browser:
+    ./node_modules/google-auth-library/build/src/auth/pluggable-auth-handler.js [Client Component Browser]
+    ./node_modules/google-auth-library/build/src/auth/pluggable-auth-client.js [Client Component Browser]
+    ./node_modules/google-auth-library/build/src/index.js [Client Component Browser]
+    ./node_modules/google-gax/build/src/fallback.js [Client Component Browser]
+    ./node_modules/@google-cloud/firestore/build/src/index.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/app/firebase-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/default-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/index.js [Client Component Browser]
+    ./packages/shared/src/firebase.ts [Client Component Browser]
+    ./packages/shared/src/firebase-server.ts [Client Component Browser]
+    ./packages/shared/src/index.ts [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./node_modules/@google-cloud/storage/build/cjs/src/bucket.js:56:25
+Module not found: Can't resolve 'fs'
+[0m [90m 54 |[39m [36mconst[39m paginator_1 [33m=[39m require([32m"@google-cloud/paginator"[39m)[33m;[39m
+ [90m 55 |[39m [36mconst[39m promisify_1 [33m=[39m require([32m"@google-cloud/promisify"[39m)[33m;[39m
+[31m[1m>[22m[39m[90m 56 |[39m [36mconst[39m fs [33m=[39m __importStar(require([32m"fs"[39m))[33m;[39m
+ [90m    |[39m                         [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[3
+9m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[
+39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 57 |[39m [36mconst[39m mime_1 [33m=[39m __importDefault(require([32m"mime"[39m))[33m;[39m
+ [90m 58 |[39m [36mconst[39m path [33m=[39m __importStar(require([32m"path"[39m))[33m;[39m
+ [90m 59 |[39m [36mconst[39m p_limit_1 [33m=[39m __importDefault(require([32m"p-limit"[39m))[33m;[39m[0m
+
+
+
+Import trace:
+  Client Component Browser:
+    ./node_modules/@google-cloud/storage/build/cjs/src/bucket.js [Client Component Browser]
+    ./node_modules/@google-cloud/storage/build/cjs/src/index.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/storage/storage.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/app/firebase-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/default-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/index.js [Client Component Browser]
+    ./packages/shared/src/firebase.ts [Client Component Browser]
+    ./packages/shared/src/firebase-server.ts [Client Component Browser]
+    ./packages/shared/src/index.ts [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./node_modules/@google-cloud/storage/build/cjs/src/crc32c.js:29:14
+Module not found: Can't resolve 'fs'
+[0m [90m 27 |[39m [33mObject[39m[33m.[39mdefineProperty(exports[33m,[39m [32m"__esModule"[39m[33m,[39m { 
+value[33m:[39m [36mtrue[39m })[33m;[39m
+ [90m 28 |[39m exports[33m.[39m[33mCRC32C_EXTENSION_TABLE[39m [33m=[39m 
+exports[33m.[39m[33mCRC32C_EXTENSIONS[39m [33m=[39m exports[33m.[39m[33mCRC32C_EXCEPTION_MESSAGES[39m 
+[33m=[39m exports[33m.[39m[33mCRC32C_DEFAULT_VALIDATOR_GENERATOR[39m [33m=[39m 
+exports[33m.[39m[33mCRC32C[39m [33m=[39m [36mvoid[39m [35m0[39m[33m;[39m
+[31m[1m>[22m[39m[90m 29 |[39m [36mconst[39m fs_1 [33m=[39m require([32m"fs"[39m)[33m;[39m
+ [90m    |[39m              [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m
+^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1
+m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 30 |[39m [90m/**[39m
+ [90m 31 |[39m [90m * Ported from {@link 
+https://github.com/google/crc32c/blob/21fc8ef30415a635e7351ffa0e5d5367943d4a94/src/crc32c_portable.cc#L16-L59 
+github.com/google/crc32c}[39m
+ [90m 32 |[39m [90m */[39m[0m
+
+
+
+Import trace:
+  Client Component Browser:
+    ./node_modules/@google-cloud/storage/build/cjs/src/crc32c.js [Client Component Browser]
+    ./node_modules/@google-cloud/storage/build/cjs/src/index.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/storage/storage.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/app/firebase-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/default-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/index.js [Client Component Browser]
+    ./packages/shared/src/firebase.ts [Client Component Browser]
+    ./packages/shared/src/firebase-server.ts [Client Component Browser]
+    ./packages/shared/src/index.ts [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./node_modules/@google-cloud/storage/build/cjs/src/file.js:62:25
+Module not found: Can't resolve 'fs'
+[0m [90m 60 |[39m [36mconst[39m promisify_1 [33m=[39m require([32m"@google-cloud/promisify"[39m)[33m;[39m
+ [90m 61 |[39m [36mconst[39m crypto [33m=[39m __importStar(require([32m"crypto"[39m))[33m;[39m
+[31m[1m>[22m[39m[90m 62 |[39m [36mconst[39m fs [33m=[39m __importStar(require([32m"fs"[39m))[33m;[39m
+ [90m    |[39m                         [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[3
+9m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[
+39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 63 |[39m [36mconst[39m mime_1 [33m=[39m __importDefault(require([32m"mime"[39m))[33m;[39m
+ [90m 64 |[39m [36mconst[39m resumableUpload [33m=[39m 
+__importStar(require([32m"./resumable-upload.js"[39m))[33m;[39m
+ [90m 65 |[39m [36mconst[39m stream_1 [33m=[39m require([32m"stream"[39m)[33m;[39m[0m
+
+
+
+Import trace:
+  Client Component Browser:
+    ./node_modules/@google-cloud/storage/build/cjs/src/file.js [Client Component Browser]
+    ./node_modules/@google-cloud/storage/build/cjs/src/index.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/storage/storage.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/app/firebase-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/default-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/index.js [Client Component Browser]
+    ./packages/shared/src/firebase.ts [Client Component Browser]
+    ./packages/shared/src/firebase-server.ts [Client Component Browser]
+    ./packages/shared/src/index.ts [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./node_modules/@google-cloud/storage/build/cjs/src/transfer-manager.js:64:14
+Module not found: Can't resolve 'fs'
+[0m [90m 62 |[39m [36mconst[39m p_limit_1 [33m=[39m __importDefault(require([32m"p-limit"[39m))[33m;[39m
+ [90m 63 |[39m [36mconst[39m path [33m=[39m __importStar(require([32m"path"[39m))[33m;[39m
+[31m[1m>[22m[39m[90m 64 |[39m [36mconst[39m fs_1 [33m=[39m require([32m"fs"[39m)[33m;[39m
+ [90m    |[39m              [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m
+^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1
+m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 65 |[39m [36mconst[39m crc32c_js_1 [33m=[39m require([32m"./crc32c.js"[39m)[33m;[39m
+ [90m 66 |[39m [36mconst[39m google_auth_library_1 [33m=[39m require([32m"google-auth-library"[39m)[33m;[39m
+ [90m 67 |[39m [36mconst[39m fast_xml_parser_1 [33m=[39m require([32m"fast-xml-parser"[39m)[33m;[39m[0m
+
+
+
+Import trace:
+  Client Component Browser:
+    ./node_modules/@google-cloud/storage/build/cjs/src/transfer-manager.js [Client Component Browser]
+    ./node_modules/@google-cloud/storage/build/cjs/src/index.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/storage/storage.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/app/firebase-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/default-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/index.js [Client Component Browser]
+    ./packages/shared/src/firebase.ts [Client Component Browser]
+    ./packages/shared/src/firebase-server.ts [Client Component Browser]
+    ./packages/shared/src/index.ts [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./node_modules/firebase-admin/lib/app/credential-internal.js:21:12
+Module not found: Can't resolve 'fs'
+[0m [90m 19 |[39m [33mObject[39m[33m.[39mdefineProperty(exports[33m,[39m [32m"__esModule"[39m[33m,[39m { 
+value[33m:[39m [36mtrue[39m })[33m;[39m
+ [90m 20 |[39m exports[33m.[39mgetApplicationDefault [33m=[39m exports[33m.[39misApplicationDefault 
+[33m=[39m exports[33m.[39m[33mImpersonatedServiceAccountCredential[39m [33m=[39m 
+exports[33m.[39m[33mRefreshTokenCredential[39m [33m=[39m exports[33m.[39m[33mComputeEngineCredential[39m 
+[33m=[39m exports[33m.[39m[33mServiceAccountCredential[39m [33m=[39m [36mvoid[39m [35m0[39m[33m;[39m
+[31m[1m>[22m[39m[90m 21 |[39m [36mconst[39m fs [33m=[39m require([32m"fs"[39m)[33m;[39m
+ [90m    |[39m            [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^
+[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^
+[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 22 |[39m [36mconst[39m os [33m=[39m require([32m"os"[39m)[33m;[39m
+ [90m 23 |[39m [36mconst[39m path [33m=[39m require([32m"path"[39m)[33m;[39m
+ [90m 24 |[39m [36mconst[39m error_1 [33m=[39m require([32m"../utils/error"[39m)[33m;[39m[0m
+
+
+
+Import trace:
+  Client Component Browser:
+    ./node_modules/firebase-admin/lib/app/credential-internal.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/app/credential-factory.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/app/firebase-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/default-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/index.js [Client Component Browser]
+    ./packages/shared/src/firebase.ts [Client Component Browser]
+    ./packages/shared/src/firebase-server.ts [Client Component Browser]
+    ./packages/shared/src/index.ts [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./node_modules/firebase-admin/lib/app/lifecycle.js:21:12
+Module not found: Can't resolve 'fs'
+[0m [90m 19 |[39m [33mObject[39m[33m.[39mdefineProperty(exports[33m,[39m [32m"__esModule"[39m[33m,[39m { 
+value[33m:[39m [36mtrue[39m })[33m;[39m
+ [90m 20 |[39m exports[33m.[39m[33mFIREBASE_CONFIG_VAR[39m [33m=[39m exports[33m.[39mdeleteApp [33m=[39m 
+exports[33m.[39mgetApps [33m=[39m exports[33m.[39mgetApp [33m=[39m exports[33m.[39minitializeApp [33m=[39m 
+exports[33m.[39mdefaultAppStore [33m=[39m exports[33m.[39m[33mAppStore[39m [33m=[39m [36mvoid[39m 
+[35m0[39m[33m;[39m
+[31m[1m>[22m[39m[90m 21 |[39m [36mconst[39m fs [33m=[39m require([32m"fs"[39m)[33m;[39m
+ [90m    |[39m            [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^
+[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^
+[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 22 |[39m [36mconst[39m validator [33m=[39m require([32m"../utils/validator"[39m)[33m;[39m
+ [90m 23 |[39m [36mconst[39m error_1 [33m=[39m require([32m"../utils/error"[39m)[33m;[39m
+ [90m 24 |[39m [36mconst[39m credential_internal_1 [33m=[39m 
+require([32m"./credential-internal"[39m)[33m;[39m[0m
+
+
+
+Import trace:
+  Client Component Browser:
+    ./node_modules/firebase-admin/lib/app/lifecycle.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/app/firebase-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/default-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/index.js [Client Component Browser]
+    ./packages/shared/src/firebase.ts [Client Component Browser]
+    ./packages/shared/src/firebase-server.ts [Client Component Browser]
+    ./packages/shared/src/index.ts [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./node_modules/gcp-metadata/build/src/gcp-residency.js:24:14
+Module not found: Can't resolve 'fs'
+[0m [90m 22 |[39m exports[33m.[39misGoogleComputeEngine [33m=[39m isGoogleComputeEngine[33m;[39m
+ [90m 23 |[39m exports[33m.[39mdetectGCPResidency [33m=[39m detectGCPResidency[33m;[39m
+[31m[1m>[22m[39m[90m 24 |[39m [36mconst[39m fs_1 [33m=[39m require([32m"fs"[39m)[33m;[39m
+ [90m    |[39m              [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m
+^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1
+m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 25 |[39m [36mconst[39m os_1 [33m=[39m require([32m"os"[39m)[33m;[39m
+ [90m 26 |[39m [90m/**[39m
+ [90m 27 |[39m [90m * Known paths unique to Google Compute Engine Linux instances[39m[0m
+
+
+
+Import trace:
+  Client Component Browser:
+    ./node_modules/gcp-metadata/build/src/gcp-residency.js [Client Component Browser]
+    ./node_modules/gcp-metadata/build/src/index.js [Client Component Browser]
+    ./node_modules/google-auth-library/build/src/index.js [Client Component Browser]
+    ./node_modules/google-gax/build/src/fallback.js [Client Component Browser]
+    ./node_modules/@google-cloud/firestore/build/src/index.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/app/firebase-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/default-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/index.js [Client Component Browser]
+    ./packages/shared/src/firebase.ts [Client Component Browser]
+    ./packages/shared/src/firebase-server.ts [Client Component Browser]
+    ./packages/shared/src/index.ts [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./node_modules/google-auth-library/build/src/auth/filesubjecttokensupplier.js:19:12
+Module not found: Can't resolve 'fs'
+[0m [90m 17 |[39m exports[33m.[39m[33mFileSubjectTokenSupplier[39m [33m=[39m [36mvoid[39m 
+[35m0[39m[33m;[39m
+ [90m 18 |[39m [36mconst[39m util_1 [33m=[39m require([32m"util"[39m)[33m;[39m
+[31m[1m>[22m[39m[90m 19 |[39m [36mconst[39m fs [33m=[39m require([32m"fs"[39m)[33m;[39m
+ [90m    |[39m            [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^
+[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^
+[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 20 |[39m [90m// fs.readfile is undefined in browser karma tests causing[39m
+ [90m 21 |[39m [90m// `npm run browser-test` to fail as test.oauth2.ts imports this file via[39m
+ [90m 22 |[39m [90m// src/index.ts.[39m[0m
+
+
+
+Import trace:
+  Client Component Browser:
+    ./node_modules/google-auth-library/build/src/auth/filesubjecttokensupplier.js [Client Component Browser]
+    ./node_modules/google-auth-library/build/src/auth/identitypoolclient.js [Client Component Browser]
+    ./node_modules/google-auth-library/build/src/index.js [Client Component Browser]
+    ./node_modules/google-gax/build/src/fallback.js [Client Component Browser]
+    ./node_modules/@google-cloud/firestore/build/src/index.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/app/firebase-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/default-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/index.js [Client Component Browser]
+    ./packages/shared/src/firebase.ts [Client Component Browser]
+    ./packages/shared/src/firebase-server.ts [Client Component Browser]
+    ./packages/shared/src/index.ts [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./node_modules/google-auth-library/build/src/auth/googleauth.js:30:12
+Module not found: Can't resolve 'fs'
+[0m [90m 28 |[39m exports[33m.[39m[33mGoogleAuth[39m [33m=[39m 
+exports[33m.[39m[33mGoogleAuthExceptionMessages[39m [33m=[39m exports[33m.[39m[33mCLOUD_SDK_CLIENT_ID[39m 
+[33m=[39m [36mvoid[39m [35m0[39m[33m;[39m
+ [90m 29 |[39m [36mconst[39m child_process_1 [33m=[39m require([32m"child_process"[39m)[33m;[39m
+[31m[1m>[22m[39m[90m 30 |[39m [36mconst[39m fs [33m=[39m require([32m"fs"[39m)[33m;[39m
+ [90m    |[39m            [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^
+[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^
+[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 31 |[39m [36mconst[39m gcpMetadata [33m=[39m require([32m"gcp-metadata"[39m)[33m;[39m
+ [90m 32 |[39m [36mconst[39m os [33m=[39m require([32m"os"[39m)[33m;[39m
+ [90m 33 |[39m [36mconst[39m path [33m=[39m require([32m"path"[39m)[33m;[39m[0m
+
+
+
+Import trace:
+  Client Component Browser:
+    ./node_modules/google-auth-library/build/src/auth/googleauth.js [Client Component Browser]
+    ./node_modules/google-auth-library/build/src/index.js [Client Component Browser]
+    ./node_modules/google-gax/build/src/fallback.js [Client Component Browser]
+    ./node_modules/@google-cloud/firestore/build/src/index.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/app/firebase-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/default-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/index.js [Client Component Browser]
+    ./packages/shared/src/firebase.ts [Client Component Browser]
+    ./packages/shared/src/firebase-server.ts [Client Component Browser]
+    ./packages/shared/src/index.ts [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./node_modules/google-auth-library/build/src/auth/pluggable-auth-handler.js:20:12
+Module not found: Can't resolve 'fs'
+[0m [90m 18 |[39m [36mconst[39m executable_response_1 [33m=[39m 
+require([32m"./executable-response"[39m)[33m;[39m
+ [90m 19 |[39m [36mconst[39m childProcess [33m=[39m require([32m"child_process"[39m)[33m;[39m
+[31m[1m>[22m[39m[90m 20 |[39m [36mconst[39m fs [33m=[39m require([32m"fs"[39m)[33m;[39m
+ [90m    |[39m            [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^
+[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^
+[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 21 |[39m [90m/**[39m
+ [90m 22 |[39m [90m * A handler used to retrieve 3rd party token responses from user defined[39m
+ [90m 23 |[39m [90m * executables and cached file output for the PluggableAuthClient class.[39m[0m
+
+
+
+Import trace:
+  Client Component Browser:
+    ./node_modules/google-auth-library/build/src/auth/pluggable-auth-handler.js [Client Component Browser]
+    ./node_modules/google-auth-library/build/src/auth/pluggable-auth-client.js [Client Component Browser]
+    ./node_modules/google-auth-library/build/src/index.js [Client Component Browser]
+    ./node_modules/google-gax/build/src/fallback.js [Client Component Browser]
+    ./node_modules/@google-cloud/firestore/build/src/index.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/app/firebase-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/default-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/index.js [Client Component Browser]
+    ./packages/shared/src/firebase.ts [Client Component Browser]
+    ./packages/shared/src/firebase-server.ts [Client Component Browser]
+    ./packages/shared/src/index.ts [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./node_modules/gtoken/build/src/index.js:22:12
+Module not found: Can't resolve 'fs'
+[0m [90m 20 |[39m [33mObject[39m[33m.[39mdefineProperty(exports[33m,[39m [32m"__esModule"[39m[33m,[39m { 
+value[33m:[39m [36mtrue[39m })[33m;[39m
+ [90m 21 |[39m exports[33m.[39m[33mGoogleToken[39m [33m=[39m [36mvoid[39m [35m0[39m[33m;[39m
+[31m[1m>[22m[39m[90m 22 |[39m [36mconst[39m fs [33m=[39m require([32m"fs"[39m)[33m;[39m
+ [90m    |[39m            [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^
+[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^
+[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 23 |[39m [36mconst[39m gaxios_1 [33m=[39m require([32m"gaxios"[39m)[33m;[39m
+ [90m 24 |[39m [36mconst[39m jws [33m=[39m require([32m"jws"[39m)[33m;[39m
+ [90m 25 |[39m [36mconst[39m path [33m=[39m require([32m"path"[39m)[33m;[39m[0m
+
+
+
+Import trace:
+  Client Component Browser:
+    ./node_modules/gtoken/build/src/index.js [Client Component Browser]
+    ./node_modules/google-auth-library/build/src/auth/jwtclient.js [Client Component Browser]
+    ./node_modules/google-auth-library/build/src/index.js [Client Component Browser]
+    ./node_modules/google-gax/build/src/fallback.js [Client Component Browser]
+    ./node_modules/@google-cloud/firestore/build/src/index.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/app/firebase-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/default-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/index.js [Client Component Browser]
+    ./packages/shared/src/firebase.ts [Client Component Browser]
+    ./packages/shared/src/firebase-server.ts [Client Component Browser]
+    ./packages/shared/src/index.ts [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./node_modules/firebase-admin/lib/utils/api-request.js:25:15
+Module not found: Can't resolve 'http2'
+[0m [90m 23 |[39m [36mconst[39m http [33m=[39m require([32m"http"[39m)[33m;[39m
+ [90m 24 |[39m [36mconst[39m https [33m=[39m require([32m"https"[39m)[33m;[39m
+[31m[1m>[22m[39m[90m 25 |[39m [36mconst[39m http2 [33m=[39m require([32m"http2"[39m)[33m;[39m
+ [90m    |[39m               [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1
+m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[
+1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 26 |[39m [36mconst[39m url [33m=[39m require([32m"url"[39m)[33m;[39m
+ [90m 27 |[39m [36mconst[39m events_1 [33m=[39m require([32m"events"[39m)[33m;[39m
+ [90m 28 |[39m [36mclass[39m [33mDefaultRequestResponse[39m {[0m
+
+
+
+Import trace:
+  Client Component Browser:
+    ./node_modules/firebase-admin/lib/utils/api-request.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/messaging/messaging.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/app/firebase-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/default-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/index.js [Client Component Browser]
+    ./packages/shared/src/firebase.ts [Client Component Browser]
+    ./packages/shared/src/firebase-server.ts [Client Component Browser]
+    ./packages/shared/src/index.ts [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./node_modules/agent-base/dist/index.js:30:26
+Module not found: Can't resolve 'net'
+[0m [90m 28 |[39m [33mObject[39m[33m.[39mdefineProperty(exports[33m,[39m [32m"__esModule"[39m[33m,[39m { 
+value[33m:[39m [36mtrue[39m })[33m;[39m
+ [90m 29 |[39m exports[33m.[39m[33mAgent[39m [33m=[39m [36mvoid[39m [35m0[39m[33m;[39m
+[31m[1m>[22m[39m[90m 30 |[39m [36mconst[39m net [33m=[39m __importStar(require([32m"net"[39m))[33m;[39m
+ [90m    |[39m                          [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[
+39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m
+[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 31 |[39m [36mconst[39m http [33m=[39m __importStar(require([32m"http"[39m))[33m;[39m
+ [90m 32 |[39m [36mconst[39m https_1 [33m=[39m require([32m"https"[39m)[33m;[39m
+ [90m 33 |[39m __exportStar(require([32m"./helpers"[39m)[33m,[39m exports)[33m;[39m[0m
+
+
+
+Import trace:
+  Client Component Browser:
+    ./node_modules/agent-base/dist/index.js [Client Component Browser]
+    ./node_modules/https-proxy-agent/dist/index.js [Client Component Browser]
+    ./node_modules/gaxios/build/src/gaxios.js [Client Component Browser]
+    ./node_modules/gaxios/build/src/index.js [Client Component Browser]
+    ./node_modules/google-auth-library/build/src/index.js [Client Component Browser]
+    ./node_modules/@google-cloud/storage/build/cjs/src/storage.js [Client Component Browser]
+    ./node_modules/@google-cloud/storage/build/cjs/src/index.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/storage/storage.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/app/firebase-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/default-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/index.js [Client Component Browser]
+    ./packages/shared/src/firebase.ts [Client Component Browser]
+    ./packages/shared/src/firebase-server.ts [Client Component Browser]
+    ./packages/shared/src/index.ts [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./node_modules/firebase-admin/node_modules/@firebase/database-compat/dist/index.standalone.js:12:20
+Module not found: Can't resolve 'net'
+[0m [90m 10 |[39m [36mvar[39m require$$2$1 [33m=[39m require([32m'url'[39m)[33m;[39m
+ [90m 11 |[39m [36mvar[39m require$$0$2 [33m=[39m require([32m'assert'[39m)[33m;[39m
+[31m[1m>[22m[39m[90m 12 |[39m [36mvar[39m require$$1$2 [33m=[39m require([32m'net'[39m)[33m;[39m
+ [90m    |[39m                    [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[3
+1m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[
+31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 13 |[39m [36mvar[39m require$$2$2 [33m=[39m require([32m'tls'[39m)[33m;[39m
+ [90m 14 |[39m [36mvar[39m require$$1$3 [33m=[39m require([32m'@firebase/util'[39m)[33m;[39m
+ [90m 15 |[39m [36mvar[39m require$$2$3 [33m=[39m require([32m'tslib'[39m)[33m;[39m[0m
+
+
+
+Import trace:
+  Client Component Browser:
+    ./node_modules/firebase-admin/node_modules/@firebase/database-compat/dist/index.standalone.js [Client Component 
+Browser]
+    ./node_modules/firebase-admin/lib/app/firebase-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/default-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/index.js [Client Component Browser]
+    ./packages/shared/src/firebase.ts [Client Component Browser]
+    ./packages/shared/src/firebase-server.ts [Client Component Browser]
+    ./packages/shared/src/index.ts [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./node_modules/http-proxy-agent/dist/agent.js:15:31
+Module not found: Can't resolve 'net'
+[0m [90m 13 |[39m }[33m;[39m
+ [90m 14 |[39m [33mObject[39m[33m.[39mdefineProperty(exports[33m,[39m [32m"__esModule"[39m[33m,[39m { 
+value[33m:[39m [36mtrue[39m })[33m;[39m
+[31m[1m>[22m[39m[90m 15 |[39m [36mconst[39m net_1 [33m=[39m 
+__importDefault(require([32m"net"[39m))[33m;[39m
+ [90m    |[39m                               [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[
+22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^
+[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 16 |[39m [36mconst[39m tls_1 [33m=[39m __importDefault(require([32m"tls"[39m))[33m;[39m
+ [90m 17 |[39m [36mconst[39m url_1 [33m=[39m __importDefault(require([32m"url"[39m))[33m;[39m
+ [90m 18 |[39m [36mconst[39m debug_1 [33m=[39m __importDefault(require([32m"debug"[39m))[33m;[39m[0m
+
+
+
+Import trace:
+  Client Component Browser:
+    ./node_modules/http-proxy-agent/dist/agent.js [Client Component Browser]
+    ./node_modules/http-proxy-agent/dist/index.js [Client Component Browser]
+    ./node_modules/teeny-request/build/src/agents.js [Client Component Browser]
+    ./node_modules/teeny-request/build/src/index.js [Client Component Browser]
+    ./node_modules/@google-cloud/storage/build/cjs/src/nodejs-common/util.js [Client Component Browser]
+    ./node_modules/@google-cloud/storage/build/cjs/src/nodejs-common/index.js [Client Component Browser]
+    ./node_modules/@google-cloud/storage/build/cjs/src/index.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/storage/storage.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/app/firebase-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/default-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/index.js [Client Component Browser]
+    ./packages/shared/src/firebase.ts [Client Component Browser]
+    ./packages/shared/src/firebase-server.ts [Client Component Browser]
+    ./packages/shared/src/index.ts [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./node_modules/https-proxy-agent/dist/index.js:30:26
+Module not found: Can't resolve 'net'
+[0m [90m 28 |[39m [33mObject[39m[33m.[39mdefineProperty(exports[33m,[39m [32m"__esModule"[39m[33m,[39m { 
+value[33m:[39m [36mtrue[39m })[33m;[39m
+ [90m 29 |[39m exports[33m.[39m[33mHttpsProxyAgent[39m [33m=[39m [36mvoid[39m [35m0[39m[33m;[39m
+[31m[1m>[22m[39m[90m 30 |[39m [36mconst[39m net [33m=[39m __importStar(require([32m"net"[39m))[33m;[39m
+ [90m    |[39m                          [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[
+39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m
+[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 31 |[39m [36mconst[39m tls [33m=[39m __importStar(require([32m"tls"[39m))[33m;[39m
+ [90m 32 |[39m [36mconst[39m assert_1 [33m=[39m __importDefault(require([32m"assert"[39m))[33m;[39m
+ [90m 33 |[39m [36mconst[39m debug_1 [33m=[39m __importDefault(require([32m"debug"[39m))[33m;[39m[0m
+
+
+
+Import trace:
+  Client Component Browser:
+    ./node_modules/https-proxy-agent/dist/index.js [Client Component Browser]
+    ./node_modules/gaxios/build/src/gaxios.js [Client Component Browser]
+    ./node_modules/gaxios/build/src/index.js [Client Component Browser]
+    ./node_modules/google-auth-library/build/src/index.js [Client Component Browser]
+    ./node_modules/@google-cloud/storage/build/cjs/src/storage.js [Client Component Browser]
+    ./node_modules/@google-cloud/storage/build/cjs/src/index.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/storage/storage.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/app/firebase-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/default-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/index.js [Client Component Browser]
+    ./packages/shared/src/firebase.ts [Client Component Browser]
+    ./packages/shared/src/firebase-server.ts [Client Component Browser]
+    ./packages/shared/src/index.ts [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./node_modules/teeny-request/node_modules/https-proxy-agent/dist/agent.js:15:31
+Module not found: Can't resolve 'net'
+[0m [90m 13 |[39m }[33m;[39m
+ [90m 14 |[39m [33mObject[39m[33m.[39mdefineProperty(exports[33m,[39m [32m"__esModule"[39m[33m,[39m { 
+value[33m:[39m [36mtrue[39m })[33m;[39m
+[31m[1m>[22m[39m[90m 15 |[39m [36mconst[39m net_1 [33m=[39m 
+__importDefault(require([32m"net"[39m))[33m;[39m
+ [90m    |[39m                               [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[
+22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^
+[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 16 |[39m [36mconst[39m tls_1 [33m=[39m __importDefault(require([32m"tls"[39m))[33m;[39m
+ [90m 17 |[39m [36mconst[39m url_1 [33m=[39m __importDefault(require([32m"url"[39m))[33m;[39m
+ [90m 18 |[39m [36mconst[39m assert_1 [33m=[39m __importDefault(require([32m"assert"[39m))[33m;[39m[0m
+
+
+
+Import trace:
+  Client Component Browser:
+    ./node_modules/teeny-request/node_modules/https-proxy-agent/dist/agent.js [Client Component Browser]
+    ./node_modules/teeny-request/node_modules/https-proxy-agent/dist/index.js [Client Component Browser]
+    ./node_modules/teeny-request/build/src/agents.js [Client Component Browser]
+    ./node_modules/teeny-request/build/src/index.js [Client Component Browser]
+    ./node_modules/@google-cloud/storage/build/cjs/src/nodejs-common/util.js [Client Component Browser]
+    ./node_modules/@google-cloud/storage/build/cjs/src/nodejs-common/index.js [Client Component Browser]
+    ./node_modules/@google-cloud/storage/build/cjs/src/index.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/storage/storage.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/app/firebase-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/default-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/index.js [Client Component Browser]
+    ./packages/shared/src/firebase.ts [Client Component Browser]
+    ./packages/shared/src/firebase-server.ts [Client Component Browser]
+    ./packages/shared/src/index.ts [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./node_modules/firebase-admin/node_modules/@firebase/database-compat/dist/index.standalone.js:13:20
+Module not found: Can't resolve 'tls'
+[0m [90m 11 |[39m [36mvar[39m require$$0$2 [33m=[39m require([32m'assert'[39m)[33m;[39m
+ [90m 12 |[39m [36mvar[39m require$$1$2 [33m=[39m require([32m'net'[39m)[33m;[39m
+[31m[1m>[22m[39m[90m 13 |[39m [36mvar[39m require$$2$2 [33m=[39m require([32m'tls'[39m)[33m;[39m
+ [90m    |[39m                    [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[3
+1m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[
+31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 14 |[39m [36mvar[39m require$$1$3 [33m=[39m require([32m'@firebase/util'[39m)[33m;[39m
+ [90m 15 |[39m [36mvar[39m require$$2$3 [33m=[39m require([32m'tslib'[39m)[33m;[39m
+ [90m 16 |[39m [36mvar[39m require$$3 [33m=[39m require([32m'@firebase/logger'[39m)[33m;[39m[0m
+
+
+
+Import trace:
+  Client Component Browser:
+    ./node_modules/firebase-admin/node_modules/@firebase/database-compat/dist/index.standalone.js [Client Component 
+Browser]
+    ./node_modules/firebase-admin/lib/app/firebase-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/default-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/index.js [Client Component Browser]
+    ./packages/shared/src/firebase.ts [Client Component Browser]
+    ./packages/shared/src/firebase-server.ts [Client Component Browser]
+    ./packages/shared/src/index.ts [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./node_modules/http-proxy-agent/dist/agent.js:16:31
+Module not found: Can't resolve 'tls'
+[0m [90m 14 |[39m [33mObject[39m[33m.[39mdefineProperty(exports[33m,[39m [32m"__esModule"[39m[33m,[39m { 
+value[33m:[39m [36mtrue[39m })[33m;[39m
+ [90m 15 |[39m [36mconst[39m net_1 [33m=[39m __importDefault(require([32m"net"[39m))[33m;[39m
+[31m[1m>[22m[39m[90m 16 |[39m [36mconst[39m tls_1 [33m=[39m 
+__importDefault(require([32m"tls"[39m))[33m;[39m
+ [90m    |[39m                               [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[
+22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^
+[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 17 |[39m [36mconst[39m url_1 [33m=[39m __importDefault(require([32m"url"[39m))[33m;[39m
+ [90m 18 |[39m [36mconst[39m debug_1 [33m=[39m __importDefault(require([32m"debug"[39m))[33m;[39m
+ [90m 19 |[39m [36mconst[39m once_1 [33m=[39m 
+__importDefault(require([32m"@tootallnate/once"[39m))[33m;[39m[0m
+
+
+
+Import trace:
+  Client Component Browser:
+    ./node_modules/http-proxy-agent/dist/agent.js [Client Component Browser]
+    ./node_modules/http-proxy-agent/dist/index.js [Client Component Browser]
+    ./node_modules/teeny-request/build/src/agents.js [Client Component Browser]
+    ./node_modules/teeny-request/build/src/index.js [Client Component Browser]
+    ./node_modules/@google-cloud/storage/build/cjs/src/nodejs-common/util.js [Client Component Browser]
+    ./node_modules/@google-cloud/storage/build/cjs/src/nodejs-common/index.js [Client Component Browser]
+    ./node_modules/@google-cloud/storage/build/cjs/src/index.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/storage/storage.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/app/firebase-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/default-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/index.js [Client Component Browser]
+    ./packages/shared/src/firebase.ts [Client Component Browser]
+    ./packages/shared/src/firebase-server.ts [Client Component Browser]
+    ./packages/shared/src/index.ts [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./node_modules/https-proxy-agent/dist/index.js:31:26
+Module not found: Can't resolve 'tls'
+[0m [90m 29 |[39m exports[33m.[39m[33mHttpsProxyAgent[39m [33m=[39m [36mvoid[39m [35m0[39m[33m;[39m
+ [90m 30 |[39m [36mconst[39m net [33m=[39m __importStar(require([32m"net"[39m))[33m;[39m
+[31m[1m>[22m[39m[90m 31 |[39m [36mconst[39m tls [33m=[39m __importStar(require([32m"tls"[39m))[33m;[39m
+ [90m    |[39m                          [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[
+39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m
+[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 32 |[39m [36mconst[39m assert_1 [33m=[39m __importDefault(require([32m"assert"[39m))[33m;[39m
+ [90m 33 |[39m [36mconst[39m debug_1 [33m=[39m __importDefault(require([32m"debug"[39m))[33m;[39m
+ [90m 34 |[39m [36mconst[39m agent_base_1 [33m=[39m require([32m"agent-base"[39m)[33m;[39m[0m
+
+
+
+Import trace:
+  Client Component Browser:
+    ./node_modules/https-proxy-agent/dist/index.js [Client Component Browser]
+    ./node_modules/gaxios/build/src/gaxios.js [Client Component Browser]
+    ./node_modules/gaxios/build/src/index.js [Client Component Browser]
+    ./node_modules/google-auth-library/build/src/index.js [Client Component Browser]
+    ./node_modules/@google-cloud/storage/build/cjs/src/storage.js [Client Component Browser]
+    ./node_modules/@google-cloud/storage/build/cjs/src/index.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/storage/storage.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/app/firebase-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/default-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/index.js [Client Component Browser]
+    ./packages/shared/src/firebase.ts [Client Component Browser]
+    ./packages/shared/src/firebase-server.ts [Client Component Browser]
+    ./packages/shared/src/index.ts [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./node_modules/teeny-request/node_modules/https-proxy-agent/dist/agent.js:16:31
+Module not found: Can't resolve 'tls'
+[0m [90m 14 |[39m [33mObject[39m[33m.[39mdefineProperty(exports[33m,[39m [32m"__esModule"[39m[33m,[39m { 
+value[33m:[39m [36mtrue[39m })[33m;[39m
+ [90m 15 |[39m [36mconst[39m net_1 [33m=[39m __importDefault(require([32m"net"[39m))[33m;[39m
+[31m[1m>[22m[39m[90m 16 |[39m [36mconst[39m tls_1 [33m=[39m 
+__importDefault(require([32m"tls"[39m))[33m;[39m
+ [90m    |[39m                               [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[
+22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^
+[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 17 |[39m [36mconst[39m url_1 [33m=[39m __importDefault(require([32m"url"[39m))[33m;[39m
+ [90m 18 |[39m [36mconst[39m assert_1 [33m=[39m __importDefault(require([32m"assert"[39m))[33m;[39m
+ [90m 19 |[39m [36mconst[39m debug_1 [33m=[39m __importDefault(require([32m"debug"[39m))[33m;[39m[0m
+
+
+
+Import trace:
+  Client Component Browser:
+    ./node_modules/teeny-request/node_modules/https-proxy-agent/dist/agent.js [Client Component Browser]
+    ./node_modules/teeny-request/node_modules/https-proxy-agent/dist/index.js [Client Component Browser]
+    ./node_modules/teeny-request/build/src/agents.js [Client Component Browser]
+    ./node_modules/teeny-request/build/src/index.js [Client Component Browser]
+    ./node_modules/@google-cloud/storage/build/cjs/src/nodejs-common/util.js [Client Component Browser]
+    ./node_modules/@google-cloud/storage/build/cjs/src/nodejs-common/index.js [Client Component Browser]
+    ./node_modules/@google-cloud/storage/build/cjs/src/index.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/storage/storage.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/app/firebase-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/default-namespace.js [Client Component Browser]
+    ./node_modules/firebase-admin/lib/index.js [Client Component Browser]
+    ./packages/shared/src/firebase.ts [Client Component Browser]
+    ./packages/shared/src/firebase-server.ts [Client Component Browser]
+    ./packages/shared/src/index.ts [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Client Component Browser]
+    ./apps/public-web/src/app/registro/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at ./node_modules/ (google-cloud/storage/build/cjs/src/bucket.js:56:25)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at ./node_modules/ (google-cloud/storage/build/cjs/src/crc32c.js:29:14)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at ./node_modules/ (google-cloud/storage/build/cjs/src/file.js:62:25)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at ./node_modules/ (google-cloud/storage/build/cjs/src/transfer-manager.js:64:14)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    ... collapsed 9 duplicate lines matching above 1 lines 9 times...
+    at ./node_modules/firebase-admin/node_modules/ (firebase/database-compat/dist/index.standalone.js:12:20)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    ... collapsed 3 duplicate lines matching above 1 lines 3 times...
+    at ./node_modules/firebase-admin/node_modules/ (firebase/database-compat/dist/index.standalone.js:13:20)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    ... collapsed 3 duplicate lines matching above 1 lines 3 times...

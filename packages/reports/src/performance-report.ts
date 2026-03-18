@@ -1,6 +1,6 @@
 // Reporte de rendimiento
 
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
 import { getLeads } from '@autodealers/crm';
 import { getTenantSales } from '@autodealers/crm';
 import { PerformanceReport, ReportFilters } from './types';

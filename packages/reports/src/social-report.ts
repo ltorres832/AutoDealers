@@ -1,6 +1,6 @@
 // Reporte de redes sociales
 
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
 import { SocialMediaReport, ReportFilters } from './types';
 import * as admin from 'firebase-admin';
 

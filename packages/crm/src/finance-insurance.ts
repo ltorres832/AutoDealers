@@ -1,7 +1,7 @@
 // Módulo F&I (Finance & Insurance)
 // Gestión completa de solicitudes F&I, clientes, historial y trazabilidad
 
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
 
 const db = getFirestore();

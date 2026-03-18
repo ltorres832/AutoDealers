@@ -3,6 +3,8 @@ import { verifyAuth } from '@/lib/auth';
 import { getLeads } from '@autodealers/crm';
 import { getFirestore } from '@autodealers/core';
 
+const db = getFirestore();
+
 export async function GET(request: NextRequest) {
   try {
     const auth = await verifyAuth(request);
@@ -11,192 +13,85 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const period = searchParams.get('period') || 'month';
-    const tenantId = searchParams.get('tenantId'); // Opcional para admin
+    const tenantId = searchParams.get('tenantId');
+    const dateRange = searchParams.get('dateRange') || '30d';
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
 
-    const db = getFirestore();
+    // Calcular fechas
     const now = new Date();
-    const startDate = new Date();
-
-    switch (period) {
-      case 'week':
-        startDate.setDate(now.getDate() - 7);
-        break;
-      case 'month':
-        startDate.setMonth(now.getMonth() - 1);
-        break;
-      case 'year':
-        startDate.setFullYear(now.getFullYear() - 1);
-        break;
+    let dateFrom: Date;
+    if (dateRange === 'custom' && startDate && endDate) {
+      dateFrom = new Date(startDate);
+      now.setTime(new Date(endDate).getTime());
+    } else {
+      const days = dateRange === '7d' ? 7 : dateRange === '90d' ? 90 : 30;
+      dateFrom = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
     }
 
+    // Obtener leads
     let leads: any[] = [];
-
     if (tenantId) {
-      // Obtener leads de un tenant específico
-      const leadsSnapshot = await db
+      leads = await getLeads(tenantId, {});
+    } else {
+      // Obtener de todos los tenants
+      const tenantsSnapshot = await db.collection('tenants').get();
+      for (const tenantDoc of tenantsSnapshot.docs) {
+        const tenantLeads = await getLeads(tenantDoc.id, {});
+        leads.push(...tenantLeads);
+      }
+    }
+
+    // Filtrar por fecha
+    leads = leads.filter(
+      (lead) =>
+        lead.createdAt >= dateFrom && (!endDate || lead.createdAt <= new Date(endDate))
+    );
+
+    // Obtener ventas
+    let sales: any[] = [];
+    if (tenantId) {
+      const salesSnapshot = await db
         .collection('tenants')
         .doc(tenantId)
-        .collection('leads')
-        .where('createdAt', '>=', startDate)
+        .collection('sales')
+        .where('createdAt', '>=', dateFrom)
         .get();
-
-      leads = leadsSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
-        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-      }));
+      sales = salesSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     } else {
-      // Obtener leads de todos los tenants
       const tenantsSnapshot = await db.collection('tenants').get();
-      
       for (const tenantDoc of tenantsSnapshot.docs) {
-        try {
-          const leadsSnapshot = await db
-            .collection('tenants')
-            .doc(tenantDoc.id)
-            .collection('leads')
-            .where('createdAt', '>=', startDate)
-            .get();
-
-          const tenantLeads = leadsSnapshot.docs.map((doc) => ({
-            id: doc.id,
-            tenantId: tenantDoc.id,
-            ...doc.data(),
-            createdAt: doc.data().createdAt?.toDate() || new Date(),
-            updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-          }));
-
-          leads.push(...tenantLeads);
-        } catch (error) {
-          console.error(`Error fetching leads for tenant ${tenantDoc.id}:`, error);
-        }
+        const salesSnapshot = await db
+          .collection('tenants')
+          .doc(tenantDoc.id)
+          .collection('sales')
+          .where('createdAt', '>=', dateFrom)
+          .get();
+        sales.push(...salesSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
       }
     }
 
     // Calcular métricas
-    const totalLeads = leads.length;
-    const closedLeads = leads.filter((l: any) => l.status === 'closed').length;
-    const conversionRate = totalLeads > 0 ? (closedLeads / totalLeads) * 100 : 0;
-
-    // Conversión por fuente
-    const conversionBySource: Record<string, { leads: number; converted: number }> = {};
-    leads.forEach((lead: any) => {
-      if (!conversionBySource[lead.source]) {
-        conversionBySource[lead.source] = { leads: 0, converted: 0 };
-      }
-      conversionBySource[lead.source].leads++;
-      if (lead.status === 'closed') {
-        conversionBySource[lead.source].converted++;
-      }
-    });
-
-    const conversionBySourceArray = Object.entries(conversionBySource).map(([source, data]) => ({
-      source,
-      ...data,
-    }));
-
-    // Distribución por estado
-    const statusCount: Record<string, number> = {};
-    leads.forEach((lead: any) => {
-      statusCount[lead.status] = (statusCount[lead.status] || 0) + 1;
-    });
-
-    const statusDistribution = Object.entries(statusCount).map(([status, value]) => ({
-      name: status,
-      value,
-    }));
-
-    // Distribución de scores
-    const scoreRanges = [
-      { range: '0-20', min: 0, max: 20 },
-      { range: '21-40', min: 21, max: 40 },
-      { range: '41-60', min: 41, max: 60 },
-      { range: '61-80', min: 61, max: 80 },
-      { range: '81-100', min: 81, max: 100 },
-    ];
-
-    const scoreDistribution = scoreRanges.map((range) => {
-      const count = leads.filter((lead: any) => {
-        const score = lead.score?.combined || lead.score?.automatic || 0;
-        return score >= range.min && score <= range.max;
-      }).length;
-      return { range: range.range, count };
-    });
-
-    // Tiempo promedio en cada etapa (simplificado)
-    const timeInStage = [
-      { stage: 'Nuevo', days: 1 },
-      { stage: 'Contactado', days: 2 },
-      { stage: 'Calificado', days: 3 },
-      { stage: 'Cita', days: 5 },
-      { stage: 'Negociación', days: 7 },
-    ];
-
-    // Pipeline data por fecha (últimos 7 días)
-    const pipelineData = [];
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
-
-      const dayLeads = leads.filter((lead: any) => {
-        const leadDate = new Date(lead.createdAt);
-        return leadDate.toDateString() === date.toDateString();
-      });
-
-      pipelineData.push({
-        date: dateStr,
-        new: dayLeads.filter((l: any) => l.status === 'new').length,
-        qualified: dayLeads.filter((l: any) => l.status === 'qualified').length,
-        closed: dayLeads.filter((l: any) => l.status === 'closed').length,
-      });
-    }
-
-    // Score promedio
-    const scores = leads
-      .map((lead: any) => lead.score?.combined || lead.score?.automatic || 0)
-      .filter((s: number) => s > 0);
-    const avgScore = scores.length > 0
-      ? scores.reduce((a: number, b: number) => a + b, 0) / scores.length
-      : 0;
-
-    // Tiempo promedio en pipeline
-    const timesInPipeline = leads
-      .filter((lead: any) => lead.status === 'closed')
-      .map((lead: any) => {
-        const created = new Date(lead.createdAt).getTime();
-        const updated = new Date(lead.updatedAt).getTime();
-        return Math.ceil((updated - created) / (1000 * 60 * 60 * 24));
-      });
-    const avgTimeInPipeline =
-      timesInPipeline.length > 0
-        ? Math.round(
-            timesInPipeline.reduce((a, b) => a + b, 0) / timesInPipeline.length
-          )
-        : 0;
-
-    // Canal con mejor ROI (simplificado - basado en conversión)
-    const roiByChannel = Object.entries(conversionBySource).map(([source, data]) => ({
-      source,
-      roi: data.leads > 0 ? (data.converted / data.leads) * 100 : 0,
-    }));
-    const topROIChannel =
-      roiByChannel.length > 0
-        ? roiByChannel.sort((a, b) => b.roi - a.roi)[0].source
-        : 'N/A';
+    const conversionBySource = calculateConversionBySource(leads, sales);
+    const avgTimePerStage = calculateAvgTimePerStage(leads);
+    const scoreByStage = calculateScoreByStage(leads);
+    const activityByDay = calculateActivityByDay(leads, sales, dateFrom, now);
+    const performanceBySeller = await calculatePerformanceBySeller(leads, sales, tenantId);
+    const roiByChannel = calculateROIByChannel(leads, sales);
+    const responseRate = calculateResponseRate(leads);
+    const closeRate = calculateCloseRate(leads, sales);
 
     return NextResponse.json({
-      conversionRate,
-      avgTimeInPipeline,
-      avgScore,
-      topROIChannel,
-      conversionBySource: conversionBySourceArray,
-      statusDistribution,
-      scoreDistribution,
-      timeInStage,
-      pipelineData,
+      data: {
+        conversionBySource,
+        avgTimePerStage,
+        scoreByStage,
+        activityByDay,
+        performanceBySeller,
+        roiByChannel,
+        responseRate,
+        closeRate,
+      },
     });
   } catch (error: any) {
     console.error('Error generating advanced reports:', error);
@@ -207,4 +102,198 @@ export async function GET(request: NextRequest) {
   }
 }
 
+function calculateConversionBySource(leads: any[], sales: any[]): any[] {
+  const sourceMap = new Map<string, { leads: number; sales: number }>();
 
+  leads.forEach((lead) => {
+    const current = sourceMap.get(lead.source) || { leads: 0, sales: 0 };
+    current.leads++;
+    sourceMap.set(lead.source, current);
+  });
+
+  sales.forEach((sale) => {
+    const lead = leads.find((l) => l.id === sale.leadId);
+    if (lead) {
+      const current = sourceMap.get(lead.source) || { leads: 0, sales: 0 };
+      current.sales++;
+      sourceMap.set(lead.source, current);
+    }
+  });
+
+  return Array.from(sourceMap.entries()).map(([source, data]) => ({
+    source,
+    count: data.leads,
+    conversionRate: data.leads > 0 ? data.sales / data.leads : 0,
+  }));
+}
+
+function calculateAvgTimePerStage(leads: any[]): any[] {
+  // Simplificado - en producción calcular tiempo real entre cambios de estado
+  const stageMap = new Map<string, number[]>();
+
+  leads.forEach((lead) => {
+    if (!stageMap.has(lead.status)) {
+      stageMap.set(lead.status, []);
+    }
+    // Estimación: tiempo desde creación hasta ahora
+    const hours = (Date.now() - lead.createdAt.getTime()) / (1000 * 60 * 60);
+    stageMap.get(lead.status)!.push(hours);
+  });
+
+  return Array.from(stageMap.entries()).map(([stage, times]) => ({
+    stage,
+    avgHours: times.length > 0 ? times.reduce((a, b) => a + b, 0) / times.length : 0,
+  }));
+}
+
+function calculateScoreByStage(leads: any[]): any[] {
+  const stageMap = new Map<string, number[]>();
+
+  leads.forEach((lead) => {
+    if (lead.score?.combined) {
+      if (!stageMap.has(lead.status)) {
+        stageMap.set(lead.status, []);
+      }
+      stageMap.get(lead.status)!.push(lead.score.combined);
+    }
+  });
+
+  return Array.from(stageMap.entries()).map(([stage, scores]) => ({
+    stage,
+    avgScore: scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0,
+  }));
+}
+
+function calculateActivityByDay(leads: any[], sales: any[], from: Date, to: Date): any[] {
+  const dayMap = new Map<string, { leads: number; sales: number }>();
+
+  const current = new Date(from);
+  while (current <= to) {
+    const dateStr = current.toISOString().split('T')[0];
+    dayMap.set(dateStr, { leads: 0, sales: 0 });
+    current.setDate(current.getDate() + 1);
+  }
+
+  leads.forEach((lead) => {
+    const dateStr = lead.createdAt.toISOString().split('T')[0];
+    const day = dayMap.get(dateStr);
+    if (day) day.leads++;
+  });
+
+  sales.forEach((sale) => {
+    const date = sale.createdAt?.toDate ? sale.createdAt.toDate() : new Date(sale.createdAt);
+    const dateStr = date.toISOString().split('T')[0];
+    const day = dayMap.get(dateStr);
+    if (day) day.sales++;
+  });
+
+  return Array.from(dayMap.entries()).map(([date, data]) => ({
+    date,
+    leads: data.leads,
+    sales: data.sales,
+  }));
+}
+
+async function calculatePerformanceBySeller(
+  leads: any[],
+  sales: any[],
+  tenantId?: string | null
+): Promise<any[]> {
+  const sellerMap = new Map<string, { name: string; leads: number; sales: number }>();
+
+  leads.forEach((lead) => {
+    if (lead.assignedTo) {
+      const current = sellerMap.get(lead.assignedTo) || {
+        name: lead.assignedTo,
+        leads: 0,
+        sales: 0,
+      };
+      current.leads++;
+      sellerMap.set(lead.assignedTo, current);
+    }
+  });
+
+  sales.forEach((sale) => {
+    if (sale.sellerId) {
+      const current = sellerMap.get(sale.sellerId) || {
+        name: sale.sellerId,
+        leads: 0,
+        sales: 0,
+      };
+      current.sales++;
+      sellerMap.set(sale.sellerId, current);
+    }
+  });
+
+  // Obtener nombres de usuarios
+  const db = getFirestore();
+  for (const [sellerId, data] of sellerMap.entries()) {
+    try {
+      const userDoc = await db.collection('users').doc(sellerId).get();
+      if (userDoc.exists) {
+        const userData = userDoc.data();
+        data.name = userData?.name || userData?.email || sellerId;
+      }
+    } catch (error) {
+      console.error(`Error fetching user ${sellerId}:`, error);
+    }
+  }
+
+  return Array.from(sellerMap.entries()).map(([sellerId, data]) => ({
+    sellerId: sellerId,
+    sellerName: data.name,
+    leads: data.leads,
+    sales: data.sales,
+    conversionRate: data.leads > 0 ? data.sales / data.leads : 0,
+  }));
+}
+
+function calculateROIByChannel(leads: any[], sales: any[]): any[] {
+  // Simplificado - en producción obtener costos reales de marketing
+  const channelCosts: Record<string, number> = {
+    web: 50,
+    whatsapp: 30,
+    facebook: 100,
+    instagram: 80,
+    email: 20,
+    sms: 10,
+    phone: 0,
+  };
+
+  const channelMap = new Map<string, { cost: number; revenue: number }>();
+
+  leads.forEach((lead) => {
+    const cost = channelCosts[lead.source] || 0;
+    const current = channelMap.get(lead.source) || { cost: 0, revenue: 0 };
+    current.cost += cost;
+    channelMap.set(lead.source, current);
+  });
+
+  sales.forEach((sale) => {
+    const lead = leads.find((l) => l.id === sale.leadId);
+    if (lead) {
+      const current = channelMap.get(lead.source) || { cost: 0, revenue: 0 };
+      current.revenue += sale.salePrice || sale.total || 0;
+      channelMap.set(lead.source, current);
+    }
+  });
+
+  return Array.from(channelMap.entries()).map(([channel, data]) => ({
+    channel,
+    cost: data.cost,
+    revenue: data.revenue,
+    roi: data.cost > 0 ? (data.revenue - data.cost) / data.cost : 0,
+  }));
+}
+
+function calculateResponseRate(leads: any[]): number {
+  const responded = leads.filter((lead) => {
+    return lead.interactions && lead.interactions.some((i: any) => i.type === 'message');
+  });
+  return leads.length > 0 ? responded.length / leads.length : 0;
+}
+
+function calculateCloseRate(leads: any[], sales: any[]): number {
+  const closedLeads = new Set(sales.map((s) => s.leadId).filter(Boolean));
+  return leads.length > 0 ? closedLeads.size / leads.length : 0;
+}

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { initializeFirebase, getFirestore } from '@autodealers/core';
+import { initializeFirebase, getFirestore } from '@autodealers/shared';
 
 initializeFirebase();
 const db = getFirestore();

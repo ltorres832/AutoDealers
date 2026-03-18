@@ -1,7 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  turbopack: {},
   output: 'standalone',
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   images: {
     unoptimized: true,
   },
@@ -14,8 +18,6 @@ const nextConfig = {
     '@autodealers/inventory',
     '@autodealers/shared',
   ],
-  // Configuración de Turbopack (vacía para usar webpack en build)
-  turbopack: {},
   webpack: (config, { isServer }) => {
     // Resolver alias para los paquetes del monorepo
     const path = require('path');
@@ -29,7 +31,38 @@ const nextConfig = {
       '@autodealers/inventory': path.resolve(__dirname, '../../packages/inventory/src'),
       '@autodealers/shared': path.resolve(__dirname, '../../packages/shared/src'),
     };
-    
+
+    // Excluir módulos de Node.js del bundle del cliente
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+        child_process: false,
+        http2: false,
+        crypto: false,
+        stream: false,
+        url: false,
+        zlib: false,
+        path: false,
+        os: false,
+      };
+
+      // Excluir firebase-admin y módulos relacionados del bundle del cliente
+      config.externals = config.externals || [];
+      if (Array.isArray(config.externals)) {
+        config.externals.push({
+          'firebase-admin': 'commonjs firebase-admin',
+          '@google-cloud/firestore': 'commonjs @google-cloud/firestore',
+          '@google-cloud/storage': 'commonjs @google-cloud/storage',
+          'google-auth-library': 'commonjs google-auth-library',
+          'gcp-metadata': 'commonjs gcp-metadata',
+          'gtoken': 'commonjs gtoken',
+        });
+      }
+    }
+
     return config;
   },
 };

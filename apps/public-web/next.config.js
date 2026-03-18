@@ -3,9 +3,13 @@ const path = require('path');
 
 const nextConfig = {
   reactStrictMode: true,
-  output: 'standalone', // Servidor Node empaquetado para Cloud Run / Firebase
+  // output: 'standalone', // Comentado para Vercel (usa su propio servidor)
   images: {
-    unoptimized: true,
+    unoptimized: false, // Vercel optimiza imágenes automáticamente
+  },
+  // Configuración para producción estática
+  generateBuildId: async () => {
+    return 'production-build';
   },
   transpilePackages: [
     '@autodealers/core',
@@ -19,6 +23,9 @@ const nextConfig = {
   // Configuración de Turbopack (vacía para usar webpack en build)
   turbopack: {},
   webpack: (config, { isServer }) => {
+    // Plugin para interceptar y corregir referencias a .js
+    const webpack = require('webpack');
+    
     // Resolver módulos del monorepo
     const inventorySrc = path.resolve(__dirname, '../../packages/inventory/src');
     const coreSrc = path.resolve(__dirname, '../../packages/core/src');
@@ -38,8 +45,63 @@ const nextConfig = {
     // Forzar resolución de archivos TypeScript primero
     config.resolve.extensions = ['.tsx', '.ts', '.jsx', '.js', '.json'];
     
+    // Excluir módulos de Node.js del bundle del cliente
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+        http2: false,
+        stream: false,
+        'firebase-admin': false,
+      };
+      
+      // Excluir firebase-admin completamente del bundle del cliente
+      config.externals = config.externals || [];
+      if (typeof config.externals === 'function') {
+        const originalExternals = config.externals;
+        config.externals = [
+          originalExternals,
+          ({ request }, callback) => {
+            if (request === 'firebase-admin' || request?.includes('firebase-admin')) {
+              return callback(null, 'commonjs ' + request);
+            }
+            callback();
+          },
+        ];
+      } else if (Array.isArray(config.externals)) {
+        config.externals.push('firebase-admin');
+      } else {
+        config.externals = {
+          ...config.externals,
+          'firebase-admin': 'commonjs firebase-admin',
+        };
+      }
+      
+      // Ignorar firebase-admin y sus dependencias en el cliente
+      config.plugins.push(
+        new webpack.IgnorePlugin({
+          resourceRegExp: /^firebase-admin$/,
+        })
+      );
+      
+      // Habilitar WebAssembly para el cliente
+      config.experiments = {
+        ...config.experiments,
+        asyncWebAssembly: true,
+      };
+      
+      // Configuración de caché mejorada
+      config.cache = {
+        type: 'filesystem',
+        buildDependencies: {
+          config: [__filename],
+        },
+      };
+    }
+    
     // Plugin para interceptar y corregir referencias a .js
-    const webpack = require('webpack');
     config.plugins = config.plugins || [];
     config.plugins.push(
       new webpack.NormalModuleReplacementPlugin(
@@ -49,16 +111,6 @@ const nextConfig = {
         }
       )
     );
-    
-    // Configuración de caché mejorada
-    if (!isServer) {
-      config.cache = {
-        type: 'filesystem',
-        buildDependencies: {
-          config: [__filename],
-        },
-      };
-    }
     
     return config;
   },

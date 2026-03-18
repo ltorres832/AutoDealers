@@ -6,6 +6,7 @@ import {
   updateFeatureFlag,
   initializeDefaultFeatures,
   DashboardType,
+  type FeatureConfig,
 } from '@autodealers/core';
 
 export async function GET(request: NextRequest) {
@@ -122,7 +123,7 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const results = [];
+    const results: FeatureConfig[] = [];
     for (const update of updates) {
       const { dashboard, featureKey, enabled } = update;
       if (!dashboard || !featureKey || enabled === undefined) {

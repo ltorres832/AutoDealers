@@ -1,7 +1,7 @@
 // Gestión de mensajes
 
 import { Message } from './types';
-import { getFirestore } from '@autodealers/core';
+import { getFirestore } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
 
 const db = getFirestore();

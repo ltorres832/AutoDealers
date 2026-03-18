@@ -68,7 +68,7 @@ export class ZohoMailService {
         throw new Error('Failed to get access token');
       }
 
-      const data = await response.json();
+      const data = await response.json() as any;
       this.accessToken = data.access_token;
 
       if (!this.accessToken) {
@@ -112,7 +112,7 @@ export class ZohoMailService {
         }
       );
 
-      const data = await response.json();
+      const data = await response.json() as any;
 
       if (!response.ok) {
         return {
@@ -164,7 +164,7 @@ export class ZohoMailService {
         }
       );
 
-      const data = await response.json();
+      const data = await response.json() as any;
 
       if (!response.ok) {
         return {
@@ -212,7 +212,7 @@ export class ZohoMailService {
         }
       );
 
-      const data = await response.json();
+      const data = await response.json() as any;
 
       if (!response.ok) {
         return {
@@ -257,7 +257,7 @@ export class ZohoMailService {
       );
 
       if (!response.ok) {
-        const data = await response.json();
+        const data = await response.json() as any;
         return {
           success: false,
           error: {
@@ -303,7 +303,7 @@ export class ZohoMailService {
         }
       );
 
-      const data = await response.json();
+      const data = await response.json() as any;
 
       if (!response.ok) {
         return {
@@ -351,7 +351,7 @@ export class ZohoMailService {
         }
       );
 
-      const data = await response.json();
+      const data = await response.json() as any;
 
       if (!response.ok) {
         return {

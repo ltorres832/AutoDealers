@@ -47,11 +47,35 @@ export async function PATCH(
       await updateLeadStatus(auth.tenantId, id, status);
     }
 
+    // Obtener lead actual para comparar assignedTo
+    const currentLead = await getLeadById(auth.tenantId, id);
+    
     if (assignedTo !== undefined || notes !== undefined) {
       await updateLead(auth.tenantId, id, {
         assignedTo,
         notes,
       });
+
+      // Crear notificación si se asignó a un nuevo usuario
+      if (assignedTo && assignedTo !== currentLead?.assignedTo) {
+        try {
+          const { createNotification } = await import('@autodealers/core');
+          await createNotification({
+            tenantId: auth.tenantId,
+            userId: assignedTo,
+            type: 'lead_assigned',
+            title: 'Lead asignado',
+            message: `Se te ha asignado un nuevo lead: ${currentLead?.contact?.name || 'Sin nombre'}`,
+            channels: ['system'],
+            metadata: {
+              leadId: id,
+              route: `/leads/${id}`,
+            },
+          });
+        } catch (notifError) {
+          console.warn('No se pudo crear notificación:', notifError);
+        }
+      }
     }
 
     return NextResponse.json({ success: true });

@@ -1,6 +1,6 @@
 // Gestión de almacenamiento de imágenes
 
-import { getStorage } from '@autodealers/core';
+import { getStorage } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
 
 console.log('📦 packages/inventory/src/storage.ts - Módulo cargado');

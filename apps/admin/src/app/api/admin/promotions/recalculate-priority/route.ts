@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       .where('status', '==', 'active')
       .get();
 
-    const promotions = [];
+    const promotions: any[] = [];
     for (const doc of promotionsSnapshot.docs) {
       const data = doc.data();
       const pathParts = doc.ref.path.split('/');
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
 
     // Asignar prioridades finales (1 = más alta, mayor número = más baja)
     // Pero invertimos para que mayor score = menor número de prioridad (más arriba)
-    const updates = [];
+    const updates: any[] = [];
     for (let i = 0; i < promotions.length; i++) {
       const promotion = promotions[i];
       // Prioridad final: 1 es la más alta, entonces asignamos 1, 2, 3...
