@@ -103,22 +103,24 @@ interface Tenant {
 
 export default function TenantPublicPage() {
   const params = useParams();
-  
+
   // VERIFICACIÓN INMEDIATA EN EL SERVIDOR Y CLIENTE: Si estamos en la raíz sin subdominio, NO renderizar esta página
   const [isRootCheck, setIsRootCheck] = useState<boolean | null>(null);
-  
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
       const pathname = window.location.pathname;
       const parts = hostname.split('.');
-      
-      // Verificar si es el dominio base de Firebase
-      const isRootDomain = hostname === 'autodealers-7f62e.web.app' || 
-                          hostname === 'autodealers-7f62e.firebaseapp.com' ||
-                          hostname === 'localhost' || 
-                          (parts.length <= 2 && !hostname.includes('localhost:'));
-      
+
+      // Verificar si es el dominio base de Firebase o un dominio técnico de App Hosting
+      const isRootDomain = hostname === 'autodealers-7f62e.web.app' ||
+        hostname === 'autodealers-7f62e.firebaseapp.com' ||
+        hostname === 'localhost' ||
+        hostname.includes('---') || // Evitar subdominios técnicos
+        hostname.includes('amplifyapp') ||
+        (parts.length <= 2 && !hostname.includes('localhost:'));
+
       // Si es dominio raíz Y estamos en "/", esta página NO debería cargarse
       if (isRootDomain && (pathname === '/' || pathname === '')) {
         setIsRootCheck(true);
@@ -129,12 +131,12 @@ export default function TenantPublicPage() {
       setIsRootCheck(false);
     }
   }, []);
-  
+
   // Si detectamos que estamos en la raíz sin subdominio, NO renderizar nada
   if (isRootCheck === true) {
     return null;
   }
-  
+
   // Obtener subdominio de params o detectarlo desde hostname si no está en params
   const [subdomain, setSubdomain] = useState<string | null>(null);
   const [tenant, setTenant] = useState<Tenant | null>(null);
@@ -154,16 +156,16 @@ export default function TenantPublicPage() {
   useEffect(() => {
     // Si ya estamos redirigiendo, no hacer nada más
     if (shouldRedirect) return;
-    
+
     // Si la URL es exactamente "/" (raíz), redirigir inmediatamente
     if (typeof window !== 'undefined' && window.location.pathname === '/') {
       const hostname = window.location.hostname;
       const parts = hostname.split('.');
       // Si es el dominio raíz (sin subdominio), NO es esta página
-      const isRootDomain = hostname === 'autodealers-7f62e.web.app' || 
-                          hostname === 'localhost' || 
-                          (parts.length <= 2 && !hostname.includes('localhost:'));
-      
+      const isRootDomain = hostname === 'autodealers-7f62e.web.app' ||
+        hostname === 'localhost' ||
+        (parts.length <= 2 && !hostname.includes('localhost:'));
+
       if (isRootDomain) {
         // Ya estamos en la raíz, no hacer nada (Next.js debería cargar page.tsx, no esta)
         // Pero si esta página se carga de todos modos, forzar redirección
@@ -174,7 +176,7 @@ export default function TenantPublicPage() {
     }
 
     let detectedSubdomain: string | null = null;
-    
+
     // Primero intentar desde params (pero solo si tiene valor válido)
     const paramSubdomain = params?.subdomain;
     if (paramSubdomain && typeof paramSubdomain === 'string' && paramSubdomain.trim() !== '' && paramSubdomain !== 'undefined') {
@@ -185,7 +187,7 @@ export default function TenantPublicPage() {
         const hostname = window.location.hostname;
         const parts = hostname.split('.');
         const fixedSubdomains = ['admin', 'dealers', 'sellers', 'ads', 'www'];
-        
+
         if (hostname.includes('localhost')) {
           const localhostParts = hostname.split(':');
           if (localhostParts[0] !== 'localhost' && localhostParts[0] !== 'www') {
@@ -199,7 +201,7 @@ export default function TenantPublicPage() {
         }
       }
     }
-    
+
     if (detectedSubdomain) {
       setSubdomain(detectedSubdomain);
     }
@@ -212,10 +214,10 @@ export default function TenantPublicPage() {
         const hostname = window.location.hostname;
         // Solo redirigir si estamos en el dominio raíz (sin subdominio real)
         const parts = hostname.split('.');
-        const isRootDomain = hostname === 'autodealers-7f62e.web.app' || 
-                            hostname === 'localhost' || 
-                            (parts.length <= 2 && !hostname.includes('localhost'));
-        
+        const isRootDomain = hostname === 'autodealers-7f62e.web.app' ||
+          hostname === 'localhost' ||
+          (parts.length <= 2 && !hostname.includes('localhost'));
+
         if (isRootDomain) {
           // Redirigir a la página raíz
           window.location.href = '/';
@@ -231,7 +233,7 @@ export default function TenantPublicPage() {
       }, 1000);
       return;
     }
-    
+
     if (subdomain) {
       fetchTenantData();
     }
@@ -239,7 +241,7 @@ export default function TenantPublicPage() {
 
   useEffect(() => {
     filterVehicles();
-    
+
     // Calcular rango de precios
     if (vehicles.length > 0) {
       const prices = vehicles.map(v => v.price);
@@ -265,9 +267,9 @@ export default function TenantPublicPage() {
       setLoading(false);
       return;
     }
-    
+
     const subdomainStr = subdomain;
-    
+
     try {
       setLoading(true);
       console.log(`🌐 Fetching tenant data for subdomain: "${subdomainStr}"`);
@@ -275,11 +277,11 @@ export default function TenantPublicPage() {
         console.log(`📍 Current URL: ${window.location.href}`);
       }
       console.log(`🔗 API endpoint: /api/tenant/${subdomainStr}`);
-      
+
       // Agregar timeout para evitar cargas infinitas
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos
-      
+
       const response = await fetch(`/api/tenant/${subdomainStr}`, {
         cache: 'no-store',
         headers: {
@@ -287,9 +289,9 @@ export default function TenantPublicPage() {
         },
         signal: controller.signal,
       });
-      
+
       clearTimeout(timeoutId);
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         if (response.status === 404) {
@@ -304,7 +306,7 @@ export default function TenantPublicPage() {
         }
         throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.error || 'Unknown error'}`);
       }
-      
+
       const data = await response.json();
       console.log('📦 Tenant data received:', {
         hasTenant: !!data.tenant,
@@ -319,11 +321,11 @@ export default function TenantPublicPage() {
           status: v.status,
         })) || [],
       });
-      
+
       if (!data.tenant) {
         throw new Error('Tenant data is missing');
       }
-      
+
       setTenant(data.tenant);
       const vehiclesList = data.vehicles || [];
       console.log(`✅ Estableciendo ${vehiclesList.length} vehículos en el estado`);
@@ -335,7 +337,7 @@ export default function TenantPublicPage() {
         price: v.price,
         hasPhotos: v.photos?.length > 0,
       })));
-      
+
       if (vehiclesList.length === 0) {
         console.warn('⚠️ NO SE RECIBIERON VEHÍCULOS DEL API');
         console.log('📦 Respuesta completa del API:', {
@@ -346,7 +348,7 @@ export default function TenantPublicPage() {
           vehiclesIsArray: Array.isArray(data.vehicles),
         });
       }
-      
+
       setVehicles(vehiclesList);
       setFilteredVehicles(vehiclesList);
     } catch (error: any) {
@@ -363,7 +365,7 @@ export default function TenantPublicPage() {
 
   function filterVehicles() {
     let filtered = [...vehicles];
-    
+
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(
@@ -374,11 +376,11 @@ export default function TenantPublicPage() {
           `${v.year}`.includes(term)
       );
     }
-    
+
     if (selectedMake !== 'all') {
       filtered = filtered.filter((v) => v.make === selectedMake);
     }
-    
+
     setFilteredVehicles(filtered);
   }
 
@@ -390,11 +392,11 @@ export default function TenantPublicPage() {
       const hostname = window.location.hostname;
       const pathname = window.location.pathname;
       const parts = hostname.split('.');
-      
-      const isRootDomain = hostname === 'autodealers-7f62e.web.app' || 
-                          hostname === 'localhost' || 
-                          (parts.length <= 2 && !hostname.includes('localhost:'));
-      
+
+      const isRootDomain = hostname === 'autodealers-7f62e.web.app' ||
+        hostname === 'localhost' ||
+        (parts.length <= 2 && !hostname.includes('localhost:'));
+
       // Si es dominio raíz en "/" y no hay subdominio válido, redirigir
       if (isRootDomain && (pathname === '/' || pathname === '') && !subdomain) {
         setShouldRedirect(true);
@@ -421,16 +423,16 @@ export default function TenantPublicPage() {
     if (!subdomain && typeof window !== 'undefined') {
       const hostname = window.location.hostname;
       const parts = hostname.split('.');
-      const isRootDomain = hostname === 'autodealers-7f62e.web.app' || 
-                          hostname === 'localhost' || 
-                          (parts.length <= 2 && !hostname.includes('localhost:'));
-      
+      const isRootDomain = hostname === 'autodealers-7f62e.web.app' ||
+        hostname === 'localhost' ||
+        (parts.length <= 2 && !hostname.includes('localhost:'));
+
       if (isRootDomain && window.location.pathname === '/') {
         // No mostrar loading en la raíz sin subdominio
         return null;
       }
     }
-    
+
     return (
       <div className="flex justify-center items-center min-h-screen">
         <div className="text-center">
@@ -501,7 +503,7 @@ export default function TenantPublicPage() {
               <div>
                 <h1 className="text-2xl font-bold text-white">{tenant.name}</h1>
                 <p className="text-white/80 text-sm">
-                  {tenant.description 
+                  {tenant.description
                     ? tenant.description.substring(0, 50) + (tenant.description.length > 50 ? '...' : '')
                     : 'Tu concesionario de confianza'}
                 </p>
@@ -556,7 +558,7 @@ export default function TenantPublicPage() {
       </div>
 
       {/* Hero Section */}
-      <section 
+      <section
         className="bg-gradient-to-r from-primary-600 to-primary-800 text-white py-20 relative overflow-hidden"
         style={{
           background: `linear-gradient(135deg, ${tenant.branding.primaryColor || '#2563EB'} 0%, ${tenant.branding.secondaryColor || '#1E40AF'} 100%)`
@@ -567,7 +569,7 @@ export default function TenantPublicPage() {
           <div className="absolute top-0 left-0 w-72 h-72 bg-white rounded-full -translate-x-1/2 -translate-y-1/2"></div>
           <div className="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full translate-x-1/2 translate-y-1/2"></div>
         </div>
-        
+
         <div className="container mx-auto px-4 text-center relative z-10">
           <h2 className="text-4xl md:text-5xl font-bold mb-4 animate-fade-in">
             {tenant.websiteSettings?.hero?.title || 'Encuentra el vehículo perfecto para ti'}
@@ -702,26 +704,26 @@ export default function TenantPublicPage() {
 
       {/* Vehicle Categories Section */}
       {vehicles.length > 0 && (
-        <VehicleCategories 
+        <VehicleCategories
           vehicleCounts={(() => {
             const counts: Record<string, number> = {};
             const debugInfo: any[] = [];
-            
+
             // IDs válidos de categorías (de VEHICLE_TYPES)
             const validCategoryIds = [
-              'suv', 'sedan', 'pickup-truck', 'coupe', 'hatchback', 
-              'wagon', 'convertible', 'minivan', 'van', 'luxury', 
+              'suv', 'sedan', 'pickup-truck', 'coupe', 'hatchback',
+              'wagon', 'convertible', 'minivan', 'van', 'luxury',
               'crossover', 'electric', 'hybrid', 'plug-in-hybrid'
             ];
-            
+
             vehicles.forEach((v: any) => {
               // Obtener bodyType de cualquier lugar
               let bodyType = v.bodyType || v.specifications?.bodyType;
-              
+
               if (bodyType) {
                 // Normalizar: convertir a minúsculas y quitar espacios
                 const normalizedBodyType = String(bodyType).toLowerCase().trim();
-                
+
                 // Mapear variaciones comunes a los IDs correctos
                 const bodyTypeMap: Record<string, string> = {
                   'pickup truck': 'pickup-truck',
@@ -733,16 +735,16 @@ export default function TenantPublicPage() {
                   'plug_in_hybrid': 'plug-in-hybrid',
                   'plug in hybrid': 'plug-in-hybrid',
                 };
-                
+
                 // Aplicar mapeo si existe
                 const mappedBodyType = bodyTypeMap[normalizedBodyType] || normalizedBodyType;
-                
+
                 // Solo contar si es un ID válido
                 if (validCategoryIds.includes(mappedBodyType)) {
                   counts[mappedBodyType] = (counts[mappedBodyType] || 0) + 1;
                 } else {
                   // Si no coincide, intentar buscar coincidencia parcial
-                  const matchedId = validCategoryIds.find(id => 
+                  const matchedId = validCategoryIds.find(id =>
                     normalizedBodyType.includes(id) || id.includes(normalizedBodyType)
                   );
                   if (matchedId) {
@@ -762,7 +764,7 @@ export default function TenantPublicPage() {
                     }
                   }
                 }
-                
+
                 // Debug: primeros 5 vehículos con bodyType válido
                 if (debugInfo.length < 5 && validCategoryIds.includes(mappedBodyType)) {
                   debugInfo.push({
@@ -791,12 +793,12 @@ export default function TenantPublicPage() {
                 }
               }
             });
-            
+
             console.log('📊 Conteos de tipos de vehículos en frontend:', counts);
             console.log('🔍 Debug info:', debugInfo);
             console.log(`⚠️ Total vehículos: ${vehicles.length}, Con bodyType válido: ${Object.values(counts).reduce((a, b) => a + b, 0)}, Sin bodyType o no reconocido: ${vehicles.length - Object.values(counts).reduce((a, b) => a + b, 0)}`);
             console.log('📋 IDs de categorías válidos:', validCategoryIds);
-            
+
             return counts;
           })()}
         />
@@ -819,186 +821,185 @@ export default function TenantPublicPage() {
           {/* Main Content */}
           <div className="flex-1">
             <h2 className="text-3xl font-bold mb-6">Nuestro Inventario</h2>
-          
-          {/* Filtros */}
-          <div className="flex flex-col md:flex-row gap-4 mb-6">
-            <div className="flex-1">
-              <input
-                type="text"
-                placeholder="Buscar por marca, modelo o descripción..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full border rounded-lg px-4 py-2"
-              />
-            </div>
-            <select
-              value={selectedMake}
-              onChange={(e) => setSelectedMake(e.target.value)}
-              className="border rounded-lg px-4 py-2"
-            >
-              <option value="all">Todas las marcas</option>
-              {uniqueMakes.map((make) => (
-                <option key={make} value={make}>
-                  {make}
-                </option>
-              ))}
-            </select>
-          </div>
 
-          {filteredVehicles.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-gray-600 text-lg mb-4">
-                {vehicles.length === 0
-                  ? 'No hay vehículos disponibles en este momento'
-                  : 'No se encontraron vehículos con los filtros seleccionados'}
-              </p>
-              {/* Debug info siempre visible para ayudar al usuario */}
-              <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded text-left text-sm max-w-2xl mx-auto">
-                <p><strong>🔍 Información de Debug:</strong></p>
-                <p>Total vehículos recibidos del servidor: <strong>{vehicles.length}</strong></p>
-                <p>Vehículos después de filtrar: <strong>{filteredVehicles.length}</strong></p>
-                <p>Búsqueda actual: <strong>"{searchTerm}"</strong></p>
-                <p>Marca seleccionada: <strong>{selectedMake}</strong></p>
-                {vehicles.length > 0 ? (
-                  <div className="mt-2">
-                    <p><strong>✅ Vehículos recibidos (primeros 3):</strong></p>
-                    <pre className="text-xs overflow-auto max-h-40 bg-white p-2 rounded border">
-                      {JSON.stringify(vehicles.slice(0, 3).map((v: any) => ({
-                        id: v.id,
-                        make: v.make,
-                        model: v.model,
-                        year: v.year,
-                        price: v.price,
-                        status: v.status,
-                        hasPhotos: v.photos?.length > 0,
-                        photosCount: v.photos?.length || 0,
-                      })), null, 2)}
-                    </pre>
-                    <p className="mt-2 text-xs text-gray-600">
-                      💡 Si ves vehículos aquí pero no se muestran arriba, puede ser un problema con los filtros.
-                      Intenta limpiar la búsqueda y seleccionar "Todas las marcas".
-                    </p>
-                  </div>
-                ) : (
-                  <div className="mt-2">
-                    <p className="text-red-600"><strong>⚠️ No se recibieron vehículos del servidor</strong></p>
-                    <p className="text-xs text-gray-600 mt-1">
-                      Esto puede significar que:
-                    </p>
-                    <ul className="text-xs text-gray-600 list-disc list-inside mt-1">
-                      <li>El tenant no tiene vehículos creados</li>
-                      <li>Los vehículos tienen status 'sold'</li>
-                      <li>Hay un problema con el endpoint /api/tenant/{subdomain}</li>
-                    </ul>
-                    <p className="text-xs text-gray-600 mt-2">
-                      Revisa la consola del navegador (F12) para ver los logs del servidor.
-                    </p>
-                  </div>
-                )}
+            {/* Filtros */}
+            <div className="flex flex-col md:flex-row gap-4 mb-6">
+              <div className="flex-1">
+                <input
+                  type="text"
+                  placeholder="Buscar por marca, modelo o descripción..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full border rounded-lg px-4 py-2"
+                />
               </div>
+              <select
+                value={selectedMake}
+                onChange={(e) => setSelectedMake(e.target.value)}
+                className="border rounded-lg px-4 py-2"
+              >
+                <option value="all">Todas las marcas</option>
+                {uniqueMakes.map((make) => (
+                  <option key={make} value={make}>
+                    {make}
+                  </option>
+                ))}
+              </select>
             </div>
-          ) : (
-            <>
-              <p className="text-gray-600 mb-6">
-                Mostrando {filteredVehicles.length} de {vehicles.length} vehículos
-              </p>
-              {/* Grid de vehículos - 4 columnas en pantallas grandes */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {filteredVehicles.map((vehicle) => (
-                  <div
-                    key={vehicle.id}
-                    className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer group"
-                    onClick={() => setSelectedVehicle(vehicle)}
-                  >
-                    {vehicle.photos && vehicle.photos.length > 0 ? (
-                      <div className="relative h-64 bg-gray-200 overflow-hidden">
-                        <img
-                          src={vehicle.photos[0]}
-                          alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                        <div className="absolute top-2 left-2">
-                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                            vehicle.condition === 'new' 
-                              ? 'bg-green-500 text-white'
-                              : vehicle.condition === 'certified'
-                              ? 'bg-blue-500 text-white'
-                              : 'bg-gray-700 text-white'
-                          }`}>
-                            {vehicle.condition === 'new' ? 'Nuevo' : vehicle.condition === 'certified' ? 'Certificado' : 'Usado'}
-                          </span>
-                        </div>
-                        {vehicle.photos.length > 1 && (
-                          <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs font-medium">
-                            +{vehicle.photos.length - 1} fotos
+
+            {filteredVehicles.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-600 text-lg mb-4">
+                  {vehicles.length === 0
+                    ? 'No hay vehículos disponibles en este momento'
+                    : 'No se encontraron vehículos con los filtros seleccionados'}
+                </p>
+                {/* Debug info siempre visible para ayudar al usuario */}
+                <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded text-left text-sm max-w-2xl mx-auto">
+                  <p><strong>🔍 Información de Debug:</strong></p>
+                  <p>Total vehículos recibidos del servidor: <strong>{vehicles.length}</strong></p>
+                  <p>Vehículos después de filtrar: <strong>{filteredVehicles.length}</strong></p>
+                  <p>Búsqueda actual: <strong>"{searchTerm}"</strong></p>
+                  <p>Marca seleccionada: <strong>{selectedMake}</strong></p>
+                  {vehicles.length > 0 ? (
+                    <div className="mt-2">
+                      <p><strong>✅ Vehículos recibidos (primeros 3):</strong></p>
+                      <pre className="text-xs overflow-auto max-h-40 bg-white p-2 rounded border">
+                        {JSON.stringify(vehicles.slice(0, 3).map((v: any) => ({
+                          id: v.id,
+                          make: v.make,
+                          model: v.model,
+                          year: v.year,
+                          price: v.price,
+                          status: v.status,
+                          hasPhotos: v.photos?.length > 0,
+                          photosCount: v.photos?.length || 0,
+                        })), null, 2)}
+                      </pre>
+                      <p className="mt-2 text-xs text-gray-600">
+                        💡 Si ves vehículos aquí pero no se muestran arriba, puede ser un problema con los filtros.
+                        Intenta limpiar la búsqueda y seleccionar "Todas las marcas".
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="mt-2">
+                      <p className="text-red-600"><strong>⚠️ No se recibieron vehículos del servidor</strong></p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Esto puede significar que:
+                      </p>
+                      <ul className="text-xs text-gray-600 list-disc list-inside mt-1">
+                        <li>El tenant no tiene vehículos creados</li>
+                        <li>Los vehículos tienen status 'sold'</li>
+                        <li>Hay un problema con el endpoint /api/tenant/{subdomain}</li>
+                      </ul>
+                      <p className="text-xs text-gray-600 mt-2">
+                        Revisa la consola del navegador (F12) para ver los logs del servidor.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <>
+                <p className="text-gray-600 mb-6">
+                  Mostrando {filteredVehicles.length} de {vehicles.length} vehículos
+                </p>
+                {/* Grid de vehículos - 4 columnas en pantallas grandes */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {filteredVehicles.map((vehicle) => (
+                    <div
+                      key={vehicle.id}
+                      className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer group"
+                      onClick={() => setSelectedVehicle(vehicle)}
+                    >
+                      {vehicle.photos && vehicle.photos.length > 0 ? (
+                        <div className="relative h-64 bg-gray-200 overflow-hidden">
+                          <img
+                            src={vehicle.photos[0]}
+                            alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                          <div className="absolute top-2 left-2">
+                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${vehicle.condition === 'new'
+                                ? 'bg-green-500 text-white'
+                                : vehicle.condition === 'certified'
+                                  ? 'bg-blue-500 text-white'
+                                  : 'bg-gray-700 text-white'
+                              }`}>
+                              {vehicle.condition === 'new' ? 'Nuevo' : vehicle.condition === 'certified' ? 'Certificado' : 'Usado'}
+                            </span>
                           </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="relative h-64 bg-gray-200 flex items-center justify-center">
-                        <div className="text-gray-400">
-                          <svg className="w-24 h-24 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
+                          {vehicle.photos.length > 1 && (
+                            <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs font-medium">
+                              +{vehicle.photos.length - 1} fotos
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    )}
-                    <div className="p-6">
-                      <h3 className="font-bold text-xl mb-2 group-hover:text-primary-600 transition">
-                        {vehicle.year} {vehicle.make} {vehicle.model}
-                      </h3>
-                      <p className="text-3xl font-bold text-green-600 mb-4">
-                        {vehicle.currency} {vehicle.price.toLocaleString()}
-                      </p>
-                      <div className="flex flex-wrap gap-2 mb-4 text-sm text-gray-600">
-                        {vehicle.mileage && (
-                          <span className="flex items-center gap-1">
-                            <span>📏</span>
-                            {vehicle.mileage.toLocaleString()} km
-                          </span>
-                        )}
-                        {vehicle.specifications?.transmission && (
-                          <span className="flex items-center gap-1">
-                            <span>⚙️</span>
-                            {vehicle.specifications.transmission}
-                          </span>
-                        )}
-                        {vehicle.specifications?.fuelType && (
-                          <span className="flex items-center gap-1">
-                            <span>⛽</span>
-                            {vehicle.specifications.fuelType}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-700 mb-4 line-clamp-2">
-                        {vehicle.description}
-                      </p>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedVehicle(vehicle);
-                          }}
-                          className="flex-1 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition font-medium"
-                        >
-                          Ver Detalles
-                        </button>
-                        <Link
-                          href={subdomain ? `/${subdomain}/appointment?vehicleId=${vehicle.id}` : '#'}
-                          onClick={(e) => e.stopPropagation()}
-                          className="flex-1 text-center bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition font-medium"
-                        >
-                          Agendar
-                        </Link>
+                      ) : (
+                        <div className="relative h-64 bg-gray-200 flex items-center justify-center">
+                          <div className="text-gray-400">
+                            <svg className="w-24 h-24 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                        </div>
+                      )}
+                      <div className="p-6">
+                        <h3 className="font-bold text-xl mb-2 group-hover:text-primary-600 transition">
+                          {vehicle.year} {vehicle.make} {vehicle.model}
+                        </h3>
+                        <p className="text-3xl font-bold text-green-600 mb-4">
+                          {vehicle.currency} {vehicle.price.toLocaleString()}
+                        </p>
+                        <div className="flex flex-wrap gap-2 mb-4 text-sm text-gray-600">
+                          {vehicle.mileage && (
+                            <span className="flex items-center gap-1">
+                              <span>📏</span>
+                              {vehicle.mileage.toLocaleString()} km
+                            </span>
+                          )}
+                          {vehicle.specifications?.transmission && (
+                            <span className="flex items-center gap-1">
+                              <span>⚙️</span>
+                              {vehicle.specifications.transmission}
+                            </span>
+                          )}
+                          {vehicle.specifications?.fuelType && (
+                            <span className="flex items-center gap-1">
+                              <span>⛽</span>
+                              {vehicle.specifications.fuelType}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-700 mb-4 line-clamp-2">
+                          {vehicle.description}
+                        </p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedVehicle(vehicle);
+                            }}
+                            className="flex-1 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition font-medium"
+                          >
+                            Ver Detalles
+                          </button>
+                          <Link
+                            href={subdomain ? `/${subdomain}/appointment?vehicleId=${vehicle.id}` : '#'}
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex-1 text-center bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition font-medium"
+                          >
+                            Agendar
+                          </Link>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
+                  ))}
+                </div>
+              </>
+            )}
           </div>
-          
+
           {/* Sidebar with Banners - UPDATED 2025-01-04 - Shows 2 banners stacked */}
           <aside className="lg:w-80 flex-shrink-0">
             <div className="space-y-4">
@@ -1237,7 +1238,7 @@ export default function TenantPublicPage() {
                 </div>
               )}
             </div>
-            
+
             {/* Navigation */}
             <div>
               <h4 className="font-semibold mb-4">Navegación</h4>
@@ -1254,7 +1255,7 @@ export default function TenantPublicPage() {
                 <a href="#contact" className="block hover:text-white transition">Contacto</a>
               </div>
             </div>
-            
+
             {/* Contact */}
             <div>
               <h4 className="font-semibold mb-4">Contacto</h4>
@@ -1282,7 +1283,7 @@ export default function TenantPublicPage() {
                 )}
               </div>
             </div>
-            
+
             {/* Legal */}
             <div>
               <h4 className="font-semibold mb-4">Legal</h4>
@@ -1299,7 +1300,7 @@ export default function TenantPublicPage() {
               </div>
             </div>
           </div>
-          
+
           {/* Bottom Bar */}
           <div className="border-t border-gray-800 mt-8 pt-6">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-400">
@@ -1525,7 +1526,7 @@ function SocialPostsSection({ subdomain, tenant }: { subdomain: string | null; t
                   )}
                 </div>
               )}
-              
+
               <div className="p-6">
                 {/* Platforms */}
                 <div className="flex gap-2 mb-3">
@@ -1630,7 +1631,7 @@ function ReviewsSection({ subdomain }: { subdomain: string | null }) {
         const data = await response.json();
         const approvedReviews = (data.reviews || []).filter((r: any) => r.status === 'approved');
         setReviews(approvedReviews);
-        
+
         if (approvedReviews.length > 0) {
           const avg = approvedReviews.reduce((sum: number, r: any) => sum + r.rating, 0) / approvedReviews.length;
           setAverageRating(avg);
@@ -1684,65 +1685,65 @@ function ReviewsSection({ subdomain }: { subdomain: string | null }) {
         {reviews.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {reviews.slice(0, 6).map((review) => (
-            <div key={review.id} className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center justify-between mb-3">
-                <div className="font-semibold text-gray-900">{review.customerName}</div>
-                {review.featured && (
-                  <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
-                    ⭐ Destacada
-                  </span>
+              <div key={review.id} className="bg-white rounded-lg shadow p-6">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="font-semibold text-gray-900">{review.customerName}</div>
+                  {review.featured && (
+                    <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
+                      ⭐ Destacada
+                    </span>
+                  )}
+                </div>
+                {review.title && (
+                  <h4 className="font-medium text-gray-800 mb-2">{review.title}</h4>
+                )}
+                <div className="mb-3">{renderStars(review.rating)}</div>
+                <p className="text-gray-700 text-sm mb-3 line-clamp-3">{review.comment}</p>
+
+                {/* Fotos */}
+                {review.photos && review.photos.length > 0 && (
+                  <div className="mb-2 flex flex-wrap gap-1">
+                    {review.photos.slice(0, 3).map((photo: string, index: number) => (
+                      <img
+                        key={index}
+                        src={photo}
+                        alt={`Foto ${index + 1}`}
+                        className="w-16 h-16 object-cover rounded cursor-pointer hover:opacity-80"
+                        onClick={() => window.open(photo, '_blank')}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* Videos */}
+                {review.videos && review.videos.length > 0 && (
+                  <div className="mb-2">
+                    {review.videos.slice(0, 1).map((video: string, index: number) => (
+                      <video
+                        key={index}
+                        src={video}
+                        className="w-full h-32 object-cover rounded"
+                        controls
+                      />
+                    ))}
+                  </div>
+                )}
+
+                <p className="text-xs text-gray-400">
+                  {new Date(review.createdAt).toLocaleDateString('es-ES', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  })}
+                </p>
+                {review.response && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <p className="text-xs text-gray-600 mb-1">Respuesta del concesionario:</p>
+                    <p className="text-sm text-gray-700 italic">"{review.response.text}"</p>
+                  </div>
                 )}
               </div>
-              {review.title && (
-                <h4 className="font-medium text-gray-800 mb-2">{review.title}</h4>
-              )}
-              <div className="mb-3">{renderStars(review.rating)}</div>
-              <p className="text-gray-700 text-sm mb-3 line-clamp-3">{review.comment}</p>
-              
-              {/* Fotos */}
-              {review.photos && review.photos.length > 0 && (
-                <div className="mb-2 flex flex-wrap gap-1">
-                  {review.photos.slice(0, 3).map((photo: string, index: number) => (
-                    <img
-                      key={index}
-                      src={photo}
-                      alt={`Foto ${index + 1}`}
-                      className="w-16 h-16 object-cover rounded cursor-pointer hover:opacity-80"
-                      onClick={() => window.open(photo, '_blank')}
-                    />
-                  ))}
-                </div>
-              )}
-
-              {/* Videos */}
-              {review.videos && review.videos.length > 0 && (
-                <div className="mb-2">
-                  {review.videos.slice(0, 1).map((video: string, index: number) => (
-                    <video
-                      key={index}
-                      src={video}
-                      className="w-full h-32 object-cover rounded"
-                      controls
-                    />
-                  ))}
-                </div>
-              )}
-
-              <p className="text-xs text-gray-400">
-                {new Date(review.createdAt).toLocaleDateString('es-ES', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                })}
-              </p>
-              {review.response && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <p className="text-xs text-gray-600 mb-1">Respuesta del concesionario:</p>
-                  <p className="text-sm text-gray-700 italic">"{review.response.text}"</p>
-                </div>
-              )}
-            </div>
-          ))}
+            ))}
           </div>
         )}
       </div>
