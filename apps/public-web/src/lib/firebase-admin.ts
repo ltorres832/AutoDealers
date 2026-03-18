@@ -23,28 +23,22 @@ export function getFirestore(): admin.firestore.Firestore {
       const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
       const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
 
-      if (!projectId || !clientEmail || !privateKey) {
-        const missing: string[] = [];
-        if (!projectId) missing.push('FIREBASE_PROJECT_ID');
-        if (!clientEmail) missing.push('FIREBASE_CLIENT_EMAIL');
-        if (!privateKey) missing.push('FIREBASE_PRIVATE_KEY');
-
-        const error = new Error(
-          `Firebase credentials missing: ${missing.join(', ')}. ` +
-          `Please create .env.local file in apps/public-web/ with these variables. ` +
-          `Run: node get-firebase-credentials.js to set it up automatically.`
-        );
-        initializationError = error;
-        throw error;
+      if (projectId && clientEmail && privateKey) {
+        admin.initializeApp({
+          credential: admin.credential.cert({
+            projectId,
+            clientEmail,
+            privateKey,
+          }),
+        });
+        console.log('✅ Firebase Admin initialized with service account certificate');
+      } else {
+        // Fallback to Application Default Credentials (ADC) in Google Cloud environment
+        console.log('ℹ️ Firebase Admin: Missing credentials, using Application Default Credentials (ADC)');
+        admin.initializeApp({
+          projectId: projectId || 'autodealers-7f62e',
+        });
       }
-
-      admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId,
-          clientEmail,
-          privateKey,
-        }),
-      });
 
       console.log('✅ Firebase Admin initialized successfully');
       firestoreInstance = admin.firestore();

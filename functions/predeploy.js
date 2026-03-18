@@ -3,7 +3,8 @@ const path = require('path');
 const fs = require('fs');
 
 const functionsDir = __dirname;
-const apps = ['public-web', 'admin', 'dealer', 'seller', 'advertiser'];
+// Por ahora solo construir public-web (las otras apps se pueden agregar después)
+const apps = ['public-web'];
 
 console.log('🔨 Predeploy: Building all Next.js apps...');
 

@@ -12,6 +12,8 @@ coverage/
 out/
 build/
 dist/
+autodealers_flutter/build/
+autodealers_flutter/.dart_tool/
 # Generado por scripts/prepare-hosting.js para Firebase Hosting
 **/hosting/
 

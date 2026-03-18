@@ -3,14 +3,14 @@ import { verifyAuth } from '@/lib/auth';
 import { getStorage } from '@autodealers/core';
 import * as admin from 'firebase-admin';
 
-const storage = getStorage();
-const bucket = storage.bucket();
-
 const MAX_IMAGE_MB = 10;
 const MAX_VIDEO_MB = 50;
 
 export async function POST(request: NextRequest) {
   try {
+    const storage = getStorage();
+    const bucket = storage.bucket();
+
     const auth = await verifyAuth(request);
     if (!auth || auth.role !== 'advertiser') {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });

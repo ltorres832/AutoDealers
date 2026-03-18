@@ -12,13 +12,20 @@ setGlobalOptions({
 });
 
 // Helper para crear una función Next.js
+// Después del predeploy, los builds están en functions/<app>/
 const createNextAppFunction = (appName, appPath, prepareOnInit = false) => {
+  // Si appPath es relativo (empieza con ../), usar directamente
+  // Si no, asumir que está en functions/<app>/
+  const appDir = appPath.startsWith('../') 
+    ? path.resolve(__dirname, appPath)
+    : path.resolve(__dirname, appName);
+  
   const nextApp = next({
     dev: false,
     conf: {
       distDir: '.next',
     },
-    dir: path.resolve(__dirname, appPath),
+    dir: appDir,
   });
 
   let handler = null;
@@ -71,6 +78,7 @@ const createNextAppFunction = (appName, appPath, prepareOnInit = false) => {
 
 // Crear funciones separadas para cada app
 // Preparar public-web inmediatamente (app principal)
+// Después del predeploy, los builds están en functions/<app>/ (no en ../apps/)
 exports.nextjsServerPublicWeb = createNextAppFunction('public-web', 'public-web', true);
 exports.nextjsServerAdmin = createNextAppFunction('admin', 'admin', false);
 exports.nextjsServerDealer = createNextAppFunction('dealer', 'dealer', false);

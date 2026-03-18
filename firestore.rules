@@ -197,6 +197,24 @@ service cloud.firestore {
       allow update: if isOwner(tenantId); // Solo el tenant puede actualizar (marcar como leído)
       allow delete: if isAdmin();
     }
+    
+    // Sponsored Content collection - Public read access
+    match /sponsored_content/{contentId} {
+      allow read: if true;
+      allow create: if isAdmin() || isAuthenticated(); // Allow authenticated users to create ads
+      allow update: if isAdmin() || (isAuthenticated() && resource.data.advertiserId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    // Premium Banners collection - Public read access
+    match /{path=**}/premium_banners/{bannerId} {
+      allow read: if true;
+    }
+
+    // Reviews collection - Public read access
+    match /{path=**}/reviews/{reviewId} {
+      allow read: if true;
+    }
   }
 }
 

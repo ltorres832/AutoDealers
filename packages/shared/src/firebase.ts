@@ -6,7 +6,7 @@ function getAdmin() {
   if (typeof window !== 'undefined') {
     throw new Error('Firebase Admin solo puede usarse en el servidor');
   }
-  
+
   try {
     return require('firebase-admin');
   } catch (e) {
@@ -77,19 +77,19 @@ export function initializeFirebase(): AdminType['app']['App'] {
           if (fs.existsSync(envPath)) {
             const envContent = fs.readFileSync(envPath, 'utf8');
             const lines = envContent.split('\n');
-            
+
             let currentKey: string | null = null;
             let currentValue = '';
             let inMultiline = false;
             let quoteChar: string | null = null;
-            
+
             for (let i = 0; i < lines.length; i++) {
               let line = lines[i];
               const trimmed = line.trim();
-              
+
               // Saltar comentarios
               if (trimmed.startsWith('#')) continue;
-              
+
               // Buscar línea con =
               const equalIndex = trimmed.indexOf('=');
               if (equalIndex > 0 && !inMultiline) {
@@ -100,21 +100,21 @@ export function initializeFirebase(): AdminType['app']['App'] {
                   if (currentKey === 'FIREBASE_CLIENT_EMAIL' && !clientEmail) clientEmail = finalValue;
                   if (currentKey === 'FIREBASE_PRIVATE_KEY' && !privateKey) privateKey = finalValue;
                 }
-                
+
                 // Nueva variable
                 currentKey = trimmed.substring(0, equalIndex).trim();
                 let value = trimmed.substring(equalIndex + 1).trim();
-                
+
                 // Verificar si comienza con comillas (multilínea)
-                if ((value.startsWith('"') && !value.endsWith('"')) || 
-                    (value.startsWith("'") && !value.endsWith("'"))) {
+                if ((value.startsWith('"') && !value.endsWith('"')) ||
+                  (value.startsWith("'") && !value.endsWith("'"))) {
                   inMultiline = true;
                   quoteChar = value[0];
                   currentValue = value.substring(1); // Remover comilla inicial
                 } else {
                   // Valor simple (una línea)
-                  if ((value.startsWith('"') && value.endsWith('"')) || 
-                      (value.startsWith("'") && value.endsWith("'"))) {
+                  if ((value.startsWith('"') && value.endsWith('"')) ||
+                    (value.startsWith("'") && value.endsWith("'"))) {
                     value = value.slice(1, -1);
                   }
                   currentValue = value;
@@ -145,7 +145,7 @@ export function initializeFirebase(): AdminType['app']['App'] {
                 }
               }
             }
-            
+
             // Guardar última variable si queda pendiente
             if (currentKey && currentValue) {
               const finalValue = currentValue.trim();
@@ -178,7 +178,7 @@ export function initializeFirebase(): AdminType['app']['App'] {
           '  node apps/admin/configure-firebase.js'
         );
         initializationError = error;
-        
+
         console.error('❌ Firebase Admin - Variables de entorno no encontradas:', {
           hasProjectId: !!projectId,
           hasClientEmail: !!clientEmail,
@@ -186,7 +186,7 @@ export function initializeFirebase(): AdminType['app']['App'] {
           cwd: process.cwd(),
           nodeEnv: process.env.NODE_ENV,
         });
-        
+
         // En modo build, no lanzar error
         if (process.env.NEXT_PHASE === 'phase-production-build') {
           console.warn('⚠️  Firebase not initialized during build (expected if credentials are not available)');
@@ -199,73 +199,60 @@ export function initializeFirebase(): AdminType['app']['App'] {
           }
           return firebaseApp!;
         }
-        
+
         throw error;
       }
 
-      const serviceAccount = {
-        projectId,
-        clientEmail,
-        privateKey,
-      };
+      const storageBucket = projectId === 'autodealers-7f62e'
+        ? 'autodealers-7f62e.firebasestorage.app'
+        : `${projectId || 'autodealers-7f62e'}.firebasestorage.app`;
 
       try {
-        // Obtener storageBucket del proyecto (formato nuevo: proyecto-id.firebasestorage.app)
-        // Si el proyecto es autodealers-7f62e, el bucket es autodealers-7f62e.firebasestorage.app
-        const storageBucket = projectId === 'autodealers-7f62e' 
-          ? 'autodealers-7f62e.firebasestorage.app'
-          : `${projectId}.firebasestorage.app`;
-        
-      const admin = getAdmin();
-      firebaseApp = admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount as any),
-          storageBucket: storageBucket,
-        });
-        
+        const admin = getAdmin();
+
+        if (projectId && clientEmail && privateKey) {
+          firebaseApp = admin.initializeApp({
+            credential: admin.credential.cert({
+              projectId,
+              clientEmail,
+              privateKey: privateKey.replace(/\\n/g, '\n'),
+            } as any),
+            storageBucket: storageBucket,
+          });
+          console.log('✅ Firebase Admin: Initialized with service account certificate');
+        } else {
+          // Fallback to Application Default Credentials (ADC)
+          console.log('ℹ️ Firebase Admin: Using Application Default Credentials (ADC)');
+          firebaseApp = admin.initializeApp({
+            projectId: projectId || 'autodealers-7f62e',
+            storageBucket: storageBucket,
+          });
+        }
+
         console.log('✅ Firebase Storage configurado con bucket:', storageBucket);
-        
-        // Configurar Firestore para ignorar undefined ANTES de cualquier uso
-        // Esto debe hacerse inmediatamente después de inicializar
+
+        // Configurar Firestore para ignorar undefined
         try {
-          const admin = getAdmin();
-        const db = admin.firestore(firebaseApp);
+          const db = admin.firestore(firebaseApp);
           db.settings({ ignoreUndefinedProperties: true });
         } catch (settingsError: any) {
-          // Si settings ya fue llamado, ignorar (puede pasar en algunas versiones)
-          if (!settingsError.message?.includes('has already been called')) {
-            console.warn('⚠️  No se pudo configurar ignoreUndefinedProperties:', settingsError.message);
+          if (!settingsError.message?.includes('already been called')) {
+            console.warn('⚠️  Settings error:', settingsError.message);
           }
         }
-        
-        console.log('✅ Firebase Admin inicializado correctamente');
+
       } catch (initError: any) {
-        // Si ya está inicializada, obtener la instancia existente
         if (initError.code === 'app/duplicate-app') {
-          const admin = getAdmin();
           firebaseApp = admin.app();
-          console.log('✅ Firebase Admin ya estaba inicializado');
+          console.log('✅ Firebase Admin: Re-using existing instance');
         } else {
-          // Error de credenciales inválidas
-          if (initError.message?.includes('private key') || initError.message?.includes('PEM')) {
-            const error = new Error(
-              '🔥 Firebase Admin: Clave privada inválida.\n' +
-              'La FIREBASE_PRIVATE_KEY en .env.local no es válida.\n\n' +
-              'Solución:\n' +
-              '1. Ve a: https://console.firebase.google.com/\n' +
-              '2. Proyecto → Configuración → Cuentas de servicio\n' +
-              '3. "Generar nueva clave privada"\n' +
-              '4. Ejecuta: node apps/admin/configure-firebase.js\n' +
-              '5. Pega la ruta del archivo JSON descargado'
-            );
-            initializationError = error;
-            throw error;
-          }
+          console.error('🔥 Firebase Admin Initialization error:', initError);
           throw initError;
         }
       }
     } catch (error) {
       initializationError = error as Error;
-      
+
       // En modo build, no lanzar error si las credenciales no están disponibles
       if (process.env.NEXT_PHASE === 'phase-production-build') {
         console.warn('⚠️  Firebase not initialized during build (this is expected if credentials are not available)');
@@ -284,7 +271,7 @@ export function initializeFirebase(): AdminType['app']['App'] {
         }
         return firebaseApp!;
       }
-      
+
       throw error;
     }
   } else {
@@ -313,10 +300,10 @@ export function getFirestore(): any {
     } catch (error) {
       console.error('❌ Firebase no inicializado:', error);
       // Lanzar error inmediatamente en lugar de retornar Proxy
-      const errorMessage = error instanceof Error 
-        ? error.message 
+      const errorMessage = error instanceof Error
+        ? error.message
         : 'Firebase Admin no está configurado';
-      
+
       throw new Error(
         `🔥 ${errorMessage}\n` +
         'Ejecuta: node apps/admin/configure-firebase.js\n' +
@@ -324,7 +311,7 @@ export function getFirestore(): any {
       );
     }
   }
-  
+
   try {
     const app = initializeFirebase();
     const admin = getAdmin();
@@ -347,10 +334,10 @@ export function getFirestore(): any {
     console.error('❌ Firebase no inicializado:', error);
     // En lugar de retornar un Proxy, lanzar el error inmediatamente
     // Esto evita que se intente usar un objeto inválido
-    const errorMessage = error instanceof Error 
-      ? error.message 
+    const errorMessage = error instanceof Error
+      ? error.message
       : 'Firebase Admin no está configurado';
-    
+
     throw new Error(
       `🔥 ${errorMessage}\n` +
       'Ejecuta: node apps/admin/configure-firebase.js\n' +
@@ -391,14 +378,14 @@ export function getStorage(): any {
     const app = initializeFirebase();
     const admin = getAdmin();
     const storage = admin.storage(app);
-    
+
     // Verificar que el bucket esté configurado
     try {
       const projectId = app.options.projectId || process.env.FIREBASE_PROJECT_ID || 'autodealers-7f62e';
-      const bucketName = projectId === 'autodealers-7f62e' 
+      const bucketName = projectId === 'autodealers-7f62e'
         ? 'autodealers-7f62e.firebasestorage.app'
         : `${projectId}.firebasestorage.app`;
-      
+
       const bucket = storage.bucket(bucketName);
       if (!bucket.name) {
         throw new Error('Storage bucket no configurado');
@@ -408,14 +395,14 @@ export function getStorage(): any {
       console.error('❌ Error verificando storage bucket:', bucketError.message);
       // Intentar especificar el bucket explícitamente
       const projectId = app.options.projectId || process.env.FIREBASE_PROJECT_ID || 'autodealers-7f62e';
-      const bucketName = projectId === 'autodealers-7f62e' 
+      const bucketName = projectId === 'autodealers-7f62e'
         ? 'autodealers-7f62e.firebasestorage.app'
         : `${projectId}.firebasestorage.app`;
       console.log('🔄 Intentando usar bucket:', bucketName);
       const admin = getAdmin();
       return admin.storage(app).bucket(bucketName) as any;
     }
-    
+
     return storage;
   } catch (error) {
     console.error('❌ Firebase Storage no inicializado:', error);
