@@ -40,8 +40,10 @@ export function initializeFirebase(): AdminType['app']['App'] {
     return firebaseApp;
   }
 
-  // MODO DESARROLLO: Permitir trabajar sin Firebase
-  if (process.env.SKIP_FIREBASE === 'true') {
+  // MODO DESARROLLO: Permitir trabajar sin Firebase (basado en flag o entorno local)
+  const isDevelopment = process.env.NODE_ENV === 'development' || process.env.SKIP_FIREBASE === 'true';
+
+  if (isDevelopment && process.env.SKIP_FIREBASE === 'true') {
     console.log('⚠️  MODO DESARROLLO: Firebase desactivado (usando datos mock)');
     const admin = getAdmin();
     // Crear una app mock para desarrollo
@@ -218,9 +220,10 @@ export function initializeFirebase(): AdminType['app']['App'] {
           console.log('✅ Firebase Admin: Initialized with service account certificate');
         } else {
           // Fallback to Application Default Credentials (ADC)
-          console.log('ℹ️ Firebase Admin: Using Application Default Credentials (ADC)');
+          // App Hosting automatically provides identity for the backend
+          console.log('ℹ️ Firebase Admin: Using Application Default Credentials (ADC) with project:', projectId || 'detected');
           firebaseApp = admin.initializeApp({
-            projectId: projectId || 'autodealers-7f62e',
+            projectId: projectId || undefined, // Dejar que detecte si es posible
             storageBucket: storageBucket,
           });
         }

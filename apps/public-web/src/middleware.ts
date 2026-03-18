@@ -17,6 +17,12 @@ export function middleware(request: NextRequest) {
   const hostname = request.headers.get('host') || '';
   const parts = hostname.split('.');
 
+  // IGNORAR subdominios de Firebase App Hosting (suelen contener '---')
+  // Hacemos este check al principio para evitar cualquier procesamiento posterior
+  if (hostname.includes('---') || hostname.includes('amplifyapp') || hostname.includes('us-central1.hosted.app')) {
+    return NextResponse.next();
+  }
+
   // Dominios base de Firebase (NO tienen subdominio)
   const firebaseBaseDomains = [
     'autodealers-7f62e.web.app',
