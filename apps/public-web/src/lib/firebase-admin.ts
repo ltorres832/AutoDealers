@@ -19,11 +19,13 @@ export function getFirestore(): admin.firestore.Firestore {
 
   if (!admin.apps.length) {
     try {
-      const projectId = process.env.FIREBASE_PROJECT_ID;
+      // Intentar cargar credenciales del entorno
+      const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'autodealers-7f62e';
       const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
       const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
 
       if (projectId && clientEmail && privateKey) {
+        console.log('📄 Initializing Firebase Admin with service account for project:', projectId);
         admin.initializeApp({
           credential: admin.credential.cert({
             projectId,
@@ -31,12 +33,11 @@ export function getFirestore(): admin.firestore.Firestore {
             privateKey,
           }),
         });
-        console.log('✅ Firebase Admin initialized with service account certificate');
       } else {
-        // Fallback to Application Default Credentials (ADC) in Google Cloud environment
-        console.log('ℹ️ Firebase Admin: Missing credentials, using Application Default Credentials (ADC)');
+        // En Google Cloud (App Hosting), esto detectará las Application Default Credentials (ADC) automáticamente
+        console.log('☁️ Initializing Firebase Admin using App Hosting Environment (ADC)');
         admin.initializeApp({
-          projectId: projectId || 'autodealers-7f62e',
+          projectId: projectId,
         });
       }
 
