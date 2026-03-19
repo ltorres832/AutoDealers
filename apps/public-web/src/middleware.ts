@@ -14,12 +14,21 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const hostname = request.headers.get('host') || '';
+  const hostname = request.headers.get('x-forwarded-host') || request.headers.get('host') || '';
   const parts = hostname.split('.');
 
-  // IGNORAR subdominios de Firebase App Hosting (suelen contener '---')
-  // Hacemos este check al principio para evitar cualquier procesamiento posterior
-  if (hostname.includes('---') || hostname.includes('amplifyapp') || hostname.includes('us-central1.hosted.app')) {
+  console.log('🛡️ Middleware check:', { hostname, pathname });
+
+  // IGNORAR agresivamente dominios técnicos (App Hosting, Firebase, etc.)
+  const isTechnicalDomain =
+    hostname.includes('---') ||
+    hostname.includes('amplifyapp') ||
+    hostname.includes('us-central1.hosted.app') ||
+    hostname.includes('web.app') && !hostname.startsWith('autodealers-7f62e') ||
+    hostname.includes('firebaseapp.com') && !hostname.startsWith('autodealers-7f62e');
+
+  if (isTechnicalDomain) {
+    console.log('⏩ Skipping technical domain:', hostname);
     return NextResponse.next();
   }
 

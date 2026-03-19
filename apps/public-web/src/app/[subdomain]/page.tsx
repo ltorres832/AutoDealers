@@ -188,14 +188,16 @@ export default function TenantPublicPage() {
         const parts = hostname.split('.');
         const fixedSubdomains = ['admin', 'dealers', 'sellers', 'ads', 'www'];
 
-        if (hostname.includes('localhost')) {
+        if (hostname.includes('---') || hostname.includes('amplifyapp') || hostname.includes('us-central1.hosted.app')) {
+          detectedSubdomain = null;
+        } else if (hostname.includes('localhost')) {
           const localhostParts = hostname.split(':');
           if (localhostParts[0] !== 'localhost' && localhostParts[0] !== 'www') {
             detectedSubdomain = localhostParts[0];
           }
         } else if (parts.length >= 3) {
           const sub = parts[0];
-          if (!fixedSubdomains.includes(sub.toLowerCase())) {
+          if (!fixedSubdomains.includes(sub.toLowerCase()) && !sub.includes('---')) {
             detectedSubdomain = sub;
           }
         }
@@ -921,10 +923,10 @@ export default function TenantPublicPage() {
                           />
                           <div className="absolute top-2 left-2">
                             <span className={`px-3 py-1 rounded-full text-xs font-bold ${vehicle.condition === 'new'
-                                ? 'bg-green-500 text-white'
-                                : vehicle.condition === 'certified'
-                                  ? 'bg-blue-500 text-white'
-                                  : 'bg-gray-700 text-white'
+                              ? 'bg-green-500 text-white'
+                              : vehicle.condition === 'certified'
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-gray-700 text-white'
                               }`}>
                               {vehicle.condition === 'new' ? 'Nuevo' : vehicle.condition === 'certified' ? 'Certificado' : 'Usado'}
                             </span>

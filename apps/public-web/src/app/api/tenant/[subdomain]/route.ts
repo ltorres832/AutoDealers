@@ -19,6 +19,14 @@ export async function GET(
       );
     }
 
+    // IGNORAR subdominios técnicos de Firebase App Hosting
+    if (subdomain.includes('---')) {
+      return NextResponse.json(
+        { error: 'Technical domain detected, not a tenant' },
+        { status: 404 }
+      );
+    }
+
     // Buscar tenant por subdomain
     const tenantsSnapshot = await db
       .collection('tenants')
