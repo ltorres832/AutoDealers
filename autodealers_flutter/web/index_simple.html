@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>AutoDealers Test</title>
+</head>
+<body>
+  <div id="loading">Cargando Flutter...</div>
+  <script>
+    console.log('HTML: Script ejecutado');
+    console.log('HTML: Flutter loader disponible:', typeof _flutter !== 'undefined');
+    
+    if (typeof _flutter === 'undefined') {
+      document.getElementById('loading').innerHTML = 'ERROR: Flutter loader no encontrado. Verifica que flutter.js se cargó correctamente.';
+      console.error('ERROR: _flutter no está definido');
+    } else {
+      console.log('HTML: Inicializando Flutter...');
+      window.addEventListener('load', function(ev) {
+        console.log('HTML: Window loaded');
+        try {
+          _flutter.loader.loadEntrypoint({
+            serviceWorker: {
+              serviceWorkerVersion: null,
+            },
+            onEntrypointLoaded: function(engineInitializer) {
+              console.log('HTML: Entrypoint loaded');
+              engineInitializer.initializeEngine().then(function(appRunner) {
+                console.log('HTML: Engine initialized, running app');
+                appRunner.runApp();
+              }).catch(function(error) {
+                console.error('HTML: Error initializing engine:', error);
+                document.getElementById('loading').innerHTML = 'ERROR: ' + error.toString();
+              });
+            }
+          });
+        } catch (error) {
+          console.error('HTML: Error:', error);
+          document.getElementById('loading').innerHTML = 'ERROR: ' + error.toString();
+        }
+      });
+    }
+  </script>
+  <script src="flutter.js" defer></script>
+</body>
+</html>
+
+

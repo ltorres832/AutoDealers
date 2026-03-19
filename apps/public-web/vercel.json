@@ -1,6 +1,0 @@
-{
-  "buildCommand": "cd apps/public-web && npm run build",
-  "outputDirectory": "apps/public-web/.next",
-  "framework": "nextjs",
-  "installCommand": "npm install --legacy-peer-deps --no-audit"
-}

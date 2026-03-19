@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="AutoDealers - Plataforma SaaS para Dealers y Vendedores">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="AutoDealers">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>AutoDealers</title>
+  <link rel="manifest" href="manifest.json">
+
+  <script>
+    // The value below is injected by flutter build, do not touch.
+    var serviceWorkerVersion = null;
+  </script>
+  <!-- This script adds the flutter initialization JS code -->
+  <script src="flutter.js" defer></script>
+</head>
+<body style="margin: 0; background: #ffffff;">
+  <div id="loading" style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#e3f2fd;font-family:sans-serif;color:#1565c0;padding:20px;text-align:center;z-index:9999;">
+    <p style="margin:0 0 8px 0;font-size:20px;font-weight:bold;">Cargando AutoDealers…</p>
+    <p style="margin:0;font-size:12px;color:#666;">Si ves esto, la página cargó. Si no cambia, recarga (Ctrl+F5).</p>
+    <p id="loading-hint" style="margin:12px 0 0 0;font-size:12px;color:#999;display:none;">Si sigue igual, prueba en incógnito o comprueba /deploy-ok.txt</p>
+    <pre id="page-error" style="display:none;margin:16px 0 0 0;padding:12px;background:#fee;color:#c00;font-size:12px;text-align:left;max-width:90%;overflow:auto;border:1px solid #fcc;"></pre>
+  </div>
+  <script>
+    function showError(msg) {
+      var el = document.getElementById('page-error');
+      var loading = document.getElementById('loading');
+      if (el && loading) {
+        el.textContent = msg;
+        el.style.display = 'block';
+        loading.style.alignItems = 'flex-start';
+      }
+    }
+    window.onerror = function(m, u, l, c, err) {
+      showError('Error: ' + (m || '') + (u ? '\nEn: ' + u : '') + (err && err.stack ? '\n' + err.stack : ''));
+      return false;
+    };
+    // Flutter web a veces lanza "Connection closed" por el teclado/IME; no es crítico.
+    window.addEventListener('unhandledrejection', function(ev) {
+      var msg = (ev.reason && (ev.reason.message || ev.reason.toString)) ? (ev.reason.message || ev.reason.toString()) : String(ev.reason);
+      if (msg && msg.indexOf('Connection closed') !== -1) {
+        ev.preventDefault();
+        ev.stopPropagation();
+      }
+    });
+    setTimeout(function() {
+      var hint = document.getElementById('loading-hint');
+      if (hint && document.getElementById('loading')) hint.style.display = 'block';
+    }, 5000);
+    window.addEventListener('load', function(ev) {
+      try {
+        if (typeof _flutter !== 'undefined' && _flutter.loader) {
+          _flutter.loader.loadEntrypoint({
+            serviceWorker: serviceWorkerVersion ? { serviceWorkerVersion: serviceWorkerVersion } : undefined,
+            onEntrypointLoaded: function(engineInitializer) {
+              engineInitializer.initializeEngine().then(function(appRunner) {
+                appRunner.runApp();
+                // Quitar loading 2s después para dar tiempo a que Flutter pinte
+                setTimeout(function() {
+                  var el = document.getElementById('loading');
+                  if (el) el.remove();
+                }, 2000);
+              }).catch(function(error) {
+                showError('Error al iniciar Flutter:\n' + (error && error.message ? error.message : String(error)) + (error && error.stack ? '\n' + error.stack : ''));
+              });
+            }
+          });
+        } else {
+          showError('No se encontró el cargador de Flutter (flutter.js). Comprueba que la URL sea correcta y recarga.');
+        }
+      } catch (error) {
+        showError('Error: ' + (error.message || String(error)) + (error.stack ? '\n' + error.stack : ''));
+      }
+    });
+  </script>
+</body>
+</html>
+
+
