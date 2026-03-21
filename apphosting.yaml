@@ -16,9 +16,11 @@ runConfig:
   minInstances: 0
 
 env:
+  - variable: FIREBASE_PROJECT_ID
+    value: autodealers-7f62e
   - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
     value: autodealers-7f62e
   - variable: NODE_ENV
     value: production
   - variable: SKIP_FIREBASE
-    value: "true"
+    value: "false"
