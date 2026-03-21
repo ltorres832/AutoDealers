@@ -1,7 +1,7 @@
 buildConfig:
   runtime: nodejs20
-  buildCommand: npm install --legacy-peer-deps && cd apps/public-web && npm run build
-  outputDir: apps/public-web/.next
+  buildCommand: npm install --legacy-peer-deps && cd apps/public-web && npm run build && cp -r .next ../../.next
+  outputDir: .next
 
 runConfig:
   concurrency: 100
