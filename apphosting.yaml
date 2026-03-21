@@ -1,7 +1,14 @@
 buildConfig:
   runtime: nodejs20
-  buildCommand: npm install --legacy-peer-deps && npx turbo run build --filter=@autodealers/public-web... && mkdir -p .next && cp -r apps/public-web/.next/* .next/
-  outputDir: .next
+  buildCommand: |
+    npm install --legacy-peer-deps && 
+    npx turbo run build --filter=@autodealers/public-web && 
+    mkdir -p .next/standalone && 
+    cp -r apps/public-web/.next/standalone/. .next/standalone/ && 
+    cp -r apps/public-web/.next/standalone/apps/public-web/.next .next/standalone/.next &&
+    cp -r apps/public-web/.next/static .next/static &&
+    cp -r apps/public-web/public .next/public
+  outputDir: .next/standalone
 
 runConfig:
   concurrency: 100
@@ -9,43 +16,7 @@ runConfig:
   minInstances: 0
 
 env:
-  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
-    secret: NEXT_PUBLIC_FIREBASE_API_KEY
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-    secret: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-    availability:
-      - BUILD
-      - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
     value: autodealers-7f62e
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
-    value: autodealers-7f62e.firebasestorage.app
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
-    secret: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
-    secret: NEXT_PUBLIC_FIREBASE_APP_ID
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: FIREBASE_PROJECT_ID
-    value: autodealers-7f62e
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: NEXT_PUBLIC_APP_URL
-    value: https://public-web-app--autodealers-7f62e.us-central1.hosted.app
-    availability:
-      - BUILD
-      - RUNTIME
+  - variable: NODE_ENV
+    value: production
