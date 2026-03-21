@@ -25,8 +25,28 @@ function getAdmin(): any {
                   get: () => Promise.resolve({ empty: true, docs: [] })
                 })
               })
+            }),
+            get: () => Promise.resolve({ exists: false, data: () => ({}) }),
+            set: () => ({}),
+            update: () => ({}),
+            delete: () => ({}),
+          })
+        }),
+        collectionGroup: () => ({
+          where: () => ({
+            orderBy: () => ({
+              limit: () => ({
+                get: () => Promise.resolve({ empty: true, docs: [] })
+              })
             })
           })
+        }),
+        doc: () => ({ get: () => Promise.resolve({ exists: false, data: () => ({}) }) }),
+        runTransaction: async (cb: any) => await cb({
+          get: () => Promise.resolve({ exists: false, data: () => ({}) }),
+          update: () => ({}),
+          set: () => ({}),
+          delete: () => ({}),
         }),
         batch: () => ({
           set: () => ({}),

@@ -7,6 +7,10 @@ buildConfig:
     cp -r apps/public-web/.next/static/. .next/standalone/apps/public-web/.next/static &&
     mkdir -p .next/standalone/apps/public-web/public &&
     cp -r apps/public-web/public/. .next/standalone/apps/public-web/public &&
+    mkdir -p .next/standalone/.next/static &&
+    cp -r apps/public-web/.next/static/. .next/standalone/.next/static &&
+    mkdir -p .next/standalone/public &&
+    cp -r apps/public-web/public/. .next/standalone/public &&
     cp -r apps/public-web/.next/standalone/. .next/standalone/
   outputDir: .next/standalone
 

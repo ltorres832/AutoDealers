@@ -18,32 +18,45 @@ function getAdmin() {
 
     if (isBuildOrSkip) {
       // Retornar un objeto mock durante el build
+      const firestoreMock = () => ({
+        settings: () => ({}),
+        collection: () => ({ doc: () => ({ collection: () => ({ where: () => ({ limit: () => ({ get: () => Promise.resolve({ empty: true, docs: [] }) }) }) }) }) }),
+        collectionGroup: () => ({ where: () => ({ orderBy: () => ({ limit: () => ({ get: () => Promise.resolve({ empty: true, docs: [] }) }) }) }) }),
+        doc: () => ({ get: () => Promise.resolve({ exists: false, data: () => ({}) }) }),
+        runTransaction: async (cb: any) => await cb({
+          get: () => Promise.resolve({ exists: false, data: () => ({}) }),
+          update: () => ({}),
+          set: () => ({}),
+          delete: () => ({}),
+        }),
+      });
+
+      // Añadir propiedades estáticas al mock de firestore
+      Object.assign(firestoreMock, {
+        FieldValue: {
+          serverTimestamp: () => ({ _type: 'timestamp' }),
+          increment: (n: number) => ({ _type: 'increment', n }),
+          arrayUnion: (...args: any[]) => ({ _type: 'arrayUnion', args }),
+          arrayRemove: (...args: any[]) => ({ _type: 'arrayRemove', args }),
+          delete: () => ({ _type: 'delete' }),
+        },
+        Timestamp: {
+          now: () => new Date(),
+          fromDate: (d: Date) => d,
+          fromMillis: (m: number) => new Date(m),
+        }
+      });
+
       return {
         apps: [],
         initializeApp: () => ({}),
         app: () => ({
-          firestore: () => ({
-            settings: () => ({}),
-            collection: () => ({ doc: () => ({ collection: () => ({ where: () => ({ limit: () => ({ get: () => Promise.resolve({ empty: true, docs: [] }) }) }) }) }) }),
-          }),
+          firestore: firestoreMock,
           auth: () => ({}),
           storage: () => ({}),
         }),
         credential: { cert: () => ({}) },
-        firestore: {
-          FieldValue: {
-            serverTimestamp: () => ({ _type: 'timestamp' }),
-            increment: (n: number) => ({ _type: 'increment', n }),
-            arrayUnion: (...args: any[]) => ({ _type: 'arrayUnion', args }),
-            arrayRemove: (...args: any[]) => ({ _type: 'arrayRemove', args }),
-            delete: () => ({ _type: 'delete' }),
-          },
-          Timestamp: {
-            now: () => new Date(),
-            fromDate: (d: Date) => d,
-            fromMillis: (m: number) => new Date(m),
-          }
-        },
+        firestore: firestoreMock,
         auth: () => ({}),
         storage: () => ({}),
       } as any;
