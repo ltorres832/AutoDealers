@@ -84,16 +84,23 @@ export function initializeFirebase(): any {
   }
 
   const admin = getAdmin();
-  // MODO DESARROLLO: Permitir trabajar sin Firebase
-  if (process.env.SKIP_FIREBASE === 'true') {
-    console.log('⚠️  MODO DESARROLLO: Firebase desactivado (usando datos mock)');
-    // Crear una app mock para desarrollo
+  // MODO DESARROLLO O BUILD: Permitir trabajar sin Firebase (basado en flag, entorno local o fase de build)
+  const isBuild = process.env.NEXT_PHASE === 'phase-production-build';
+
+  if (process.env.SKIP_FIREBASE === 'true' || isBuild) {
+    if (isBuild) {
+      console.log('⚠️  BUILD PHASE: Usando Firebase Admin mock para compilación');
+    } else {
+      console.log('⚠️  MODO DESARROLLO: Firebase desactivado (usando datos mock)');
+    }
+
+    // Crear una app mock
     if (admin.apps.length === 0) {
       firebaseApp = admin.initializeApp({
-        projectId: 'autodealers-7f62e-mock',
-      }, 'mock-app');
+        projectId: isBuild ? 'mock-project' : 'autodealers-7f62e-mock',
+      }, isBuild ? '[DEFAULT]' : 'mock-app');
     } else {
-      firebaseApp = admin.app();
+      firebaseApp = admin.app(isBuild ? undefined : 'mock-app');
     }
     return firebaseApp;
   }

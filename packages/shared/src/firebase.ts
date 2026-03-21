@@ -65,19 +65,25 @@ export function initializeFirebase(): AdminType['app']['App'] {
     return firebaseApp;
   }
 
-  // MODO DESARROLLO: Permitir trabajar sin Firebase (basado en flag o entorno local)
+  // MODO DESARROLLO O BUILD: Permitir trabajar sin Firebase (basado en flag, entorno local o fase de build)
   const isDevelopment = process.env.NODE_ENV === 'development' || process.env.SKIP_FIREBASE === 'true';
+  const isBuild = process.env.NEXT_PHASE === 'phase-production-build';
 
-  if (isDevelopment && process.env.SKIP_FIREBASE === 'true') {
-    console.log('⚠️  MODO DESARROLLO: Firebase desactivado (usando datos mock)');
+  if ((isDevelopment && process.env.SKIP_FIREBASE === 'true') || isBuild) {
+    if (isBuild) {
+      console.log('⚠️  BUILD PHASE: Usando Firebase Admin mock para compilación');
+    } else {
+      console.log('⚠️  MODO DESARROLLO: Firebase desactivado (usando datos mock)');
+    }
+
     const admin = getAdmin();
-    // Crear una app mock para desarrollo
+    // Crear una app mock
     if (admin.apps.length === 0) {
       firebaseApp = admin.initializeApp({
-        projectId: 'autodealers-7f62e-mock',
-      }, 'mock-app');
+        projectId: isBuild ? 'mock-project' : 'autodealers-7f62e-mock',
+      }, isBuild ? '[DEFAULT]' : 'mock-app');
     } else {
-      firebaseApp = admin.app();
+      firebaseApp = admin.app(isBuild ? undefined : 'mock-app');
     }
     return firebaseApp;
   }
@@ -246,9 +252,10 @@ export function initializeFirebase(): AdminType['app']['App'] {
         } else {
           // Fallback to Application Default Credentials (ADC)
           // App Hosting automatically provides identity for the backend
-          console.log('ℹ️ Firebase Admin: Using Application Default Credentials (ADC) with project:', projectId || 'detected');
+          const effectiveProjectId = projectId || process.env.GOOGLE_CLOUD_PROJECT || process.env.GCP_PROJECT;
+          console.log('ℹ️ Firebase Admin: Using Application Default Credentials (ADC). Project:', effectiveProjectId || 'detected');
           firebaseApp = admin.initializeApp({
-            projectId: projectId || undefined, // Dejar que detecte si es posible
+            projectId: effectiveProjectId,
             storageBucket: storageBucket,
           });
         }
