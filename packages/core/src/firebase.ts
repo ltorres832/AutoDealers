@@ -14,34 +14,56 @@ function getAdmin(): any {
       process.env.NODE_ENV === 'test';
 
     if (isBuildOrSkip) {
+      // Crear una función mock para firestore() que también tenga propiedades adicionales
+      const firestoreMock = () => ({
+        settings: () => ({}),
+        collection: () => ({
+          doc: () => ({
+            collection: () => ({
+              where: () => ({
+                limit: () => ({
+                  get: () => Promise.resolve({ empty: true, docs: [] })
+                })
+              })
+            })
+          })
+        }),
+        batch: () => ({
+          set: () => ({}),
+          update: () => ({}),
+          delete: () => ({}),
+          commit: () => Promise.resolve(),
+        }),
+      });
+
+      // Adjuntar propiedades FieldValue y Timestamp a la función mock
+      Object.assign(firestoreMock, {
+        FieldValue: {
+          serverTimestamp: () => ({ _type: 'timestamp' }),
+          increment: (n: number) => ({ _type: 'increment', n }),
+          arrayUnion: (...args: any[]) => ({ _type: 'arrayUnion', args }),
+          arrayRemove: (...args: any[]) => ({ _type: 'arrayRemove', args }),
+          delete: () => ({ _type: 'delete' }),
+        },
+        Timestamp: {
+          now: () => new Date(),
+          fromDate: (d: Date) => d,
+          fromMillis: (m: number) => new Date(m),
+        }
+      });
+
       // Retornar un objeto mock durante el build
       return {
         apps: [],
         initializeApp: () => ({ options: { projectId: 'mock-project' } }),
         app: () => ({
           options: { projectId: 'mock-project' },
-          firestore: () => ({
-            settings: () => ({}),
-            collection: () => ({ doc: () => ({ collection: () => ({ where: () => ({ limit: () => ({ get: () => Promise.resolve({ empty: true, docs: [] }) }) }) }) }) }),
-          }),
+          firestore: firestoreMock,
           auth: () => ({}),
           storage: () => ({ bucket: () => ({ name: 'mock' }) }),
         }),
         credential: { cert: () => ({}) },
-        firestore: {
-          FieldValue: {
-            serverTimestamp: () => ({ _type: 'timestamp' }),
-            increment: (n: number) => ({ _type: 'increment', n }),
-            arrayUnion: (...args: any[]) => ({ _type: 'arrayUnion', args }),
-            arrayRemove: (...args: any[]) => ({ _type: 'arrayRemove', args }),
-            delete: () => ({ _type: 'delete' }),
-          },
-          Timestamp: {
-            now: () => new Date(),
-            fromDate: (d: Date) => d,
-            fromMillis: (m: number) => new Date(m),
-          }
-        },
+        firestore: firestoreMock,
         auth: () => ({}),
         storage: () => ({}),
       } as any;

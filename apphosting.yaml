@@ -3,11 +3,11 @@ buildConfig:
   buildCommand: |
     npm install --legacy-peer-deps && 
     npx turbo run build --filter=@autodealers/public-web && 
-    mkdir -p .next/standalone && 
-    cp -r apps/public-web/.next/standalone/. .next/standalone/ && 
-    cp -r apps/public-web/.next/standalone/apps/public-web/.next .next/standalone/.next &&
-    cp -r apps/public-web/.next/static .next/static &&
-    cp -r apps/public-web/public .next/public
+    mkdir -p .next/standalone/apps/public-web/.next/static &&
+    cp -r apps/public-web/.next/static/. .next/standalone/apps/public-web/.next/static &&
+    mkdir -p .next/standalone/apps/public-web/public &&
+    cp -r apps/public-web/public/. .next/standalone/apps/public-web/public &&
+    cp -r apps/public-web/.next/standalone/. .next/standalone/
   outputDir: .next/standalone
 
 runConfig:
