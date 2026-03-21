@@ -1,7 +1,7 @@
 buildConfig:
   runtime: nodejs20
-  buildCommand: npm install --legacy-peer-deps && cd apps/public-web && npm run build
-  outputDir: apps/public-web/.next
+  buildCommand: npm install --legacy-peer-deps && npx turbo run build --filter=@autodealers/public-web... && mkdir -p .next && cp -r apps/public-web/.next/* .next/
+  outputDir: .next
 
 runConfig:
   concurrency: 100
