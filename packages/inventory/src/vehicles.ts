@@ -1,8 +1,7 @@
 // Gestión de vehículos
 
 import { Vehicle, VehicleFilters, VehicleStatus } from './types';
-import { getFirestore } from '@autodealers/shared';
-import * as admin from 'firebase-admin';
+import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
 
 // Lazy initialization - solo se inicializa cuando se necesita
 function getDb() {
@@ -16,11 +15,11 @@ function getDb() {
 async function generateStockNumber(tenantId: string): Promise<string> {
   const today = new Date();
   const dateStr = today.toISOString().split('T')[0].replace(/-/g, ''); // YYYYMMDD
-  
+
   // Buscar el último número de stock del día para este tenant
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
-  
+
   try {
     const vehiclesSnapshot = await getDb()
       .collection('tenants')
@@ -29,7 +28,7 @@ async function generateStockNumber(tenantId: string): Promise<string> {
       .where('stockNumber', '>=', `STK-${dateStr}-0001`)
       .where('stockNumber', '<=', `STK-${dateStr}-9999`)
       .get();
-    
+
     // Encontrar el número más alto del día
     let maxNumber = 0;
     vehiclesSnapshot.docs.forEach((doc: any) => {
@@ -41,7 +40,7 @@ async function generateStockNumber(tenantId: string): Promise<string> {
         }
       }
     });
-    
+
     // Generar nuevo número (incrementar en 1)
     const nextNumber = (maxNumber + 1).toString().padStart(4, '0');
     return `STK-${dateStr}-${nextNumber}`;
@@ -70,7 +69,7 @@ export async function createVehicle(
   // SIEMPRE generar número de stock automáticamente si no se proporciona uno válido
   // Verificar tanto en el nivel superior como en specifications
   let stockNumber = (vehicleData as any).stockNumber || (vehicleData as any).specifications?.stockNumber;
-  
+
   // Si está vacío, undefined, o no es válido, generar uno nuevo
   if (!stockNumber || (typeof stockNumber === 'string' && stockNumber.trim() === '')) {
     console.log('📦 Generando número de stock automáticamente para tenant:', tenantId);
@@ -88,7 +87,7 @@ export async function createVehicle(
   } else {
     console.log('📦 Usando stockNumber proporcionado:', stockNumber);
   }
-  
+
   // Asegurar que siempre tengamos un stockNumber válido (doble verificación)
   if (!stockNumber || (typeof stockNumber === 'string' && stockNumber.trim() === '')) {
     const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
@@ -100,7 +99,7 @@ export async function createVehicle(
   // Si stockNumber está en specifications, moverlo al nivel superior
   // También asegurar que bodyType esté en ambos lugares para compatibilidad
   let bodyType = (vehicleData as any).bodyType || (vehicleData as any).specifications?.bodyType;
-  
+
   // Normalizar bodyType: convertir a string, quitar espacios, convertir a minúsculas
   // Solo guardar si tiene un valor válido (no vacío, no undefined, no null)
   if (bodyType) {
@@ -113,7 +112,7 @@ export async function createVehicle(
   } else {
     bodyType = undefined;
   }
-  
+
   // Preparar datos finales
   const finalVehicleData: any = {
     ...vehicleData,
@@ -133,18 +132,18 @@ export async function createVehicle(
   if (finalVehicleData.assignedTo) {
     console.log(`✅ Vehículo tiene assignedTo: ${finalVehicleData.assignedTo}`);
   }
-  
+
   // Solo incluir bodyType si tiene un valor válido
   if (bodyType) {
     finalVehicleData.bodyType = bodyType;
   }
-  
+
   // Preparar specifications
   finalVehicleData.specifications = {
     ...vehicleData.specifications,
     stockNumber, // También guardarlo en specifications para compatibilidad
   };
-  
+
   // Solo incluir bodyType en specifications si tiene un valor válido
   if (bodyType) {
     finalVehicleData.specifications.bodyType = bodyType;
@@ -167,15 +166,15 @@ export async function createVehicle(
 
   // Asegurar que el vehículo tenga status 'available' por defecto si no se especifica
   const vehicleStatus = finalVehicleData.status || 'available';
-  
+
   const dataToSave = {
     tenantId,
     ...finalVehicleData,
     status: vehicleStatus,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: getFirestoreFieldValue().serverTimestamp(),
+    updatedAt: getFirestoreFieldValue().serverTimestamp(),
   };
-  
+
   console.log('💾 Datos que se guardarán en Firestore:', {
     vehicleId: docRef.id,
     tenantId,
@@ -186,9 +185,9 @@ export async function createVehicle(
     status: dataToSave.status,
     specificationsKeys: dataToSave.specifications ? Object.keys(dataToSave.specifications) : [],
   });
-  
+
   await docRef.set(dataToSave as any);
-  
+
   // Verificar que se guardó correctamente
   const savedDoc = await docRef.get();
   const savedData = savedDoc.data();
@@ -247,8 +246,8 @@ export async function getVehicles(
   filters?: VehicleFilters
 ): Promise<Vehicle[]> {
   console.log(`   📦 getVehicles() llamado con filtros:`, JSON.stringify(filters));
-  
-  let query: admin.firestore.Query = getDb()
+
+  let query: any = getDb()
     .collection('tenants')
     .doc(tenantId)
     .collection('vehicles');
@@ -291,7 +290,7 @@ export async function getVehicles(
 
   let snapshot;
   let vehicles: Vehicle[];
-  
+
   try {
     snapshot = await query.get();
     console.log(`   ✅ Consulta exitosa: ${snapshot.docs.length} documentos`);
@@ -308,21 +307,21 @@ export async function getVehicles(
   } catch (queryError: any) {
     console.log(`   ❌ Consulta falló:`, queryError.message);
     // Si la consulta falla por falta de índice, intentar sin orderBy
-    const isIndexError = queryError.code === 9 || 
-                         queryError.message?.includes('index') || 
-                         queryError.details?.includes('index') ||
-                         queryError.message?.includes('FAILED_PRECONDITION');
-    
+    const isIndexError = queryError.code === 9 ||
+      queryError.message?.includes('index') ||
+      queryError.details?.includes('index') ||
+      queryError.message?.includes('FAILED_PRECONDITION');
+
     if (isIndexError) {
       console.warn(`⚠️ Consulta falló por falta de índice compuesto para tenant ${tenantId}, reintentando sin orderBy...`);
-      
+
       try {
         // Reconstruir la consulta sin orderBy
-        let fallbackQuery: admin.firestore.Query = getDb()
+        let fallbackQuery: any = getDb()
           .collection('tenants')
           .doc(tenantId)
           .collection('vehicles');
-        
+
         if (filters?.status) {
           fallbackQuery = fallbackQuery.where('status', '==', filters.status);
         }
@@ -347,7 +346,7 @@ export async function getVehicles(
         if (filters?.condition) {
           fallbackQuery = fallbackQuery.where('condition', '==', filters.condition);
         }
-        
+
         // Obtener sin orderBy
         snapshot = await fallbackQuery.get();
         console.log(`   ✅ Fallback exitoso: ${snapshot.docs.length} documentos`);
@@ -371,14 +370,14 @@ export async function getVehicles(
       throw queryError;
     }
   }
-  
+
   // Ordenar en memoria por createdAt (más recientes primero)
   vehicles = vehicles.sort((a, b) => {
     const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
     const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
     return dateB - dateA;
   });
-  
+
   // Filtro de búsqueda de texto (si existe)
   if (filters?.search) {
     const searchLower = filters.search.toLowerCase();
@@ -407,7 +406,7 @@ export async function updateVehicle(
   updates: Partial<Vehicle>
 ): Promise<void> {
   console.log('🔄 updateVehicle llamado:', { tenantId, vehicleId, updates });
-  
+
   // Obtener el vehículo existente para preservar el stockNumber si no se proporciona
   const existingVehicleDoc = await getDb()
     .collection('tenants')
@@ -415,13 +414,13 @@ export async function updateVehicle(
     .collection('vehicles')
     .doc(vehicleId)
     .get();
-  
+
   const existingData = existingVehicleDoc.exists ? existingVehicleDoc.data() : null;
   const existingStockNumber = existingData?.stockNumber || existingData?.specifications?.stockNumber;
-  
+
   // Preparar datos para actualizar, eliminando undefined
   const cleanUpdates: any = {
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: getFirestoreFieldValue().serverTimestamp(),
   };
 
   // Solo incluir campos que están definidos
@@ -431,14 +430,14 @@ export async function updateVehicle(
       cleanUpdates[key] = value;
     }
   });
-  
+
   // CRÍTICO: Si no se proporciona stockNumber, preservar el existente O generar uno nuevo si no existe
   if (!cleanUpdates.stockNumber) {
     if (existingStockNumber) {
       // Preservar el existente
       cleanUpdates.stockNumber = existingStockNumber;
       console.log('📦 Preservando stockNumber existente:', existingStockNumber);
-      
+
       // También asegurar que esté en specifications
       if (cleanUpdates.specifications && typeof cleanUpdates.specifications === 'object') {
         cleanUpdates.specifications.stockNumber = existingStockNumber;
@@ -455,7 +454,7 @@ export async function updateVehicle(
         const newStockNumber = await generateStockNumber(tenantId);
         cleanUpdates.stockNumber = newStockNumber;
         console.log('✅ StockNumber generado automáticamente:', newStockNumber);
-        
+
         // También asegurar que esté en specifications
         if (cleanUpdates.specifications && typeof cleanUpdates.specifications === 'object') {
           cleanUpdates.specifications.stockNumber = newStockNumber;
@@ -478,7 +477,7 @@ export async function updateVehicle(
         const fallbackStockNumber = `STK-${dateStr}-${timestamp}`;
         cleanUpdates.stockNumber = fallbackStockNumber;
         console.log('⚠️ Usando fallback:', fallbackStockNumber);
-        
+
         if (cleanUpdates.specifications && typeof cleanUpdates.specifications === 'object') {
           cleanUpdates.specifications.stockNumber = fallbackStockNumber;
         } else {
@@ -490,7 +489,7 @@ export async function updateVehicle(
       }
     }
   }
-  
+
   // CRÍTICO: Manejar bodyType - asegurar que esté en ambos lugares
   const bodyType = cleanUpdates.bodyType || existingData?.bodyType || existingData?.specifications?.bodyType;
   if (bodyType) {
@@ -498,7 +497,7 @@ export async function updateVehicle(
     if (normalizedBodyType !== '' && normalizedBodyType !== 'undefined' && normalizedBodyType !== 'null') {
       cleanUpdates.bodyType = normalizedBodyType;
       console.log('🚗 Guardando bodyType:', normalizedBodyType);
-      
+
       // También asegurar que esté en specifications
       if (cleanUpdates.specifications && typeof cleanUpdates.specifications === 'object') {
         cleanUpdates.specifications.bodyType = normalizedBodyType;
@@ -548,7 +547,7 @@ export async function updateVehicle(
       .doc(vehicleId);
     const updatedDoc = await docRef.get();
     const data = updatedDoc.data();
-    
+
     console.log('✅ Vehículo actualizado:', {
       id: updatedDoc.id,
       photos: data?.photos,
@@ -556,7 +555,7 @@ export async function updateVehicle(
       photosCount: data?.photos?.length || 0,
       videosCount: data?.videos?.length || 0,
     });
-    
+
     // Verificar que las fotos coincidan
     if (cleanUpdates.photos && data?.photos?.length !== cleanUpdates.photos.length) {
       console.error('❌ ERROR CRÍTICO: Las fotos no coinciden después de guardar!', {
@@ -581,11 +580,11 @@ export async function updateVehicleStatus(
 ): Promise<void> {
   const updateData: any = {
     status,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: getFirestoreFieldValue().serverTimestamp(),
   };
 
   if (status === 'sold') {
-    updateData.soldAt = admin.firestore.FieldValue.serverTimestamp();
+    updateData.soldAt = getFirestoreFieldValue().serverTimestamp();
   }
 
   await getDb()
@@ -632,7 +631,7 @@ export async function syncInventoryToWeb(
         photos: v.photos,
         status: v.status,
       })),
-      lastSync: admin.firestore.FieldValue.serverTimestamp(),
+      lastSync: getFirestoreFieldValue().serverTimestamp(),
     } as any);
 }
 

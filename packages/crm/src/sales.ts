@@ -1,15 +1,12 @@
 // Gestión de ventas
 
 import { Sale } from './types';
-import { getFirestore } from '@autodealers/shared';
-import * as admin from 'firebase-admin';
-import { updateVehicleStatus } from '@autodealers/inventory';
-import { createPostSaleReminders } from './post-sale';
-import { createCustomerFile } from './customer-files';
-import { createPendingRating } from '@autodealers/core';
-import { EmailService } from '@autodealers/messaging';
+import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
 
-const db = getFirestore();
+// Lazy initialization
+function getDb() {
+  return getFirestore();
+}
 
 /**
  * Crea una nueva venta
@@ -17,6 +14,7 @@ const db = getFirestore();
 export async function createSale(
   saleData: Omit<Sale, 'id' | 'createdAt'>
 ): Promise<Sale> {
+  const db = getDb();
   const docRef = db
     .collection('tenants')
     .doc(saleData.tenantId)
@@ -26,7 +24,7 @@ export async function createSale(
   // Guardar todos los campos de la venta
   const saleToSave: any = {
     ...saleData,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: getFirestoreFieldValue().serverTimestamp(),
   };
 
   // Mantener compatibilidad con el campo 'price' antiguo si no existe salePrice
@@ -38,11 +36,20 @@ export async function createSale(
   await docRef.set(saleToSave);
 
   // Actualizar estado del vehículo a vendido
-  await updateVehicleStatus(saleData.tenantId, saleData.vehicleId, 'sold');
+  try {
+    const { updateVehicleStatus } = await import('@autodealers/inventory');
+    await updateVehicleStatus(saleData.tenantId, saleData.vehicleId, 'sold');
+  } catch (error) {
+    console.error('Error updating vehicle status after sale:', error);
+  }
 
   // Crear calificación pendiente y enviar email si hay información del comprador
   if (saleData.buyer && saleData.buyer.email) {
     try {
+      // Importar core dinámicamente
+      const { createPendingRating } = await import('@autodealers/core');
+      const { EmailService } = await import('@autodealers/messaging');
+
       // Obtener información del vendedor para obtener dealerId
       const sellerDoc = await db.collection('users').doc(saleData.sellerId).get();
       const sellerData = sellerDoc.exists ? sellerDoc.data() : null;
@@ -66,7 +73,7 @@ export async function createSale(
       );
 
       const surveyUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/survey/${rating.surveyToken}`;
-      
+
       await emailService.sendEmail({
         tenantId: saleData.tenantId,
         channel: 'email',
@@ -104,7 +111,7 @@ export async function createSale(
   if (saleData.enableReminders && saleData.selectedReminders && saleData.selectedReminders.length > 0) {
     // Si hay información del comprador, crear o actualizar el lead primero
     let customerId = saleData.leadId;
-    
+
     if (saleData.buyer && !customerId) {
       // Crear un nuevo lead con la información del comprador
       const leadRef = db
@@ -112,7 +119,7 @@ export async function createSale(
         .doc(saleData.tenantId)
         .collection('leads')
         .doc();
-      
+
       await leadRef.set({
         contact: {
           name: saleData.buyer.fullName,
@@ -129,114 +136,124 @@ export async function createSale(
           driverLicenseNumber: saleData.buyer.driverLicenseNumber,
           vehiclePlate: saleData.buyer.vehiclePlate,
         },
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdAt: getFirestoreFieldValue().serverTimestamp(),
+        updatedAt: getFirestoreFieldValue().serverTimestamp(),
       } as any);
-      
+
       customerId = leadRef.id;
     }
 
     if (customerId) {
-      // Obtener información del vendedor para incluir en los recordatorios
-      const sellerDoc = await db.collection('users').doc(saleData.sellerId).get();
-      const sellerData = sellerDoc.exists ? sellerDoc.data() : null;
-      
-      // Crear recordatorios con los tipos seleccionados
-      await createPostSaleReminders(
-        saleData.tenantId,
-        docRef.id,
-        customerId,
-        saleData.vehicleId,
-        saleData.selectedReminders as any[]
-      );
+      try {
+        const { createPostSaleReminders } = await import('./post-sale');
+        // Obtener información del vendedor para incluir en los recordatorios
+        const sellerDoc = await db.collection('users').doc(saleData.sellerId).get();
+        const sellerData = sellerDoc.exists ? sellerDoc.data() : null;
 
-      // Actualizar el lead con información del vendedor si existe
-      if (sellerData && customerId) {
-        await db
-          .collection('tenants')
-          .doc(saleData.tenantId)
-          .collection('leads')
-          .doc(customerId)
-          .update({
-            assignedTo: saleData.sellerId,
-            sellerInfo: {
-              id: saleData.sellerId,
-              name: sellerData.name || sellerData.email,
-              email: sellerData.email,
-            },
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          } as any);
+        // Crear recordatorios con los tipos seleccionados
+        await createPostSaleReminders(
+          saleData.tenantId,
+          docRef.id,
+          customerId,
+          saleData.vehicleId,
+          saleData.selectedReminders as any[]
+        );
+
+        // Actualizar el lead con información del vendedor si existe
+        if (sellerData && customerId) {
+          await db
+            .collection('tenants')
+            .doc(saleData.tenantId)
+            .collection('leads')
+            .doc(customerId)
+            .update({
+              assignedTo: saleData.sellerId,
+              sellerInfo: {
+                id: saleData.sellerId,
+                name: sellerData.name || sellerData.email,
+                email: sellerData.email,
+              },
+              updatedAt: getFirestoreFieldValue().serverTimestamp(),
+            } as any);
+        }
+      } catch (e) {
+        console.error('Error creating post-sale reminders:', e);
       }
     }
   }
 
   // Crear Customer File automáticamente si hay información del comprador
   if (saleData.buyer) {
-    // Obtener información del vendedor
-    const sellerDoc = await db.collection('users').doc(saleData.sellerId).get();
-    const sellerData = sellerDoc.exists ? sellerDoc.data() : null;
+    try {
+      const { createCustomerFile } = await import('./customer-files');
+      // Obtener información del vendedor
+      const sellerDoc = await db.collection('users').doc(saleData.sellerId).get();
+      const sellerData = sellerDoc.exists ? sellerDoc.data() : null;
 
-    let customerId = saleData.leadId;
-    
-    // Si no hay leadId, buscar o crear uno
-    if (!customerId) {
-      // Buscar lead existente por email o teléfono
-      const existingLead = await db
-        .collection('tenants')
-        .doc(saleData.tenantId)
-        .collection('leads')
-        .where('contact.email', '==', saleData.buyer.email)
-        .limit(1)
-        .get();
+      let customerId = saleData.leadId;
 
-      if (!existingLead.empty) {
-        customerId = existingLead.docs[0].id;
-      } else {
-        // Crear nuevo lead
-        const leadRef = db
+      // Si no hay leadId, buscar o crear uno
+      if (!customerId) {
+        // Buscar lead existente por email o teléfono
+        const existingLead = await db
           .collection('tenants')
           .doc(saleData.tenantId)
           .collection('leads')
-          .doc();
-        
-        await leadRef.set({
-          contact: {
-            name: saleData.buyer.fullName,
-            phone: saleData.buyer.phone,
-            email: saleData.buyer.email,
-          },
-          address: saleData.buyer.address,
-          status: 'sold',
-          source: 'sale',
-          assignedTo: saleData.sellerId,
-          vehicleId: saleData.vehicleId,
-          saleId: docRef.id,
-          metadata: {
-            driverLicenseNumber: saleData.buyer.driverLicenseNumber,
-            vehiclePlate: saleData.buyer.vehiclePlate,
-          },
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        } as any);
-        
-        customerId = leadRef.id;
-      }
-    }
+          .where('contact.email', '==', saleData.buyer.email)
+          .limit(1)
+          .get();
 
-    // Crear Customer File
-    await createCustomerFile(
-      saleData.tenantId,
-      docRef.id,
-      customerId,
-      saleData.buyer,
-      saleData.vehicleId,
-      saleData.sellerId,
-      sellerData ? {
-        id: saleData.sellerId,
-        name: sellerData.name || sellerData.email,
-        email: sellerData.email,
-      } : undefined
-    );
+        if (!existingLead.empty) {
+          customerId = existingLead.docs[0].id;
+        } else {
+          // Crear nuevo lead
+          const leadRef = db
+            .collection('tenants')
+            .doc(saleData.tenantId)
+            .collection('leads')
+            .doc();
+
+          await leadRef.set({
+            contact: {
+              name: saleData.buyer.fullName,
+              phone: saleData.buyer.phone,
+              email: saleData.buyer.email,
+            },
+            address: saleData.buyer.address,
+            status: 'sold',
+            source: 'sale',
+            assignedTo: saleData.sellerId,
+            vehicleId: saleData.vehicleId,
+            saleId: docRef.id,
+            metadata: {
+              driverLicenseNumber: saleData.buyer.driverLicenseNumber,
+              vehiclePlate: saleData.buyer.vehiclePlate,
+            },
+            createdAt: getFirestoreFieldValue().serverTimestamp(),
+            updatedAt: getFirestoreFieldValue().serverTimestamp(),
+          } as any);
+
+          customerId = leadRef.id;
+        }
+      }
+
+      // Crear Customer File
+      await createCustomerFile(
+        saleData.tenantId,
+        docRef.id,
+        customerId,
+        saleData.buyer,
+        saleData.vehicleId,
+        saleData.sellerId,
+        sellerData ? {
+          id: saleData.sellerId,
+          name: sellerData.name || sellerData.email,
+          email: sellerData.email,
+        } : undefined
+      );
+    } catch (e) {
+      console.error('Error creating customer file:', e);
+    }
   }
 
   // Obtener información del vehículo y vendedor para la notificación
@@ -246,7 +263,7 @@ export async function createSale(
     const sellerDoc = await db.collection('users').doc(saleData.sellerId).get();
     const sellerName = sellerDoc.data()?.name || 'Vendedor';
 
-    const vehicleInfo = vehicle 
+    const vehicleInfo = vehicle
       ? `${vehicle.year} ${vehicle.make} ${vehicle.model}`
       : 'Vehículo';
 
@@ -285,6 +302,7 @@ export async function getSaleById(
   tenantId: string,
   saleId: string
 ): Promise<Sale | null> {
+  const db = getDb();
   const saleDoc = await db
     .collection('tenants')
     .doc(tenantId)
@@ -314,7 +332,8 @@ export async function getSalesBySeller(
   startDate?: Date,
   endDate?: Date
 ): Promise<Sale[]> {
-  let query: admin.firestore.Query = db
+  const db = getDb();
+  let query: any = db
     .collection('tenants')
     .doc(tenantId)
     .collection('sales')
@@ -332,7 +351,7 @@ export async function getSalesBySeller(
 
   const snapshot = await query.get();
 
-  return snapshot.docs.map((doc) => {
+  return snapshot.docs.map((doc: any) => {
     const data = doc.data();
     return {
       id: doc.id,
@@ -354,7 +373,8 @@ export async function getTenantSales(
     status?: Sale['status'];
   }
 ): Promise<Sale[]> {
-  let query: admin.firestore.Query = db
+  const db = getDb();
+  let query: any = db
     .collection('tenants')
     .doc(tenantId)
     .collection('sales');
@@ -375,7 +395,7 @@ export async function getTenantSales(
 
   const snapshot = await query.get();
 
-  return snapshot.docs.map((doc) => {
+  return snapshot.docs.map((doc: any) => {
     const data = doc.data();
     return {
       id: doc.id,
@@ -394,9 +414,10 @@ export async function completeSale(
   saleId: string,
   documents?: string[]
 ): Promise<void> {
+  const db = getDb();
   const updateData: any = {
     status: 'completed',
-    completedAt: admin.firestore.FieldValue.serverTimestamp(),
+    completedAt: getFirestoreFieldValue().serverTimestamp(),
   };
 
   if (documents) {

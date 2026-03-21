@@ -30,10 +30,12 @@ export interface PostSaleReminder {
   createdAt: Date;
 }
 
-import { getFirestore } from '@autodealers/shared';
-import * as admin from 'firebase-admin';
+import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
 
-const db = getFirestore();
+// Lazy initialization
+function getDb() {
+  return getFirestore();
+}
 
 /**
  * Crea un recordatorio individual
@@ -41,6 +43,7 @@ const db = getFirestore();
 export async function createReminder(
   reminderData: Omit<PostSaleReminder, 'id' | 'createdAt'>
 ): Promise<PostSaleReminder> {
+  const db = getDb();
   const docRef = db
     .collection('tenants')
     .doc(reminderData.tenantId)
@@ -49,7 +52,7 @@ export async function createReminder(
 
   await docRef.set({
     ...reminderData,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: getFirestoreFieldValue().serverTimestamp(),
   } as any);
 
   return {
@@ -69,9 +72,10 @@ export async function createPostSaleReminders(
   vehicleId: string,
   selectedReminders?: (ReminderType | 'oil_change_filter' | 'oil_change_filter_3' | 'oil_change_filter_5' | 'oil_change_filter_6')[] // Recordatorios seleccionados por el usuario
 ): Promise<PostSaleReminder[]> {
+  const db = getDb();
   // Si se especifican recordatorios, usar solo esos
   const reminderTypes = selectedReminders || ['oil_change_filter_3', 'tire_rotation'];
-  
+
   // Crear recordatorios según selección
   const remindersData: Omit<PostSaleReminder, 'id' | 'createdAt'>[] = [];
 
@@ -176,7 +180,7 @@ export async function createPostSaleReminders(
 
     await docRef.set({
       ...reminderData,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: getFirestoreFieldValue().serverTimestamp(),
     } as any);
 
     reminders.push({
@@ -200,7 +204,8 @@ export async function getAllReminders(
     endDate?: Date;
   }
 ): Promise<PostSaleReminder[]> {
-  let query: admin.firestore.Query = db
+  const db = getDb();
+  let query: any = db
     .collection('tenants')
     .doc(tenantId)
     .collection('post_sale_reminders');
@@ -218,7 +223,7 @@ export async function getAllReminders(
 
   const snapshot = await query.get();
 
-  let reminders = snapshot.docs.map((doc) => {
+  let reminders = snapshot.docs.map((doc: any) => {
     const data = doc.data();
     return {
       id: doc.id,
@@ -253,9 +258,10 @@ export async function getPendingReminders(
   tenantId: string,
   beforeDate?: Date
 ): Promise<PostSaleReminder[]> {
+  const db = getDb();
   const now = beforeDate || new Date();
 
-  let query: admin.firestore.Query = db
+  let query: any = db
     .collection('tenants')
     .doc(tenantId)
     .collection('post_sale_reminders')
@@ -266,7 +272,7 @@ export async function getPendingReminders(
 
   const snapshot = await query.get();
 
-  return snapshot.docs.map((doc) => {
+  return snapshot.docs.map((doc: any) => {
     const data = doc.data();
     return {
       id: doc.id,
@@ -285,6 +291,7 @@ export async function markReminderAsSent(
   tenantId: string,
   reminderId: string
 ): Promise<void> {
+  const db = getDb();
   const reminder = await db
     .collection('tenants')
     .doc(tenantId)
@@ -324,7 +331,7 @@ export async function markReminderAsSent(
     .collection('post_sale_reminders')
     .doc(reminderId)
     .update({
-      sentAt: admin.firestore.FieldValue.serverTimestamp(),
+      sentAt: getFirestoreFieldValue().serverTimestamp(),
       nextReminder,
     } as any);
 }

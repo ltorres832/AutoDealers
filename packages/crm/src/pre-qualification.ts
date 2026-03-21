@@ -1,14 +1,16 @@
 // Sistema de Pre-Cualificación para Financiamiento
 
 import { PreQualification, PreQualificationStatus, EmploymentType, CreditHistory } from './types';
-import { getFirestore } from '@autodealers/shared';
-import * as admin from 'firebase-admin';
+import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
 import { createLead, assignLead } from './leads';
 import { getVehicles } from '@autodealers/inventory';
 import { createNotification } from '@autodealers/core';
 import { getUsersByTenant } from '@autodealers/core';
 
-const db = getFirestore();
+// Lazy initialization
+function getDb() {
+  return getFirestore();
+}
 
 interface EvaluationResult {
   status: PreQualificationStatus;
@@ -28,7 +30,7 @@ export async function createPreQualification(
 ): Promise<PreQualification> {
   // Evaluar la pre-cualificación
   const evaluation = evaluatePreQualification(data);
-  
+
   // Obtener vehículos sugeridos
   const suggestedVehicles = await getSuggestedVehicles(
     tenantId,
@@ -49,7 +51,7 @@ export async function createPreQualification(
     createdAt: new Date(),
   };
 
-  const docRef = db
+  const docRef = getDb()
     .collection('tenants')
     .doc(tenantId)
     .collection('pre_qualifications')
@@ -57,9 +59,9 @@ export async function createPreQualification(
 
   await docRef.set({
     ...preQualData,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    'contact.dateOfBirth': admin.firestore.Timestamp.fromDate(data.contact.dateOfBirth),
-    'expiresAt': admin.firestore.Timestamp.fromDate(expiresAt),
+    createdAt: getFirestoreFieldValue().serverTimestamp(),
+    'contact.dateOfBirth': getFirestoreFieldValue().Timestamp.fromDate(data.contact.dateOfBirth),
+    'expiresAt': getFirestoreFieldValue().Timestamp.fromDate(expiresAt),
   } as any);
 
   const preQualification: PreQualification = {
@@ -82,7 +84,7 @@ export async function createPreQualification(
     );
 
     // Actualizar el lead con información adicional
-    await db
+    await getDb()
       .collection('tenants')
       .doc(tenantId)
       .collection('leads')
@@ -176,7 +178,7 @@ function evaluatePreQualification(
   const interestRate = calculateInterestRate(score, data.financial.creditHistory);
   const monthlyRate = interestRate / 100 / 12;
   const termMonths = data.preferences.financingTerm;
-  
+
   let approvedAmount = 0;
   if (monthlyRate > 0) {
     approvedAmount = maxMonthlyPayment * ((1 - Math.pow(1 + monthlyRate, -termMonths)) / monthlyRate);
@@ -296,10 +298,9 @@ async function assignToAvailableSeller(tenantId: string, leadId: string): Promis
       return; // No hay vendedores disponibles
     }
 
-    // Obtener leads asignados por vendedor para balancear carga
     const assignmentCounts: Record<string, number> = {};
     for (const seller of sellers) {
-      const leads = await db
+      const leads = await getDb()
         .collection('tenants')
         .doc(tenantId)
         .collection('leads')
@@ -332,7 +333,7 @@ async function sendPreQualificationNotifications(
 ): Promise<void> {
   try {
     // Obtener el lead para saber a quién está asignado
-    const leadDoc = await db
+    const leadDoc = await getDb()
       .collection('tenants')
       .doc(tenantId)
       .collection('leads')
@@ -348,10 +349,10 @@ async function sendPreQualificationNotifications(
 
     // Notificar al vendedor asignado
     if (assignedTo) {
-      const statusText = preQualification.result.status === 'pre_approved' 
-        ? 'Pre-Aprobado' 
+      const statusText = preQualification.result.status === 'pre_approved'
+        ? 'Pre-Aprobado'
         : 'Parcialmente Pre-Aprobado';
-      
+
       await createNotification({
         tenantId,
         userId: assignedTo,
@@ -369,9 +370,9 @@ async function sendPreQualificationNotifications(
     }
 
     // Notificar al dealer (si el tenant es un dealer)
-    const tenantDoc = await db.collection('tenants').doc(tenantId).get();
+    const tenantDoc = await getDb().collection('tenants').doc(tenantId).get();
     const tenantData = tenantDoc.data();
-    
+
     if (tenantData?.type === 'dealer') {
       // Obtener usuarios dealer
       const dealerUsers = await getUsersByTenant(tenantId);
@@ -406,7 +407,7 @@ export async function getPreQualificationById(
   tenantId: string,
   preQualificationId: string
 ): Promise<PreQualification | null> {
-  const doc = await db
+  const doc = await getDb()
     .collection('tenants')
     .doc(tenantId)
     .collection('pre_qualifications')
@@ -441,7 +442,7 @@ export async function getPreQualifications(
   }
 ): Promise<PreQualification[]> {
   try {
-    let query: admin.firestore.Query = db
+    let query: any = getDb()
       .collection('tenants')
       .doc(tenantId)
       .collection('pre_qualifications');
@@ -476,7 +477,7 @@ export async function getPreQualifications(
     if (error.code === 9 || error.message?.includes('index')) {
       console.warn('⚠️ Índice faltante en Firestore para pre-qualifications. Obteniendo sin orderBy...');
       try {
-        let query: admin.firestore.Query = db
+        let query: any = getDb()
           .collection('tenants')
           .doc(tenantId)
           .collection('pre_qualifications');

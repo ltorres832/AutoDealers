@@ -1,9 +1,10 @@
 // Gestión de contratos con digitalización y firma digital
 
-import { getFirestore } from '@autodealers/shared';
-import * as admin from 'firebase-admin';
+import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
 
-const db = getFirestore();
+function getDb() {
+  return getFirestore();
+}
 
 export interface Contract {
   id: string;
@@ -13,18 +14,18 @@ export interface Contract {
   description?: string;
   type: 'purchase' | 'lease' | 'financing' | 'service' | 'warranty' | 'other';
   templateId?: string; // ID de plantilla si se usó una
-  
+
   // Relaciones
   saleId?: string; // Si está asociado a una venta
   leadId?: string; // Si está asociado a un lead
   vehicleId?: string; // Vehículo relacionado
   fiRequestId?: string; // Solicitud F&I relacionada
-  
+
   // Documento
   originalDocumentUrl: string; // PDF original subido
   digitalizedDocumentUrl?: string; // PDF con campos digitalizados
   finalDocumentUrl?: string; // PDF final con firmas
-  
+
   // Digitalización
   digitalization?: {
     status: 'pending' | 'processing' | 'completed' | 'failed';
@@ -42,7 +43,7 @@ export interface Contract {
     }>;
     completedAt?: Date;
   };
-  
+
   // Firmas
   signatures: Array<{
     id: string;
@@ -59,10 +60,10 @@ export interface Contract {
     token?: string; // Token único para firma remota
     expiresAt?: Date;
   }>;
-  
+
   // Estado
   status: 'draft' | 'pending_signatures' | 'partially_signed' | 'fully_signed' | 'completed' | 'cancelled';
-  
+
   // Notificaciones
   notificationsSent?: Array<{
     to: string;
@@ -70,7 +71,7 @@ export interface Contract {
     sentAt: Date;
     status: 'sent' | 'delivered' | 'failed';
   }>;
-  
+
   // Metadata
   createdBy: string; // userId del vendedor/dealer
   createdAt: Date;
@@ -85,6 +86,8 @@ export async function createContract(
   tenantId: string,
   contractData: Omit<Contract, 'id' | 'tenantId' | 'createdAt' | 'updatedAt' | 'signatures' | 'status'>
 ): Promise<Contract> {
+  const db = getDb();
+  const fieldValue = getFirestoreFieldValue();
   const contractRef = db
     .collection('tenants')
     .doc(tenantId)
@@ -96,8 +99,8 @@ export async function createContract(
     tenantId,
     signatures: [],
     status: 'draft',
-    createdAt: admin.firestore.FieldValue.serverTimestamp() as any,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp() as any,
+    createdAt: fieldValue.serverTimestamp() as any,
+    updatedAt: fieldValue.serverTimestamp() as any,
   };
 
   await contractRef.set(contract);
@@ -117,6 +120,7 @@ export async function getContractById(
   tenantId: string,
   contractId: string
 ): Promise<Contract | null> {
+  const db = getDb();
   const contractDoc = await db
     .collection('tenants')
     .doc(tenantId)
@@ -148,6 +152,7 @@ export async function getContractsBySaleId(
   tenantId: string,
   saleId: string
 ): Promise<Contract[]> {
+  const db = getDb();
   const snapshot = await db
     .collection('tenants')
     .doc(tenantId)
@@ -178,6 +183,8 @@ export async function updateContractDigitalization(
   contractId: string,
   digitalization: Contract['digitalization']
 ): Promise<void> {
+  const db = getDb();
+  const fieldValue = getFirestoreFieldValue();
   await db
     .collection('tenants')
     .doc(tenantId)
@@ -185,7 +192,7 @@ export async function updateContractDigitalization(
     .doc(contractId)
     .update({
       digitalization,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: fieldValue.serverTimestamp(),
     });
 }
 
@@ -197,6 +204,7 @@ export async function addContractSignature(
   contractId: string,
   signature: Contract['signatures'][0]
 ): Promise<void> {
+  const db = getDb();
   const contractRef = db
     .collection('tenants')
     .doc(tenantId)
@@ -210,7 +218,7 @@ export async function addContractSignature(
 
   const contractData = contract.data() as Contract;
   const signatures = contractData.signatures || [];
-  
+
   // Actualizar o agregar firma
   const existingIndex = signatures.findIndex(s => s.id === signature.id);
   if (existingIndex >= 0) {
@@ -222,7 +230,7 @@ export async function addContractSignature(
   // Actualizar estado del contrato
   const allSigned = signatures.every(s => s.status === 'signed');
   const someSigned = signatures.some(s => s.status === 'signed');
-  
+
   let status: Contract['status'] = contractData.status;
   if (allSigned && signatures.length > 0) {
     status = 'fully_signed';
@@ -232,11 +240,12 @@ export async function addContractSignature(
     status = 'pending_signatures';
   }
 
+  const fieldValue = getFirestoreFieldValue();
   await contractRef.update({
     signatures,
     status,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    completedAt: allSigned ? admin.firestore.FieldValue.serverTimestamp() : admin.firestore.FieldValue.delete(),
+    updatedAt: fieldValue.serverTimestamp(),
+    completedAt: allSigned ? fieldValue.serverTimestamp() : fieldValue.delete(),
   });
 }
 
@@ -251,6 +260,7 @@ export async function sendContractForSignature(
   signerName: string,
   signerPhone?: string
 ): Promise<{ token: string; url: string }> {
+  const db = getDb();
   const contractRef = db
     .collection('tenants')
     .doc(tenantId)
@@ -270,7 +280,7 @@ export async function sendContractForSignature(
   // Crear o actualizar firma
   const contractData = contract.data() as Contract;
   const signatures = contractData.signatures || [];
-  
+
   const signatureIndex = signatures.findIndex(s => s.signer === signerId || s.signerEmail === signerEmail);
   const signature: Contract['signatures'][0] = {
     id: `sig_${Date.now()}`,
@@ -290,10 +300,11 @@ export async function sendContractForSignature(
     signatures.push(signature);
   }
 
+  const fieldValue = getFirestoreFieldValue();
   await contractRef.update({
     signatures,
     status: 'pending_signatures',
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: fieldValue.serverTimestamp(),
   });
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -308,9 +319,10 @@ export async function sendContractForSignature(
 export async function getContractBySignatureToken(
   token: string
 ): Promise<{ contract: Contract; signature: Contract['signatures'][0] } | null> {
+  const db = getDb();
   // Buscar en todos los tenants (esto puede ser optimizado con un índice)
   const tenantsSnapshot = await db.collection('tenants').get();
-  
+
   for (const tenantDoc of tenantsSnapshot.docs) {
     const contractsSnapshot = await tenantDoc.ref
       .collection('contracts')
@@ -320,7 +332,7 @@ export async function getContractBySignatureToken(
     for (const contractDoc of contractsSnapshot.docs) {
       const contractData = contractDoc.data() as Contract;
       const signature = contractData.signatures?.find(s => s.token === token);
-      
+
       const expiresAt = signature?.expiresAt as any;
       const expiresAtDate = expiresAt && typeof expiresAt.toDate === 'function' ? expiresAt.toDate() : expiresAt;
       if (signature && expiresAtDate && new Date(expiresAtDate) > new Date()) {
@@ -356,6 +368,7 @@ export async function completeContractSignature(
   ipAddress?: string,
   userAgent?: string
 ): Promise<void> {
+  const db = getDb();
   const contractRef = db
     .collection('tenants')
     .doc(tenantId)
@@ -369,7 +382,7 @@ export async function completeContractSignature(
 
   const contractData = contract.data() as Contract;
   const signatures = contractData.signatures || [];
-  
+
   const signatureIndex = signatures.findIndex(s => s.id === signatureId);
   if (signatureIndex < 0) {
     throw new Error('Signature not found');
@@ -386,12 +399,13 @@ export async function completeContractSignature(
 
   // Verificar si todas las firmas están completadas
   const allSigned = signatures.every(s => s.status === 'signed');
-  
+
+  const fieldValue = getFirestoreFieldValue();
   await contractRef.update({
     signatures,
     status: allSigned ? 'fully_signed' : 'partially_signed',
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    completedAt: allSigned ? admin.firestore.FieldValue.serverTimestamp() : admin.firestore.FieldValue.delete(),
+    updatedAt: fieldValue.serverTimestamp(),
+    completedAt: allSigned ? fieldValue.serverTimestamp() : fieldValue.delete(),
   });
 }
 

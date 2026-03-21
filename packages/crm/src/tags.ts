@@ -1,9 +1,11 @@
 // Sistema de etiquetas y segmentación avanzada
 
-import { getFirestore } from '@autodealers/shared';
-import * as admin from 'firebase-admin';
+import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
 
-const db = getFirestore();
+// Lazy initialization
+function getDb() {
+  return getFirestore();
+}
 
 export interface Tag {
   id: string;
@@ -48,6 +50,7 @@ export async function createTag(
   tenantId: string,
   tagData: Omit<Tag, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<Tag> {
+  const db = getDb();
   const docRef = db
     .collection('tenants')
     .doc(tenantId)
@@ -63,8 +66,8 @@ export async function createTag(
 
   await docRef.set({
     ...tag,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: getFirestoreFieldValue().serverTimestamp(),
+    updatedAt: getFirestoreFieldValue().serverTimestamp(),
   } as any);
 
   return tag;
@@ -74,6 +77,7 @@ export async function createTag(
  * Obtiene todas las etiquetas de un tenant
  */
 export async function getTags(tenantId: string): Promise<Tag[]> {
+  const db = getDb();
   const snapshot = await db
     .collection('tenants')
     .doc(tenantId)
@@ -99,6 +103,7 @@ export async function updateTag(
   tagId: string,
   updates: Partial<Tag>
 ): Promise<void> {
+  const db = getDb();
   await db
     .collection('tenants')
     .doc(tenantId)
@@ -106,7 +111,7 @@ export async function updateTag(
     .doc(tagId)
     .update({
       ...updates,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: getFirestoreFieldValue().serverTimestamp(),
     } as any);
 }
 
@@ -114,6 +119,7 @@ export async function updateTag(
  * Elimina una etiqueta
  */
 export async function deleteTag(tenantId: string, tagId: string): Promise<void> {
+  const db = getDb();
   // Remover etiqueta de todos los leads que la tienen
   const leadsSnapshot = await db
     .collection('tenants')
@@ -128,7 +134,7 @@ export async function deleteTag(tenantId: string, tagId: string): Promise<void> 
     const updatedTags = currentTags.filter((t: string) => t !== tagId);
     batch.update(leadDoc.ref, {
       tags: updatedTags,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: getFirestoreFieldValue().serverTimestamp(),
     });
   }
 
@@ -148,6 +154,7 @@ export async function addTagToLead(
   leadId: string,
   tagId: string
 ): Promise<void> {
+  const db = getDb();
   const leadRef = db
     .collection('tenants')
     .doc(tenantId)
@@ -162,8 +169,8 @@ export async function addTagToLead(
   const currentTags = leadDoc.data()?.tags || [];
   if (!currentTags.includes(tagId)) {
     await leadRef.update({
-      tags: admin.firestore.FieldValue.arrayUnion(tagId),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      tags: getFirestoreFieldValue().arrayUnion(tagId),
+      updatedAt: getFirestoreFieldValue().serverTimestamp(),
     });
   }
 }
@@ -176,6 +183,7 @@ export async function removeTagFromLead(
   leadId: string,
   tagId: string
 ): Promise<void> {
+  const db = getDb();
   const leadRef = db
     .collection('tenants')
     .doc(tenantId)
@@ -183,8 +191,8 @@ export async function removeTagFromLead(
     .doc(leadId);
 
   await leadRef.update({
-    tags: admin.firestore.FieldValue.arrayRemove(tagId),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    tags: getFirestoreFieldValue().arrayRemove(tagId),
+    updatedAt: getFirestoreFieldValue().serverTimestamp(),
   });
 }
 
@@ -195,6 +203,7 @@ export async function createSegment(
   tenantId: string,
   segmentData: Omit<Segment, 'id' | 'createdAt' | 'updatedAt' | 'leadIds' | 'leadCount'>
 ): Promise<Segment> {
+  const db = getDb();
   const docRef = db
     .collection('tenants')
     .doc(tenantId)
@@ -212,8 +221,8 @@ export async function createSegment(
 
   await docRef.set({
     ...segment,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: getFirestoreFieldValue().serverTimestamp(),
+    updatedAt: getFirestoreFieldValue().serverTimestamp(),
   } as any);
 
   // Calcular leads del segmento
@@ -226,6 +235,7 @@ export async function createSegment(
  * Obtiene todos los segmentos de un tenant
  */
 export async function getSegments(tenantId: string): Promise<Segment[]> {
+  const db = getDb();
   const snapshot = await db
     .collection('tenants')
     .doc(tenantId)
@@ -250,6 +260,7 @@ export async function calculateSegmentLeads(
   tenantId: string,
   segmentId: string
 ): Promise<string[]> {
+  const db = getDb();
   const segmentDoc = await db
     .collection('tenants')
     .doc(tenantId)
@@ -275,7 +286,7 @@ export async function calculateSegmentLeads(
   await segmentDoc.ref.update({
     leadIds,
     leadCount: leadIds.length,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: getFirestoreFieldValue().serverTimestamp(),
   });
 
   return leadIds;
@@ -354,6 +365,7 @@ export async function getSegmentLeads(
   tenantId: string,
   segmentId: string
 ): Promise<any[]> {
+  const db = getDb();
   const segmentDoc = await db
     .collection('tenants')
     .doc(tenantId)
@@ -381,7 +393,7 @@ export async function getSegmentLeads(
       .collection('segments')
       .doc(segmentId)
       .get()).data() as Segment;
-    
+
     const allLeads = await getLeads(tenantId, {});
     return allLeads.filter((l) => updatedSegment.leadIds!.includes(l.id));
   }
@@ -394,6 +406,7 @@ export async function deleteSegment(
   tenantId: string,
   segmentId: string
 ): Promise<void> {
+  const db = getDb();
   await db
     .collection('tenants')
     .doc(tenantId)

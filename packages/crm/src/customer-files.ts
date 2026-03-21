@@ -1,8 +1,12 @@
 // Gestión de Customer Files (Casos de Cliente)
 
 import { CustomerFile, CustomerDocument, RequestedDocument, EvidenceItem } from './types';
-import { getFirestore } from '@autodealers/shared';
-import * as admin from 'firebase-admin';
+import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
+
+// Lazy initialization
+function getDb() {
+  return getFirestore();
+}
 
 // Función para generar IDs aleatorios
 function generateRandomId(): string {
@@ -13,8 +17,6 @@ function generateRandomId(): string {
   }
   return result;
 }
-
-const db = getFirestore();
 
 /**
  * Genera un token único para enlace de subida
@@ -57,7 +59,7 @@ export async function createCustomerFile(
     }
 
     const uploadToken = generateUploadToken();
-    
+
     const fileData: Omit<CustomerFile, 'id' | 'createdAt' | 'updatedAt'> = {
       tenantId,
       saleId,
@@ -83,6 +85,7 @@ export async function createCustomerFile(
       customerName: customerInfo.fullName,
     });
 
+    const db = getDb();
     const docRef = db
       .collection('tenants')
       .doc(tenantId)
@@ -93,8 +96,8 @@ export async function createCustomerFile(
 
     await docRef.set({
       ...fileData,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: getFirestoreFieldValue().serverTimestamp(),
+      updatedAt: getFirestoreFieldValue().serverTimestamp(),
     } as any);
 
     console.log('✅ createCustomerFile - Documento guardado exitosamente:', docRef.id);
@@ -125,6 +128,7 @@ export async function getCustomerFileById(
   tenantId: string,
   fileId: string
 ): Promise<CustomerFile | null> {
+  const db = getDb();
   const doc = await db
     .collection('tenants')
     .doc(tenantId)
@@ -164,6 +168,7 @@ export async function getCustomerFileById(
 export async function getCustomerFileByToken(
   uploadToken: string
 ): Promise<CustomerFile | null> {
+  const db = getDb();
   const snapshot = await db
     .collectionGroup('customer_files')
     .where('uploadToken', '==', uploadToken)
@@ -217,7 +222,8 @@ export async function getCustomerFiles(
     status?: CustomerFile['status'];
   }
 ): Promise<CustomerFile[]> {
-  let query: admin.firestore.Query = db
+  const db = getDb();
+  let query: any = db
     .collection('tenants')
     .doc(tenantId)
     .collection('customer_files');
@@ -309,6 +315,7 @@ export async function requestDocument(
   required: boolean,
   requestedBy: string
 ): Promise<RequestedDocument> {
+  const db = getDb();
   const fileRef = db
     .collection('tenants')
     .doc(tenantId)
@@ -338,7 +345,7 @@ export async function requestDocument(
 
   await fileRef.update({
     requestedDocuments,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: getFirestoreFieldValue().serverTimestamp(),
   } as any);
 
   return newRequest;
@@ -352,6 +359,7 @@ export async function addCustomerDocument(
   fileId: string,
   document: Omit<CustomerDocument, 'id' | 'uploadedAt'>
 ): Promise<CustomerDocument> {
+  const db = getDb();
   const fileRef = db
     .collection('tenants')
     .doc(tenantId)
@@ -391,7 +399,7 @@ export async function addCustomerDocument(
   await fileRef.update({
     documents,
     requestedDocuments: updatedRequestedDocuments,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: getFirestoreFieldValue().serverTimestamp(),
   } as any);
 
   return newDocument;
@@ -406,6 +414,7 @@ export async function addDealerDocument(
   document: Omit<CustomerDocument, 'id' | 'uploadedAt'>,
   uploadedBy: 'seller' | 'dealer'
 ): Promise<CustomerDocument> {
+  const db = getDb();
   const fileRef = db
     .collection('tenants')
     .doc(tenantId)
@@ -431,7 +440,7 @@ export async function addDealerDocument(
 
   await fileRef.update({
     documents,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: getFirestoreFieldValue().serverTimestamp(),
   } as any);
 
   return newDocument;
@@ -445,6 +454,7 @@ export async function addEvidence(
   fileId: string,
   evidence: Omit<EvidenceItem, 'id' | 'createdAt'>
 ): Promise<EvidenceItem> {
+  const db = getDb();
   const fileRef = db
     .collection('tenants')
     .doc(tenantId)
@@ -469,7 +479,7 @@ export async function addEvidence(
 
   await fileRef.update({
     evidence: evidenceList,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: getFirestoreFieldValue().serverTimestamp(),
   } as any);
 
   return newEvidence;
@@ -483,6 +493,7 @@ export async function updateCustomerFileStatus(
   fileId: string,
   status: CustomerFile['status']
 ): Promise<void> {
+  const db = getDb();
   await db
     .collection('tenants')
     .doc(tenantId)
@@ -490,7 +501,7 @@ export async function updateCustomerFileStatus(
     .doc(fileId)
     .update({
       status,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: getFirestoreFieldValue().serverTimestamp(),
     } as any);
 }
 
@@ -503,7 +514,7 @@ export async function deleteCustomerFile(
   deletedBy: string
 ): Promise<void> {
   await updateCustomerFileStatus(tenantId, fileId, 'deleted');
-  
+
   // Agregar evidencia de eliminación
   await addEvidence(tenantId, fileId, {
     type: 'other',
@@ -521,6 +532,7 @@ export async function updateCustomerFileNotes(
   fileId: string,
   notes: string
 ): Promise<void> {
+  const db = getDb();
   await db
     .collection('tenants')
     .doc(tenantId)
@@ -528,7 +540,7 @@ export async function updateCustomerFileNotes(
     .doc(fileId)
     .update({
       notes,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: getFirestoreFieldValue().serverTimestamp(),
     } as any);
 }
 

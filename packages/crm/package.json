@@ -9,9 +9,9 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@autodealers/billing": "*",
     "@autodealers/core": "*",
     "@autodealers/shared": "*",
-    "firebase-admin": "^12.7.0",
     "next": "16.1.6"
   },
   "devDependencies": {

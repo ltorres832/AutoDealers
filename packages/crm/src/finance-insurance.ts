@@ -1,16 +1,18 @@
 // Módulo F&I (Finance & Insurance)
 // Gestión completa de solicitudes F&I, clientes, historial y trazabilidad
 
-import { getFirestore } from '@autodealers/shared';
-import * as admin from 'firebase-admin';
+import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
 
-const db = getFirestore();
+// Lazy initialization
+function getDb() {
+  return getFirestore();
+}
 
 // ============================================
 // TIPOS E INTERFACES
 // ============================================
 
-export type FIRequestStatus = 
+export type FIRequestStatus =
   | 'draft'           // Borrador (vendedor aún editando)
   | 'submitted'      // Enviado a F&I (pendiente revisión)
   | 'under_review'     // En revisión por gerente F&I
@@ -19,21 +21,21 @@ export type FIRequestStatus =
   | 'pending_info'     // Pendiente información adicional
   | 'rejected';        // Rechazado
 
-export type CreditRange = 
+export type CreditRange =
   | 'excellent'        // 750+
   | 'good'            // 700-749
   | 'fair'            // 650-699
   | 'poor'            // 600-649
   | 'very_poor';      // <600
 
-export type IncomeType = 
+export type IncomeType =
   | 'salary'
   | 'self_employed'
   | 'business'
   | 'retirement'
   | 'other';
 
-export type HousingType = 
+export type HousingType =
   | 'rent'
   | 'own'
   | 'family';
@@ -121,13 +123,13 @@ export interface FIRequest {
 
 export interface FIRequestHistory {
   id: string;
-  action: 
-    | 'created'
-    | 'submitted'
-    | 'status_changed'
-    | 'note_added'
-    | 'info_requested'
-    | 'reviewed';
+  action:
+  | 'created'
+  | 'submitted'
+  | 'status_changed'
+  | 'note_added'
+  | 'info_requested'
+  | 'reviewed';
   performedBy: string; // userId
   performedByName?: string; // Nombre del usuario
   timestamp: Date;
@@ -149,6 +151,7 @@ export async function createFIClient(
   clientData: Omit<FIClient, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>,
   createdBy: string
 ): Promise<FIClient> {
+  const db = getDb();
   const clientRef = db
     .collection('tenants')
     .doc(tenantId)
@@ -159,8 +162,8 @@ export async function createFIClient(
     ...clientData,
     tenantId,
     createdBy,
-    createdAt: admin.firestore.FieldValue.serverTimestamp() as any,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp() as any,
+    createdAt: getFirestoreFieldValue().serverTimestamp() as any,
+    updatedAt: getFirestoreFieldValue().serverTimestamp() as any,
   };
 
   await clientRef.set(client);
@@ -180,6 +183,7 @@ export async function getFIClientById(
   tenantId: string,
   clientId: string
 ): Promise<FIClient | null> {
+  const db = getDb();
   const clientDoc = await db
     .collection('tenants')
     .doc(tenantId)
@@ -206,6 +210,7 @@ export async function getFIClientById(
 export async function getFIClients(
   tenantId: string
 ): Promise<FIClient[]> {
+  const db = getDb();
   const snapshot = await db
     .collection('tenants')
     .doc(tenantId)
@@ -232,6 +237,7 @@ export async function updateFIClient(
   clientId: string,
   updates: Partial<Omit<FIClient, 'id' | 'tenantId' | 'createdAt' | 'createdBy'>>
 ): Promise<void> {
+  const db = getDb();
   await db
     .collection('tenants')
     .doc(tenantId)
@@ -239,7 +245,7 @@ export async function updateFIClient(
     .doc(clientId)
     .update({
       ...updates,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: getFirestoreFieldValue().serverTimestamp(),
     });
 }
 
@@ -255,6 +261,7 @@ export async function createFIRequest(
   requestData: Omit<FIRequest, 'id' | 'tenantId' | 'history' | 'createdAt' | 'updatedAt'>,
   createdBy: string
 ): Promise<FIRequest> {
+  const db = getDb();
   const requestRef = db
     .collection('tenants')
     .doc(tenantId)
@@ -275,8 +282,8 @@ export async function createFIRequest(
     status: 'draft',
     history: [initialHistory],
     createdBy,
-    createdAt: admin.firestore.FieldValue.serverTimestamp() as any,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp() as any,
+    createdAt: getFirestoreFieldValue().serverTimestamp() as any,
+    updatedAt: getFirestoreFieldValue().serverTimestamp() as any,
   };
 
   await requestRef.set(request);
@@ -298,6 +305,7 @@ export async function submitFIRequest(
   submittedBy: string,
   sellerNotes?: string
 ): Promise<void> {
+  const db = getDb();
   const requestRef = db
     .collection('tenants')
     .doc(tenantId)
@@ -324,13 +332,13 @@ export async function submitFIRequest(
 
   await requestRef.update({
     status: 'submitted',
-    submittedAt: admin.firestore.FieldValue.serverTimestamp(),
+    submittedAt: getFirestoreFieldValue().serverTimestamp(),
     submittedBy,
     sellerNotes: sellerNotes || currentData.sellerNotes,
     history: [...currentHistory, historyEntry],
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: getFirestoreFieldValue().serverTimestamp(),
   });
-  
+
   // Ejecutar workflows automáticos
   try {
     await executeFIWorkflows(tenantId, {
@@ -343,7 +351,7 @@ export async function submitFIRequest(
   } catch (error) {
     console.error('Error ejecutando workflows:', error);
   }
-  
+
   // La notificación se maneja desde la API route que llama a esta función
 }
 
@@ -358,6 +366,7 @@ export async function updateFIRequestStatus(
   fiManagerNotes?: string,
   internalNotes?: string
 ): Promise<void> {
+  const db = getDb();
   const requestRef = db
     .collection('tenants')
     .doc(tenantId)
@@ -385,9 +394,9 @@ export async function updateFIRequestStatus(
 
   const updateData: any = {
     status: newStatus,
-    reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
+    reviewedAt: getFirestoreFieldValue().serverTimestamp(),
     reviewedBy,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: getFirestoreFieldValue().serverTimestamp(),
     history: [...currentHistory, historyEntry],
   };
 
@@ -405,6 +414,7 @@ export async function updateFIRequestStatus(
   if (currentData.createdBy && previousStatus !== newStatus) {
     try {
       // Obtener información del cliente para el mensaje
+      const db = getDb();
       const clientDoc = await db
         .collection('tenants')
         .doc(tenantId)
@@ -431,13 +441,13 @@ export async function updateFIRequestStatus(
 
       // Importar createNotification dinámicamente para evitar dependencias circulares
       const { createNotification } = await import('@autodealers/core');
-      
+
       await createNotification({
         tenantId,
         userId: currentData.createdBy,
         type: 'system_alert',
         title: statusInfo.title,
-        message: fiManagerNotes 
+        message: fiManagerNotes
           ? `${statusInfo.message}\n\nNotas del Gerente F&I: ${fiManagerNotes}`
           : statusInfo.message,
         channels: ['system', 'email'],
@@ -468,6 +478,7 @@ export async function addFIRequestNote(
   addedBy: string,
   isInternal: boolean = false
 ): Promise<void> {
+  const db = getDb();
   const requestRef = db
     .collection('tenants')
     .doc(tenantId)
@@ -493,7 +504,7 @@ export async function addFIRequestNote(
 
   const updateData: any = {
     history: [...currentHistory, historyEntry],
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: getFirestoreFieldValue().serverTimestamp(),
   };
 
   if (isInternal) {
@@ -512,6 +523,7 @@ export async function getFIRequestById(
   tenantId: string,
   requestId: string
 ): Promise<FIRequest | null> {
+  const db = getDb();
   const requestDoc = await db
     .collection('tenants')
     .doc(tenantId)
@@ -549,7 +561,8 @@ export async function getFIRequests(
     createdBy?: string;
   }
 ): Promise<FIRequest[]> {
-  let query: admin.firestore.Query = db
+  const db = getDb();
+  let query: any = db
     .collection('tenants')
     .doc(tenantId)
     .collection('fi_requests')
@@ -634,32 +647,32 @@ export function calculateFinancing(calc: FinancingCalculator): FinancingCalculat
   const taxRate = calc.taxRate || 0;
   const fees = calc.fees || 0;
   const tradeInValue = calc.tradeInValue || 0;
-  
+
   // Calcular monto principal (precio - pronto pago - trade-in + tax + fees)
   const subtotal = calc.vehiclePrice - calc.downPayment - tradeInValue;
   const tax = subtotal * (taxRate / 100);
   const principalAmount = subtotal + tax + fees;
-  
+
   // Convertir APR anual a tasa mensual
   const monthlyRate = (calc.interestRate / 100) / 12;
-  
+
   // Calcular pago mensual usando fórmula de amortización
   let monthlyPayment: number;
   if (monthlyRate === 0) {
     monthlyPayment = principalAmount / calc.loanTerm;
   } else {
-    monthlyPayment = principalAmount * 
-      (monthlyRate * Math.pow(1 + monthlyRate, calc.loanTerm)) / 
+    monthlyPayment = principalAmount *
+      (monthlyRate * Math.pow(1 + monthlyRate, calc.loanTerm)) /
       (Math.pow(1 + monthlyRate, calc.loanTerm) - 1);
   }
-  
+
   const totalAmount = monthlyPayment * calc.loanTerm;
   const totalInterest = totalAmount - principalAmount;
-  
+
   // Calcular DTI ratio si hay ingreso mensual
   let dtiRatio: number | undefined;
   let affordability: 'affordable' | 'tight' | 'unaffordable' = 'affordable';
-  
+
   if (calc.monthlyIncome) {
     dtiRatio = (monthlyPayment / calc.monthlyIncome) * 100;
     if (dtiRatio > 40) {
@@ -668,7 +681,7 @@ export function calculateFinancing(calc: FinancingCalculator): FinancingCalculat
       affordability = 'tight';
     }
   }
-  
+
   return {
     monthlyPayment: Math.round(monthlyPayment * 100) / 100,
     totalInterest: Math.round(totalInterest * 100) / 100,
@@ -713,7 +726,7 @@ export function calculateApprovalScore(
   const reasons: string[] = [];
   const riskFactors: string[] = [];
   const positiveFactors: string[] = [];
-  
+
   // Factor 1: Rango de crédito (0-30 puntos)
   const creditScoreMap: Record<CreditRange, number> = {
     excellent: 30,
@@ -729,7 +742,7 @@ export function calculateApprovalScore(
   } else if (request.creditInfo.creditRange === 'very_poor' || request.creditInfo.creditRange === 'poor') {
     riskFactors.push('Historial crediticio bajo');
   }
-  
+
   // Factor 2: Relación deuda/ingreso (0-25 puntos)
   const monthlyIncome = request.employment.monthlyIncome;
   if (monthlyIncome > 0) {
@@ -751,7 +764,7 @@ export function calculateApprovalScore(
       riskFactors.push('DTI ratio muy alto (>50%)');
     }
   }
-  
+
   // Factor 3: Tiempo en empleo (0-20 puntos)
   const monthsAtJob = request.employment.timeAtJob;
   if (monthsAtJob >= 24) {
@@ -767,7 +780,7 @@ export function calculateApprovalScore(
     score += 5;
     riskFactors.push('Estabilidad laboral baja (<6 meses)');
   }
-  
+
   // Factor 4: Tipo de ingreso (0-10 puntos)
   if (request.employment.incomeType === 'salary') {
     score += 10;
@@ -778,7 +791,7 @@ export function calculateApprovalScore(
   } else {
     score += 5;
   }
-  
+
   // Factor 5: Pronto pago (0-10 puntos)
   const downPaymentPercent = (downPayment / vehiclePrice) * 100;
   if (downPaymentPercent >= 20) {
@@ -794,7 +807,7 @@ export function calculateApprovalScore(
     score += 1;
     riskFactors.push('Pronto pago muy bajo (<5%)');
   }
-  
+
   // Factor 6: Estado civil y dependientes (0-5 puntos)
   if (request.personalInfo.maritalStatus === 'married' && request.personalInfo.dependents <= 2) {
     score += 5;
@@ -804,11 +817,11 @@ export function calculateApprovalScore(
     score += 1;
     riskFactors.push('Muchos dependientes');
   }
-  
+
   // Determinar recomendación
   let recommendation: ApprovalScore['recommendation'];
   const probability = score / 100;
-  
+
   if (score >= 75) {
     recommendation = 'approve';
     reasons.push('Score alto: Aprobación recomendada');
@@ -826,11 +839,11 @@ export function calculateApprovalScore(
     recommendation = 'reject';
     reasons.push('Score muy bajo: Rechazo recomendado');
   }
-  
+
   // Sugerencias
   let suggestedDownPayment: number | undefined;
   let suggestedTerm: number | undefined;
-  
+
   if (recommendation === 'conditional' || recommendation === 'needs_cosigner') {
     if (downPaymentPercent < 20) {
       suggestedDownPayment = vehiclePrice * 0.20; // Sugerir 20%
@@ -839,7 +852,7 @@ export function calculateApprovalScore(
       suggestedTerm = Math.ceil((vehiclePrice - downPayment) / (monthlyIncome * 0.30)); // Extender plazo
     }
   }
-  
+
   return {
     score: Math.round(score),
     probability,
@@ -915,7 +928,7 @@ export interface DigitalSignature {
   updatedAt: Date;
 }
 
-export type DocumentTemplate = 
+export type DocumentTemplate =
   | 'credit_application'
   | 'pre_approval_letter'
   | 'rejection_letter'
@@ -1039,7 +1052,7 @@ export interface FIWorkflow {
 // TIPOS E INTERFACES PARA SOLICITUD DE DOCUMENTOS
 // ============================================
 
-export type DocumentType = 
+export type DocumentType =
   | 'identification'      // Identificación
   | 'proof_of_income'      // Comprobante de ingresos
   | 'bank_statement'       // Estado de cuenta bancario
@@ -1099,9 +1112,10 @@ export async function createDocumentRequest(
   requestedBy: string,
   expiresInDays: number = 7
 ): Promise<DocumentRequest> {
+  const db = getDb();
   // Generar token único
   const token = db.collection('_').doc().id;
-  
+
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + expiresInDays);
 
@@ -1120,9 +1134,9 @@ export async function createDocumentRequest(
     status: 'pending',
     submittedDocuments: [],
     requestedBy,
-    createdAt: admin.firestore.FieldValue.serverTimestamp() as any,
+    createdAt: getFirestoreFieldValue().serverTimestamp() as any,
     expiresAt,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp() as any,
+    updatedAt: getFirestoreFieldValue().serverTimestamp() as any,
   };
 
   await docRequestRef.set(docRequest);
@@ -1142,6 +1156,7 @@ export async function createDocumentRequest(
 export async function getDocumentRequestByToken(
   token: string
 ): Promise<DocumentRequest | null> {
+  const db = getDb();
   const snapshot = await db
     .collectionGroup('fi_document_requests')
     .where('token', '==', token)
@@ -1196,6 +1211,7 @@ export async function submitDocumentToRequest(
     throw new Error('Esta solicitud de documentos ya fue procesada');
   }
 
+  const db = getDb();
   const docRequestRef = db
     .collection('tenants')
     .doc(docRequest.tenantId)
@@ -1209,10 +1225,10 @@ export async function submitDocumentToRequest(
   };
 
   await docRequestRef.update({
-    submittedDocuments: admin.firestore.FieldValue.arrayUnion(submittedDoc),
+    submittedDocuments: getFirestoreFieldValue().arrayUnion(submittedDoc),
     status: 'submitted',
-    submittedAt: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    submittedAt: getFirestoreFieldValue().serverTimestamp(),
+    updatedAt: getFirestoreFieldValue().serverTimestamp(),
   });
 }
 
@@ -1223,6 +1239,7 @@ export async function getDocumentRequestsByFIRequest(
   tenantId: string,
   requestId: string
 ): Promise<DocumentRequest[]> {
+  const db = getDb();
   const snapshot = await db
     .collection('tenants')
     .doc(tenantId)
@@ -1261,18 +1278,19 @@ export async function calculateAndUpdateFinancing(
   calculator: FinancingCalculator
 ): Promise<FinancingCalculationResult> {
   const calculation = calculateFinancing(calculator);
-  
+
+  const db = getDb();
   const requestRef = db
     .collection('tenants')
     .doc(tenantId)
     .collection('fi_requests')
     .doc(requestId);
-  
+
   await requestRef.update({
     financingCalculation: calculation,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: getFirestoreFieldValue().serverTimestamp(),
   });
-  
+
   return calculation;
 }
 
@@ -1294,20 +1312,21 @@ export async function calculateAndUpdateApprovalScore(
   if (!request) {
     throw new Error('Solicitud F&I no encontrada');
   }
-  
+
   const score = calculateApprovalScore(request, vehiclePrice, downPayment, monthlyPayment);
-  
+
+  const db = getDb();
   const requestRef = db
     .collection('tenants')
     .doc(tenantId)
     .collection('fi_requests')
     .doc(requestId);
-  
+
   await requestRef.update({
     approvalScore: score,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: getFirestoreFieldValue().serverTimestamp(),
   });
-  
+
   return score;
 }
 
@@ -1323,12 +1342,13 @@ export async function addCosignerToRequest(
   requestId: string,
   cosignerData: Omit<Cosigner, 'id' | 'status' | 'createdAt' | 'updatedAt' | 'documents'>
 ): Promise<Cosigner> {
+  const db = getDb();
   const requestRef = db
     .collection('tenants')
     .doc(tenantId)
     .collection('fi_requests')
     .doc(requestId);
-  
+
   const cosigner: Cosigner = {
     id: db.collection('_').doc().id,
     ...cosignerData,
@@ -1337,12 +1357,12 @@ export async function addCosignerToRequest(
     createdAt: new Date(),
     updatedAt: new Date(),
   };
-  
+
   await requestRef.update({
     cosigner,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: getFirestoreFieldValue().serverTimestamp(),
   });
-  
+
   return cosigner;
 }
 
@@ -1360,7 +1380,7 @@ export function calculateCombinedScore(
     poor: 5,
     very_poor: 2,
   };
-  
+
   const cosignerScore = cosignerScoreMap[cosignerCreditRange] || 0;
   // Promedio ponderado: 70% cliente, 30% co-signer
   return Math.round((clientScore.score * 0.7) + (cosignerScore * 0.3));
@@ -1375,22 +1395,23 @@ export async function updateCosignerStatus(
   status: 'approved' | 'rejected',
   approvedBy?: string
 ): Promise<void> {
+  const db = getDb();
   const requestRef = db
     .collection('tenants')
     .doc(tenantId)
     .collection('fi_requests')
     .doc(requestId);
-  
+
   const updateData: any = {
     'cosigner.status': status,
-    'cosigner.updatedAt': admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    'cosigner.updatedAt': getFirestoreFieldValue().serverTimestamp(),
+    updatedAt: getFirestoreFieldValue().serverTimestamp(),
   };
-  
+
   if (status === 'approved') {
-    updateData['cosigner.approvedAt'] = admin.firestore.FieldValue.serverTimestamp();
+    updateData['cosigner.approvedAt'] = getFirestoreFieldValue().serverTimestamp();
   }
-  
+
   await requestRef.update(updateData);
 }
 
@@ -1406,6 +1427,7 @@ export async function getFIMetrics(
   startDate: Date,
   endDate: Date
 ): Promise<FIMetrics> {
+  const db = getDb();
   const requestsSnapshot = await db
     .collection('tenants')
     .doc(tenantId)
@@ -1413,7 +1435,7 @@ export async function getFIMetrics(
     .where('createdAt', '>=', startDate)
     .where('createdAt', '<=', endDate)
     .get();
-  
+
   const requests = requestsSnapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data(),
@@ -1422,11 +1444,11 @@ export async function getFIMetrics(
     submittedAt: doc.data().submittedAt?.toDate(),
     reviewedAt: doc.data().reviewedAt?.toDate(),
   })) as FIRequest[];
-  
+
   const approved = requests.filter(r => r.status === 'approved').length;
   const total = requests.length;
   const approvalRate = total > 0 ? (approved / total) * 100 : 0;
-  
+
   // Calcular tiempo promedio de procesamiento
   const processingTimes: number[] = [];
   requests.forEach(r => {
@@ -1440,7 +1462,7 @@ export async function getFIMetrics(
   const averageProcessingTime = processingTimes.length > 0
     ? processingTimes.reduce((a, b) => a + b, 0) / processingTimes.length
     : 0;
-  
+
   // Agrupar por estado
   const byStatus: Record<FIRequestStatus, number> = {
     draft: 0,
@@ -1454,7 +1476,7 @@ export async function getFIMetrics(
   requests.forEach(r => {
     byStatus[r.status] = (byStatus[r.status] || 0) + 1;
   });
-  
+
   // Agrupar por vendedor
   const bySeller: Record<string, { requests: number; approvals: number; rejections: number; approvalRate: number }> = {};
   requests.forEach(r => {
@@ -1469,7 +1491,7 @@ export async function getFIMetrics(
     const seller = bySeller[sellerId];
     seller.approvalRate = seller.requests > 0 ? (seller.approvals / seller.requests) * 100 : 0;
   });
-  
+
   // Agrupar por rango de crédito
   const byCreditRange: Record<CreditRange, { requests: number; approvals: number; approvalRate: number }> = {
     excellent: { requests: 0, approvals: 0, approvalRate: 0 },
@@ -1487,25 +1509,25 @@ export async function getFIMetrics(
     const cr = byCreditRange[range as CreditRange];
     cr.approvalRate = cr.requests > 0 ? (cr.approvals / cr.requests) * 100 : 0;
   });
-  
+
   // Calcular promedios
   const incomes = requests.map(r => r.employment.monthlyIncome).filter(i => i > 0);
   const averageIncome = incomes.length > 0
     ? incomes.reduce((a, b) => a + b, 0) / incomes.length
     : 0;
-  
+
   const creditScores = requests
     .map(r => r.approvalScore?.score)
     .filter((s): s is number => s !== undefined);
   const averageCreditScore = creditScores.length > 0
     ? creditScores.reduce((a, b) => a + b, 0) / creditScores.length
     : 0;
-  
+
   // Obtener información de vehículos para calcular promedios de down payment y loan amount
   let totalDownPayment = 0;
   let totalLoanAmount = 0;
   let countWithVehicle = 0;
-  
+
   for (const request of requests) {
     const client = await getFIClientById(tenantId, request.clientId);
     if (client?.vehiclePrice && client?.downPayment) {
@@ -1514,7 +1536,7 @@ export async function getFIMetrics(
       countWithVehicle++;
     }
   }
-  
+
   return {
     period: { start: startDate, end: endDate },
     approvalRate,
@@ -1541,12 +1563,13 @@ export async function createFIWorkflow(
   tenantId: string,
   workflowData: Omit<FIWorkflow, 'id' | 'tenantId' | 'runCount' | 'createdAt' | 'updatedAt'>
 ): Promise<FIWorkflow> {
+  const db = getDb();
   const workflowRef = db
     .collection('tenants')
     .doc(tenantId)
     .collection('fi_workflows')
     .doc();
-  
+
   const workflow: FIWorkflow = {
     id: workflowRef.id,
     tenantId,
@@ -1555,13 +1578,13 @@ export async function createFIWorkflow(
     createdAt: new Date(),
     updatedAt: new Date(),
   };
-  
+
   await workflowRef.set({
     ...workflow,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: getFirestoreFieldValue().serverTimestamp(),
+    updatedAt: getFirestoreFieldValue().serverTimestamp(),
   });
-  
+
   return workflow;
 }
 
@@ -1572,18 +1595,19 @@ export async function getFIWorkflows(
   tenantId: string,
   activeOnly?: boolean
 ): Promise<FIWorkflow[]> {
-  let query: admin.firestore.Query = db
+  const db = getDb();
+  let query: any = db
     .collection('tenants')
     .doc(tenantId)
     .collection('fi_workflows')
     .orderBy('createdAt', 'desc');
-  
+
   if (activeOnly) {
     query = query.where('isActive', '==', true);
   }
-  
+
   const snapshot = await query.get();
-  
+
   return snapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data(),
@@ -1600,25 +1624,26 @@ export async function executeFIWorkflows(
   tenantId: string,
   request: FIRequest
 ): Promise<void> {
+  const db = getDb();
   const workflowsSnapshot = await db
     .collection('tenants')
     .doc(tenantId)
     .collection('fi_workflows')
     .where('isActive', '==', true)
     .get();
-  
+
   const workflows = workflowsSnapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data(),
   })) as FIWorkflow[];
-  
+
   for (const workflow of workflows) {
     let shouldExecute = false;
-    
+
     // Evaluar condiciones
     for (const condition of workflow.conditions) {
       let value: any;
-      
+
       switch (condition.field) {
         case 'approvalScore.score':
           value = request.approvalScore?.score || 0;
@@ -1635,7 +1660,7 @@ export async function executeFIWorkflows(
         default:
           continue;
       }
-      
+
       let matches = false;
       switch (condition.operator) {
         case 'equals':
@@ -1654,14 +1679,14 @@ export async function executeFIWorkflows(
           matches = Array.isArray(condition.value) && condition.value.includes(value);
           break;
       }
-      
+
       if (!matches) {
         shouldExecute = false;
         break;
       }
       shouldExecute = true;
     }
-    
+
     if (shouldExecute) {
       // Ejecutar acciones
       for (const action of workflow.actions) {
@@ -1695,18 +1720,19 @@ export async function executeFIWorkflows(
             break;
         }
       }
-      
+
       // Actualizar contador de ejecuciones
+      const db = getDb();
       const workflowRef = db
         .collection('tenants')
         .doc(tenantId)
         .collection('fi_workflows')
         .doc(workflow.id);
-      
+
       await workflowRef.update({
-        runCount: admin.firestore.FieldValue.increment(1),
-        lastRunAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        runCount: getFirestoreFieldValue().increment(1),
+        lastRunAt: getFirestoreFieldValue().serverTimestamp(),
+        updatedAt: getFirestoreFieldValue().serverTimestamp(),
       });
     }
   }
@@ -1738,7 +1764,7 @@ export function compareFinancingOptions(
       loanTerm: option.term,
       monthlyIncome: request.employment.monthlyIncome,
     });
-    
+
     return {
       ...option,
       calculatedMonthlyPayment: calculation.monthlyPayment,
@@ -1746,7 +1772,7 @@ export function compareFinancingOptions(
       affordability: calculation.affordability,
     };
   });
-  
+
   // Ordenar por mejor opción (menor pago mensual, mayor probabilidad de aprobación)
   optionsWithScores.sort((a, b) => {
     // Priorizar por probabilidad de aprobación primero
@@ -1756,9 +1782,9 @@ export function compareFinancingOptions(
     // Luego por pago mensual
     return a.calculatedMonthlyPayment - b.calculatedMonthlyPayment;
   });
-  
+
   const bestOption = optionsWithScores[0];
-  
+
   let recommendation = `Recomendamos ${bestOption.lender} con un pago mensual de $${bestOption.calculatedMonthlyPayment.toFixed(2)}`;
   if (bestOption.approvalProbability >= 0.8) {
     recommendation += ' y alta probabilidad de aprobación.';
@@ -1767,7 +1793,7 @@ export function compareFinancingOptions(
   } else {
     recommendation += ', aunque la probabilidad de aprobación es baja.';
   }
-  
+
   return {
     bestOption: bestOption as FinancingOption,
     comparison: optionsWithScores as FinancingOption[],
@@ -1824,13 +1850,13 @@ export async function pullCreditReport(
 ): Promise<CreditReport | null> {
   try {
     // Obtener configuración de crédito del tenant
-    const db = getFirestore();
+    const db = getDb();
     const tenantDoc = await db.collection('tenants').doc(tenantId).get();
     const tenantData = tenantDoc.data();
-    
+
     const creditConfig = tenantData?.creditConfig || {};
     const selectedProvider = provider || creditConfig.defaultProvider || 'mock';
-    
+
     // Si no hay credenciales configuradas, usar mock
     if (selectedProvider === 'mock' || !creditConfig[selectedProvider]?.apiKey) {
       return generateMockCreditReport(clientData);
@@ -1864,7 +1890,7 @@ function generateMockCreditReport(clientData: {
   // Generar score basado en hash del nombre para consistencia
   const nameHash = (clientData.firstName + clientData.lastName).length;
   const creditScore = 600 + (nameHash % 200); // Score entre 600-800
-  
+
   let creditRange: CreditRange = 'fair';
   if (creditScore >= 750) creditRange = 'excellent';
   else if (creditScore >= 700) creditRange = 'good';

@@ -20,3 +20,5 @@ env:
     value: autodealers-7f62e
   - variable: NODE_ENV
     value: production
+  - variable: SKIP_FIREBASE
+    value: "true"

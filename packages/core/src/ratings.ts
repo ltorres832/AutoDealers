@@ -1,14 +1,11 @@
 // Sistema de calificaciones (ratings)
 
-import { getFirestore } from '@autodealers/shared';
+import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
 
 // Lazy initialization - solo se inicializa cuando se necesita
 function getDb() {
   return getFirestore();
 }
-import * as admin from 'firebase-admin';
-
-const db = getFirestore();
 
 export interface Rating {
   id: string;
@@ -44,7 +41,7 @@ export async function createPendingRating(
 ): Promise<Rating> {
   // Generar token único para la encuesta
   const surveyToken = `${tenantId}_${saleId}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-  
+
   // La encuesta expira en 30 días
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 30);
@@ -72,8 +69,8 @@ export async function createPendingRating(
 
   await ratingRef.set({
     ...ratingData,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
+    createdAt: getFirestoreFieldValue().serverTimestamp(),
+    expiresAt: getFirestoreFieldValue().Timestamp.fromDate(expiresAt),
   } as any);
 
   return {
@@ -114,7 +111,7 @@ export async function completeRating(
     sellerComment: sellerComment || undefined,
     dealerComment: dealerComment || undefined,
     status: 'completed',
-    completedAt: admin.firestore.FieldValue.serverTimestamp(),
+    completedAt: getFirestoreFieldValue().serverTimestamp(),
   } as any);
 
   // Actualizar promedios de calificaciones del vendedor y dealer
@@ -130,7 +127,7 @@ export async function completeRating(
 export async function getRatingByToken(surveyToken: string): Promise<Rating | null> {
   // Buscar en todos los tenants (el token es único)
   const tenantsSnapshot = await getDb().collection('tenants').get();
-  
+
   for (const tenantDoc of tenantsSnapshot.docs) {
     const tenantId = tenantDoc.id;
     const ratingsSnapshot = await getDb().collection('tenants')
@@ -173,7 +170,7 @@ async function updateUserRatingAverage(
     .get();
 
   const ratings = ratingsSnapshot.docs.map(doc => doc.data());
-  
+
   if (ratings.length === 0) {
     return;
   }
@@ -188,7 +185,7 @@ async function updateUserRatingAverage(
   await userRef.update({
     [`${userType}Rating`]: averageRating,
     [`${userType}RatingCount`]: ratings.length,
-    [`${userType}RatingUpdatedAt`]: admin.firestore.FieldValue.serverTimestamp(),
+    [`${userType}RatingUpdatedAt`]: getFirestoreFieldValue().serverTimestamp(),
   } as any);
 }
 

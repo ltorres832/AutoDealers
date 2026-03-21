@@ -1,9 +1,11 @@
 // Sistema de reseñas (reviews)
 
-import { getFirestore } from '@autodealers/shared';
-import * as admin from 'firebase-admin';
+import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
 
-const db = getFirestore();
+// Lazy initialization
+function getDb() {
+  return getFirestore();
+}
 
 export interface Review {
   id: string;
@@ -35,6 +37,7 @@ export interface Review {
 export async function createReview(
   reviewData: Omit<Review, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<Review> {
+  const db = getDb();
   const docRef = db
     .collection('tenants')
     .doc(reviewData.tenantId)
@@ -45,8 +48,8 @@ export async function createReview(
     ...reviewData,
     status: reviewData.status || 'pending',
     featured: reviewData.featured || false,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: getFirestoreFieldValue().serverTimestamp(),
+    updatedAt: getFirestoreFieldValue().serverTimestamp(),
   };
 
   await docRef.set(reviewToSave);
@@ -71,7 +74,8 @@ export async function getReviews(
     limit?: number;
   }
 ): Promise<Review[]> {
-  let query: admin.firestore.Query = db
+  const db = getDb();
+  let query: any = db
     .collection('tenants')
     .doc(tenantId)
     .collection('reviews');
@@ -106,9 +110,9 @@ export async function getReviews(
       updatedAt: data?.updatedAt?.toDate() || new Date(),
       response: data?.response
         ? {
-            ...data.response,
-            respondedAt: data.response.respondedAt?.toDate() || new Date(),
-          }
+          ...data.response,
+          respondedAt: data.response.respondedAt?.toDate() || new Date(),
+        }
         : undefined,
     } as Review;
   });
@@ -134,6 +138,7 @@ export async function getReviewById(
   tenantId: string,
   reviewId: string
 ): Promise<Review | null> {
+  const db = getDb();
   const doc = await db
     .collection('tenants')
     .doc(tenantId)
@@ -153,9 +158,9 @@ export async function getReviewById(
     updatedAt: data?.updatedAt?.toDate() || new Date(),
     response: data?.response
       ? {
-          ...data.response,
-          respondedAt: data.response.respondedAt?.toDate() || new Date(),
-        }
+        ...data.response,
+        respondedAt: data.response.respondedAt?.toDate() || new Date(),
+      }
       : undefined,
   } as Review;
 }
@@ -170,7 +175,7 @@ export async function updateReview(
 ): Promise<void> {
   const updateData: any = {
     ...updates,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: getFirestoreFieldValue().serverTimestamp(),
   };
 
   // No permitir actualizar id, tenantId, createdAt
@@ -178,6 +183,7 @@ export async function updateReview(
   delete updateData.tenantId;
   delete updateData.createdAt;
 
+  const db = getDb();
   await db
     .collection('tenants')
     .doc(tenantId)
@@ -193,6 +199,7 @@ export async function deleteReview(
   tenantId: string,
   reviewId: string
 ): Promise<void> {
+  const db = getDb();
   await db
     .collection('tenants')
     .doc(tenantId)

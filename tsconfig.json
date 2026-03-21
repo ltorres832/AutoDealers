@@ -1,9 +1,13 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "lib": ["ES2020", "DOM"],
+    "lib": [
+      "ES2020",
+      "DOM"
+    ],
     "module": "commonjs",
     "moduleResolution": "node",
+    "jsx": "react",
     "resolveJsonModule": true,
     "allowJs": false,
     "strict": false,
@@ -20,23 +24,54 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "@autodealers/core": ["./packages/core/dist"],
-      "@autodealers/core/*": ["./packages/core/dist/*"],
-      "@autodealers/crm": ["./packages/crm/dist"],
-      "@autodealers/crm/*": ["./packages/crm/dist/*"],
-      "@autodealers/messaging": ["./packages/messaging/dist"],
-      "@autodealers/messaging/*": ["./packages/messaging/dist/*"],
-      "@autodealers/inventory": ["./packages/inventory/dist"],
-      "@autodealers/inventory/*": ["./packages/inventory/dist/*"],
-      "@autodealers/ai": ["./packages/ai/dist"],
-      "@autodealers/ai/*": ["./packages/ai/dist/*"],
-      "@autodealers/billing": ["./packages/billing/dist"],
-      "@autodealers/billing/*": ["./packages/billing/dist/*"],
-      "@autodealers/shared": ["./packages/shared/dist"],
-      "@autodealers/shared/*": ["./packages/shared/dist/*"],
-      "@autodealers/reports": ["./packages/reports/dist"],
-      "@autodealers/reports/*": ["./packages/reports/dist/*"]
+      "@autodealers/core": [
+        "./packages/core/dist"
+      ],
+      "@autodealers/core/*": [
+        "./packages/core/dist/*"
+      ],
+      "@autodealers/crm": [
+        "./packages/crm/dist"
+      ],
+      "@autodealers/crm/*": [
+        "./packages/crm/dist/*"
+      ],
+      "@autodealers/messaging": [
+        "./packages/messaging/dist"
+      ],
+      "@autodealers/messaging/*": [
+        "./packages/messaging/dist/*"
+      ],
+      "@autodealers/inventory": [
+        "./packages/inventory/dist"
+      ],
+      "@autodealers/inventory/*": [
+        "./packages/inventory/dist/*"
+      ],
+      "@autodealers/ai": [
+        "./packages/ai/dist"
+      ],
+      "@autodealers/ai/*": [
+        "./packages/ai/dist/*"
+      ],
+      "@autodealers/billing": [
+        "./packages/billing/dist"
+      ],
+      "@autodealers/billing/*": [
+        "./packages/billing/dist/*"
+      ],
+      "@autodealers/shared": [
+        "./packages/shared/dist"
+      ],
+      "@autodealers/shared/*": [
+        "./packages/shared/dist/*"
+      ],
+      "@autodealers/reports": [
+        "./packages/reports/dist"
+      ],
+      "@autodealers/reports/*": [
+        "./packages/reports/dist/*"
+      ]
     }
-  },
-  "files": ["tsconfig.dummy.ts"]
+  }
 }

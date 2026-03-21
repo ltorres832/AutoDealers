@@ -3,8 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { checkMultiDealerAccess } from '@autodealers/core';
 import { getMemberships } from '@autodealers/billing';
-import { getFirestore } from '@autodealers/core';
-import * as admin from 'firebase-admin';
+import { getFirestore } from '@autodealers/shared';
 
 /**
  * API pública para obtener membresías disponibles
@@ -78,7 +77,7 @@ export async function GET(request: NextRequest) {
     // Fallback: intentar obtener directamente de Firestore si getMemberships falla
     try {
       console.log('🔄 Intentando fallback directo de Firestore...');
-      let query: admin.firestore.Query = db
+      let query: any = db
         .collection('memberships')
         .where('isActive', '==', true);
 

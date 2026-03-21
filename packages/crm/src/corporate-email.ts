@@ -2,14 +2,16 @@
 
 import { CorporateEmail, CorporateEmailStatus, CorporateEmailUsage } from '@autodealers/core';
 import { ZohoMailService, ZohoEmailAccount } from '@autodealers/messaging';
-import { getFirestore } from '@autodealers/shared';
+import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
 import { getMembershipById } from '@autodealers/billing';
 import { getUserById } from '@autodealers/core';
 import { getTenantById } from '@autodealers/core';
-import * as admin from 'firebase-admin';
 import crypto from 'crypto';
 
-const db = getFirestore();
+// Lazy initialization
+function getDb() {
+  return getFirestore();
+}
 
 // Dominio base para emails corporativos
 const CORPORATE_EMAIL_DOMAIN = process.env.CORPORATE_EMAIL_DOMAIN || 'autoplataforma.com';
@@ -29,7 +31,7 @@ async function getTenantEmailDomain(tenantSubdomain?: string): Promise<string> {
   const { getZohoMailCredentials } = await import('@autodealers/core');
   const credentials = await getZohoMailCredentials();
   const baseDomain = credentials.domain || CORPORATE_EMAIL_DOMAIN;
-  
+
   if (tenantSubdomain) {
     return `${tenantSubdomain}.${baseDomain}`;
   }
@@ -104,6 +106,7 @@ async function canCreateCorporateEmail(userId: string, tenantId?: string): Promi
 
     // Contar emails usados por el usuario
     if (user.role === 'seller') {
+      const db = getDb();
       // Para sellers, solo cuentan sus propios emails
       const userEmailsSnapshot = await db
         .collection('tenants')
@@ -123,6 +126,7 @@ async function canCreateCorporateEmail(userId: string, tenantId?: string): Promi
         reason: allowed ? undefined : `Has alcanzado el límite de ${limit} email(s) corporativo(s)`,
       };
     } else if (user.role === 'dealer' && tenantId) {
+      const db = getDb();
       // Para dealers, cuentan todos los emails del tenant
       const tenantEmailsSnapshot = await db
         .collection('tenants')
@@ -181,6 +185,7 @@ export async function createCorporateEmail(
     const tenantDomain = await getTenantEmailDomain(tenant.subdomain);
     const fullEmail = `${emailAlias}@${tenantDomain}`;
 
+    const db = getDb();
     // Verificar que el email no exista
     const existingEmailSnapshot = await db
       .collection('tenants')
@@ -251,15 +256,15 @@ export async function createCorporateEmail(
 
     await emailRef.set({
       ...emailData,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: getFirestoreFieldValue().serverTimestamp(),
+      updatedAt: getFirestoreFieldValue().serverTimestamp(),
     } as any);
 
     // Actualizar usuario con email corporativo
     if (user.role === 'seller') {
       await db.collection('users').doc(userId).update({
         corporateEmail: fullEmail,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: getFirestoreFieldValue().serverTimestamp(),
       });
     }
 
@@ -275,7 +280,7 @@ export async function createCorporateEmail(
       await db.collection('tenants').doc(tenantId).update({
         corporateEmailsUsed: tenantEmailsSnapshot.size + 1,
         corporateEmailDomain: tenantDomain,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: getFirestoreFieldValue().serverTimestamp(),
       });
     }
 
@@ -296,7 +301,8 @@ export async function getCorporateEmails(
   tenantId?: string
 ): Promise<CorporateEmail[]> {
   try {
-    let query: admin.firestore.Query;
+    const db = getDb();
+    let query: any;
 
     if (tenantId) {
       query = db
@@ -350,6 +356,7 @@ export async function suspendCorporateEmail(
   tenantId: string
 ): Promise<void> {
   try {
+    const db = getDb();
     const emailRef = db
       .collection('tenants')
       .doc(tenantId)
@@ -375,8 +382,8 @@ export async function suspendCorporateEmail(
     // Actualizar en Firestore
     await emailRef.update({
       status: 'suspended',
-      suspendedAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      suspendedAt: getFirestoreFieldValue().serverTimestamp(),
+      updatedAt: getFirestoreFieldValue().serverTimestamp(),
     });
   } catch (error) {
     throw new Error(`Error suspending corporate email: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -391,6 +398,7 @@ export async function activateCorporateEmail(
   tenantId: string
 ): Promise<void> {
   try {
+    const db = getDb();
     const emailRef = db
       .collection('tenants')
       .doc(tenantId)
@@ -416,9 +424,9 @@ export async function activateCorporateEmail(
     // Actualizar en Firestore
     await emailRef.update({
       status: 'active',
-      reactivatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      suspendedAt: admin.firestore.FieldValue.delete(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      reactivatedAt: getFirestoreFieldValue().serverTimestamp(),
+      suspendedAt: getFirestoreFieldValue().delete(),
+      updatedAt: getFirestoreFieldValue().serverTimestamp(),
     });
   } catch (error) {
     throw new Error(`Error activating corporate email: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -433,6 +441,7 @@ export async function deleteCorporateEmail(
   tenantId: string
 ): Promise<void> {
   try {
+    const db = getDb();
     const emailRef = db
       .collection('tenants')
       .doc(tenantId)
@@ -456,19 +465,20 @@ export async function deleteCorporateEmail(
     // Marcar como eliminado en Firestore (soft delete)
     await emailRef.update({
       status: 'deleted',
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: getFirestoreFieldValue().serverTimestamp(),
     });
 
     // Remover email del usuario si era su email principal
     if (emailData.userId) {
+      const db = getDb();
       const userRef = db.collection('users').doc(emailData.userId);
       const userDoc = await userRef.get();
       if (userDoc.exists) {
         const userData = userDoc.data();
         if (userData?.corporateEmail === emailData.email) {
           await userRef.update({
-            corporateEmail: admin.firestore.FieldValue.delete(),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            corporateEmail: getFirestoreFieldValue().delete(),
+            updatedAt: getFirestoreFieldValue().serverTimestamp(),
           });
         }
       }
@@ -488,6 +498,7 @@ export async function updateEmailSignature(
   signatureType: 'basic' | 'advanced'
 ): Promise<void> {
   try {
+    const db = getDb();
     await db
       .collection('tenants')
       .doc(tenantId)
@@ -496,7 +507,7 @@ export async function updateEmailSignature(
       .update({
         emailSignature: signature,
         emailSignatureType: signatureType,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: getFirestoreFieldValue().serverTimestamp(),
       });
 
     // Actualizar también en el usuario si es su email principal
@@ -513,7 +524,7 @@ export async function updateEmailSignature(
         await db.collection('users').doc(emailData.userId).update({
           emailSignature: signature,
           emailSignatureType: signatureType,
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: getFirestoreFieldValue().serverTimestamp(),
         });
       }
     }
@@ -531,6 +542,7 @@ export async function resetEmailPassword(
   newPassword: string
 ): Promise<void> {
   try {
+    const db = getDb();
     const emailRef = db
       .collection('tenants')
       .doc(tenantId)
@@ -560,7 +572,7 @@ export async function resetEmailPassword(
     await emailRef.update({
       zohoPassword: newPassword, // En producción, encriptar esto
       passwordChanged: true,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: getFirestoreFieldValue().serverTimestamp(),
     });
   } catch (error) {
     throw new Error(`Error resetting email password: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -586,6 +598,7 @@ export async function getCorporateEmailUsage(tenantId: string): Promise<Corporat
       }
     }
 
+    const db = getDb();
     // Contar emails activos
     const activeEmailsSnapshot = await db
       .collection('tenants')

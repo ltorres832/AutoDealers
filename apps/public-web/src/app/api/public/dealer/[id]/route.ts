@@ -3,11 +3,6 @@ import { getFirestore } from '@autodealers/core';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const revalidate = 60; // Revalidar cada 60 segundos
-
-export async function generateStaticParams() {
-  return [];
-}
 
 export async function GET(
   request: NextRequest,
@@ -52,7 +47,7 @@ export async function GET(
       .get();
 
     console.log(`🔍 [DEALER ENDPOINT] Total vehicles in dealer tenant ${tenantId}: ${vehiclesSnapshot.size}`);
-    
+
     // Log todos los vehículos para debugging
     vehiclesSnapshot.docs.forEach((doc: any) => {
       const v = doc.data();
@@ -72,10 +67,10 @@ export async function GET(
         ...doc.data(),
       }))
       .filter((vehicle: any) => {
-        const isExcluded = vehicle.status === 'sold' || 
-                          vehicle.status === 'deleted' || 
-                          vehicle.status === 'inactive' ||
-                          vehicle.deleted === true;
+        const isExcluded = vehicle.status === 'sold' ||
+          vehicle.status === 'deleted' ||
+          vehicle.status === 'inactive' ||
+          vehicle.deleted === true;
         return !isExcluded;
       });
 
@@ -92,13 +87,13 @@ export async function GET(
     // Contar TODOS los vehículos por vendedor (incluyendo vendidos)
     // IMPORTANTE: Solo contar una vez por vehículo (priorizar sellerId sobre assignedTo)
     const vehiclesBySeller: Record<string, number> = {};
-    
+
     console.log(`🔢 [DEALER ENDPOINT] Starting to count vehicles for ${vehiclesSnapshot.size} total vehicles`);
-    
+
     // Contar TODOS los vehículos (no solo los disponibles)
     vehiclesSnapshot.docs.forEach((doc: any) => {
       const vehicle = doc.data();
-      
+
       // Log para debugging específico de Luis
       if (vehicle.sellerId === '2SD4ppoXesfUxbZDncljy6ZYQVC3' || vehicle.assignedTo === '2SD4ppoXesfUxbZDncljy6ZYQVC3') {
         console.log(`🔍 [DEALER ENDPOINT] Vehicle ${doc.id} for Luis:`, {
@@ -110,7 +105,7 @@ export async function GET(
           assignedTo: vehicle.assignedTo,
         });
       }
-      
+
       // Priorizar sellerId sobre assignedTo
       if (vehicle.sellerId) {
         const currentCount = vehiclesBySeller[vehicle.sellerId] || 0;
@@ -130,16 +125,16 @@ export async function GET(
         console.log(`⚠️ [DEALER ENDPOINT] Vehicle ${doc.id} has no sellerId or assignedTo`);
       }
     });
-    
+
     console.log(`📊 [DEALER ENDPOINT] Vehicles by seller (TOTAL, including sold):`, vehiclesBySeller);
 
     const sellers = sellersSnapshot.docs.map((doc: any) => {
       const sellerData = doc.data();
       const sellerId = doc.id;
       const vehiclesCount = vehiclesBySeller[sellerId] || 0;
-      
+
       console.log(`👤 [DEALER ENDPOINT] Seller ${sellerData.name} (${sellerId}): ${vehiclesCount} vehicles`);
-      
+
       return {
         id: sellerId,
         name: sellerData.name || 'Sin nombre',
@@ -153,7 +148,7 @@ export async function GET(
         vehiclesCount: vehiclesCount,
       };
     });
-    
+
     console.log(`✅ Returning ${sellers.length} sellers with vehicle counts`);
 
     return NextResponse.json({

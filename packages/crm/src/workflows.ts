@@ -1,11 +1,13 @@
 // Sistema de workflows automatizados
 
-import { getFirestore } from '@autodealers/shared';
-import * as admin from 'firebase-admin';
+import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
 
-const db = getFirestore();
+// Lazy initialization
+function getDb() {
+  return getFirestore();
+}
 
-export type WorkflowTrigger = 
+export type WorkflowTrigger =
   | 'lead_created'
   | 'lead_status_changed'
   | 'lead_score_changed'
@@ -17,7 +19,7 @@ export type WorkflowTrigger =
   | 'document_uploaded'
   | 'custom';
 
-export type WorkflowAction = 
+export type WorkflowAction =
   | 'change_status'
   | 'assign_to_user'
   | 'send_email'
@@ -81,7 +83,7 @@ export async function createWorkflow(
   tenantId: string,
   workflowData: Omit<Workflow, 'id' | 'executionCount' | 'createdAt' | 'updatedAt'>
 ): Promise<Workflow> {
-  const docRef = db
+  const docRef = getDb()
     .collection('tenants')
     .doc(tenantId)
     .collection('workflows')
@@ -98,8 +100,8 @@ export async function createWorkflow(
   await docRef.set({
     ...workflow,
     lastExecutedAt: null,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: getFirestoreFieldValue().serverTimestamp(),
+    updatedAt: getFirestoreFieldValue().serverTimestamp(),
   } as any);
 
   return workflow;
@@ -112,7 +114,7 @@ export async function getWorkflows(
   tenantId: string,
   enabledOnly?: boolean
 ): Promise<Workflow[]> {
-  let query: admin.firestore.Query = db
+  let query: any = getDb()
     .collection('tenants')
     .doc(tenantId)
     .collection('workflows');
@@ -123,7 +125,7 @@ export async function getWorkflows(
 
   const snapshot = await query.get();
 
-  return snapshot.docs.map((doc) => {
+  return snapshot.docs.map((doc: any) => {
     const data = doc.data();
     return {
       id: doc.id,
@@ -143,7 +145,7 @@ export async function executeWorkflow(
   workflowId: string,
   triggerData: Record<string, any>
 ): Promise<WorkflowExecution> {
-  const workflowDoc = await db
+  const workflowDoc = await getDb()
     .collection('tenants')
     .doc(tenantId)
     .collection('workflows')
@@ -172,7 +174,7 @@ export async function executeWorkflow(
   }
 
   // Crear ejecución
-  const executionRef = db
+  const executionRef = getDb()
     .collection('tenants')
     .doc(tenantId)
     .collection('workflow_executions')
@@ -192,7 +194,7 @@ export async function executeWorkflow(
 
   await executionRef.set({
     ...execution,
-    startedAt: admin.firestore.Timestamp.fromDate(execution.startedAt),
+    startedAt: getFirestoreFieldValue().Timestamp.fromDate(execution.startedAt),
   } as any);
 
   // Ejecutar acciones
@@ -216,18 +218,18 @@ export async function executeWorkflow(
 
   await executionRef.update({
     ...execution,
-    completedAt: execution.completedAt ? admin.firestore.Timestamp.fromDate(execution.completedAt) : null,
+    completedAt: execution.completedAt ? getFirestoreFieldValue().Timestamp.fromDate(execution.completedAt) : null,
   } as any);
 
   // Actualizar contador de ejecuciones del workflow
-  await db
+  await getDb()
     .collection('tenants')
     .doc(tenantId)
     .collection('workflows')
     .doc(workflowId)
     .update({
-      executionCount: admin.firestore.FieldValue.increment(1),
-      lastExecutedAt: admin.firestore.FieldValue.serverTimestamp(),
+      executionCount: getFirestoreFieldValue().increment(1),
+      lastExecutedAt: getFirestoreFieldValue().serverTimestamp(),
     });
 
   return execution;

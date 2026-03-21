@@ -1,9 +1,11 @@
 // Gestión de plantillas de contratos
 
-import { getFirestore } from '@autodealers/shared';
-import * as admin from 'firebase-admin';
+import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
 
-const db = getFirestore();
+// Lazy initialization
+function getDb() {
+  return getFirestore();
+}
 
 export interface ContractTemplate {
   id: string;
@@ -12,10 +14,10 @@ export interface ContractTemplate {
   description?: string;
   type: 'purchase' | 'lease' | 'financing' | 'service' | 'warranty' | 'other';
   category: 'standard' | 'custom';
-  
+
   // Documento PDF de la plantilla
   templateDocumentUrl: string;
-  
+
   // Campos que se pueden llenar en la plantilla
   fillableFields: Array<{
     id: string;
@@ -31,7 +33,7 @@ export interface ContractTemplate {
       height?: number;
     };
   }>;
-  
+
   // Campos de firma predefinidos
   signatureFields: Array<{
     id: string;
@@ -46,7 +48,7 @@ export interface ContractTemplate {
       height: number;
     };
   }>;
-  
+
   // Metadata
   isActive: boolean;
   createdBy: string;
@@ -61,7 +63,7 @@ export async function createContractTemplate(
   tenantId: string,
   templateData: Omit<ContractTemplate, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>
 ): Promise<ContractTemplate> {
-  const templateRef = db
+  const templateRef = getDb()
     .collection('tenants')
     .doc(tenantId)
     .collection('contract-templates')
@@ -70,8 +72,8 @@ export async function createContractTemplate(
   const template: Omit<ContractTemplate, 'id'> = {
     ...templateData,
     tenantId,
-    createdAt: admin.firestore.FieldValue.serverTimestamp() as any,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp() as any,
+    createdAt: getFirestoreFieldValue().serverTimestamp() as any,
+    updatedAt: getFirestoreFieldValue().serverTimestamp() as any,
   };
 
   await templateRef.set(template);
@@ -91,7 +93,7 @@ export async function getContractTemplates(
   tenantId: string,
   type?: string
 ): Promise<ContractTemplate[]> {
-  let query: any = db
+  let query: any = getDb()
     .collection('tenants')
     .doc(tenantId)
     .collection('contract-templates')
@@ -103,7 +105,7 @@ export async function getContractTemplates(
 
   const snapshot = await query.orderBy('name').get();
 
-  return snapshot.docs.map((doc: admin.firestore.QueryDocumentSnapshot) => {
+  return snapshot.docs.map((doc: any) => {
     const data = doc.data();
     const createdAt = data?.createdAt;
     const updatedAt = data?.updatedAt;
@@ -123,7 +125,7 @@ export async function getContractTemplateById(
   tenantId: string,
   templateId: string
 ): Promise<ContractTemplate | null> {
-  const templateDoc = await db
+  const templateDoc = await getDb()
     .collection('tenants')
     .doc(tenantId)
     .collection('contract-templates')
@@ -164,9 +166,9 @@ export async function generateContractFromTemplate(
   // TODO: Aquí se integraría con un servicio de PDF para llenar los campos
   // Por ahora, creamos el contrato con la plantilla como documento original
   // y luego se puede procesar para llenar los campos
-  
+
   const { createContract } = await import('./contracts');
-  
+
   const contract = await createContract(tenantId, {
     name: template.name,
     type: template.type,

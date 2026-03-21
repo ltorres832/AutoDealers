@@ -1,24 +1,49 @@
 // Configuración de Firebase Admin
 // Solo se importa firebase-admin en el servidor (Node.js)
 
-// Función helper para obtener firebase-admin solo cuando sea necesario
 function getAdmin() {
   if (typeof window !== 'undefined') {
     throw new Error('Firebase Admin solo puede usarse en el servidor');
   }
 
   try {
-    return require('firebase-admin');
+    const mod = 'firebase-admin';
+    return require(mod);
   } catch (e) {
-    // Durante el build del cliente, esto puede fallar silenciosamente
-    if (process.env.NEXT_PHASE === 'phase-production-build') {
+    // Retornar un objeto mock durante el build o si se solicita saltar Firebase
+    const isBuildOrSkip =
+      process.env.NEXT_PHASE === 'phase-production-build' ||
+      process.env.SKIP_FIREBASE === 'true' ||
+      process.env.NODE_ENV === 'test';
+
+    if (isBuildOrSkip) {
       // Retornar un objeto mock durante el build
       return {
         apps: [],
         initializeApp: () => ({}),
-        app: () => ({}),
+        app: () => ({
+          firestore: () => ({
+            settings: () => ({}),
+            collection: () => ({ doc: () => ({ collection: () => ({ where: () => ({ limit: () => ({ get: () => Promise.resolve({ empty: true, docs: [] }) }) }) }) }) }),
+          }),
+          auth: () => ({}),
+          storage: () => ({}),
+        }),
         credential: { cert: () => ({}) },
-        firestore: () => ({}),
+        firestore: {
+          FieldValue: {
+            serverTimestamp: () => ({ _type: 'timestamp' }),
+            increment: (n: number) => ({ _type: 'increment', n }),
+            arrayUnion: (...args: any[]) => ({ _type: 'arrayUnion', args }),
+            arrayRemove: (...args: any[]) => ({ _type: 'arrayRemove', args }),
+            delete: () => ({ _type: 'delete' }),
+          },
+          Timestamp: {
+            now: () => new Date(),
+            fromDate: (d: Date) => d,
+            fromMillis: (m: number) => new Date(m),
+          }
+        },
         auth: () => ({}),
         storage: () => ({}),
       } as any;
@@ -417,10 +442,51 @@ export function getStorage(): any {
   }
 }
 
+/**
+ * Obtiene el objeto FieldValue de Firestore para su uso en actualizaciones
+ */
+export function getFirestoreFieldValue(): any {
+  try {
+    const admin = getAdmin();
+    // Retornar un objeto que soporte tanto .serverTimestamp() como .FieldValue.serverTimestamp()
+    const fieldValue = admin.firestore.FieldValue;
+    const timestamp = admin.firestore.Timestamp;
+
+    // Crear un proxy que actúe como FieldValue pero también tenga subpropiedades si es necesario
+    return new Proxy(fieldValue, {
+      get(target, prop) {
+        if (prop === 'FieldValue') return fieldValue;
+        if (prop === 'Timestamp') return timestamp;
+        return (target as any)[prop];
+      }
+    });
+  } catch (e) {
+    // Retornar mock mínimo para evitar crashes en el build
+    const mockFieldValue = {
+      serverTimestamp: () => ({ _type: 'timestamp' }),
+      increment: (n: number) => n,
+      arrayUnion: (...args: any[]) => args,
+      arrayRemove: (...args: any[]) => args,
+      delete: () => ({}),
+    };
+    return new Proxy(mockFieldValue, {
+      get(target, prop) {
+        if (prop === 'FieldValue') return mockFieldValue;
+        if (prop === 'Timestamp') return {
+          now: () => new Date(),
+          fromDate: (d: Date) => d,
+        };
+        return (target as any)[prop];
+      }
+    });
+  }
+}
+
 // Exportar también como default para compatibilidad
 export default {
   initializeFirebase,
   getFirestore,
   getAuth,
   getStorage,
+  getFirestoreFieldValue,
 };

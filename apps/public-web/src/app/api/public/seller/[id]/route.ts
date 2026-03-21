@@ -4,11 +4,6 @@ import { getFirestore } from '@autodealers/core';
 // Exportar configuración de runtime
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const revalidate = 60; // Revalidar cada 60 segundos
-
-export async function generateStaticParams() {
-  return [];
-}
 
 // Helper para agregar timeout a promesas
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
@@ -27,7 +22,7 @@ export async function GET(
   try {
     const { id: sellerId } = await params;
     console.log(`🚀 GET /api/public/seller/${sellerId} - Iniciando...`);
-    
+
     if (!sellerId) {
       console.error('❌ No sellerId provided');
       return NextResponse.json({ error: 'ID de vendedor requerido' }, { status: 400 });
@@ -90,7 +85,7 @@ export async function GET(
     const tenantData = tenantDoc.exists ? tenantDoc.data() : null;
 
     console.log(`📦 Fetching vehicles from tenant ${tenantId}...`);
-    
+
     // Obtener vehículos con timeout y límite
     let allVehiclesSnapshot: any;
     try {
@@ -103,7 +98,7 @@ export async function GET(
           .get(),
         15000 // 15 segundos timeout
       );
-      
+
       console.log(`🔍 Total vehicles in tenant ${tenantId}: ${allVehiclesSnapshot.size}`);
     } catch (vehiclesError: any) {
       console.error('❌ Error fetching vehicles:', vehiclesError);
@@ -125,7 +120,7 @@ export async function GET(
           updatedAt: data.updatedAt?.toDate?.() || data.updatedAt || new Date(),
           soldAt: data.soldAt?.toDate?.() || data.soldAt || undefined,
         };
-        
+
         // Log detallado de cada vehículo para debugging
         console.log(`🚗 Vehicle ${doc.id}:`, {
           make: vehicle.make,
@@ -135,36 +130,36 @@ export async function GET(
           assignedTo: vehicle.assignedTo || 'NO ASIGNADO',
           deleted: vehicle.deleted,
         });
-        
+
         return vehicle;
       } catch (mapError: any) {
         console.error(`❌ Error mapping vehicle ${doc.id}:`, mapError);
         return null;
       }
     }).filter((v: any) => v !== null);
-    
+
     console.log(`📊 Total vehicles mapped: ${allVehicles.length} of ${allVehiclesSnapshot.size}`);
 
     // PRIMERO: Buscar vehículos que pertenecen específicamente a este seller
     let vehicles = allVehicles.filter((vehicle: any) => {
       if (!vehicle) return false;
-      
+
       // Verificar si el vehículo pertenece al seller
       const hasSellerId = vehicle.sellerId === sellerId;
       const hasAssignedTo = vehicle.assignedTo === sellerId;
       const belongsToSeller = hasSellerId || hasAssignedTo;
-      
+
       // Verificar si está excluido
-      const isExcluded = vehicle.status === 'sold' || 
-                        vehicle.status === 'deleted' || 
-                        vehicle.status === 'inactive' ||
-                        vehicle.deleted === true;
-      
+      const isExcluded = vehicle.status === 'sold' ||
+        vehicle.status === 'deleted' ||
+        vehicle.status === 'inactive' ||
+        vehicle.deleted === true;
+
       return belongsToSeller && !isExcluded;
     });
 
     console.log(`✅ Found ${vehicles.length} vehicles with sellerId=${sellerId} or assignedTo=${sellerId}`);
-    
+
     // Log detallado de vehículos encontrados
     if (vehicles.length > 0) {
       console.log(`📋 Vehicles found:`, vehicles.map((v: any) => ({
@@ -179,7 +174,7 @@ export async function GET(
     } else {
       // Si no hay vehículos con sellerId específico, verificar si hay vehículos con sellerId en el tenant
       const vehiclesWithAnySellerId = allVehicles.filter((v: any) => v.sellerId);
-      
+
       if (vehiclesWithAnySellerId.length > 0) {
         // Hay vehículos con sellerId pero ninguno de este seller - NO mostrar todos
         console.log(`⚠️ Hay ${vehiclesWithAnySellerId.length} vehículos con sellerId en el tenant, pero ninguno pertenece a este seller`);
@@ -187,7 +182,7 @@ export async function GET(
       } else {
         // No hay ningún vehículo con sellerId - mostrar todos los disponibles del tenant
         console.log(`📦 No hay vehículos con sellerId asignado, showing all available vehicles from tenant`);
-        
+
         // Filtrar vehículos excluidos con logging detallado
         const excludedVehicles: any[] = [];
         vehicles = allVehicles.filter((vehicle: any) => {
@@ -195,14 +190,14 @@ export async function GET(
             excludedVehicles.push({ id: 'null', reason: 'vehicle is null' });
             return false;
           }
-          
+
           const isSold = vehicle.status === 'sold';
           const isDeleted = vehicle.status === 'deleted';
           const isInactive = vehicle.status === 'inactive';
           const hasDeletedFlag = vehicle.deleted === true;
-          
+
           const isExcluded = isSold || isDeleted || isInactive || hasDeletedFlag;
-          
+
           if (isExcluded) {
             excludedVehicles.push({
               id: vehicle.id,
@@ -218,17 +213,17 @@ export async function GET(
               },
             });
           }
-          
+
           return !isExcluded;
         });
-        
+
         console.log(`📦 Showing ${vehicles.length} total available vehicles from tenant`);
         if (excludedVehicles.length > 0) {
           console.log(`🚫 Excluded ${excludedVehicles.length} vehicles:`, excludedVehicles);
         }
       }
     }
-    
+
     // Log de muestra
     if (vehicles.length > 0) {
       console.log(`📝 Sample vehicles (first 3):`, vehicles.slice(0, 3).map((v: any) => ({
@@ -244,7 +239,7 @@ export async function GET(
     } else {
       console.log(`⚠️ NO HAY VEHÍCULOS disponibles para el seller ${sellerId} en el tenant ${tenantId}`);
     }
-    
+
     console.log(`✅ Preparing response with ${vehicles.length} vehicles`);
 
     const responseData = {
@@ -264,9 +259,9 @@ export async function GET(
       },
       vehicles: vehicles || [],
     };
-    
+
     console.log(`✅ Response ready: seller=${responseData.seller.name}, vehicles=${responseData.vehicles.length}`);
-    
+
     const jsonResponse = NextResponse.json(responseData, {
       status: 200,
       headers: {
@@ -274,7 +269,7 @@ export async function GET(
         'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
       },
     });
-    
+
     console.log(`✅ Sending response with ${responseData.vehicles.length} vehicles`);
     return jsonResponse;
   } catch (error: any) {
@@ -282,16 +277,16 @@ export async function GET(
     console.error('❌ Error stack:', error.stack);
     console.error('❌ Error name:', error.name);
     console.error('❌ Error message:', error.message);
-    
+
     // Intentar devolver una respuesta de error válida
     try {
       return NextResponse.json(
-        { 
-          error: 'Internal server error', 
+        {
+          error: 'Internal server error',
           details: error.message || 'Error desconocido',
           stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
         },
-        { 
+        {
           status: 500,
           headers: {
             'Content-Type': 'application/json',

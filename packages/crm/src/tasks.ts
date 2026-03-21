@@ -1,9 +1,11 @@
 // Gestión de tareas y actividades
 
-import { getFirestore } from '@autodealers/shared';
-import * as admin from 'firebase-admin';
+import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
 
-const db = getFirestore();
+// Lazy initialization
+function getDb() {
+  return getFirestore();
+}
 
 export type TaskType = 'call' | 'email' | 'whatsapp' | 'meeting' | 'follow_up' | 'document' | 'custom';
 export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
@@ -39,7 +41,7 @@ export async function createTask(
   tenantId: string,
   taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'reminderSent'>
 ): Promise<Task> {
-  const docRef = db
+  const docRef = getDb()
     .collection('tenants')
     .doc(tenantId)
     .collection('tasks')
@@ -55,12 +57,12 @@ export async function createTask(
 
   await docRef.set({
     ...task,
-    dueDate: admin.firestore.Timestamp.fromDate(task.dueDate),
-    reminderDate: task.reminderDate ? admin.firestore.Timestamp.fromDate(task.reminderDate) : null,
-    recurrenceEndDate: task.recurrenceEndDate ? admin.firestore.Timestamp.fromDate(task.recurrenceEndDate) : null,
+    dueDate: getFirestoreFieldValue().Timestamp.fromDate(task.dueDate),
+    reminderDate: task.reminderDate ? getFirestoreFieldValue().Timestamp.fromDate(task.reminderDate) : null,
+    recurrenceEndDate: task.recurrenceEndDate ? getFirestoreFieldValue().Timestamp.fromDate(task.recurrenceEndDate) : null,
     completedAt: null,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: getFirestoreFieldValue().serverTimestamp(),
+    updatedAt: getFirestoreFieldValue().serverTimestamp(),
   } as any);
 
   return task;
@@ -82,7 +84,7 @@ export async function getTasks(
     limit?: number;
   }
 ): Promise<Task[]> {
-  let query: admin.firestore.Query = db
+  let query: any = getDb()
     .collection('tenants')
     .doc(tenantId)
     .collection('tasks');
@@ -115,7 +117,7 @@ export async function getTasks(
 
   const snapshot = await query.get();
 
-  return snapshot.docs.map((doc) => {
+  return snapshot.docs.map((doc: any) => {
     const data = doc.data();
     return {
       id: doc.id,
@@ -138,7 +140,7 @@ export async function updateTask(
   taskId: string,
   updates: Partial<Task>
 ): Promise<void> {
-  const taskRef = db
+  const taskRef = getDb()
     .collection('tenants')
     .doc(tenantId)
     .collection('tasks')
@@ -146,19 +148,19 @@ export async function updateTask(
 
   const updateData: any = {
     ...updates,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: getFirestoreFieldValue().serverTimestamp(),
   };
 
   if (updates.dueDate) {
-    updateData.dueDate = admin.firestore.Timestamp.fromDate(updates.dueDate);
+    updateData.dueDate = getFirestoreFieldValue().Timestamp.fromDate(updates.dueDate);
   }
 
   if (updates.reminderDate) {
-    updateData.reminderDate = admin.firestore.Timestamp.fromDate(updates.reminderDate);
+    updateData.reminderDate = getFirestoreFieldValue().Timestamp.fromDate(updates.reminderDate);
   }
 
   if (updates.completedAt) {
-    updateData.completedAt = admin.firestore.Timestamp.fromDate(updates.completedAt);
+    updateData.completedAt = getFirestoreFieldValue().Timestamp.fromDate(updates.completedAt);
   }
 
   await taskRef.update(updateData);

@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-export async function generateStaticParams() {
-  return [];
-}
+export const dynamic = 'force-dynamic';
 
 import { getTenantBySubdomain } from '@autodealers/core';
 import { getAppointmentsBySeller } from '@autodealers/crm';

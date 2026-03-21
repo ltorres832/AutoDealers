@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getFirestore } from '@autodealers/core';
-import * as admin from 'firebase-admin';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,6 +16,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(request: NextRequest) {
   try {
+    const { getFirestore, getFirestoreFieldValue } = await import('@autodealers/core');
     const db = getFirestore();
     const { tenantId, sellerId, assignAllToSeller } = await request.json();
 
@@ -63,18 +62,18 @@ export async function POST(request: NextRequest) {
     // Si se especifica un sellerId, asignar todos los vehículos sin sellerId a ese seller
     if (sellerId) {
       console.log(`📝 Assigning all vehicles without sellerId to seller ${sellerId}`);
-      
+
       for (const vehicleDoc of vehiclesSnapshot.docs) {
         try {
           const vehicleData = vehicleDoc.data();
-          
+
           // Solo actualizar si no tiene sellerId o si assignAllToSeller es true
           if (assignAllToSeller || (!vehicleData.sellerId && !vehicleData.assignedTo)) {
             await vehicleDoc.ref.update({
               sellerId: sellerId,
-              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+              updatedAt: getFirestoreFieldValue().serverTimestamp(),
             });
-            
+
             results.updated++;
             results.details.push({
               vehicleId: vehicleDoc.id,
@@ -85,7 +84,7 @@ export async function POST(request: NextRequest) {
               sellerId: sellerId,
               previousSellerId: vehicleData.sellerId || 'none',
             });
-            
+
             console.log(`✅ Assigned vehicle ${vehicleDoc.id} (${vehicleData.make} ${vehicleData.model}) to seller ${sellerId}`);
           } else {
             results.skipped++;
@@ -101,22 +100,22 @@ export async function POST(request: NextRequest) {
       // Si no se especifica sellerId, distribuir vehículos entre todos los sellers del tenant
       if (sellers.length > 0) {
         console.log(`📝 Distributing vehicles among ${sellers.length} sellers`);
-        
+
         let sellerIndex = 0;
         for (const vehicleDoc of vehiclesSnapshot.docs) {
           try {
             const vehicleData = vehicleDoc.data();
-            
+
             // Solo actualizar si no tiene sellerId
             if (!vehicleData.sellerId && !vehicleData.assignedTo) {
               const assignedSellerId = sellers[sellerIndex % sellers.length].id;
               const assignedSellerName = sellers[sellerIndex % sellers.length].name;
-              
+
               await vehicleDoc.ref.update({
                 sellerId: assignedSellerId,
-                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedAt: getFirestoreFieldValue().serverTimestamp(),
               });
-              
+
               results.updated++;
               results.details.push({
                 vehicleId: vehicleDoc.id,
@@ -127,7 +126,7 @@ export async function POST(request: NextRequest) {
                 sellerId: assignedSellerId,
                 sellerName: assignedSellerName,
               });
-              
+
               console.log(`✅ Assigned vehicle ${vehicleDoc.id} to seller ${assignedSellerName} (${assignedSellerId})`);
               sellerIndex++;
             } else {

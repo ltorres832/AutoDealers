@@ -2,12 +2,14 @@
 
 import { EmailAlias, Dealer, EmailAliasUsage, EmailAliasStatus } from '@autodealers/core';
 import { ZohoMailService } from '@autodealers/messaging';
-import { getFirestore } from '@autodealers/shared';
+import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
 import { getUserById, getTenantById } from '@autodealers/core';
 import { getMembershipById } from '@autodealers/billing';
-import * as admin from 'firebase-admin';
 
-const db = getFirestore();
+// Lazy initialization
+function getDb() {
+  return getFirestore();
+}
 
 // Dominio base para emails corporativos
 const CORPORATE_EMAIL_DOMAIN = process.env.CORPORATE_EMAIL_DOMAIN || 'autodealers.com';
@@ -20,7 +22,7 @@ async function getDealerEmailDomain(dealerSubdomain?: string): Promise<string> {
   const { getZohoMailCredentials } = await import('@autodealers/core');
   const credentials = await getZohoMailCredentials();
   const baseDomain = credentials.domain || CORPORATE_EMAIL_DOMAIN;
-  
+
   if (dealerSubdomain) {
     return `${dealerSubdomain}.${baseDomain}`;
   }
@@ -65,6 +67,7 @@ async function canCreateAlias(dealerId: string): Promise<{
   used?: number;
 }> {
   try {
+    const db = getDb();
     const dealerDoc = await db.collection('dealers').doc(dealerId).get();
     if (!dealerDoc.exists) {
       return { allowed: false, reason: 'Dealer no encontrado' };
@@ -119,6 +122,7 @@ export async function createEmailAlias(
     }
 
     // Obtener información del dealer
+    const db = getDb();
     const dealerDoc = await db.collection('dealers').doc(dealerId).get();
     if (!dealerDoc.exists) {
       throw new Error('Dealer no encontrado');
@@ -156,7 +160,7 @@ export async function createEmailAlias(
       // Por ahora, creamos el alias directamente
       // TODO: En Zoho, necesitamos asociar el alias a un email principal
       // Por simplicidad, asumimos que el dealer tiene un email principal configurado
-      
+
       // Intentar crear alias en Zoho
       // Nota: La API de Zoho para crear aliases requiere el emailId principal
       // Por ahora, solo guardamos en Firestore
@@ -179,14 +183,14 @@ export async function createEmailAlias(
 
     await aliasRef.set({
       ...aliasData,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: getFirestoreFieldValue().serverTimestamp(),
+      updatedAt: getFirestoreFieldValue().serverTimestamp(),
     } as any);
 
     // Actualizar contador de aliases usados en dealer
     await db.collection('dealers').doc(dealerId).update({
-      aliasesUsed: admin.firestore.FieldValue.increment(1),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      aliasesUsed: getFirestoreFieldValue().increment(1),
+      updatedAt: getFirestoreFieldValue().serverTimestamp(),
     });
 
     return {
@@ -203,7 +207,8 @@ export async function createEmailAlias(
  */
 export async function getEmailAliases(dealerId?: string, assignedTo?: string): Promise<EmailAlias[]> {
   try {
-    let query: admin.firestore.Query;
+    const db = getDb();
+    let query: any;
 
     if (dealerId) {
       query = db
@@ -248,6 +253,7 @@ export async function getEmailAliases(dealerId?: string, assignedTo?: string): P
  */
 export async function getDealerById(dealerId: string): Promise<Dealer | null> {
   try {
+    const db = getDb();
     const dealerDoc = await db.collection('dealers').doc(dealerId).get();
     if (!dealerDoc.exists) {
       return null;
@@ -275,14 +281,15 @@ export async function getAllDealers(filter?: {
   approvedByAdmin?: boolean;
 }): Promise<Dealer[]> {
   try {
-    let query: admin.firestore.Query = db.collection('dealers');
+    const db = getDb();
+    let query: any = db.collection('dealers');
 
     if (filter?.status) {
-      query = query.where('status', '==', filter.status) as admin.firestore.Query;
+      query = query.where('status', '==', filter.status) as any;
     }
 
     if (filter?.approvedByAdmin !== undefined) {
-      query = query.where('approvedByAdmin', '==', filter.approvedByAdmin) as admin.firestore.Query;
+      query = query.where('approvedByAdmin', '==', filter.approvedByAdmin) as any;
     }
 
     const snapshot = await query.orderBy('createdAt', 'desc').get();
@@ -312,6 +319,7 @@ export async function approveDealer(
   aliasesLimit?: number | null // Límite de aliases según membresía
 ): Promise<void> {
   try {
+    const db = getDb();
     const dealerDoc = await db.collection('dealers').doc(dealerId);
     const dealerData = await dealerDoc.get();
 
@@ -351,11 +359,11 @@ export async function approveDealer(
     await dealerDoc.update({
       approvedByAdmin: true,
       status: 'active',
-      approvedAt: admin.firestore.FieldValue.serverTimestamp(),
+      approvedAt: getFirestoreFieldValue().serverTimestamp(),
       approvedBy,
       aliasesLimit: limit ?? null,
       emailAliases: limit ?? null, // Para compatibilidad con User interface
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: getFirestoreFieldValue().serverTimestamp(),
     });
 
     // Trigger: Crear aliases iniciales según membresía (si aplica)
@@ -371,10 +379,11 @@ export async function approveDealer(
  */
 export async function rejectDealer(dealerId: string, reason?: string): Promise<void> {
   try {
+    const db = getDb();
     await db.collection('dealers').doc(dealerId).update({
       approvedByAdmin: false,
       status: 'suspended',
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: getFirestoreFieldValue().serverTimestamp(),
       rejectionReason: reason,
     });
 
@@ -393,6 +402,7 @@ export async function rejectDealer(dealerId: string, reason?: string): Promise<v
  */
 export async function suspendEmailAlias(aliasId: string): Promise<void> {
   try {
+    const db = getDb();
     const aliasRef = db.collection('email_aliases').doc(aliasId);
     const aliasDoc = await aliasRef.get();
 
@@ -415,14 +425,14 @@ export async function suspendEmailAlias(aliasId: string): Promise<void> {
     await aliasRef.update({
       active: false,
       status: 'suspended',
-      suspendedAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      suspendedAt: getFirestoreFieldValue().serverTimestamp(),
+      updatedAt: getFirestoreFieldValue().serverTimestamp(),
     });
 
     // Decrementar contador en dealer
     await db.collection('dealers').doc(aliasData.dealerId).update({
-      aliasesUsed: admin.firestore.FieldValue.increment(-1),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      aliasesUsed: getFirestoreFieldValue().increment(-1),
+      updatedAt: getFirestoreFieldValue().serverTimestamp(),
     });
   } catch (error) {
     throw new Error(`Error suspending email alias: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -434,6 +444,7 @@ export async function suspendEmailAlias(aliasId: string): Promise<void> {
  */
 export async function activateEmailAlias(aliasId: string): Promise<void> {
   try {
+    const db = getDb();
     const aliasRef = db.collection('email_aliases').doc(aliasId);
     const aliasDoc = await aliasRef.get();
 
@@ -453,15 +464,15 @@ export async function activateEmailAlias(aliasId: string): Promise<void> {
     await aliasRef.update({
       active: true,
       status: 'active',
-      reactivatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      suspendedAt: admin.firestore.FieldValue.delete(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      reactivatedAt: getFirestoreFieldValue().serverTimestamp(),
+      suspendedAt: getFirestoreFieldValue().delete(),
+      updatedAt: getFirestoreFieldValue().serverTimestamp(),
     });
 
     // Incrementar contador en dealer
     await db.collection('dealers').doc(aliasData.dealerId).update({
-      aliasesUsed: admin.firestore.FieldValue.increment(1),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      aliasesUsed: getFirestoreFieldValue().increment(1),
+      updatedAt: getFirestoreFieldValue().serverTimestamp(),
     });
   } catch (error) {
     throw new Error(`Error activating email alias: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -473,6 +484,7 @@ export async function activateEmailAlias(aliasId: string): Promise<void> {
  */
 export async function deleteEmailAlias(aliasId: string): Promise<void> {
   try {
+    const db = getDb();
     const aliasRef = db.collection('email_aliases').doc(aliasId);
     const aliasDoc = await aliasRef.get();
 
@@ -486,14 +498,14 @@ export async function deleteEmailAlias(aliasId: string): Promise<void> {
     await aliasRef.update({
       active: false,
       status: 'deleted',
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: getFirestoreFieldValue().serverTimestamp(),
     });
 
     // Decrementar contador en dealer solo si estaba activo
     if (aliasData.active) {
       await db.collection('dealers').doc(aliasData.dealerId).update({
-        aliasesUsed: admin.firestore.FieldValue.increment(-1),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        aliasesUsed: getFirestoreFieldValue().increment(-1),
+        updatedAt: getFirestoreFieldValue().serverTimestamp(),
       });
     }
   } catch (error) {
@@ -566,11 +578,12 @@ export async function adjustAliasesOnMembershipChange(
       }
     }
 
+    const db = getDb();
     // Actualizar límite en dealer
     await db.collection('dealers').doc(dealerId).update({
       aliasesLimit: newLimit,
       membresia: newMembershipId,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: getFirestoreFieldValue().serverTimestamp(),
     });
 
     // Si hay un límite y se excede, suspender excedentes

@@ -1,9 +1,11 @@
 // Gestión de chat público (clientes desde página web)
 
-import { getFirestore } from '@autodealers/shared';
-import * as admin from 'firebase-admin';
+import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
 
-const db = getFirestore();
+// Lazy initialization
+function getDb() {
+  return getFirestore();
+}
 
 export interface PublicChatMessage {
   id: string;
@@ -38,8 +40,7 @@ export async function createPublicChatMessage(
   attachments?: string[]
 ): Promise<PublicChatMessage> {
   try {
-    console.log('💬 createPublicChatMessage:', { tenantId, sessionId, clientName, fromClient });
-    
+    const db = getDb();
     const docRef = db
       .collection('tenants')
       .doc(tenantId)
@@ -54,7 +55,7 @@ export async function createPublicChatMessage(
       content,
       attachments: attachments || [],
       read: false,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: getFirestoreFieldValue().serverTimestamp(),
     };
 
     // Solo agregar campos si tienen valor (evitar undefined)
@@ -73,7 +74,7 @@ export async function createPublicChatMessage(
         // Obtener el tenant para notificar a todos los usuarios activos
         const tenantDoc = await db.collection('tenants').doc(tenantId).get();
         const tenantData = tenantDoc.data();
-        
+
         // Notificar al dealer y vendedores
         const usersSnapshot = await db
           .collection('users')
@@ -110,7 +111,7 @@ export async function createPublicChatMessage(
       try {
         await docRef.update({
           read: true,
-          readAt: admin.firestore.FieldValue.serverTimestamp(),
+          readAt: getFirestoreFieldValue().serverTimestamp(),
         } as any);
       } catch (updateError) {
         console.warn('⚠️ Error marcando como leído:', updateError);
@@ -149,6 +150,7 @@ export async function getPublicChatMessages(
   sessionId: string
 ): Promise<PublicChatMessage[]> {
   try {
+    const db = getDb();
     console.log('🔍 getPublicChatMessages:', { tenantId, sessionId });
     const snapshot = await db
       .collection('tenants')
@@ -191,6 +193,7 @@ export async function getPublicChatConversations(
   unreadCount: number;
   createdAt: Date;
 }>> {
+  const db = getDb();
   // Obtener todos los mensajes del tenant
   const snapshot = await db
     .collection('tenants')
@@ -212,7 +215,7 @@ export async function getPublicChatConversations(
   snapshot.docs.forEach((doc) => {
     const data = doc.data();
     const sessionId = data.sessionId;
-    
+
     if (!conversationsMap[sessionId]) {
       conversationsMap[sessionId] = {
         sessionId,
@@ -232,8 +235,8 @@ export async function getPublicChatConversations(
       readAt: data?.readAt?.toDate(),
     } as PublicChatMessage;
 
-    if (!conversationsMap[sessionId].lastMessage || 
-        message.createdAt > conversationsMap[sessionId].lastMessage!.createdAt) {
+    if (!conversationsMap[sessionId].lastMessage ||
+      message.createdAt > conversationsMap[sessionId].lastMessage!.createdAt) {
       conversationsMap[sessionId].lastMessage = message;
     }
 
@@ -253,6 +256,7 @@ export async function markPublicChatMessagesAsRead(
   sessionId: string,
   userId: string
 ): Promise<void> {
+  const db = getDb();
   const batch = db.batch();
   const unreadMessages = await db
     .collection('tenants')
@@ -266,7 +270,7 @@ export async function markPublicChatMessagesAsRead(
   unreadMessages.docs.forEach((doc) => {
     batch.update(doc.ref, {
       read: true,
-      readAt: admin.firestore.FieldValue.serverTimestamp(),
+      readAt: getFirestoreFieldValue().serverTimestamp(),
     } as any);
   });
 
@@ -286,6 +290,7 @@ async function createNotification(
     data?: Record<string, any>;
   }
 ): Promise<void> {
+  const db = getDb();
   const notificationRef = db
     .collection('tenants')
     .doc(tenantId)
@@ -296,7 +301,7 @@ async function createNotification(
     userId,
     ...notification,
     read: false,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: getFirestoreFieldValue().serverTimestamp(),
   } as any);
 }
 

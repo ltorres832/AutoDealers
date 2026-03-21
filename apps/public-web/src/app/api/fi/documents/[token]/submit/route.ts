@@ -3,13 +3,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDocumentRequestByToken, submitDocumentToRequest } from '@autodealers/crm';
 import { getFirestore } from '@autodealers/core';
-import * as admin from 'firebase-admin';
 import { EmailService } from '@autodealers/messaging';
 import { SMSService } from '@autodealers/messaging';
-
-export async function generateStaticParams() {
-  return [];
-}
 
 export async function POST(
   request: NextRequest,
@@ -72,7 +67,7 @@ export async function POST(
           if (emailCreds?.apiKey) {
             const emailProvider = emailCreds.apiKey.includes('re_') || emailCreds.apiKey.startsWith('re_') ? 'resend' : 'sendgrid';
             const emailService = new EmailService(emailCreds.apiKey, emailProvider);
-            
+
             await emailService.sendEmail({
               tenantId: docRequest.tenantId,
               channel: 'email',
@@ -110,7 +105,7 @@ export async function POST(
               twilioCreds.authToken,
               twilioCreds.phoneNumber
             );
-            
+
             await smsService.sendSMS({
               tenantId: docRequest.tenantId,
               channel: 'sms',
@@ -133,7 +128,7 @@ export async function POST(
           if (emailCreds?.apiKey) {
             const emailProvider = emailCreds.apiKey.includes('re_') || emailCreds.apiKey.startsWith('re_') ? 'resend' : 'sendgrid';
             const emailService = new EmailService(emailCreds.apiKey, emailProvider);
-            
+
             await emailService.sendEmail({
               tenantId: docRequest.tenantId,
               channel: 'email',

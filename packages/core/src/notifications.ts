@@ -1,7 +1,6 @@
 // Sistema de notificaciones
 
-import { getFirestore } from '@autodealers/shared';
-import * as admin from 'firebase-admin';
+import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
 import { EmailService } from '@autodealers/messaging';
 import { SMSService } from '@autodealers/messaging';
 import { WhatsAppService } from '@autodealers/messaging';
@@ -53,7 +52,7 @@ export async function createNotification(
   const notificationData = {
     ...notification,
     read: false,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: getFirestoreFieldValue().serverTimestamp(),
   };
 
   await docRef.set(notificationData as any);
@@ -122,14 +121,14 @@ async function sendEmailNotification(
   const { getEmailCredentials } = await import('./credentials');
   const emailCreds = await getEmailCredentials();
   const emailApiKey = emailCreds.apiKey || '';
-  
+
   if (!emailApiKey) {
     console.warn('Email API Key no configurada. No se enviará email.');
     return;
   }
-  
+
   const emailProvider = emailApiKey.includes('re_') || emailApiKey.startsWith('re_') ? 'resend' : 'sendgrid';
-  
+
   const emailService = new EmailService(
     emailApiKey,
     emailProvider
@@ -168,12 +167,12 @@ async function sendSMSNotification(
   // Obtener credenciales de Twilio desde Firestore
   const { getTwilioCredentials } = await import('./credentials');
   const twilioCreds = await getTwilioCredentials();
-  
+
   if (!twilioCreds.accountSid || !twilioCreds.authToken || !twilioCreds.phoneNumber) {
     console.warn('Credenciales de Twilio no configuradas. No se enviará SMS.');
     return;
   }
-  
+
   const smsService = new SMSService(
     twilioCreds.accountSid,
     twilioCreds.authToken,
@@ -207,7 +206,7 @@ async function sendWhatsAppNotification(
   // Obtener credenciales de WhatsApp desde Firestore
   const { getWhatsAppCredentials } = await import('./credentials');
   const whatsappCreds = await getWhatsAppCredentials();
-  
+
   const whatsappService = new WhatsAppService(
     whatsappCreds.accessToken || '',
     whatsappCreds.phoneNumberId || ''
@@ -235,7 +234,7 @@ export async function getUserNotifications(
   }
 ): Promise<Notification[]> {
   try {
-    let query: admin.firestore.Query = getDb()
+    let query = getDb()
       .collection('tenants')
       .doc(tenantId)
       .collection('notifications')
@@ -284,7 +283,7 @@ export async function getUserNotifications(
     if (error.code === 9 || error.message?.includes('index')) {
       console.warn('⚠️ Índice faltante en Firestore para notificaciones. Obteniendo sin orderBy...');
       try {
-        let query: admin.firestore.Query = getDb()
+        let query = getDb()
           .collection('tenants')
           .doc(tenantId)
           .collection('notifications')
@@ -322,7 +321,7 @@ export async function getUserNotifications(
         return [];
       }
     }
-    
+
     console.error('❌ Error al obtener notificaciones:', error);
     throw error;
   }
@@ -342,7 +341,7 @@ export async function markNotificationAsRead(
     .doc(notificationId)
     .update({
       read: true,
-      readAt: admin.firestore.FieldValue.serverTimestamp(),
+      readAt: getFirestoreFieldValue().serverTimestamp(),
     } as any);
 }
 
@@ -365,7 +364,7 @@ export async function markAllNotificationsAsRead(
   snapshot.docs.forEach((doc) => {
     batch.update(doc.ref, {
       read: true,
-      readAt: admin.firestore.FieldValue.serverTimestamp(),
+      readAt: getFirestoreFieldValue().serverTimestamp(),
     } as any);
   });
 
@@ -386,7 +385,7 @@ export async function notifyManagersAndAdmins(
 ): Promise<void> {
   try {
     const db = getDb();
-    
+
     // Buscar todos los usuarios manager y dealer_admin del tenant
     const managersSnapshot = await getDb().collection('users')
       .where('tenantId', '==', tenantId)
@@ -402,10 +401,10 @@ export async function notifyManagersAndAdmins(
     const notificationPromises = managersSnapshot.docs.map(async (doc) => {
       const userData = doc.data();
       const userId = doc.id;
-      
+
       // Verificar configuración de notificaciones del usuario
       const businessNotifications = userData?.settings?.businessNotifications || {};
-      
+
       // Verificar si el usuario quiere recibir este tipo de notificación
       let shouldNotify = true;
       switch (notification.type) {
@@ -437,11 +436,11 @@ export async function notifyManagersAndAdmins(
       // Determinar canales según configuración del usuario
       const userNotificationSettings = userData?.settings?.notifications || {};
       const channels: NotificationChannel[] = ['system']; // Siempre notificar en sistema
-      
+
       if (userNotificationSettings.email !== false) {
         channels.push('email');
       }
-      
+
       if (userData.phone) {
         if (userNotificationSettings.sms !== false) {
           channels.push('sms');

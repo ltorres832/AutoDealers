@@ -1,11 +1,10 @@
 // Gestión de membresías
 
 import { Membership, MembershipType } from './types';
-import { getFirestore } from '@autodealers/shared';
-import * as admin from 'firebase-admin';
+import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
 
 // NO inicializar db aquí - se inicializa en cada función
-let db: admin.firestore.Firestore | null = null;
+let db: any = null;
 
 function getDb() {
   if (!db) {
@@ -22,9 +21,10 @@ export async function createMembership(
 ): Promise<Membership> {
   const docRef = getDb().collection('memberships').doc();
 
+  const fieldValue = getFirestoreFieldValue();
   await docRef.set({
     ...membership,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: fieldValue.serverTimestamp(),
   } as any);
 
   return {
@@ -44,7 +44,7 @@ export async function getMemberships(
 
   try {
     // Primero intentar sin orderBy para evitar problemas de índice
-    let query: admin.firestore.Query = getDb().collection('memberships');
+    let query: any = getDb().collection('memberships');
 
     if (type) {
       query = query.where('type', '==', type);
@@ -139,7 +139,7 @@ export async function getActiveMemberships(
 
   try {
     // Primero intentar sin orderBy para evitar problemas de índice
-    let query: admin.firestore.Query = getDb()
+    let query: any = getDb()
       .collection('memberships')
       .where('isActive', '==', true);
 
@@ -317,11 +317,12 @@ export async function updateMembership(
 
   const cleanedUpdates = removeUndefined(updates);
 
+  const fieldValue = getFirestoreFieldValue();
   // Asegurar que updatedAt y syncVersion estén presentes
   const finalUpdates = {
     ...cleanedUpdates,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    syncVersion: admin.firestore.FieldValue.increment(1),
+    updatedAt: fieldValue.serverTimestamp(),
+    syncVersion: fieldValue.increment(1),
   };
 
   console.log('💾 updateMembership - Final updates (no undefined):', JSON.stringify(finalUpdates, null, 2));

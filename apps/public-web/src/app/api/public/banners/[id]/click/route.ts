@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import * as admin from 'firebase-admin';
-import { getFirestore } from '@autodealers/core';
 
-export async function generateStaticParams() {
-  return [];
-}
+export const dynamic = 'force-dynamic';
 
 export async function POST(
   request: NextRequest,
@@ -12,12 +8,16 @@ export async function POST(
 ) {
   try {
     const { id: bannerId } = await params;
+    const { getFirestore, getFirestoreStatic, getFirestoreFieldValue } = await import('@autodealers/core');
+
     const db = getFirestore();
+    const firestoreStatic = getFirestoreStatic();
+    const fieldValue = getFirestoreFieldValue();
 
     // Buscar el banner en todos los tenants
     const bannersSnapshot = await db
       .collectionGroup('premium_banners')
-      .where(admin.firestore.FieldPath.documentId(), '==', bannerId)
+      .where(firestoreStatic.FieldPath.documentId(), '==', bannerId)
       .limit(1)
       .get();
 
@@ -30,8 +30,8 @@ export async function POST(
 
     // Incrementar contador de clics
     await bannerRef.update({
-      clicks: admin.firestore.FieldValue.increment(1),
-      lastClickAt: admin.firestore.FieldValue.serverTimestamp(),
+      clicks: fieldValue.increment(1),
+      lastClickAt: fieldValue.serverTimestamp(),
     });
 
     return NextResponse.json({ success: true });

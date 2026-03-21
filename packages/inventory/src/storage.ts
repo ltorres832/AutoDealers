@@ -1,17 +1,17 @@
-// Gestión de almacenamiento de imágenes
-
 import { getStorage } from '@autodealers/shared';
-import * as admin from 'firebase-admin';
 
-console.log('📦 packages/inventory/src/storage.ts - Módulo cargado');
-
-let storage: admin.storage.Storage;
-try {
-  storage = getStorage();
-  console.log('✅ Storage obtenido en módulo:', !!storage);
-} catch (error: any) {
-  console.error('❌ Error obteniendo storage en módulo:', error.message);
-  throw error;
+// Lazy initialization
+function getStorageInstance() {
+  try {
+    const storage = getStorage();
+    if (!storage) {
+      throw new Error('Storage no está disponible.');
+    }
+    return storage;
+  } catch (error: any) {
+    console.error('❌ Error obteniendo storage:', error.message);
+    throw error;
+  }
 }
 
 /**
@@ -30,9 +30,9 @@ export async function uploadVehicleImage(
     filename,
     contentType,
     fileSize: file.length,
-    storageAvailable: !!storage,
+    storageAvailable: true,
   });
-  
+
   // Obtener el bucket - intentar múltiples formatos de nombre
   let bucket;
   const possibleBucketNames = [
@@ -40,18 +40,15 @@ export async function uploadVehicleImage(
     'autodealers-7f62e.appspot.com', // Formato antiguo
     'autodealers-7f62e', // Solo project ID
   ];
-  
+
   try {
-    // Verificar que storage esté disponible
-    if (!storage) {
-      throw new Error('Storage no está disponible. Firebase Admin puede no estar inicializado.');
-    }
-    
+    const storageInstance = getStorageInstance();
+
     // Intentar obtener el bucket con diferentes nombres
     let bucketError: any = null;
     for (const bucketName of possibleBucketNames) {
       try {
-        bucket = storage.bucket(bucketName);
+        bucket = storageInstance.bucket(bucketName);
         // Verificar que el bucket tenga nombre (esto confirma que existe)
         if (bucket && bucket.name) {
           console.log('📦 Bucket obtenido exitosamente:', {
@@ -67,12 +64,12 @@ export async function uploadVehicleImage(
         continue; // Intentar siguiente nombre
       }
     }
-    
+
     // Si todos los nombres fallaron, intentar bucket por defecto
     if (!bucket || !bucket.name) {
       console.warn('⚠️ No se pudo obtener bucket con nombres específicos, intentando bucket por defecto...');
       try {
-        bucket = storage.bucket(); // Sin parámetros usa el bucket configurado en Firebase
+        bucket = storageInstance.bucket(); // Sin parámetros usa el bucket configurado en Firebase
         if (bucket && bucket.name) {
           console.log('📦 Bucket obtenido por defecto:', bucket.name);
         } else {
@@ -93,25 +90,24 @@ export async function uploadVehicleImage(
       error: error.message,
       errorCode: error.code,
       errorStack: error.stack,
-      storageAvailable: !!storage,
-      storageType: typeof storage,
+      storageAvailable: !!getStorageInstance(),
     });
     throw error;
   }
-  
+
   // Determinar si es video o imagen basado en el contentType
   const isVideo = contentType.startsWith('video/');
   const folder = isVideo ? 'videos' : 'images';
-  
+
   // Sanitizar el nombre del archivo para evitar problemas con caracteres especiales
   const sanitizedFilename = filename
     .replace(/[^a-zA-Z0-9.-]/g, '_')
     .replace(/\s+/g, '_');
-  
+
   // Agregar timestamp para evitar colisiones
   const timestamp = Date.now();
   const finalFilename = `${timestamp}_${sanitizedFilename}`;
-  
+
   const filePath = `tenants/${tenantId}/vehicles/${vehicleId}/${folder}/${finalFilename}`;
   const fileRef = bucket.file(filePath);
 
@@ -146,12 +142,12 @@ export async function uploadVehicleImage(
 
     // Obtener URL pública - usar getSignedUrl con expiración larga o URL pública directa
     let publicUrl: string;
-    
+
     // Como el archivo ya es público, usar URL directa (más simple y confiable)
     // La URL directa funciona mejor para archivos públicos que getSignedUrl
     const encodedPath = filePath.split('/').map(encodeURIComponent).join('/');
     publicUrl = `https://storage.googleapis.com/${bucket.name}/${encodedPath}`;
-    
+
     console.log('🔗 URL pública generada:', {
       filePath,
       encodedPath,
@@ -185,7 +181,7 @@ export async function deleteVehicleImage(
   vehicleId: string,
   filename: string
 ): Promise<void> {
-  const bucket = storage.bucket();
+  const bucket = getStorageInstance().bucket();
   const filePath = `tenants/${tenantId}/vehicles/${vehicleId}/${filename}`;
   const fileRef = bucket.file(filePath);
 
@@ -201,7 +197,7 @@ export async function uploadTenantLogo(
   filename: string,
   contentType: string = 'image/png'
 ): Promise<string> {
-  const bucket = storage.bucket();
+  const bucket = getStorageInstance().bucket();
   const filePath = `tenants/${tenantId}/branding/logo/${filename}`;
   const fileRef = bucket.file(filePath);
 
@@ -227,7 +223,7 @@ export async function uploadTenantFavicon(
   filename: string,
   contentType: string = 'image/x-icon'
 ): Promise<string> {
-  const bucket = storage.bucket();
+  const bucket = getStorageInstance().bucket();
   const filePath = `tenants/${tenantId}/branding/favicon/${filename}`;
   const fileRef = bucket.file(filePath);
 

@@ -1,10 +1,12 @@
 // Gestión de mensajes
 
 import { Message } from './types';
-import { getFirestore } from '@autodealers/shared';
-import * as admin from 'firebase-admin';
+import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
 
-const db = getFirestore();
+// Lazy initialization
+function getDb() {
+  return getFirestore();
+}
 
 /**
  * Crea un nuevo mensaje en el CRM
@@ -12,6 +14,7 @@ const db = getFirestore();
 export async function createMessage(
   messageData: Omit<Message, 'id' | 'createdAt'>
 ): Promise<Message> {
+  const db = getDb();
   const docRef = db
     .collection('tenants')
     .doc(messageData.tenantId)
@@ -20,7 +23,7 @@ export async function createMessage(
 
   await docRef.set({
     ...messageData,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: getFirestoreFieldValue().serverTimestamp(),
   } as any);
 
   const newMessage: Message = {
@@ -71,6 +74,7 @@ export async function getMessageById(
   tenantId: string,
   messageId: string
 ): Promise<Message | null> {
+  const db = getDb();
   const messageDoc = await db
     .collection('tenants')
     .doc(tenantId)
@@ -97,6 +101,7 @@ export async function getLeadMessages(
   tenantId: string,
   leadId: string
 ): Promise<Message[]> {
+  const db = getDb();
   const snapshot = await db
     .collection('tenants')
     .doc(tenantId)
@@ -123,7 +128,8 @@ export async function getMessagesByChannel(
   channel: Message['channel'],
   limit?: number
 ): Promise<Message[]> {
-  let query: admin.firestore.Query = db
+  const db = getDb();
+  let query: any = db
     .collection('tenants')
     .doc(tenantId)
     .collection('messages')
@@ -136,7 +142,7 @@ export async function getMessagesByChannel(
 
   const snapshot = await query.get();
 
-  return snapshot.docs.map((doc) => {
+  return snapshot.docs.map((doc: any) => {
     const data = doc.data();
     return {
       id: doc.id,
@@ -154,6 +160,7 @@ export async function updateMessageStatus(
   messageId: string,
   status: Message['status']
 ): Promise<void> {
+  const db = getDb();
   await db
     .collection('tenants')
     .doc(tenantId)

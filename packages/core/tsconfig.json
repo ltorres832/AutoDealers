@@ -17,18 +17,52 @@
       ],
       "@autodealers/shared/*": [
         "../shared/dist/*"
+      ],
+      "@autodealers/messaging": [
+        "../messaging/dist"
+      ],
+      "@autodealers/messaging/*": [
+        "../messaging/dist/*"
+      ],
+      "@autodealers/billing": [
+        "../billing/dist"
+      ],
+      "@autodealers/billing/*": [
+        "../billing/dist/*"
+      ],
+      "@autodealers/inventory": [
+        "../inventory/dist"
+      ],
+      "@autodealers/inventory/*": [
+        "../inventory/dist/*"
+      ],
+      "@autodealers/crm": [
+        "../crm/dist"
+      ],
+      "@autodealers/crm/*": [
+        "../crm/dist/*"
+      ],
+      "@autodealers/ai": [
+        "../ai/dist"
+      ],
+      "@autodealers/ai/*": [
+        "../ai/dist/*"
+      ],
+      "@autodealers/reports": [
+        "../reports/dist"
+      ],
+      "@autodealers/reports/*": [
+        "../reports/dist/*"
       ]
     }
   },
-  "files": [],
   "include": [
-    "src/**/*.ts"
+    "src/**/*"
   ],
   "exclude": [
     "node_modules",
     "dist",
     "**/*.test.ts",
-    "**/*.spec.ts",
-    "../**"
+    "**/*.spec.ts"
   ]
 }

@@ -1,10 +1,12 @@
 // Sistema de scoring avanzado de leads
 
-import { getFirestore } from '@autodealers/shared';
+import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
 import { Lead, ScoreHistory } from './types';
-import * as admin from 'firebase-admin';
 
-const db = getFirestore();
+// Lazy initialization
+function getDb() {
+  return getFirestore();
+}
 
 export interface ScoringRule {
   id: string;
@@ -46,7 +48,7 @@ export async function calculateAutomaticScore(
   lead: Lead
 ): Promise<number> {
   const config = await getScoringConfig(tenantId);
-  
+
   if (!config.enabled || !config.autoCalculate) {
     return 0;
   }
@@ -131,14 +133,14 @@ function calculateSourceScore(source: string): number {
  */
 function calculateInteractionScore(interactions: any[]): number {
   if (!interactions || interactions.length === 0) return 0;
-  
+
   let score = 0;
   score += interactions.length * 2; // 2 puntos por interacción
-  
+
   // Bonus por múltiples interacciones
   if (interactions.length >= 5) score += 10;
   if (interactions.length >= 10) score += 15;
-  
+
   return Math.min(score, 30);
 }
 
@@ -155,16 +157,16 @@ function calculateResponseTimeScore(lead: Lead): number {
  */
 function calculateAIClassificationScore(classification?: any): number {
   if (!classification) return 0;
-  
+
   let score = 0;
-  
+
   if (classification.priority === 'high') score += 20;
   else if (classification.priority === 'medium') score += 10;
   else if (classification.priority === 'low') score += 5;
-  
+
   if (classification.sentiment === 'positive') score += 10;
   else if (classification.sentiment === 'negative') score -= 5;
-  
+
   return score;
 }
 
@@ -179,6 +181,7 @@ export async function updateLeadScore(
   reason?: string,
   updatedBy?: string
 ): Promise<void> {
+  const db = getDb();
   const leadRef = db
     .collection('tenants')
     .doc(tenantId)
@@ -192,7 +195,7 @@ export async function updateLeadScore(
 
   const leadData = leadDoc.data() as Lead;
   const config = await getScoringConfig(tenantId);
-  
+
   const weights = config.weights || { automatic: 0.7, manual: 0.3 };
   const combinedScore = manualScore !== undefined
     ? Math.round(automaticScore * weights.automatic + manualScore * weights.manual)
@@ -214,13 +217,13 @@ export async function updateLeadScore(
       automatic: automaticScore,
       manual: manualScore,
       combined: combinedScore,
-      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+      lastUpdated: getFirestoreFieldValue().serverTimestamp(),
       history: newHistory.map(h => ({
         ...h,
-        updatedAt: admin.firestore.Timestamp.fromDate(h.updatedAt),
+        updatedAt: getFirestoreFieldValue().Timestamp.fromDate(h.updatedAt),
       })),
     },
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: getFirestoreFieldValue().serverTimestamp(),
   } as any);
 }
 
@@ -228,6 +231,7 @@ export async function updateLeadScore(
  * Obtiene configuración de scoring
  */
 export async function getScoringConfig(tenantId: string): Promise<ScoringConfig> {
+  const db = getDb();
   const configDoc = await db
     .collection('tenants')
     .doc(tenantId)
@@ -266,6 +270,7 @@ export async function saveScoringConfig(
   tenantId: string,
   config: Partial<ScoringConfig>
 ): Promise<void> {
+  const db = getDb();
   await db
     .collection('tenants')
     .doc(tenantId)
@@ -274,7 +279,7 @@ export async function saveScoringConfig(
     .set({
       ...config,
       tenantId,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: getFirestoreFieldValue().serverTimestamp(),
     }, { merge: true });
 }
 

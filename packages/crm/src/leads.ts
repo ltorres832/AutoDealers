@@ -1,8 +1,7 @@
 // Gestión de leads
 
 import { Lead, LeadStatus, LeadSource } from './types';
-import { getFirestore } from '@autodealers/shared';
-import * as admin from 'firebase-admin';
+import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
 
 // Lazy initialization - solo se inicializa cuando se necesita
 function getDb() {
@@ -41,8 +40,8 @@ export async function createLead(
 
   await docRef.set({
     ...leadData,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: getFirestoreFieldValue().serverTimestamp(),
+    updatedAt: getFirestoreFieldValue().serverTimestamp(),
   } as any);
 
   const newLead: Lead = {
@@ -172,7 +171,7 @@ export async function getLeads(
   }
 ): Promise<Lead[]> {
   const db = getDb();
-  let query: admin.firestore.Query = db
+  let query: any = db
     .collection('tenants')
     .doc(tenantId)
     .collection('leads');
@@ -224,7 +223,7 @@ export async function updateLeadStatus(
     .doc(leadId)
     .update({
       status,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: getFirestoreFieldValue().serverTimestamp(),
     } as any);
 }
 
@@ -237,7 +236,7 @@ export async function assignLead(
   userId: string
 ): Promise<void> {
   const db = getDb();
-  
+
   // Obtener información del lead antes de actualizar
   const leadDoc = await db
     .collection('tenants')
@@ -245,9 +244,9 @@ export async function assignLead(
     .collection('leads')
     .doc(leadId)
     .get();
-  
+
   const leadData = leadDoc.data();
-  
+
   await db
     .collection('tenants')
     .doc(tenantId)
@@ -255,7 +254,7 @@ export async function assignLead(
     .doc(leadId)
     .update({
       assignedTo: userId,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: getFirestoreFieldValue().serverTimestamp(),
     } as any);
 
   // Obtener información del vendedor asignado
@@ -296,7 +295,7 @@ export async function addInteraction(
   }
 ): Promise<void> {
   const interactionData = {
-    id: admin.firestore.FieldValue.serverTimestamp().toString(),
+    id: getFirestoreFieldValue().serverTimestamp().toString(),
     ...interaction,
     createdAt: new Date(),
   };
@@ -308,8 +307,8 @@ export async function addInteraction(
     .collection('leads')
     .doc(leadId)
     .update({
-      interactions: admin.firestore.FieldValue.arrayUnion(interactionData),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      interactions: getFirestoreFieldValue().arrayUnion(interactionData),
+      updatedAt: getFirestoreFieldValue().serverTimestamp(),
     } as any);
 }
 
@@ -329,7 +328,7 @@ export async function updateLead(
     .doc(leadId)
     .update({
       ...updates,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: getFirestoreFieldValue().serverTimestamp(),
     } as any);
 }
 
@@ -340,11 +339,11 @@ export async function updateLead(
 export async function findLeadByPhone(phone: string): Promise<Lead | null> {
   // Normalizar teléfono (remover espacios, guiones, etc)
   const normalizedPhone = phone.replace(/[\s\-\(\)]/g, '');
-  
+
   const db = getDb();
   // Buscar en todos los tenants (esto puede ser costoso, pero necesario para webhooks)
   const tenantsSnapshot = await db.collection('tenants').get();
-  
+
   for (const tenantDoc of tenantsSnapshot.docs) {
     const tenantId = tenantDoc.id;
     const leadsSnapshot = await db
@@ -354,7 +353,7 @@ export async function findLeadByPhone(phone: string): Promise<Lead | null> {
       .where('contact.phone', '==', phone)
       .limit(1)
       .get();
-    
+
     if (!leadsSnapshot.empty) {
       const leadDoc = leadsSnapshot.docs[0];
       const data = leadDoc.data();
@@ -365,7 +364,7 @@ export async function findLeadByPhone(phone: string): Promise<Lead | null> {
         updatedAt: data?.updatedAt?.toDate() || new Date(),
       } as Lead;
     }
-    
+
     // También buscar con teléfono normalizado
     const leadsSnapshotNormalized = await db
       .collection('tenants')
@@ -374,7 +373,7 @@ export async function findLeadByPhone(phone: string): Promise<Lead | null> {
       .where('contact.phone', '==', normalizedPhone)
       .limit(1)
       .get();
-    
+
     if (!leadsSnapshotNormalized.empty) {
       const leadDoc = leadsSnapshotNormalized.docs[0];
       const data = leadDoc.data();
@@ -386,7 +385,7 @@ export async function findLeadByPhone(phone: string): Promise<Lead | null> {
       } as Lead;
     }
   }
-  
+
   return null;
 }
 
@@ -399,7 +398,7 @@ export async function findLeadByPhoneInTenant(
 ): Promise<Lead | null> {
   const db = getDb();
   const normalizedPhone = phone.replace(/[\s\-\(\)]/g, '');
-  
+
   // Buscar con teléfono original
   let snapshot = await db
     .collection('tenants')
@@ -408,7 +407,7 @@ export async function findLeadByPhoneInTenant(
     .where('contact.phone', '==', phone)
     .limit(1)
     .get();
-  
+
   if (snapshot.empty && normalizedPhone !== phone) {
     // Buscar con teléfono normalizado
     snapshot = await db
@@ -419,11 +418,11 @@ export async function findLeadByPhoneInTenant(
       .limit(1)
       .get();
   }
-  
+
   if (snapshot.empty) {
     return null;
   }
-  
+
   const leadDoc = snapshot.docs[0];
   const data = leadDoc.data();
   return {

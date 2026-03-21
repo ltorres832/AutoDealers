@@ -1,10 +1,12 @@
 // Gestión de citas
 
 import { Appointment, Reminder } from './types';
-import { getFirestore } from '@autodealers/shared';
-import * as admin from 'firebase-admin';
+import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
 
-const db = getFirestore();
+// Lazy initialization
+function getDb() {
+  return getFirestore();
+}
 
 /**
  * Crea una nueva cita
@@ -12,6 +14,7 @@ const db = getFirestore();
 export async function createAppointment(
   appointmentData: Omit<Appointment, 'id' | 'createdAt' | 'updatedAt' | 'reminders'>
 ): Promise<Appointment> {
+  const db = getDb();
   // Verificar disponibilidad
   const isAvailable = await checkAvailability(
     appointmentData.tenantId,
@@ -33,8 +36,8 @@ export async function createAppointment(
   await docRef.set({
     ...appointmentData,
     reminders: [],
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: getFirestoreFieldValue().serverTimestamp(),
+    updatedAt: getFirestoreFieldValue().serverTimestamp(),
   } as any);
 
   const newAppointment: Appointment = {
@@ -94,6 +97,7 @@ export async function getAppointmentById(
   tenantId: string,
   appointmentId: string
 ): Promise<Appointment | null> {
+  const db = getDb();
   const appointmentDoc = await db
     .collection('tenants')
     .doc(tenantId)
@@ -123,7 +127,8 @@ export async function getAppointments(
   startDate?: Date,
   endDate?: Date
 ): Promise<Appointment[]> {
-  let query: admin.firestore.Query = db
+  const db = getDb();
+  let query: any = db
     .collection('tenants')
     .doc(tenantId)
     .collection('appointments');
@@ -140,7 +145,7 @@ export async function getAppointments(
 
   const snapshot = await query.get();
 
-  return snapshot.docs.map((doc) => {
+  return snapshot.docs.map((doc: any) => {
     const data = doc.data();
     return {
       id: doc.id,
@@ -161,7 +166,8 @@ export async function getAppointmentsBySeller(
   startDate?: Date,
   endDate?: Date
 ): Promise<Appointment[]> {
-  let query: admin.firestore.Query = db
+  const db = getDb();
+  let query: any = db
     .collection('tenants')
     .doc(tenantId)
     .collection('appointments')
@@ -179,7 +185,7 @@ export async function getAppointmentsBySeller(
 
   const snapshot = await query.get();
 
-  return snapshot.docs.map((doc) => {
+  return snapshot.docs.map((doc: any) => {
     const data = doc.data();
     return {
       id: doc.id,
@@ -198,6 +204,7 @@ export async function getLeadAppointments(
   tenantId: string,
   leadId: string
 ): Promise<Appointment[]> {
+  const db = getDb();
   const snapshot = await db
     .collection('tenants')
     .doc(tenantId)
@@ -226,6 +233,7 @@ export async function updateAppointment(
   appointmentId: string,
   updates: Partial<Omit<Appointment, 'id' | 'createdAt' | 'reminders'>>
 ): Promise<Appointment> {
+  const db = getDb();
   const appointmentRef = db
     .collection('tenants')
     .doc(tenantId)
@@ -234,7 +242,7 @@ export async function updateAppointment(
 
   await appointmentRef.update({
     ...updates,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: getFirestoreFieldValue().serverTimestamp(),
   } as any);
 
   const updatedDoc = await appointmentRef.get();
@@ -261,6 +269,7 @@ export async function updateAppointmentStatus(
   appointmentId: string,
   status: Appointment['status']
 ): Promise<void> {
+  const db = getDb();
   await db
     .collection('tenants')
     .doc(tenantId)
@@ -268,7 +277,7 @@ export async function updateAppointmentStatus(
     .doc(appointmentId)
     .update({
       status,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: getFirestoreFieldValue().serverTimestamp(),
     } as any);
 }
 
@@ -280,6 +289,7 @@ export async function cancelAppointment(
   appointmentId: string,
   reason?: string
 ): Promise<void> {
+  const db = getDb();
   await db
     .collection('tenants')
     .doc(tenantId)
@@ -288,7 +298,7 @@ export async function cancelAppointment(
     .update({
       status: 'cancelled',
       notes: reason ? `Cancelada: ${reason}` : undefined,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: getFirestoreFieldValue().serverTimestamp(),
     } as any);
 }
 
@@ -300,6 +310,7 @@ export async function addReminder(
   appointmentId: string,
   reminder: Reminder
 ): Promise<void> {
+  const db = getDb();
   const appointment = await getAppointmentById(tenantId, appointmentId);
   if (!appointment) {
     throw new Error('Cita no encontrada');
@@ -311,8 +322,8 @@ export async function addReminder(
     .collection('appointments')
     .doc(appointmentId)
     .update({
-      reminders: admin.firestore.FieldValue.arrayUnion(reminder),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      reminders: getFirestoreFieldValue().arrayUnion(reminder),
+      updatedAt: getFirestoreFieldValue().serverTimestamp(),
     } as any);
 }
 

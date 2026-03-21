@@ -1,7 +1,6 @@
 // Gestión de mensajes internos (dealer <-> sellers)
 
-import { getFirestore } from '@autodealers/shared';
-import * as admin from 'firebase-admin';
+import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
 
 // Lazy initialization - solo se inicializa cuando se necesita
 function getDb() {
@@ -51,7 +50,7 @@ export async function createInternalMessage(
       content,
       attachments: attachments || [],
       read: false,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: getFirestoreFieldValue().serverTimestamp(),
     };
 
     await docRef.set(messageData as any);
@@ -115,8 +114,8 @@ export async function getInternalMessages(
   try {
     const db = getDb();
     // Intentar obtener mensajes con orderBy primero
-    let messages1: admin.firestore.QuerySnapshot;
-    let messages2: admin.firestore.QuerySnapshot;
+    let messages1: any;
+    let messages2: any;
 
     try {
       [messages1, messages2] = await Promise.all([
@@ -207,8 +206,8 @@ export async function getInternalConversations(
   unreadCount: number;
 }>> {
   const db = getDb();
-  let sentMessages: admin.firestore.QuerySnapshot;
-  let receivedMessages: admin.firestore.QuerySnapshot;
+  let sentMessages: any;
+  let receivedMessages: any;
 
   try {
     // Intentar obtener con orderBy primero
@@ -279,8 +278,8 @@ export async function getInternalConversations(
       createdAt: data?.createdAt?.toDate() || new Date(),
       readAt: data?.readAt?.toDate(),
     } as InternalMessage;
-    if (!conversationsMap[otherUserId].lastMessage || 
-        message.createdAt > conversationsMap[otherUserId].lastMessage!.createdAt) {
+    if (!conversationsMap[otherUserId].lastMessage ||
+      message.createdAt > conversationsMap[otherUserId].lastMessage!.createdAt) {
       conversationsMap[otherUserId].lastMessage = message;
     }
   });
@@ -303,8 +302,8 @@ export async function getInternalConversations(
       createdAt: data?.createdAt?.toDate() || new Date(),
       readAt: data?.readAt?.toDate(),
     } as InternalMessage;
-    if (!conversationsMap[otherUserId].lastMessage || 
-        message.createdAt > conversationsMap[otherUserId].lastMessage!.createdAt) {
+    if (!conversationsMap[otherUserId].lastMessage ||
+      message.createdAt > conversationsMap[otherUserId].lastMessage!.createdAt) {
       conversationsMap[otherUserId].lastMessage = message;
     }
     if (!data.read) {
@@ -347,10 +346,10 @@ export async function markInternalMessagesAsRead(
     return;
   }
 
-  unreadMessages.docs.forEach((doc) => {
+  unreadMessages.docs.forEach((doc: any) => {
     batch.update(doc.ref, {
       read: true,
-      readAt: admin.firestore.FieldValue.serverTimestamp(),
+      readAt: getFirestoreFieldValue().serverTimestamp(),
     } as any);
   });
 
