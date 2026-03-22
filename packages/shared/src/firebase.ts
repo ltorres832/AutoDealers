@@ -108,218 +108,57 @@ export function initializeFirebase(): AdminType['app']['App'] {
   const admin = getAdmin();
   if (!admin.apps.length) {
     try {
-      // Intentar cargar variables de entorno desde .env.local si no están en process.env
-      // Next.js normalmente carga .env.local automáticamente, pero por si acaso:
       let projectId = process.env.FIREBASE_PROJECT_ID;
       let clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
       let privateKey = process.env.FIREBASE_PRIVATE_KEY;
 
-      // Si no están cargadas, intentar cargar manualmente (solo en Node.js)
-      if (typeof window === 'undefined' && (!projectId || !clientEmail || !privateKey)) {
-        try {
-          const fs = require('fs');
-          const path = require('path');
-          const envPath = path.join(process.cwd(), '.env.local');
-          if (fs.existsSync(envPath)) {
-            const envContent = fs.readFileSync(envPath, 'utf8');
-            const lines = envContent.split('\n');
-
-            let currentKey: string | null = null;
-            let currentValue = '';
-            let inMultiline = false;
-            let quoteChar: string | null = null;
-
-            for (let i = 0; i < lines.length; i++) {
-              let line = lines[i];
-              const trimmed = line.trim();
-
-              // Saltar comentarios
-              if (trimmed.startsWith('#')) continue;
-
-              // Buscar línea con =
-              const equalIndex = trimmed.indexOf('=');
-              if (equalIndex > 0 && !inMultiline) {
-                // Guardar variable anterior
-                if (currentKey && currentValue) {
-                  const finalValue = currentValue.trim();
-                  if (currentKey === 'FIREBASE_PROJECT_ID' && !projectId) projectId = finalValue;
-                  if (currentKey === 'FIREBASE_CLIENT_EMAIL' && !clientEmail) clientEmail = finalValue;
-                  if (currentKey === 'FIREBASE_PRIVATE_KEY' && !privateKey) privateKey = finalValue;
-                }
-
-                // Nueva variable
-                currentKey = trimmed.substring(0, equalIndex).trim();
-                let value = trimmed.substring(equalIndex + 1).trim();
-
-                // Verificar si comienza con comillas (multilínea)
-                if ((value.startsWith('"') && !value.endsWith('"')) ||
-                  (value.startsWith("'") && !value.endsWith("'"))) {
-                  inMultiline = true;
-                  quoteChar = value[0];
-                  currentValue = value.substring(1); // Remover comilla inicial
-                } else {
-                  // Valor simple (una línea)
-                  if ((value.startsWith('"') && value.endsWith('"')) ||
-                    (value.startsWith("'") && value.endsWith("'"))) {
-                    value = value.slice(1, -1);
-                  }
-                  currentValue = value;
-                  // Guardar inmediatamente
-                  if (currentKey === 'FIREBASE_PROJECT_ID' && !projectId) projectId = currentValue;
-                  if (currentKey === 'FIREBASE_CLIENT_EMAIL' && !clientEmail) clientEmail = currentValue;
-                  if (currentKey === 'FIREBASE_PRIVATE_KEY' && !privateKey) privateKey = currentValue;
-                  currentKey = null;
-                  currentValue = '';
-                }
-              } else if (inMultiline) {
-                // Continuación de valor multilínea
-                if (trimmed.endsWith(quoteChar!) && trimmed.length > 1) {
-                  // Fin del valor multilínea
-                  currentValue += '\n' + trimmed.slice(0, -1);
-                  if (currentKey) {
-                    if (currentKey === 'FIREBASE_PROJECT_ID' && !projectId) projectId = currentValue.trim();
-                    if (currentKey === 'FIREBASE_CLIENT_EMAIL' && !clientEmail) clientEmail = currentValue.trim();
-                    if (currentKey === 'FIREBASE_PRIVATE_KEY' && !privateKey) privateKey = currentValue.trim();
-                  }
-                  currentKey = null;
-                  currentValue = '';
-                  inMultiline = false;
-                  quoteChar = null;
-                } else {
-                  // Continuar acumulando
-                  currentValue += '\n' + line;
-                }
-              }
-            }
-
-            // Guardar última variable si queda pendiente
-            if (currentKey && currentValue) {
-              const finalValue = currentValue.trim();
-              if (currentKey === 'FIREBASE_PROJECT_ID' && !projectId) projectId = finalValue;
-              if (currentKey === 'FIREBASE_CLIENT_EMAIL' && !clientEmail) clientEmail = finalValue;
-              if (currentKey === 'FIREBASE_PRIVATE_KEY' && !privateKey) privateKey = finalValue;
-            }
-          }
-        } catch (loadError: any) {
-          // Ignorar errores al cargar .env.local manualmente
-          console.warn('⚠️ No se pudo cargar .env.local manualmente:', loadError.message);
-        }
-      }
-
-      // Procesar privateKey (remover escapes de \n)
       if (privateKey) {
         privateKey = privateKey.replace(/\\n/g, '\n');
       }
 
-      // Validar que al menos tengamos el Project ID o estemos en un entorno con ADC
-      if (!projectId && !process.env.GOOGLE_APPLICATION_CREDENTIALS && !process.env.K_SERVICE) {
-        const error = new Error(
-          '🔥 Firebase Admin: Credenciales no configuradas.\n\n' +
-          'No se encontró FIREBASE_PROJECT_ID ni credenciales por defecto (ADC).\n' +
-          'SOLUCIÓN:\n' +
-          '1. Configura FIREBASE_PROJECT_ID en las variables de entorno.\n' +
-          '2. O proporciona un archivo de service account.'
-        );
+      const isCloudEnv = !!process.env.FIREBASE_CONFIG || !!process.env.K_SERVICE || !!process.env.K_REVISION;
+
+      if (!projectId && !isCloudEnv) {
+        const error = new Error('🔥 Firebase Admin: FIREBASE_PROJECT_ID no configurada.');
         initializationError = error;
-
-        console.error('❌ Firebase Admin - Credenciales no encontradas:', {
-          hasProjectId: !!projectId,
-          hasADC: !!process.env.GOOGLE_APPLICATION_CREDENTIALS,
-          isCloudRun: !!process.env.K_SERVICE,
-          cwd: process.cwd(),
-        });
-
-        // En modo build, no lanzar error
-        if (process.env.NEXT_PHASE === 'phase-production-build') {
-          console.warn('⚠️  Firebase not initialized during build (expected if credentials are not available)');
-          try {
-            firebaseApp = admin.initializeApp({
-              projectId: projectId || 'autodealers-7f62e',
-            }, '[DEFAULT]');
-          } catch {
-            firebaseApp = admin.apps.length > 0 ? admin.app() : null;
-          }
-          return firebaseApp!;
-        }
-
         throw error;
       }
 
-      const storageBucket = projectId === 'autodealers-7f62e'
+      const storageBucket = (projectId || 'autodealers-7f62e') === 'autodealers-7f62e'
         ? 'autodealers-7f62e.firebasestorage.app'
         : `${projectId || 'autodealers-7f62e'}.firebasestorage.app`;
 
+      const appOptions: any = { storageBucket, projectId };
+
+      if (projectId && clientEmail && privateKey) {
+        appOptions.credential = admin.credential.cert({ projectId, clientEmail, privateKey });
+        console.log('✅ Firebase Admin Shared: Certificado explícito');
+      } else {
+        const effectiveProjectId = projectId || process.env.GOOGLE_CLOUD_PROJECT || 'autodealers-7f62e';
+        console.log('ℹ️ Firebase Admin Shared: Usando ADC');
+        appOptions.projectId = effectiveProjectId;
+      }
+
+      firebaseApp = admin.initializeApp(appOptions);
+
       try {
-        const admin = getAdmin();
+        const db = admin.firestore(firebaseApp);
+        db.settings({ ignoreUndefinedProperties: true });
+      } catch (e) { }
 
-        if (projectId && clientEmail && privateKey) {
-          firebaseApp = admin.initializeApp({
-            credential: admin.credential.cert({
-              projectId,
-              clientEmail,
-              privateKey: privateKey.replace(/\\n/g, '\n'),
-            } as any),
-            storageBucket: storageBucket,
-          });
-          console.log('✅ Firebase Admin: Initialized with service account certificate');
-        } else {
-          // Fallback to Application Default Credentials (ADC)
-          // App Hosting automatically provides identity for the backend
-          const effectiveProjectId = projectId || process.env.GOOGLE_CLOUD_PROJECT || process.env.GCP_PROJECT;
-          console.log('ℹ️ Firebase Admin: Using Application Default Credentials (ADC). Project:', effectiveProjectId || 'detected');
-          firebaseApp = admin.initializeApp({
-            projectId: effectiveProjectId,
-            storageBucket: storageBucket,
-          });
+    } catch (error: any) {
+      if (error.code === 'app/duplicate-app') {
+        firebaseApp = admin.app();
+      } else {
+        initializationError = error as Error;
+        if (process.env.NEXT_PHASE === 'phase-production-build') {
+          console.warn('⚠️ Build fallback en shared');
+          return admin.apps.length ? admin.app() : admin.initializeApp({ projectId: 'mock' }, '[DEFAULT]');
         }
-
-        console.log('✅ Firebase Storage configurado con bucket:', storageBucket);
-
-        // Configurar Firestore para ignorar undefined
-        try {
-          const db = admin.firestore(firebaseApp);
-          db.settings({ ignoreUndefinedProperties: true });
-        } catch (settingsError: any) {
-          if (!settingsError.message?.includes('already been called')) {
-            console.warn('⚠️  Settings error:', settingsError.message);
-          }
-        }
-
-      } catch (initError: any) {
-        if (initError.code === 'app/duplicate-app') {
-          firebaseApp = admin.app();
-          console.log('✅ Firebase Admin: Re-using existing instance');
-        } else {
-          console.error('🔥 Firebase Admin Initialization error:', initError);
-          throw initError;
-        }
+        throw error;
       }
-    } catch (error) {
-      initializationError = error as Error;
-
-      // En modo build, no lanzar error si las credenciales no están disponibles
-      if (process.env.NEXT_PHASE === 'phase-production-build') {
-        console.warn('⚠️  Firebase not initialized during build (this is expected if credentials are not available)');
-        try {
-          const admin = getAdmin();
-          if (admin.apps.length === 0) {
-            firebaseApp = admin.initializeApp({
-              projectId: 'mock-project',
-            }, '[DEFAULT]');
-          } else {
-            firebaseApp = admin.app();
-          }
-        } catch {
-          const admin = getAdmin();
-          firebaseApp = admin.apps.length > 0 ? admin.app() : null;
-        }
-        return firebaseApp!;
-      }
-
-      throw error;
     }
   } else {
-    const admin = getAdmin();
     firebaseApp = admin.app();
   }
 
