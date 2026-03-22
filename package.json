@@ -34,7 +34,6 @@
     "clean": "turbo run clean"
   },
   "devDependencies": {
-    "turbo": "^1.10.0",
     "typescript": "^5.2.0"
   },
   "engines": {
@@ -42,7 +41,8 @@
     "npm": ">=9.0.0"
   },
   "dependencies": {
-    "firebase": "^11.0.0"
+    "firebase": "^11.0.0",
+    "turbo": "^1.10.0"
   },
   "overrides": {
     "fast-xml-parser": "^5.3.3"

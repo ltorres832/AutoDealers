@@ -2,7 +2,7 @@ buildConfig:
   runtime: nodejs20
   buildCommand: |
     npm install --legacy-peer-deps && 
-    npx turbo run build --filter=@autodealers/public-web && 
+    ./node_modules/.bin/turbo run build --filter=@autodealers/public-web && 
     mkdir -p .next/standalone/apps/public-web/.next/static &&
     cp -r apps/public-web/.next/static/. .next/standalone/apps/public-web/.next/static &&
     mkdir -p .next/standalone/apps/public-web/public &&

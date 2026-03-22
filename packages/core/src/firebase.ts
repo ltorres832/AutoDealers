@@ -242,14 +242,12 @@ export function initializeFirebase(): any {
       }
 
       // Validar que las credenciales estén disponibles
-      if (!projectId || !clientEmail || !privateKey) {
+      const isCloudEnv = !!process.env.FIREBASE_CONFIG || !!process.env.K_SERVICE;
+
+      if (!projectId || ((!clientEmail || !privateKey) && !isCloudEnv)) {
         const error = new Error(
           '🔥 Firebase Admin: Credenciales no configuradas.\n\n' +
-          'El archivo .env.local existe pero las variables no están cargadas.\n' +
-          'SOLUCIÓN:\n' +
-          '1. Detén el servidor (Ctrl+C)\n' +
-          '2. Reinicia el servidor: npm run dev\n' +
-          '3. Si el error persiste, verifica que .env.local esté en: apps/admin/.env.local\n\n' +
+          'No se encontraron variables de entorno para inicialización manual y no parece ser un entorno gestionado.\n' +
           'Para configurar desde cero:\n' +
           '  node apps/admin/configure-firebase.js'
         );
@@ -259,8 +257,8 @@ export function initializeFirebase(): any {
           hasProjectId: !!projectId,
           hasClientEmail: !!clientEmail,
           hasPrivateKey: !!privateKey,
+          isCloudEnv,
           cwd: process.cwd(),
-          nodeEnv: process.env.NODE_ENV,
         });
 
         // En modo build, no lanzar error
@@ -269,7 +267,7 @@ export function initializeFirebase(): any {
           const admin = getAdmin();
           try {
             firebaseApp = admin.initializeApp({
-              projectId: 'mock-project',
+              projectId: projectId || 'mock-project',
             }, '[DEFAULT]');
           } catch {
             firebaseApp = admin.apps.length > 0 ? admin.app() : null;
@@ -280,25 +278,33 @@ export function initializeFirebase(): any {
         throw error;
       }
 
-      const serviceAccount = {
-        projectId,
-        clientEmail,
-        privateKey,
-      };
-
       try {
         // Obtener storageBucket del proyecto (formato nuevo: proyecto-id.firebasestorage.app)
-        // Si el proyecto es autodealers-7f62e, el bucket es autodealers-7f62e.firebasestorage.app
         const storageBucket = projectId === 'autodealers-7f62e'
           ? 'autodealers-7f62e.firebasestorage.app'
           : `${projectId}.firebasestorage.app`;
 
         const admin = getAdmin();
-        firebaseApp = admin.initializeApp({
-          credential: admin.credential.cert(serviceAccount as any),
-          storageBucket: storageBucket,
-        });
 
+        // CONFIGURACIÓN DE INICIALIZACIÓN:
+        // Si hay credenciales explícitas, usarlas. Si no, usar ADC (App Hosting).
+        const appOptions: any = {
+          storageBucket: storageBucket,
+          projectId: projectId
+        };
+
+        if (clientEmail && privateKey) {
+          appOptions.credential = admin.credential.cert({
+            projectId,
+            clientEmail,
+            privateKey,
+          });
+          console.log('✅ Firebase Admin: Inicializando con certificado explícito');
+        } else {
+          console.log('✅ Firebase Admin: Inicializando con credenciales por defecto (ADC)');
+        }
+
+        firebaseApp = admin.initializeApp(appOptions);
         console.log('✅ Firebase Storage configurado con bucket:', storageBucket);
 
         // Configurar Firestore para ignorar undefined ANTES de cualquier uso
