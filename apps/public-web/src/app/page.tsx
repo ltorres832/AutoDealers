@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect, useCallback, useMemo, Fragment, useRef } from 'react';
 import Link from 'next/link';
@@ -21,6 +21,7 @@ import BetweenContentBanner from '../components/BetweenContentBanner';
 import ContactForm from '../components/ContactForm';
 import LandingFooter from '../components/LandingFooter';
 import { SITE_INFO as DEFAULT_SITE_INFO, getSiteInfo } from '../config/site-info';
+import { getFirstPhoto, handleImageError } from '../lib/vehicle-image';
 
 interface Banner {
   id: string;
@@ -298,16 +299,18 @@ export default function LandingPage() {
 
       if (response.ok) {
         const data = await response.json();
-        const dealers = (data.dealers || []).sort((a: any, b: any) => {
+        const rawDealers = data.results?.dealers || data.dealers || [];
+        const dealers = rawDealers.sort((a: any, b: any) => {
           const aScore = (a.dealerRating || 0) * 10 + (a.publishedVehiclesCount || 0);
           const bScore = (b.dealerRating || 0) * 10 + (b.publishedVehiclesCount || 0);
-          return bScore - aScore;
+          if (bScore !== aScore) return bScore - aScore;
+          return String(a.name || '').localeCompare(String(b.name || ''), 'es');
         }).slice(0, 6);
         setFeaturedDealers(dealers);
         // Guardar en sessionStorage
         try {
-          sessionStorage.setItem('dealers_cache', JSON.stringify(dealers));
-          sessionStorage.setItem('dealers_cache_timestamp', Date.now().toString());
+          sessionStorage.setItem('dealers_cache_v2', JSON.stringify(dealers));
+          sessionStorage.setItem('dealers_cache_v2_timestamp', Date.now().toString());
         } catch (e) {
           // Ignorar errores de sessionStorage
         }
@@ -413,13 +416,11 @@ export default function LandingPage() {
         }
 
         const vehiclesWithPhotos = (data.vehicles || []).map((vehicle: any) => {
-
-          const photos = Array.isArray(vehicle.photos)
-            ? vehicle.photos.filter((photo: string) =>
-              photo && typeof photo === 'string' && photo.trim() !== '' && photo !== 'undefined' && !photo.includes('undefined')
-            )
-            : [];
-
+          // Soportar both photos e images para consistencia localhost/hosting
+          const rawPhotos = Array.isArray(vehicle.photos) ? vehicle.photos : (Array.isArray(vehicle.images) ? vehicle.images : []);
+          const photos = rawPhotos.filter((photo: string) =>
+            photo && typeof photo === 'string' && photo.trim() !== '' && photo !== 'undefined' && !String(photo).includes('undefined')
+          );
           const stockNumber = vehicle.stockNumber || vehicle.specifications?.stockNumber;
 
           return {
@@ -435,8 +436,8 @@ export default function LandingPage() {
 
         // Guardar en sessionStorage para persistencia
         try {
-          sessionStorage.setItem('vehicles_cache', JSON.stringify(vehiclesWithPhotos));
-          sessionStorage.setItem('vehicles_cache_timestamp', Date.now().toString());
+          sessionStorage.setItem('vehicles_cache_v4', JSON.stringify(vehiclesWithPhotos));
+          sessionStorage.setItem('vehicles_cache_v4_timestamp', Date.now().toString());
         } catch (e) {
           // Ignorar errores de sessionStorage (puede estar deshabilitado)
         }
@@ -452,7 +453,7 @@ export default function LandingPage() {
       } else {
         // Si hay timeout, intentar cargar desde caché como último recurso
         try {
-          const savedVehicles = sessionStorage.getItem('vehicles_cache');
+          const savedVehicles = sessionStorage.getItem('vehicles_cache_v4');
           if (savedVehicles) {
             const parsedVehicles = JSON.parse(savedVehicles);
             if (Array.isArray(parsedVehicles) && parsedVehicles.length > 0) {
@@ -468,7 +469,7 @@ export default function LandingPage() {
         }
       }
       // Solo limpiar si realmente no hay datos
-      const hasCachedData = sessionStorage.getItem('vehicles_cache');
+      const hasCachedData = sessionStorage.getItem('vehicles_cache_v4');
       if (!hasCachedData) {
         setVehicles([]);
         setFilteredVehicles([]);
@@ -512,8 +513,8 @@ export default function LandingPage() {
 
     // Cargar vehículos desde caché
     try {
-      const savedVehicles = sessionStorage.getItem('vehicles_cache');
-      const savedTimestamp = sessionStorage.getItem('vehicles_cache_timestamp');
+      const savedVehicles = sessionStorage.getItem('vehicles_cache_v4');
+      const savedTimestamp = sessionStorage.getItem('vehicles_cache_v4_timestamp');
 
       if (savedVehicles && savedTimestamp) {
         const timestamp = parseInt(savedTimestamp);
@@ -547,8 +548,8 @@ export default function LandingPage() {
 
     // Cargar dealers desde caché
     try {
-      const savedDealers = sessionStorage.getItem('dealers_cache');
-      const savedTimestamp = sessionStorage.getItem('dealers_cache_timestamp');
+      const savedDealers = sessionStorage.getItem('dealers_cache_v2');
+      const savedTimestamp = sessionStorage.getItem('dealers_cache_v2_timestamp');
       if (savedDealers && savedTimestamp) {
         const timestamp = parseInt(savedTimestamp);
         const cacheAge = Date.now() - timestamp;
@@ -1225,19 +1226,23 @@ export default function LandingPage() {
                             {/* Image Container */}
                             <div className="relative h-72 bg-slate-100 overflow-hidden">
                               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent z-10 transition-opacity duration-500 opacity-40 group-hover:opacity-80"></div>
-                              {vehicle.photos && vehicle.photos.length > 0 && vehicle.photos[0] ? (
-                                <img
-                                  src={vehicle.photos[0].trim()}
-                                  alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
-                                  className="w-full h-full object-cover scale-105 group-hover:scale-115 transition-transform duration-[1.5s] ease-out"
-                                  loading="lazy"
-                                  referrerPolicy="no-referrer"
-                                />
-                              ) : (
-                                <div className="h-full w-full flex items-center justify-center bg-slate-50 text-slate-200">
-                                  <svg className="w-20 h-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                                </div>
-                              )}
+                              {(() => {
+                                const src = getFirstPhoto(vehicle);
+                                return src ? (
+                                  <img
+                                    src={src}
+                                    alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
+                                    className="w-full h-full object-cover scale-105 group-hover:scale-115 transition-transform duration-[1.5s] ease-out"
+                                    loading="lazy"
+                                    referrerPolicy="no-referrer"
+                                    onError={handleImageError}
+                                  />
+                                ) : (
+                                  <div className="h-full w-full flex items-center justify-center bg-slate-50 text-slate-200">
+                                    <svg className="w-20 h-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                  </div>
+                                );
+                              })()}
 
                               {/* Stock Badge */}
                               <div className="absolute bottom-6 right-6 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 translate-y-4 group-hover:translate-y-0">
@@ -1336,19 +1341,23 @@ export default function LandingPage() {
                         >
                           {/* Image Section */}
                           <div className="relative w-full md:w-96 overflow-hidden bg-slate-100 flex-shrink-0">
-                            {vehicle.photos && vehicle.photos.length > 0 && vehicle.photos[0] ? (
-                              <img
-                                src={vehicle.photos[0].trim()}
-                                alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
-                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 ease-out"
-                                loading="lazy"
-                                referrerPolicy="no-referrer"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-slate-200">
-                                <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                              </div>
-                            )}
+                            {(() => {
+                              const src = getFirstPhoto(vehicle);
+                              return src ? (
+                                <img
+                                  src={src}
+                                  alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
+                                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 ease-out"
+                                  loading="lazy"
+                                  referrerPolicy="no-referrer"
+                                  onError={handleImageError}
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-slate-200">
+                                  <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                </div>
+                              );
+                            })()}
 
                             {/* Badges on Image */}
                             <div className="absolute top-6 left-6 z-10 flex flex-col gap-2">

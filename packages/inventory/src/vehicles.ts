@@ -229,17 +229,64 @@ export async function getVehicleById(
   }
 
   const data = vehicleDoc.data();
+  const photos = Array.isArray(data?.photos)
+    ? data.photos
+    : Array.isArray(data?.images)
+      ? data.images
+      : [];
   return {
     id: vehicleDoc.id,
     ...data,
+    photos,
     createdAt: data?.createdAt?.toDate() || new Date(),
     updatedAt: data?.updatedAt?.toDate() || new Date(),
     soldAt: data?.soldAt?.toDate(),
   } as Vehicle;
 }
 
+/** True si hay que usar consulta filtrada en Firestore (no lectura completa del subcolección) */
+function hasVehicleFilters(filters?: VehicleFilters): boolean {
+  if (!filters) return false;
+  const f = filters as VehicleFilters & { bodyType?: string; fuelType?: string; transmission?: string };
+  return !!(
+    f.status ||
+    f.make ||
+    f.model ||
+    f.minYear != null ||
+    f.maxYear != null ||
+    f.minPrice != null ||
+    f.maxPrice != null ||
+    f.condition ||
+    (f.search && String(f.search).trim()) ||
+    f.bodyType ||
+    f.fuelType ||
+    f.transmission
+  );
+}
+
+const MAX_UNFILTERED_VEHICLE_DOCS = 8000;
+
+function mapVehicleDocs(docs: any[]): Vehicle[] {
+  return docs.map((doc) => {
+    const data = doc.data();
+    const photos = Array.isArray(data.photos) ? data.photos : (Array.isArray(data.images) ? data.images : []);
+    return {
+      id: doc.id,
+      ...data,
+      photos,
+      createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : data.createdAt,
+      updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : data.updatedAt,
+      soldAt: data.soldAt?.toDate ? data.soldAt.toDate() : data.soldAt,
+    } as Vehicle;
+  });
+}
+
 /**
  * Obtiene vehículos con filtros
+ *
+ * Importante: NO usar orderBy('createdAt') en Firestore — los documentos sin `createdAt` quedan fuera
+ * de la query y el catálogo público parecía vacío. Sin filtros: lectura completa de la subcolección
+ * (típicamente pocos cientos de docs por tenant); ordenación solo en memoria.
  */
 export async function getVehicles(
   tenantId: string,
@@ -247,131 +294,130 @@ export async function getVehicles(
 ): Promise<Vehicle[]> {
   console.log(`   📦 getVehicles() llamado con filtros:`, JSON.stringify(filters));
 
-  let query: any = getDb()
-    .collection('tenants')
-    .doc(tenantId)
-    .collection('vehicles');
+  let vehicles: Vehicle[] = [];
 
-  if (filters?.status) {
-    console.log(`   🔎 Agregando filtro: status == '${filters.status}'`);
-    query = query.where('status', '==', filters.status);
-  }
+  // Catálogo público típico: sin filtros → traer todos los docs del tenant (incluye legacy sin createdAt)
+  if (!hasVehicleFilters(filters)) {
+    const snap = await getDb()
+      .collection('tenants')
+      .doc(tenantId)
+      .collection('vehicles')
+      .get();
+    let docs = snap.docs;
+    if (docs.length > MAX_UNFILTERED_VEHICLE_DOCS) {
+      console.warn(
+        `   ⚠️ Tenant ${tenantId}: ${docs.length} vehículos; truncando a ${MAX_UNFILTERED_VEHICLE_DOCS} para esta petición`
+      );
+      docs = docs.slice(0, MAX_UNFILTERED_VEHICLE_DOCS);
+    }
+    vehicles = mapVehicleDocs(docs);
+    console.log(`   ✅ Lectura completa (sin filtros): ${vehicles.length} documentos`);
+  } else {
+    let query: any = getDb()
+      .collection('tenants')
+      .doc(tenantId)
+      .collection('vehicles');
 
-  if (filters?.make) {
-    query = query.where('make', '==', filters.make);
-  }
+    if (filters?.status) {
+      console.log(`   🔎 Agregando filtro: status == '${filters.status}'`);
+      query = query.where('status', '==', filters.status);
+    }
 
-  if (filters?.model) {
-    query = query.where('model', '==', filters.model);
-  }
+    if (filters?.make) {
+      query = query.where('make', '==', filters.make);
+    }
 
-  if (filters?.minYear) {
-    query = query.where('year', '>=', filters.minYear);
-  }
+    if (filters?.model) {
+      query = query.where('model', '==', filters.model);
+    }
 
-  if (filters?.maxYear) {
-    query = query.where('year', '<=', filters.maxYear);
-  }
+    if (filters?.minYear) {
+      query = query.where('year', '>=', filters.minYear);
+    }
 
-  if (filters?.minPrice) {
-    query = query.where('price', '>=', filters.minPrice);
-  }
+    if (filters?.maxYear) {
+      query = query.where('year', '<=', filters.maxYear);
+    }
 
-  if (filters?.maxPrice) {
-    query = query.where('price', '<=', filters.maxPrice);
-  }
+    if (filters?.minPrice) {
+      query = query.where('price', '>=', filters.minPrice);
+    }
 
-  if (filters?.condition) {
-    query = query.where('condition', '==', filters.condition);
-  }
+    if (filters?.maxPrice) {
+      query = query.where('price', '<=', filters.maxPrice);
+    }
 
-  // Intentar ordenar por createdAt, pero si falla por falta de índice, obtener sin orderBy
-  query = query.orderBy('createdAt', 'desc');
+    if (filters?.condition) {
+      query = query.where('condition', '==', filters.condition);
+    }
 
-  let snapshot;
-  let vehicles: Vehicle[];
+    const prefetchCap =
+      typeof filters?.prefetchCap === 'number' && filters.prefetchCap > 0
+        ? Math.min(filters.prefetchCap, 500)
+        : filters?.status
+          ? 500
+          : 250;
+    query = query.limit(prefetchCap);
 
-  try {
-    snapshot = await query.get();
-    console.log(`   ✅ Consulta exitosa: ${snapshot.docs.length} documentos`);
-    vehicles = snapshot.docs.map((doc) => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-        createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : data.createdAt,
-        updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : data.updatedAt,
-        soldAt: data.soldAt?.toDate ? data.soldAt.toDate() : data.soldAt,
-      } as Vehicle;
-    });
-  } catch (queryError: any) {
-    console.log(`   ❌ Consulta falló:`, queryError.message);
-    // Si la consulta falla por falta de índice, intentar sin orderBy
-    const isIndexError = queryError.code === 9 ||
-      queryError.message?.includes('index') ||
-      queryError.details?.includes('index') ||
-      queryError.message?.includes('FAILED_PRECONDITION');
+    let snapshot;
+    try {
+      snapshot = await query.get();
+      console.log(`   ✅ Consulta filtrada: ${snapshot.docs.length} documentos`);
+      vehicles = mapVehicleDocs(snapshot.docs);
+    } catch (queryError: any) {
+      console.log(`   ❌ Consulta falló:`, queryError.message);
+      const isIndexError = queryError.code === 9 ||
+        queryError.message?.includes('index') ||
+        queryError.details?.includes('index') ||
+        queryError.message?.includes('FAILED_PRECONDITION');
 
-    if (isIndexError) {
-      console.warn(`⚠️ Consulta falló por falta de índice compuesto para tenant ${tenantId}, reintentando sin orderBy...`);
+      if (isIndexError) {
+        console.warn(`⚠️ Reintentando sin límites compuestos para tenant ${tenantId}...`);
+        try {
+          let fallbackQuery: any = getDb()
+            .collection('tenants')
+            .doc(tenantId)
+            .collection('vehicles');
 
-      try {
-        // Reconstruir la consulta sin orderBy
-        let fallbackQuery: any = getDb()
-          .collection('tenants')
-          .doc(tenantId)
-          .collection('vehicles');
+          if (filters?.status) {
+            fallbackQuery = fallbackQuery.where('status', '==', filters.status);
+          }
+          if (filters?.make) {
+            fallbackQuery = fallbackQuery.where('make', '==', filters.make);
+          }
+          if (filters?.model) {
+            fallbackQuery = fallbackQuery.where('model', '==', filters.model);
+          }
+          if (filters?.minYear) {
+            fallbackQuery = fallbackQuery.where('year', '>=', filters.minYear);
+          }
+          if (filters?.maxYear) {
+            fallbackQuery = fallbackQuery.where('year', '<=', filters.maxYear);
+          }
+          if (filters?.minPrice) {
+            fallbackQuery = fallbackQuery.where('price', '>=', filters.minPrice);
+          }
+          if (filters?.maxPrice) {
+            fallbackQuery = fallbackQuery.where('price', '<=', filters.maxPrice);
+          }
+          if (filters?.condition) {
+            fallbackQuery = fallbackQuery.where('condition', '==', filters.condition);
+          }
 
-        if (filters?.status) {
-          fallbackQuery = fallbackQuery.where('status', '==', filters.status);
+          snapshot = await fallbackQuery.limit(prefetchCap).get();
+          console.log(`   ✅ Fallback exitoso: ${snapshot.docs.length} documentos`);
+          vehicles = mapVehicleDocs(snapshot.docs);
+        } catch (fallbackError: any) {
+          console.error(`   ❌ Fallback también falló para tenant ${tenantId}:`, fallbackError.message);
+          vehicles = [];
         }
-        if (filters?.make) {
-          fallbackQuery = fallbackQuery.where('make', '==', filters.make);
-        }
-        if (filters?.model) {
-          fallbackQuery = fallbackQuery.where('model', '==', filters.model);
-        }
-        if (filters?.minYear) {
-          fallbackQuery = fallbackQuery.where('year', '>=', filters.minYear);
-        }
-        if (filters?.maxYear) {
-          fallbackQuery = fallbackQuery.where('year', '<=', filters.maxYear);
-        }
-        if (filters?.minPrice) {
-          fallbackQuery = fallbackQuery.where('price', '>=', filters.minPrice);
-        }
-        if (filters?.maxPrice) {
-          fallbackQuery = fallbackQuery.where('price', '<=', filters.maxPrice);
-        }
-        if (filters?.condition) {
-          fallbackQuery = fallbackQuery.where('condition', '==', filters.condition);
-        }
-
-        // Obtener sin orderBy
-        snapshot = await fallbackQuery.get();
-        console.log(`   ✅ Fallback exitoso: ${snapshot.docs.length} documentos`);
-        vehicles = snapshot.docs.map((doc) => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            ...data,
-            createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : data.createdAt,
-            updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : data.updatedAt,
-            soldAt: data.soldAt?.toDate ? data.soldAt.toDate() : data.soldAt,
-          } as Vehicle;
-        });
-      } catch (fallbackError: any) {
-        // Si el fallback también falla, retornar array vacío en lugar de lanzar error
-        console.error(`   ❌ Fallback también falló para tenant ${tenantId}:`, fallbackError.message);
-        vehicles = [];
+      } else {
+        throw queryError;
       }
-    } else {
-      // Si no es error de índice, lanzar el error original
-      throw queryError;
     }
   }
 
-  // Ordenar en memoria por createdAt (más recientes primero)
+  // Ordenar en memoria por createdAt (más recientes primero); sin createdAt van al final
   vehicles = vehicles.sort((a, b) => {
     const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
     const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
@@ -383,9 +429,9 @@ export async function getVehicles(
     const searchLower = filters.search.toLowerCase();
     vehicles = vehicles.filter(
       (v) =>
-        v.make.toLowerCase().includes(searchLower) ||
-        v.model.toLowerCase().includes(searchLower) ||
-        (v.description && v.description.toLowerCase().includes(searchLower))
+        (v.make && String(v.make).toLowerCase().includes(searchLower)) ||
+        (v.model && String(v.model).toLowerCase().includes(searchLower)) ||
+        (v.description && String(v.description).toLowerCase().includes(searchLower))
     );
   }
 

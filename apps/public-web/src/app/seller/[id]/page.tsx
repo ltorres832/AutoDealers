@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import StarRating from '../../../components/StarRating';
 import ChatWidget from '../../../components/ChatWidget';
+import { getFirstPhoto, handleImageError } from '@/lib/vehicle-image';
 
 interface Seller {
   id: string;
@@ -28,7 +29,8 @@ interface Vehicle {
   year: number;
   price: number;
   currency: string;
-  photos: string[];
+  photos?: string[];
+  images?: string[];
   mileage?: number;
   condition: string;
   description: string;
@@ -349,17 +351,15 @@ export default function SellerPublicPage() {
                   key={vehicle.id}
                   className="bg-white rounded-lg shadow hover:shadow-lg transition overflow-hidden"
                 >
-                  {vehicle.photos && vehicle.photos.length > 0 && vehicle.photos[0] ? (
+                  {getFirstPhoto(vehicle) ? (
                     <div className="relative h-48 bg-gray-200">
                       <img
-                        src={vehicle.photos[0]}
+                        src={getFirstPhoto(vehicle)!}
                         alt={`${vehicle.make} ${vehicle.model}`}
                         className="w-full h-full object-cover"
-                        onError={(e) => {
-                          // Si la imagen falla, mostrar placeholder
-                          const target = e.target as HTMLImageElement;
-                          target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23ddd" width="400" height="300"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="20" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3E🚗%3C/text%3E%3C/svg%3E';
-                        }}
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                        onError={handleImageError}
                       />
                     </div>
                   ) : (

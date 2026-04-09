@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirestore } from '../../../../lib/firebase-admin';
 import { getVehicles } from '@autodealers/inventory';
+import { normalizeVehiclesArray } from '@/lib/vehicle-photos-normalize';
+import {
+  isDealerVisibleOnPublicListing,
+  isSellerVisibleOnPublicListing,
+  isTenantEligibleForPublicCatalog,
+  isVehicleVisibleOnPublicListing,
+  PUBLIC_DEALER_USER_ROLES,
+} from '@/lib/public-catalog-visibility';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 60; // Revalidar cada 60 segundos
@@ -21,29 +29,27 @@ export async function GET(request: NextRequest) {
 
     // Buscar vehículos - OPTIMIZADO: consultas en paralelo
     if (!type || type === 'vehicles' || type === 'all') {
-      const tenantsSnapshot = await db
-        .collection('tenants')
-        .where('status', '==', 'active')
-        .limit(20) // Limitar tenants para mejorar rendimiento
-        .get();
+      const tenantsSnapshot = await db.collection('tenants').get();
+      const tenantDocs = tenantsSnapshot.docs.filter((d) =>
+        isTenantEligibleForPublicCatalog(d.data() as Record<string, unknown>)
+      );
 
-      // Hacer todas las consultas en paralelo con timeout
-      const vehiclePromises = tenantsSnapshot.docs.map(async (tenantDoc: any) => {
+      const vehiclePromises = tenantDocs.map(async (tenantDoc: any) => {
         const tenantId = tenantDoc.id;
         try {
           const timeoutPromise = new Promise<any[]>((_, reject) => {
-            setTimeout(() => reject(new Error('Timeout')), 3000);
+            setTimeout(() => reject(new Error('Timeout')), 25000);
           });
 
           const vehiclesPromise = getVehicles(tenantId, {
-            status: 'available',
-          });
+            prefetchCap: 200,
+            limit: 80,
+          } as any);
 
           const vehicles = await Promise.race([vehiclesPromise, timeoutPromise]) as any[];
 
-          // Filtrar solo vehículos publicados en página pública
           const publishedVehicles = vehicles.filter((v: any) =>
-            v.publishedOnPublicPage === true
+            isVehicleVisibleOnPublicListing(v)
           );
 
           // Filtrar por término de búsqueda si no es '*'
@@ -70,51 +76,58 @@ export async function GET(request: NextRequest) {
         }
       });
 
-      // Esperar todas las consultas en paralelo con timeout total
-      const allVehiclesArrays = await Promise.race([
-        Promise.all(vehiclePromises),
-        new Promise<any[][]>((_, reject) => {
-          setTimeout(() => reject(new Error('Timeout total')), 8000);
-        })
-      ]).catch(() => {
-        // Retornar resultados parciales si hay timeout
-        return Promise.allSettled(vehiclePromises).then(results =>
-          results
-            .filter((r): r is PromiseFulfilledResult<any[]> => r.status === 'fulfilled')
-            .map(r => r.value)
-        );
-      });
+      // Sin timeout global: con muchos tenants el corte a 8s dejaba el catálogo vacío
+      const settled = await Promise.allSettled(vehiclePromises);
+      const allVehiclesArrays = settled
+        .filter((r): r is PromiseFulfilledResult<any[]> => r.status === 'fulfilled')
+        .map((r) => r.value);
 
       const allVehicles = (allVehiclesArrays || []).flat();
-      results.vehicles = allVehicles.slice(0, limit);
+      results.vehicles = normalizeVehiclesArray(
+        allVehicles
+          .slice(0, limit)
+          .map((v) => ({ ...v } as Record<string, unknown>))
+      );
     }
 
-    // Buscar dealers
+    // Dealers: una query por rol (evita índices `in` y asegura que no se pierdan filas)
     if (!type || type === 'dealers' || type === 'all') {
-      let dealersQuery: any = db.collection('users')
-        .where('role', '==', 'dealer')
-        .where('status', '==', 'active');
+      const dealerSnaps = await Promise.all(
+        PUBLIC_DEALER_USER_ROLES.map((role) =>
+          db.collection('users').where('role', '==', role).get()
+        )
+      );
+      const dealerDocsById = new Map<string, { id: string; data: () => Record<string, unknown> }>();
+      for (const snap of dealerSnaps) {
+        for (const d of snap.docs) {
+          if (!dealerDocsById.has(d.id)) dealerDocsById.set(d.id, d);
+        }
+      }
+      console.log(`Found ${dealerDocsById.size} dealer-role users (merged)`);
 
-      const dealersSnapshot = await dealersQuery.limit(limit * 2).get(); // Aumentar límite
-      console.log(`Found ${dealersSnapshot.size} dealers`);
-
-      let dealers = dealersSnapshot.docs.map((doc: any) => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          name: data.name || '',
-          email: data.email || '',
-          phone: data.phone || '',
-          tenantId: data.tenantId || '',
-        };
-      });
+      let dealers = [...dealerDocsById.values()]
+        .map((doc: any) => {
+          const data = doc.data();
+          const emailStr = typeof data.email === 'string' ? data.email : '';
+          return {
+            id: doc.id,
+            name: data.name || data.displayName || (emailStr ? emailStr.split('@')[0] : '') || '',
+            email: data.email || '',
+            phone: data.phone || '',
+            tenantId: data.tenantId || '',
+            _raw: data,
+          };
+        })
+        .filter((d: any) => isDealerVisibleOnPublicListing(d._raw || {}))
+        .map(({ _raw, ...rest }: any) => rest);
 
       // Filtrar por término de búsqueda si no es '*'
       if (q && q !== '*') {
         const searchTerm = q.toLowerCase();
         dealers = dealers.filter((d: any) => {
           const name = (d.name || '').toLowerCase();
-          return name.includes(searchTerm);
+          const email = (d.email || '').toLowerCase();
+          return name.includes(searchTerm) || email.includes(searchTerm);
         });
       }
 
@@ -154,10 +167,10 @@ export async function GET(request: NextRequest) {
         try {
           const [vehiclesSnapshot, sellersSnapshot] = await Promise.all([
             db.collection('tenants').doc(tenantId).collection('vehicles').get(),
-            db.collection('users')
+            db
+              .collection('users')
               .where('tenantId', '==', tenantId)
               .where('role', '==', 'seller')
-              .where('status', '==', 'active')
               .get(),
           ]);
 
@@ -171,10 +184,14 @@ export async function GET(request: NextRequest) {
               return !isExcluded;
             });
 
+          const visibleSellers = sellersSnapshot.docs.filter((doc) =>
+            isSellerVisibleOnPublicListing(doc.data() as Record<string, unknown>)
+          );
+
           return {
             tenantId,
             vehiclesCount: availableVehicles.length,
-            sellersCount: sellersSnapshot.size,
+            sellersCount: visibleSellers.length,
           };
         } catch (error) {
           console.error(`Error fetching stats for tenant ${tenantId}:`, error);
@@ -206,30 +223,34 @@ export async function GET(request: NextRequest) {
       results.dealers = dealersWithTenantInfo;
     }
 
-    // Buscar sellers
+    // Buscar sellers (solo role=seller; status se filtra en memoria para incluir usuarios sin campo status)
     if (!type || type === 'sellers' || type === 'all') {
-      let sellersQuery: any = db.collection('users')
+      const sellersSnapshot = await db
+        .collection('users')
         .where('role', '==', 'seller')
-        .where('status', '==', 'active');
+        .get();
+      console.log(`Found ${sellersSnapshot.size} seller docs (raw)`);
 
-      const sellersSnapshot = await sellersQuery.limit(limit * 2).get(); // Más sellers que dealers
-      console.log(`Found ${sellersSnapshot.size} sellers`);
-
-      let sellers = sellersSnapshot.docs.map((doc: any) => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          name: data.name || '',
-          title: data.title || data.jobTitle || 'Vendedor',
-          photo: data.photo || data.photoUrl || '',
-          email: data.email || '',
-          phone: data.phone || '',
-          whatsapp: data.whatsapp || data.phone || '',
-          tenantId: data.tenantId || '',
-          sellerRating: data.sellerRating || 0,
-          sellerRatingCount: data.sellerRatingCount || 0,
-        };
-      });
+      let sellers = sellersSnapshot.docs
+        .map((doc: any) => {
+          const data = doc.data();
+          const emailStr = typeof data.email === 'string' ? data.email : '';
+          return {
+            id: doc.id,
+            name: data.name || data.displayName || (emailStr ? emailStr.split('@')[0] : '') || '',
+            title: data.title || data.jobTitle || 'Vendedor',
+            photo: data.photo || data.photoUrl || '',
+            email: data.email || '',
+            phone: data.phone || '',
+            whatsapp: data.whatsapp || data.phone || '',
+            tenantId: data.tenantId || '',
+            sellerRating: data.sellerRating || 0,
+            sellerRatingCount: data.sellerRatingCount || 0,
+            _raw: data,
+          };
+        })
+        .filter((s: any) => isSellerVisibleOnPublicListing(s._raw || {}))
+        .map(({ _raw, ...rest }: any) => rest);
 
       // Filtrar por término de búsqueda si no es '*'
       if (q && q !== '*') {
@@ -237,9 +258,12 @@ export async function GET(request: NextRequest) {
         sellers = sellers.filter((s: any) => {
           const name = (s.name || '').toLowerCase();
           const title = (s.title || '').toLowerCase();
-          return name.includes(searchTerm) || title.includes(searchTerm);
+          const email = (s.email || '').toLowerCase();
+          return name.includes(searchTerm) || title.includes(searchTerm) || email.includes(searchTerm);
         });
       }
+
+      sellers = sellers.slice(0, limit);
 
       // OPTIMIZADO: Obtener información del tenant y vehículos en batch
       const sellerTenantIds = [...new Set(sellers.map((s: any) => s.tenantId).filter(Boolean))] as string[];
@@ -325,6 +349,10 @@ export async function GET(request: NextRequest) {
       query: q,
       type: type || 'all',
       results,
+      // Compat: clientes que lean `data.dealers` en lugar de `data.results.dealers`
+      vehicles: results.vehicles,
+      dealers: results.dealers,
+      sellers: results.sellers,
       total: {
         vehicles: results.vehicles.length,
         dealers: results.dealers.length,

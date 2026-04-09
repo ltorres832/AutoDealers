@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { getVehiclePhotos, handleImageError } from '../../lib/vehicle-image';
 
 interface Vehicle {
   id: string;
@@ -52,39 +53,41 @@ export default function VehicleDetailModal({ vehicle, subdomain, onClose }: Vehi
 
         <div className="p-6">
           {/* Photos */}
-          {vehicle.photos && vehicle.photos.length > 0 && (
+          {getVehiclePhotos(vehicle).length > 0 && (
             <div className="mb-6">
               <div className="relative h-96 bg-gray-200 rounded-lg overflow-hidden mb-4">
                 <img
-                  src={vehicle.photos[currentPhotoIndex]}
+                  src={getVehiclePhotos(vehicle)[currentPhotoIndex]}
                   alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
                   className="w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
+                  onError={handleImageError}
                 />
-                {vehicle.photos.length > 1 && (
+                {getVehiclePhotos(vehicle).length > 1 && (
                   <>
                     <button
-                      onClick={() => setCurrentPhotoIndex((prev) => (prev === 0 ? vehicle.photos.length - 1 : prev - 1))}
+                      onClick={() => setCurrentPhotoIndex((prev) => (prev === 0 ? getVehiclePhotos(vehicle).length - 1 : prev - 1))}
                       className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition"
                       aria-label="Foto anterior"
                     >
                       ←
                     </button>
                     <button
-                      onClick={() => setCurrentPhotoIndex((prev) => (prev === vehicle.photos.length - 1 ? 0 : prev + 1))}
+                      onClick={() => setCurrentPhotoIndex((prev) => (prev === getVehiclePhotos(vehicle).length - 1 ? 0 : prev + 1))}
                       className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition"
                       aria-label="Foto siguiente"
                     >
                       →
                     </button>
                     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded text-sm">
-                      {currentPhotoIndex + 1} / {vehicle.photos.length}
+                      {currentPhotoIndex + 1} / {getVehiclePhotos(vehicle).length}
                     </div>
                   </>
                 )}
               </div>
-              {vehicle.photos.length > 1 && (
+              {getVehiclePhotos(vehicle).length > 1 && (
                 <div className="grid grid-cols-4 gap-2">
-                  {vehicle.photos.slice(0, 4).map((photo, index) => (
+                  {getVehiclePhotos(vehicle).slice(0, 4).map((photo, index) => (
                     <button
                       key={index}
                       onClick={() => setCurrentPhotoIndex(index)}
@@ -96,6 +99,8 @@ export default function VehicleDetailModal({ vehicle, subdomain, onClose }: Vehi
                         src={photo}
                         alt={`Vista ${index + 1}`}
                         className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                        onError={handleImageError}
                       />
                     </button>
                   ))}

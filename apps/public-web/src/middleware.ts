@@ -20,12 +20,13 @@ export function middleware(request: NextRequest) {
   console.log('🛡️ Middleware check:', { hostname, pathname });
 
   // IGNORAR agresivamente dominios técnicos (App Hosting, Firebase, etc.)
-  const isTechnicalDomain =
-    hostname.includes('---') ||
-    hostname.includes('amplifyapp') ||
+  const isTechnicalDomain = 
+    hostname.includes('---') || 
+    hostname.includes('public-web-app--') ||
     hostname.includes('us-central1.hosted.app') ||
-    hostname.includes('web.app') && !hostname.startsWith('autodealers-7f62e') ||
-    hostname.includes('firebaseapp.com') && !hostname.startsWith('autodealers-7f62e');
+    hostname.includes('amplifyapp') ||
+    (hostname.includes('web.app') && !hostname.startsWith('autodealers-7f62e')) ||
+    (hostname.includes('firebaseapp.com') && !hostname.startsWith('autodealers-7f62e'));
 
   if (isTechnicalDomain) {
     console.log('⏩ Skipping technical domain:', hostname);

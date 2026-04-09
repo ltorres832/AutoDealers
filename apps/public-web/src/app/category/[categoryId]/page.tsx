@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
+import { getFirstPhoto, handleImageError } from '@/lib/vehicle-image';
 
 interface Vehicle {
   id: string;
@@ -14,7 +14,8 @@ interface Vehicle {
   year: number;
   price: number;
   currency: string;
-  photos: string[];
+  photos?: string[];
+  images?: string[];
   mileage?: number;
   condition: string;
   description: string;
@@ -196,16 +197,15 @@ export default function CategoryPage() {
                   href={`/${vehicle.tenantId}/vehicle/${vehicle.id}`}
                   className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1 overflow-hidden group"
                 >
-                  {vehicle.photos && vehicle.photos.length > 0 && vehicle.photos[0] ? (
+                  {getFirstPhoto(vehicle) ? (
                     <div className="relative h-48 bg-gray-200 overflow-hidden">
                       <img
-                        src={vehicle.photos[0]}
+                        src={getFirstPhoto(vehicle)!}
                         alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23ddd" width="400" height="300"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="20" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3E🚗%3C/text%3E%3C/svg%3E';
-                        }}
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                        onError={handleImageError}
                       />
                     </div>
                   ) : (
@@ -240,16 +240,15 @@ export default function CategoryPage() {
                   href={`/${vehicle.tenantId}/vehicle/${vehicle.id}`}
                   className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all p-6 flex gap-6 group"
                 >
-                  {vehicle.photos && vehicle.photos.length > 0 && vehicle.photos[0] ? (
+                  {getFirstPhoto(vehicle) ? (
                     <div className="relative w-64 h-48 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
                       <img
-                        src={vehicle.photos[0]}
+                        src={getFirstPhoto(vehicle)!}
                         alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23ddd" width="400" height="300"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="20" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3E🚗%3C/text%3E%3C/svg%3E';
-                        }}
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                        onError={handleImageError}
                       />
                     </div>
                   ) : (

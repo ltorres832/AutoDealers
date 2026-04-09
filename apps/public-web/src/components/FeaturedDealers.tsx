@@ -53,6 +53,7 @@ export default function FeaturedDealers({ dealers }: FeaturedDealersProps) {
                     <img
                       src={dealer.photo}
                       alt={dealer.name}
+                      referrerPolicy="no-referrer"
                       className="w-20 h-20 rounded-2xl object-cover shadow-md border-2 border-white ring-4 ring-slate-50 transition-transform group-hover:scale-105"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;

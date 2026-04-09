@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import ChatWidget from '../../components/ChatWidget';
 import VehicleDetailModal from './VehicleDetailModal';
+import { getFirstPhoto, handleImageError } from '../../lib/vehicle-image';
 import VehicleCategories from '../../components/VehicleCategories';
 import HeroBanner from '../../components/HeroBanner';
 import SidebarBanner from '../../components/SidebarBanner';
@@ -18,7 +19,8 @@ interface Vehicle {
   year: number;
   price: number;
   currency: string;
-  photos: string[];
+  photos?: string[];
+  images?: string[];
   description: string;
   mileage?: number;
   condition: string;
@@ -178,8 +180,15 @@ export default function TenantPublicPage() {
     let detectedSubdomain: string | null = null;
 
     // Primero intentar desde params (pero solo si tiene valor válido)
-    const paramSubdomain = params?.subdomain;
-    if (paramSubdomain && typeof paramSubdomain === 'string' && paramSubdomain.trim() !== '' && paramSubdomain !== 'undefined') {
+    const rawSub = params?.subdomain;
+    const paramSubdomain = Array.isArray(rawSub) ? rawSub[0] : rawSub;
+    // Ignorar subdominios técnicos de Firebase App Hosting (ej: t-1593654656---public-web-app-obn2bwb27a-uc)
+    const isTechnicalSubdomain =
+      typeof paramSubdomain === 'string' &&
+      paramSubdomain.length > 0 &&
+      (paramSubdomain.includes('---') || paramSubdomain.includes('public-web-app') || paramSubdomain.startsWith('t-'));
+
+    if (paramSubdomain && typeof paramSubdomain === 'string' && paramSubdomain.trim() !== '' && paramSubdomain !== 'undefined' && !isTechnicalSubdomain) {
       detectedSubdomain = paramSubdomain;
     } else {
       // Si no está en params, detectar desde hostname (cliente)
@@ -206,6 +215,9 @@ export default function TenantPublicPage() {
 
     if (detectedSubdomain) {
       setSubdomain(detectedSubdomain);
+    } else if (isTechnicalSubdomain && typeof window !== 'undefined') {
+      // Subdominio técnico de App Hosting: redirigir a la página principal
+      window.location.replace('/');
     }
   }, [params]);
 
@@ -440,6 +452,20 @@ export default function TenantPublicPage() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Cargando datos del concesionario...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Subdominio técnico de App Hosting (ej: t-1593654656---public-web-app-xxx): redirigir, no mostrar error
+  const paramSub = params?.subdomain;
+  const isTechSub = paramSub && (String(paramSub).includes('---') || String(paramSub).includes('public-web-app') || String(paramSub).startsWith('t-'));
+  if (isTechSub) {
+    return (
+      <div className="flex justify-center items-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Redirigiendo...</p>
         </div>
       </div>
     );
@@ -914,12 +940,15 @@ export default function TenantPublicPage() {
                       className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer group"
                       onClick={() => setSelectedVehicle(vehicle)}
                     >
-                      {vehicle.photos && vehicle.photos.length > 0 ? (
+                      {getFirstPhoto(vehicle) ? (
                         <div className="relative h-64 bg-gray-200 overflow-hidden">
                           <img
-                            src={vehicle.photos[0]}
+                            src={getFirstPhoto(vehicle)!}
                             alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            loading="lazy"
+                            referrerPolicy="no-referrer"
+                            onError={handleImageError}
                           />
                           <div className="absolute top-2 left-2">
                             <span className={`px-3 py-1 rounded-full text-xs font-bold ${vehicle.condition === 'new'
@@ -931,9 +960,9 @@ export default function TenantPublicPage() {
                               {vehicle.condition === 'new' ? 'Nuevo' : vehicle.condition === 'certified' ? 'Certificado' : 'Usado'}
                             </span>
                           </div>
-                          {vehicle.photos.length > 1 && (
+                          {(vehicle.photos?.length || vehicle.images?.length || 0) > 1 && (
                             <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs font-medium">
-                              +{vehicle.photos.length - 1} fotos
+                              +{(vehicle.photos?.length || vehicle.images?.length || 1) - 1} fotos
                             </div>
                           )}
                         </div>

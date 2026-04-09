@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import StarRating from '../../../components/StarRating';
+import { getFirstPhoto, handleImageError } from '@/lib/vehicle-image';
 
 interface Dealer {
   id: string;
@@ -39,7 +40,8 @@ interface Vehicle {
   year: number;
   price: number;
   currency: string;
-  photos: string[];
+  photos?: string[];
+  images?: string[];
   mileage?: number;
   condition: string;
   description: string;
@@ -405,12 +407,15 @@ export default function DealerPublicPage() {
                   key={vehicle.id}
                   className="bg-white rounded-lg shadow hover:shadow-lg transition overflow-hidden"
                 >
-                  {vehicle.photos && vehicle.photos.length > 0 && (
+                  {getFirstPhoto(vehicle) && (
                     <div className="relative h-48 bg-gray-200">
                       <img
-                        src={vehicle.photos[0]}
+                        src={getFirstPhoto(vehicle)!}
                         alt={`${vehicle.make} ${vehicle.model}`}
                         className="w-full h-full object-cover"
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                        onError={handleImageError}
                       />
                     </div>
                   )}

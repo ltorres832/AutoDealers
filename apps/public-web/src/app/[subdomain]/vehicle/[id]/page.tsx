@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import StarRating from '../../../../components/StarRating';
 import ChatWidget from '../../../../components/ChatWidget';
+import { getVehiclePhotos, handleImageError } from '../../../../lib/vehicle-image';
 
 interface Vehicle {
   id: string;
@@ -21,7 +22,8 @@ interface Vehicle {
   mileage?: number;
   condition: string;
   description: string;
-  photos: string[];
+  photos?: string[];
+  images?: string[];
   videos?: string[];
   createdAt?: string;
   updatedAt?: string;
@@ -186,19 +188,8 @@ export default function VehicleDetailPage() {
       console.log('💰 Precio del vehículo:', foundVehicle.price);
       console.log('📝 Descripción del vehículo:', foundVehicle.description);
 
-      // Limpiar fotos - NO filtrar tan estrictamente
-      const allPhotosRaw = foundVehicle.photos || [];
-      console.log('📸 Fotos originales:', allPhotosRaw.length, allPhotosRaw);
-      
-      // Solo filtrar valores null/undefined y strings vacíos
-      cleanedPhotos = allPhotosRaw
-        .filter((photo: any) => {
-          if (!photo) return false;
-          if (typeof photo !== 'string') return false;
-          const trimmed = photo.trim();
-          return trimmed !== '' && trimmed !== 'undefined' && !trimmed.toLowerCase().includes('undefined');
-        })
-        .map((photo: string) => photo.trim());
+      // Usar helper para normalizar photos/images y filtrar URLs inválidas
+      cleanedPhotos = getVehiclePhotos(foundVehicle);
       
       console.log('📸 Fotos después del filtro:', cleanedPhotos.length, cleanedPhotos);
       
@@ -228,29 +219,33 @@ export default function VehicleDetailPage() {
   }
 
   function nextPhoto() {
-    if (vehicle && vehicle.photos && vehicle.photos.length > 0) {
-      setCurrentPhotoIndex((prev) => (prev + 1) % vehicle.photos.length);
+    const photos = getVehiclePhotos(vehicle || {});
+    if (photos.length > 0) {
+      setCurrentPhotoIndex((prev) => (prev + 1) % photos.length);
       setImageLoaded(false);
     }
   }
 
   function prevPhoto() {
-    if (vehicle && vehicle.photos && vehicle.photos.length > 0) {
-      setCurrentPhotoIndex((prev) => (prev - 1 + vehicle.photos.length) % vehicle.photos.length);
+    const photos = getVehiclePhotos(vehicle || {});
+    if (photos.length > 0) {
+      setCurrentPhotoIndex((prev) => (prev - 1 + photos.length) % photos.length);
       setImageLoaded(false);
     }
   }
   
   // Resetear imagen cuando cambia el índice o el vehículo
   useEffect(() => {
-    if (vehicle && vehicle.photos && vehicle.photos.length > 0) {
+    const photos = getVehiclePhotos(vehicle || {});
+    if (photos.length > 0) {
       setImageLoaded(false);
       setCurrentPhotoIndex(0);
     }
   }, [vehicle?.id]);
   
   useEffect(() => {
-    if (vehicle && vehicle.photos && vehicle.photos.length > 0) {
+    const photos = getVehiclePhotos(vehicle || {});
+    if (photos.length > 0) {
       setImageLoaded(false);
     }
   }, [currentPhotoIndex]);
@@ -326,50 +321,31 @@ export default function VehicleDetailPage() {
           <div className="lg:col-span-2 space-y-6">
             {/* Galería principal mejorada */}
             <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
-              {vehicle.photos && Array.isArray(vehicle.photos) && vehicle.photos.length > 0 && vehicle.photos[currentPhotoIndex] ? (
+              {(() => {
+                const photos = getVehiclePhotos(vehicle);
+                return photos.length > 0 && photos[currentPhotoIndex] ? (
                 <div className="relative group">
                   <div className="aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-200 relative overflow-hidden">
                     <img
-                      key={`photo-${currentPhotoIndex}-${vehicle.id}-${vehicle.photos[currentPhotoIndex]?.substring(0, 20)}`}
-                      src={vehicle.photos[currentPhotoIndex].trim()}
+                      key={`photo-${currentPhotoIndex}-${vehicle.id}-${photos[currentPhotoIndex]?.substring(0, 20)}`}
+                      src={photos[currentPhotoIndex]}
                       alt={`${vehicle.year} ${vehicle.make} ${vehicle.model} - Foto ${currentPhotoIndex + 1}`}
                       className="w-full h-full object-cover"
                       loading="eager"
                       referrerPolicy="no-referrer"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        // Intentar con URL codificada si aún no se ha intentado
-                        if (!target.dataset.retried) {
-                          try {
-                            const originalUrl = vehicle.photos[currentPhotoIndex]?.trim();
-                            if (originalUrl) {
-                              const encodedUrl = encodeURI(originalUrl);
-                              if (encodedUrl !== originalUrl) {
-                                target.dataset.retried = 'true';
-                                target.src = encodedUrl;
-                                return;
-                              }
-                            }
-                          } catch (err) {
-                            // Continuar al placeholder
-                          }
-                        }
-                        // Si ya se intentó o falló, mostrar placeholder
-                        target.dataset.retried = 'true';
-                        target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="800" height="600"%3E%3Crect fill="%23ddd" width="800" height="600"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="60" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3E🚗%3C/text%3E%3C/svg%3E';
-                      }}
+                      onError={handleImageError}
                     />
                     {/* Overlay con información */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
                       <div className="absolute bottom-4 left-4 right-4">
                         <p className="text-white text-sm font-medium">
-                          Foto {currentPhotoIndex + 1} de {vehicle.photos.length}
+                          Foto {currentPhotoIndex + 1} de {photos.length}
                         </p>
                       </div>
                     </div>
                   </div>
                   
-                  {vehicle.photos.length > 1 && (
+                  {photos.length > 1 && (
                     <>
                       {/* Botones de navegación mejorados */}
                       <button
@@ -393,7 +369,7 @@ export default function VehicleDetailPage() {
                       
                       {/* Indicadores de posición */}
                       <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2 bg-black/50 backdrop-blur-sm px-4 py-2 rounded-full">
-                        {vehicle.photos.map((_, index) => (
+                        {photos.map((_, index) => (
                           <button
                             key={index}
                             onClick={() => {
@@ -416,12 +392,13 @@ export default function VehicleDetailPage() {
                 <div className="aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
                   <div className="text-gray-400 text-8xl">🚗</div>
                 </div>
-              )}
+              );
+              })()}
 
               {/* Miniaturas mejoradas */}
-              {vehicle.photos && vehicle.photos.length > 1 && (
+              {getVehiclePhotos(vehicle).length > 1 && (
                 <div className="p-4 bg-gray-50 grid grid-cols-6 gap-3 border-t border-gray-100">
-                  {vehicle.photos.map((photo, index) => (
+                  {getVehiclePhotos(vehicle).map((photo, index) => (
                     <button
                       key={index}
                       onClick={() => {
@@ -435,33 +412,12 @@ export default function VehicleDetailPage() {
                       }`}
                     >
                       <img
-                        src={photo?.trim()}
+                        src={photo}
                         alt={`Miniatura ${index + 1}`}
                         className="w-full h-full object-cover"
                         loading="lazy"
                         referrerPolicy="no-referrer"
-                        crossOrigin="anonymous"
-                        onError={(e) => {
-                          console.error('❌ Error cargando miniatura:', photo);
-                          const target = e.target as HTMLImageElement;
-                          if (!target.dataset.retried) {
-                            try {
-                              const trimmedUrl = photo?.trim();
-                              if (trimmedUrl) {
-                                const encodedUrl = encodeURI(trimmedUrl);
-                                if (encodedUrl !== trimmedUrl) {
-                                  target.dataset.retried = 'true';
-                                  target.src = encodedUrl;
-                                  return;
-                                }
-                              }
-                            } catch (err) {
-                              console.error('Error al codificar URL de miniatura:', err);
-                            }
-                          }
-                          target.dataset.retried = 'true';
-                          target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23ddd" width="200" height="200"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="20" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3E🚗%3C/text%3E%3C/svg%3E';
-                        }}
+                        onError={handleImageError}
                       />
                     </button>
                   ))}

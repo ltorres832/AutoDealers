@@ -1,7 +1,12 @@
 buildConfig:
   runtime: nodejs20
-  buildCommand: cd ../.. && npm ci --legacy-peer-deps && cd apps/public-web && npm run build
-  outputDir: .next
+  buildCommand: npm ci --legacy-peer-deps && cd apps/public-web && npm run build
+  outputDir: .next/standalone
+
+# CWD en Cloud Run = raíz del repo (/workspace). El standalone está en apps/public-web/.next/standalone
+# postbuild crea apps/public-web/.next/standalone/server.js (bootstrap)
+scripts:
+  runCommand: node apps/public-web/.next/standalone/server.js
 
 runConfig:
   concurrency: 100
@@ -43,6 +48,22 @@ env:
     value: autodealers-7f62e
     availability:
       - BUILD
+      - RUNTIME
+  - variable: FIREBASE_CLIENT_EMAIL
+    secret: FIREBASE_CLIENT_EMAIL
+    availability:
+      - RUNTIME
+  - variable: FIREBASE_PRIVATE_KEY
+    secret: FIREBASE_PRIVATE_KEY
+    availability:
+      - RUNTIME
+  - variable: SKIP_FIREBASE
+    value: "false"
+    availability:
+      - RUNTIME
+  - variable: NODE_ENV
+    value: production
+    availability:
       - RUNTIME
   - variable: NEXT_PUBLIC_APP_URL
     value: https://public-web-app--autodealers-7f62e.us-central1.hosted.app

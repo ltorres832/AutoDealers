@@ -51,13 +51,15 @@ export default function SearchPage() {
 
     try {
       setLoading(true);
+      const apiType =
+        searchType === 'seller' ? 'sellers' : searchType === 'dealer' ? 'dealers' : 'all';
       const response = await fetch(
-        `/api/public/search?q=${encodeURIComponent(query)}&type=${searchType}`
+        `/api/public/search?q=${encodeURIComponent(query)}&type=${apiType}&limit=100`
       );
       if (response.ok) {
         const data = await response.json();
-        setSellers(data.sellers || []);
-        setDealers(data.dealers || []);
+        setSellers(data.results?.sellers || data.sellers || []);
+        setDealers(data.results?.dealers || data.dealers || []);
       }
     } catch (error) {
       console.error('Error searching:', error);
@@ -135,7 +137,13 @@ export default function SearchPage() {
                             <img
                               src={seller.photo}
                               alt={seller.name}
+                              referrerPolicy="no-referrer"
                               className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const t = e.target as HTMLImageElement;
+                                t.style.display = 'none';
+                                t.onerror = null;
+                              }}
                             />
                           ) : (
                             <span className="text-2xl text-purple-600">

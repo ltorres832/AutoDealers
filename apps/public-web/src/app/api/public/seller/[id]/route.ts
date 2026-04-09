@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirestore } from '@autodealers/core';
+import { normalizeVehiclesArray } from '@/lib/vehicle-photos-normalize';
 
 // Exportar configuración de runtime
 export const runtime = 'nodejs';
@@ -242,6 +243,10 @@ export async function GET(
 
     console.log(`✅ Preparing response with ${vehicles.length} vehicles`);
 
+    const vehiclesOut = normalizeVehiclesArray(
+      vehicles.map((v) => ({ ...v } as Record<string, unknown>))
+    );
+
     const responseData = {
       seller: {
         id: sellerDoc.id,
@@ -257,7 +262,7 @@ export async function GET(
         tenantId: tenantId,
         tenantName: tenantData?.name || 'Dealer',
       },
-      vehicles: vehicles || [],
+      vehicles: vehiclesOut,
     };
 
     console.log(`✅ Response ready: seller=${responseData.seller.name}, vehicles=${responseData.vehicles.length}`);

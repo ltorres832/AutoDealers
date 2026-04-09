@@ -1,67 +1,100 @@
-// Configuración de Firebase Admin
-// Solo se importa firebase-admin en el servidor (Node.js)
-
+/**
+ * Obtiene la instancia de Firebase Admin de forma segura para el bundle del cliente
+ */
 function getAdmin() {
   if (typeof window !== 'undefined') {
-    throw new Error('Firebase Admin solo puede usarse en el servidor');
+    return null; // El frontend no debe usar firebase-admin
   }
 
-  try {
-    const mod = 'firebase-admin';
-    return require(mod);
-  } catch (e) {
-    // Retornar un objeto mock durante el build o si se solicita saltar Firebase
-    const isBuildOrSkip =
-      process.env.NEXT_PHASE === 'phase-production-build' ||
-      process.env.SKIP_FIREBASE === 'true' ||
-      process.env.NODE_ENV === 'test';
+  // En el build o tests, retornamos un mock
+  const isBuildOrSkip =
+    process.env.NEXT_PHASE === 'phase-production-build' ||
+    process.env.SKIP_FIREBASE === 'true' ||
+    process.env.NODE_ENV === 'test';
 
-    if (isBuildOrSkip) {
-      // Retornar un objeto mock durante el build
-      const firestoreMock = () => ({
-        settings: () => ({}),
-        collection: () => ({ doc: () => ({ collection: () => ({ where: () => ({ limit: () => ({ get: () => Promise.resolve({ empty: true, docs: [] }) }) }) }) }) }),
-        collectionGroup: () => ({ where: () => ({ orderBy: () => ({ limit: () => ({ get: () => Promise.resolve({ empty: true, docs: [] }) }) }) }) }),
-        doc: () => ({ get: () => Promise.resolve({ exists: false, data: () => ({}) }) }),
-        runTransaction: async (cb: any) => await cb({
-          get: () => Promise.resolve({ exists: false, data: () => ({}) }),
-          update: () => ({}),
-          set: () => ({}),
-          delete: () => ({}),
+  if (isBuildOrSkip) {
+    // Mock Firestore: debe soportar collection().doc().get() y collection().where().limit().get()
+    const emptySnap = { empty: true, docs: [] };
+    const docSnapshot = { exists: false, data: () => null };
+    const firestoreMock = () => ({
+      settings: () => ({}),
+      collection: () => ({
+        doc: () => ({
+          get: () => Promise.resolve(docSnapshot),
+          collection: () => ({
+            where: () => ({
+              limit: () => ({ get: () => Promise.resolve(emptySnap) }),
+            }),
+          }),
         }),
-      });
-
-      // Añadir propiedades estáticas al mock de firestore
-      Object.assign(firestoreMock, {
-        FieldValue: {
-          serverTimestamp: () => ({ _type: 'timestamp' }),
-          increment: (n: number) => ({ _type: 'increment', n }),
-          arrayUnion: (...args: any[]) => ({ _type: 'arrayUnion', args }),
-          arrayRemove: (...args: any[]) => ({ _type: 'arrayRemove', args }),
-          delete: () => ({ _type: 'delete' }),
-        },
-        Timestamp: {
-          now: () => new Date(),
-          fromDate: (d: Date) => d,
-          fromMillis: (m: number) => new Date(m),
-        }
-      });
-
-      return {
-        apps: [],
-        initializeApp: () => ({}),
-        app: () => ({
-          firestore: firestoreMock,
-          auth: () => ({}),
-          storage: () => ({}),
+        where: () => ({
+          limit: () => ({ get: () => Promise.resolve(emptySnap) }),
         }),
-        credential: { cert: () => ({}) },
+        orderBy: () => ({
+          limit: () => ({ get: () => Promise.resolve(emptySnap) }),
+        }),
+        get: () => Promise.resolve(emptySnap),
+      }),
+      collectionGroup: () => ({
+        where: () => ({
+          orderBy: () => ({
+            limit: () => ({
+              get: () => Promise.resolve(emptySnap),
+            }),
+          }),
+        }),
+      }),
+      doc: () => ({ get: () => Promise.resolve({ exists: false, data: () => ({}) }) }),
+      runTransaction: async (cb: any) => await cb({
+        get: () => Promise.resolve({ exists: false, data: () => ({}) }),
+        update: () => ({}),
+        set: () => ({}),
+        delete: () => ({}),
+      }),
+    });
+
+    // Añadir propiedades estáticas al mock de firestore
+    Object.assign(firestoreMock, {
+      FieldValue: {
+        serverTimestamp: () => ({ _type: 'timestamp' }),
+        increment: (n: number) => ({ _type: 'increment', n }),
+        arrayUnion: (...args: any[]) => ({ _type: 'arrayUnion', args }),
+        arrayRemove: (...args: any[]) => ({ _type: 'arrayRemove', args }),
+        delete: () => ({ _type: 'delete' }),
+      },
+      Timestamp: {
+        now: () => new Date(),
+        fromDate: (d: Date) => d,
+        fromMillis: (m: number) => new Date(m),
+      }
+    });
+
+    return {
+      apps: [],
+      initializeApp: (opts?: { projectId?: string }) => ({
+        options: { projectId: opts?.projectId || 'mock-project' },
+      }),
+      app: () => ({
+        options: { projectId: 'mock-project' },
         firestore: firestoreMock,
         auth: () => ({}),
         storage: () => ({}),
-      } as any;
-    }
-    throw new Error('firebase-admin no está disponible. Asegúrate de que está instalado.');
+      }),
+      credential: { cert: () => ({}) },
+      firestore: firestoreMock,
+      auth: () => ({}),
+      storage: () => ({}),
+    } as any;
+  }
+
+  // EN SERVIDOR: Cargar firebase-admin dinámicamente para no romper el empaquetado del cliente.
+  // Usamos una variable para el nombre del módulo para evitar que Webpack intente analizarlo estáticamente si no es necesario.
+  try {
+    const adminModuleName = 'firebase-admin';
+    return require(adminModuleName);
+  } catch (e) {
+    console.error('❌ Error cargando firebase-admin en el servidor:', e);
+    throw e;
   }
 }
 
@@ -128,15 +161,37 @@ export function initializeFirebase(): AdminType['app']['App'] {
         ? 'autodealers-7f62e.firebasestorage.app'
         : `${projectId || 'autodealers-7f62e'}.firebasestorage.app`;
 
-      const appOptions: any = { storageBucket, projectId };
+      const appOptions: any = { storageBucket, projectId: projectId || process.env.GOOGLE_CLOUD_PROJECT || 'autodealers-7f62e' };
 
-      if (projectId && clientEmail && privateKey) {
-        appOptions.credential = admin.credential.cert({ projectId, clientEmail, privateKey });
-        console.log('✅ Firebase Admin Shared: Certificado explícito');
-      } else {
-        const effectiveProjectId = projectId || process.env.GOOGLE_CLOUD_PROJECT || 'autodealers-7f62e';
-        console.log('ℹ️ Firebase Admin Shared: Usando ADC');
-        appOptions.projectId = effectiveProjectId;
+      // App Hosting / Cloud Run: ADC disponible con firebase-app-hosting-compute@
+      const isAppHosting = !!(process.env.K_SERVICE || process.env.K_REVISION || process.env.FIREBASE_CONFIG || process.env.GCLOUD_PROJECT);
+
+      const hasValidCert = projectId && clientEmail && privateKey && (privateKey.includes('BEGIN') || privateKey.length > 100);
+      let credentialSet = false;
+
+      if (hasValidCert) {
+        try {
+          const normalizedKey = privateKey.replace(/\\n/g, '\n').trim();
+          appOptions.credential = admin.credential.cert({ projectId, clientEmail, privateKey: normalizedKey });
+          console.log('✅ Firebase Admin Shared: Certificado explícito');
+          credentialSet = true;
+        } catch (certError: any) {
+          console.warn('⚠️ Certificado explícito falló:', certError.message);
+        }
+      }
+
+      if (!credentialSet && isAppHosting) {
+        try {
+          appOptions.credential = admin.credential.applicationDefault();
+          console.log('ℹ️ Firebase Admin Shared: Usando Application Default Credentials');
+          credentialSet = true;
+        } catch (adcError: any) {
+          console.warn('⚠️ ADC falló:', adcError.message);
+        }
+      }
+
+      if (!credentialSet) {
+        console.log('ℹ️ Firebase Admin Shared: Inicializando sin credential explícito (SDK usará ADC si está disponible)');
       }
 
       firebaseApp = admin.initializeApp(appOptions);
@@ -262,9 +317,16 @@ export function getStorage(): any {
     const admin = getAdmin();
     const storage = admin.storage(app);
 
+    // En builds empaquetados (p. ej. Next/webpack) la API puede no exponer bucket(); no fallar el build.
+    if (!storage || typeof storage.bucket !== 'function') {
+      console.warn('⚠️ Firebase Storage: bucket() no disponible; omitiendo verificación');
+      return storage;
+    }
+
     // Verificar que el bucket esté configurado
     try {
-      const projectId = app.options.projectId || process.env.FIREBASE_PROJECT_ID || 'autodealers-7f62e';
+      const projectId =
+        app?.options?.projectId || process.env.FIREBASE_PROJECT_ID || 'autodealers-7f62e';
       const bucketName = projectId === 'autodealers-7f62e'
         ? 'autodealers-7f62e.firebasestorage.app'
         : `${projectId}.firebasestorage.app`;
@@ -276,14 +338,13 @@ export function getStorage(): any {
       console.log('✅ Firebase Storage bucket verificado:', bucket.name);
     } catch (bucketError: any) {
       console.error('❌ Error verificando storage bucket:', bucketError.message);
-      // Intentar especificar el bucket explícitamente
-      const projectId = app.options.projectId || process.env.FIREBASE_PROJECT_ID || 'autodealers-7f62e';
+      const projectId =
+        app?.options?.projectId || process.env.FIREBASE_PROJECT_ID || 'autodealers-7f62e';
       const bucketName = projectId === 'autodealers-7f62e'
         ? 'autodealers-7f62e.firebasestorage.app'
         : `${projectId}.firebasestorage.app`;
       console.log('🔄 Intentando usar bucket:', bucketName);
-      const admin = getAdmin();
-      return admin.storage(app).bucket(bucketName) as any;
+      return storage.bucket(bucketName) as any;
     }
 
     return storage;

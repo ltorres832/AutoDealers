@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirestore } from '../../../../lib/firebase-admin';
 import { getVehicles } from '@autodealers/inventory';
+import { normalizeVehiclesArray } from '@/lib/vehicle-photos-normalize';
 
 export const dynamic = 'force-dynamic';
 
@@ -73,7 +74,9 @@ export async function GET(
 
     return NextResponse.json({
       tenant,
-      vehicles: vehicles || [],
+      vehicles: normalizeVehiclesArray(
+        (vehicles || []).map((v) => ({ ...v } as Record<string, unknown>))
+      ),
     });
   } catch (error: any) {
     console.error('Error fetching tenant data:', error);

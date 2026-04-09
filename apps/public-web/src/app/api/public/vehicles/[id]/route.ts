@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getVehicleById } from '@autodealers/inventory';
 import { getFirestore } from '@autodealers/core';
+import { normalizeVehiclePayload } from '@/lib/vehicle-photos-normalize';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,7 +27,9 @@ export async function GET(
         try {
           const vehicle = await getVehicleById(tId, id);
           if (vehicle && vehicle.publishedOnPublicPage !== false) {
-            return NextResponse.json({ vehicle });
+            return NextResponse.json({
+              vehicle: normalizeVehiclePayload({ ...vehicle } as Record<string, unknown>),
+            });
           }
         } catch (error) {
           // Continuar buscando en otros tenants
@@ -59,7 +62,9 @@ export async function GET(
     }
 
     console.log(`✅ Devolviendo vehículo: ${vehicle.make} ${vehicle.model}, ${vehicle.photos?.length || 0} fotos`);
-    return NextResponse.json({ vehicle });
+    return NextResponse.json({
+      vehicle: normalizeVehiclePayload({ ...vehicle } as Record<string, unknown>),
+    });
   } catch (error: any) {
     console.error('Error fetching vehicle:', error);
     return NextResponse.json(

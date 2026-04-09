@@ -87,6 +87,8 @@ export interface VehicleFilters {
   fuelType?: string;
   transmission?: string;
   limit?: number; // Límite de resultados por tenant
+  /** Máx. documentos a leer en Firestore antes del filtro en memoria (p. ej. catálogo público sin status) */
+  prefetchCap?: number;
 }
 
 

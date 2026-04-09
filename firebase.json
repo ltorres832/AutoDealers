@@ -60,7 +60,7 @@
   "apphosting": [
     {
       "backendId": "public-web-app",
-      "rootDir": "."
+      "rootDir": "apps/public-web"
     },
     {
       "backendId": "admin-app",

@@ -4,8 +4,7 @@
 function getAdmin(): any {
   if (typeof window !== 'undefined') return null;
   try {
-    const mod = 'firebase-admin';
-    return require(mod);
+    return require('firebase-admin');
   } catch (e) {
     // Retornar un objeto mock durante el build o si se solicita saltar Firebase
     const isBuildOrSkip =

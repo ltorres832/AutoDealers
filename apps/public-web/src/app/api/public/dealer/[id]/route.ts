@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirestore } from '@autodealers/core';
+import { normalizeVehiclesArray } from '@/lib/vehicle-photos-normalize';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -151,6 +152,10 @@ export async function GET(
 
     console.log(`✅ Returning ${sellers.length} sellers with vehicle counts`);
 
+    const vehiclesNormalized = normalizeVehiclesArray(
+      vehicles.map((v) => ({ ...v } as Record<string, unknown>))
+    );
+
     return NextResponse.json({
       dealer: {
         id: dealerDoc.id,
@@ -165,7 +170,7 @@ export async function GET(
         whatsapp: dealerData.whatsapp || dealerData.phone || tenantData?.phone || '',
         website: dealerData.website || tenantData?.website || tenantData?.domain || '',
       },
-      vehicles,
+      vehicles: vehiclesNormalized,
       sellers,
     }, {
       headers: {

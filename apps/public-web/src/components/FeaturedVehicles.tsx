@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useRef } from 'react';
+import { getFirstPhoto, handleImageError } from '@/lib/vehicle-image';
 
 interface Vehicle {
   id: string;
@@ -11,7 +12,8 @@ interface Vehicle {
   model: string;
   price: number;
   currency: string;
-  photos: string[];
+  photos?: string[];
+  images?: string[];
   mileage?: number;
   stockNumber?: string;
   createdAt?: string; // Nuevo campo para detectar "Recién llegado"
@@ -117,24 +119,26 @@ export default function FeaturedVehicles({ vehicles }: FeaturedVehiclesProps) {
                   {/* Imagen */}
                   <div className="relative h-64 bg-slate-100 overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent z-10"></div>
-                    {vehicle.photos && vehicle.photos.length > 0 && vehicle.photos[0] ? (
-                      <img
-                        src={vehicle.photos[0].trim()}
-                        alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-in-out"
-                        loading="lazy"
-                        referrerPolicy="no-referrer"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23f1f5f9" width="400" height="300"/%3E%3Ctext fill="%2394a3b8" font-family="sans-serif" font-size="20" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3E🚗 Sin Foto%3C/text%3E%3C/svg%3E';
-                          target.onerror = null;
-                        }}
-                      />
-                    ) : (
-                      <div className="h-full w-full flex items-center justify-center bg-slate-100 text-slate-300">
-                        <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2m-12 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0zm10 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0z" /></svg>
-                      </div>
-                    )}
+                    {(() => {
+                      const firstPhoto = getFirstPhoto(vehicle);
+                      if (firstPhoto) {
+                        return (
+                          <img
+                            src={firstPhoto}
+                            alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-in-out"
+                            loading="lazy"
+                            referrerPolicy="no-referrer"
+                            onError={handleImageError}
+                          />
+                        );
+                      }
+                      return (
+                        <div className="h-full w-full flex items-center justify-center bg-slate-100 text-slate-300">
+                          <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2m-12 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0zm10 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0z" /></svg>
+                        </div>
+                      );
+                    })()}
 
                     {/* Precio Badge inside Image */}
                     <div className="absolute bottom-4 left-4 z-20">

@@ -2,6 +2,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, Suspense } from 'react';
+import { getFirstPhoto, handleImageError } from '@/lib/vehicle-image';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -14,7 +15,8 @@ interface Vehicle {
   year: number;
   price: number;
   currency: string;
-  photos: string[];
+  photos?: string[];
+  images?: string[];
   mileage?: number;
   condition: string;
   description: string;
@@ -194,16 +196,15 @@ function ComparePageContent() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
             {vehicles.map((vehicle, index) => (
               <div key={vehicle.id} className="bg-white rounded-xl shadow-lg overflow-hidden">
-                {vehicle.photos && vehicle.photos.length > 0 && vehicle.photos[0] ? (
+                {getFirstPhoto(vehicle) ? (
                   <div className="relative h-48 bg-gray-200">
                     <img
-                      src={vehicle.photos[0]}
+                      src={getFirstPhoto(vehicle)!}
                       alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
                       className="w-full h-full object-cover"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23ddd" width="400" height="300"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="20" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3E🚗%3C/text%3E%3C/svg%3E';
-                      }}
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                      onError={handleImageError}
                     />
                     <button
                       onClick={() => removeVehicle(vehicle.id)}

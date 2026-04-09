@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getVehicles } from '@autodealers/inventory';
 import { getFirestore } from '../../../../lib/firebase-admin';
+import { normalizeVehiclesArray } from '@/lib/vehicle-photos-normalize';
+import {
+  isTenantEligibleForPublicCatalog,
+  isVehicleVisibleOnPublicListing,
+} from '@/lib/public-catalog-visibility';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0; // Disable cache for real-time updates
@@ -9,7 +14,6 @@ export async function GET(request: NextRequest) {
   try {
     const db = getFirestore();
     const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status') || 'available';
     const make = searchParams.get('make');
     const model = searchParams.get('model');
     const minPrice = searchParams.get('minPrice');
@@ -17,45 +21,42 @@ export async function GET(request: NextRequest) {
     const year = searchParams.get('year');
     const limit = parseInt(searchParams.get('limit') || '50');
 
-    // Si no hay tenantId específico, buscar en todos los tenants activos
-    // Obtener todos los tenants activos
-    const tenantsSnapshot = await db
-      .collection('tenants')
-      .where('status', '==', 'active')
-      .limit(50) // Limitar a 50 tenants máximo para evitar timeouts
-      .get();
+    // Incluir tenants sin campo status (antes solo status===active devolvía 0)
+    const tenantsSnapshot = await db.collection('tenants').get();
+    const tenantDocs = tenantsSnapshot.docs.filter((d) =>
+      isTenantEligibleForPublicCatalog(d.data() as Record<string, unknown>)
+    );
 
-    console.log(`🔍 Encontrados ${tenantsSnapshot.docs.length} tenants activos`);
+    console.log(`🔍 Tenants elegibles para catálogo: ${tenantDocs.length} (de ${tenantsSnapshot.size} docs)`);
 
     // Buscar vehículos en paralelo para todos los tenants (más rápido)
-    const vehiclePromises = tenantsSnapshot.docs.map(async (tenantDoc: any) => {
+    const vehiclePromises = tenantDocs.map(async (tenantDoc: any) => {
       const tenantId = tenantDoc.id;
 
       try {
         // Agregar timeout individual de 5 segundos por tenant
         const timeoutPromise = new Promise<any[]>((_, reject) => {
-          setTimeout(() => reject(new Error(`Timeout para tenant ${tenantId}`)), 5000);
+          setTimeout(() => reject(new Error(`Timeout para tenant ${tenantId}`)), 45000);
         });
 
+        const y = year ? parseInt(year, 10) : NaN;
         const vehiclesPromise = getVehicles(tenantId, {
-          status: status as any,
+          // Sin status en Firestore: muchos docs usan disponible/in_stock; filtramos en memoria
+          prefetchCap: 220,
           make: make || undefined,
           model: model || undefined,
+          minYear: !Number.isNaN(y) ? y : undefined,
+          maxYear: !Number.isNaN(y) ? y : undefined,
           minPrice: minPrice ? parseInt(minPrice) : undefined,
           maxPrice: maxPrice ? parseInt(maxPrice) : undefined,
-          limit: 50, // Límite por tenant para evitar respuestas muy grandes
+          limit: 50,
         } as any);
 
         const vehicles = await Promise.race([vehiclesPromise, timeoutPromise]) as any[];
 
-        // Relaxed filter: Allow vehicles explicitly published OR if the flag is missing but they are available
-        // This ensures new cars show up even if the Admin UI input for 'publishedOnPublicPage' was missed
-        const publishedVehicles = vehicles.filter((v: any) => {
-          const isPublished = v.publishedOnPublicPage === true;
-          const isAvailable = v.status === 'available';
-          // Si tiene el flag explícito, respetarlo. Si no tiene el flag, asumir público si está 'available'
-          return isPublished || (v.publishedOnPublicPage === undefined && isAvailable);
-        });
+        const publishedVehicles = vehicles.filter((v: any) =>
+          isVehicleVisibleOnPublicListing(v)
+        );
 
         return publishedVehicles;
       } catch (error: any) {
@@ -72,27 +73,20 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Esperar todas las consultas en paralelo con timeout total de 10 segundos
-    const allVehiclesArrays = await Promise.race([
-      Promise.all(vehiclePromises),
-      new Promise<any[][]>((_, reject) => {
-        setTimeout(() => reject(new Error('Timeout total')), 10000);
-      })
-    ]).catch((error) => {
-      console.warn(`⚠️ Timeout parcial, usando resultados disponibles: ${error.message}`);
-      // Retornar resultados parciales si hay timeout
-      return Promise.allSettled(vehiclePromises).then(results =>
-        results
-          .filter((r): r is PromiseFulfilledResult<any[]> => r.status === 'fulfilled')
-          .map(r => r.value)
-      );
-    });
+    const settled = await Promise.allSettled(vehiclePromises);
+    const allVehiclesArrays = settled
+      .filter((r): r is PromiseFulfilledResult<any[]> => r.status === 'fulfilled')
+      .map((r) => r.value);
 
     const allVehicles = (allVehiclesArrays || []).flat();
     console.log(`✅ Total de vehículos encontrados: ${allVehicles.length}`);
 
+    const normalizedVehicles = normalizeVehiclesArray(
+      allVehicles.map((v: any) => ({ ...v } as Record<string, unknown>))
+    );
+
     // Ordenar por fecha de creación (más recientes primero) y limitar
-    const sortedVehicles = allVehicles
+    const sortedVehicles = normalizedVehicles
       .sort((a: any, b: any) => {
         const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;

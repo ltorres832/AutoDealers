@@ -34,6 +34,7 @@ const nextConfig = {
     // Configuración básica para monorepo - Mejor usar dependencias estándar
     config.resolve.alias = {
       ...config.resolve.alias,
+      '@': path.join(__dirname, 'src'),
       '@autodealers/core': path.join(__dirname, '../../packages/core/src'),
       '@autodealers/shared': path.join(__dirname, '../../packages/shared/src'),
       '@autodealers/crm': path.join(__dirname, '../../packages/crm/src'),
@@ -43,16 +44,8 @@ const nextConfig = {
       '@autodealers/ai': path.join(__dirname, '../../packages/ai/src'),
     };
 
-    if (isServer) {
-      config.externals.push(
-        'firebase-admin',
-        'google-auth-library',
-        '@google-cloud/firestore',
-        '@google-cloud/storage',
-        'stripe'
-      );
-    }
-
+    // serverExternalPackages ya maneja la mayoría de los casos en Next.js moderno.
+    // Solo agregamos fallbacks para el lado del cliente si es necesario.
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,

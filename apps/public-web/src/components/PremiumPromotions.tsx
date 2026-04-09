@@ -83,7 +83,19 @@ export default function PremiumPromotions() {
             {promotions.map((promo) => (
                 <div key={promo.id} className="group relative h-[400px] rounded-[2.5rem] overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-slate-200">
                     {promo.imageUrl ? (
-                        <img src={promo.imageUrl} alt={promo.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                        <img
+                          src={promo.imageUrl}
+                          alt={promo.title}
+                          referrerPolicy="no-referrer"
+                          loading="lazy"
+                          className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                          onError={(e) => {
+                            const t = e.target as HTMLImageElement;
+                            t.src =
+                              'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%231e293b" width="400" height="300"/%3E%3Ctext fill="%2394a3b8" font-family="sans-serif" font-size="18" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3EPromo%3C/text%3E%3C/svg%3E';
+                            t.onerror = null;
+                          }}
+                        />
                     ) : (
                         <div className="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-950"></div>
                     )}
