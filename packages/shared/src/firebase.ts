@@ -88,13 +88,16 @@ function getAdmin() {
   }
 
   // EN SERVIDOR: Cargar firebase-admin dinámicamente para no romper el empaquetado del cliente.
-  // Usamos una variable para el nombre del módulo para evitar que Webpack intente analizarlo estáticamente si no es necesario.
+  // IMPORTANTE: Un require literal ayuda a que el tracer de Next.js (NFT) incluya la dependencia en el build standalone.
   try {
-    const adminModuleName = 'firebase-admin';
-    return require(adminModuleName);
-  } catch (e) {
-    console.error('❌ Error cargando firebase-admin en el servidor:', e);
-    throw e;
+    // Solo requerir si no está ya en el scope global o similar (evitar re-requires costosos)
+    return require('firebase-admin');
+  } catch (e: any) {
+    console.error('❌ Error cargando firebase-admin en el servidor:', e.message);
+    // Proporcionar un error más descriptivo que ayude a diagnosticar en producción
+    const error = new Error(`firebase-admin no está disponible en este entorno: ${e.message}`);
+    (error as any).code = 'MODULE_NOT_FOUND';
+    throw error;
   }
 }
 
@@ -148,6 +151,15 @@ export function initializeFirebase(): AdminType['app']['App'] {
       if (privateKey) {
         privateKey = privateKey.replace(/\\n/g, '\n');
       }
+
+      console.log('🔍 Firebase Environment:', {
+        hasProjectId: !!projectId,
+        projectId: projectId || '(missing)',
+        hasClientEmail: !!clientEmail,
+        hasPrivateKey: !!privateKey,
+        nodeEnv: process.env.NODE_ENV,
+        phase: process.env.NEXT_PHASE
+      });
 
       const isCloudEnv = !!process.env.FIREBASE_CONFIG || !!process.env.K_SERVICE || !!process.env.K_REVISION;
 
