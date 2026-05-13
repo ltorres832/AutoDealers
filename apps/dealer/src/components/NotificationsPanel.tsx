@@ -2,20 +2,26 @@
 
 import { useState, useEffect } from 'react';
 import { useRealtimeNotifications } from '@/hooks/useRealtimeNotifications';
+import { fetchWithAuth } from '@/lib/fetch-with-auth';
+import { getDealerActiveTenantId } from '@/lib/dealer-tenant-storage';
 
 export default function NotificationsPanel() {
   const [user, setUser] = useState<any>(null);
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    fetch('/api/user')
-      .then(res => res.json())
-      .then(data => setUser(data.user))
-      .catch(err => console.error('Error fetching user:', err));
+    void fetchWithAuth('/api/user', {})
+      .then((res) => {
+        if (!res.ok) throw new Error('auth');
+        return res.json();
+      })
+      .then((data) => setUser(data.user))
+      .catch((err) => console.error('Error fetching user:', err));
   }, []);
 
+  const tenantId = getDealerActiveTenantId(user?.tenantId ?? null) || user?.tenantId;
   const { notifications, unreadCount, loading } = useRealtimeNotifications({
-    tenantId: user?.tenantId,
+    tenantId,
     userId: user?.id,
     limit: 10,
   });

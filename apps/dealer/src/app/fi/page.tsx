@@ -8,11 +8,15 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useRealtimeFIRequests } from '@/hooks/useRealtimeFIRequests';
 import { useRealtimeFIClients } from '@/hooks/useRealtimeFIClients';
+import { fetchWithAuth } from '@/lib/fetch-with-auth';
+import FIHubOverview from '@/components/FIHubOverview';
 import FICalculator from '@/components/FICalculator';
 import FIApprovalScore from '@/components/FIApprovalScore';
 import FICreditReport from '@/components/FICreditReport';
 import AdvancedFIRequestReviewModal from '@/components/AdvancedFIRequestReviewModal';
 import { useFeatureFlag } from '@/hooks/useFeatureFlag';
+import { expeditionStageLabel } from '@autodealers/crm';
+import { getDealerActiveTenantId } from '@/lib/dealer-tenant-storage';
 
 interface FIRequest {
   id: string;
@@ -26,6 +30,8 @@ interface FIRequest {
   submittedAt?: string;
   reviewedAt?: string;
   createdBy: string;
+  expeditionStage?: string;
+  customerFileId?: string;
 }
 
 interface FIClient {
@@ -52,28 +58,58 @@ export default function FIFIManagerPage() {
   const [debugInfo, setDebugInfo] = useState<any>(null);
   const [showDebug, setShowDebug] = useState(false);
 
-  // Obtener usuario para tenantId
   useEffect(() => {
-    fetch('/api/user', { credentials: 'include' })
-      .then(res => {
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}`);
-        }
+    void fetchWithAuth('/api/user', {})
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
       })
-      .then(data => {
+      .then((data) => {
         console.log('✅ Usuario obtenido (Dealer):', data.user);
         setUser(data.user);
       })
-      .catch(err => console.error('❌ Error fetching user:', err));
+      .catch((err) => console.error('❌ Error fetching user:', err));
   }, []);
+
+  const fiTenant = getDealerActiveTenantId(user?.tenantId ?? null) || user?.tenantId || '';
 
   // Usar hooks de tiempo real
   const { requests, loading: requestsLoading, error: requestsError } = useRealtimeFIRequests(
-    user?.tenantId || '',
+    fiTenant,
     filterStatus === 'all' ? undefined : filterStatus
   );
-  const { clients, loading: clientsLoading, error: clientsError } = useRealtimeFIClients(user?.tenantId || '');
+  const { clients, loading: clientsLoading, error: clientsError } = useRealtimeFIClients(fiTenant);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !requests.length) return;
+    const params = new URLSearchParams(window.location.search);
+    const openId = params.get('openRequest');
+    if (!openId) return;
+    const req = requests.find((r) => r.id === openId);
+    if (!req) return;
+    setSelectedRequest({
+      ...req,
+      submittedAt:
+        req.submittedAt instanceof Date
+          ? req.submittedAt.toISOString()
+          : typeof req.submittedAt === 'string'
+            ? req.submittedAt
+            : undefined,
+      reviewedAt:
+        req.reviewedAt instanceof Date
+          ? req.reviewedAt.toISOString()
+          : typeof req.reviewedAt === 'string'
+            ? req.reviewedAt
+            : undefined,
+    } as FIRequest);
+    params.delete('openRequest');
+    const qs = params.toString();
+    window.history.replaceState(
+      {},
+      '',
+      qs ? `${window.location.pathname}?${qs}` : window.location.pathname
+    );
+  }, [requests]);
 
   // Feature flags - deben estar en el nivel superior del componente
   const calculatorEnabled = useFeatureFlag('fi_calculator', 'dealer');
@@ -167,12 +203,13 @@ export default function FIFIManagerPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Panel F&I</h1>
-        <p className="mt-2 text-gray-600">
-          Revisa y gestiona solicitudes de Financiamiento e Seguro
-        </p>
-      </div>
+      <FIHubOverview />
+      {(requestsError || clientsError) && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          {requestsError && <p>Solicitudes: {requestsError.message}</p>}
+          {clientsError && <p>Clientes: {clientsError.message}</p>}
+        </div>
+      )}
 
       {/* Filtros */}
       <div className="mb-6 flex space-x-4">
@@ -236,6 +273,12 @@ export default function FIFIManagerPage() {
                 Estado
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Expedición
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Caso cliente
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Fecha
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -262,6 +305,18 @@ export default function FIFIManagerPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {getStatusBadge(request.status)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    {expeditionStageLabel(request.expeditionStage)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    {request.customerFileId ? (
+                      <Link href="/customer-files" className="text-blue-600 hover:text-blue-900 font-medium">
+                        Ver expediente
+                      </Link>
+                    ) : (
+                      <span className="text-gray-400">—</span>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {request.submittedAt

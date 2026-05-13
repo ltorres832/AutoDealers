@@ -1,7 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { useRealtimeMessages, useRealtimeConversation } from '@/hooks/useRealtimeMessages';
+import { fetchWithAuth } from '@/lib/fetch-with-auth';
+import { getDealerActiveTenantId } from '@/lib/dealer-tenant-storage';
 
 interface Message {
   id: string;
@@ -30,15 +33,19 @@ export default function MessagesPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch('/api/user')
-      .then(res => res.json())
-      .then(data => setUser(data.user))
-      .catch(err => console.error('Error fetching user:', err));
+    void fetchWithAuth('/api/user', {})
+      .then((res) => {
+        if (!res.ok) throw new Error('auth');
+        return res.json();
+      })
+      .then((data) => setUser(data.user))
+      .catch((err) => console.error('Error fetching user:', err));
   }, []);
 
-  const { conversations, loading } = useRealtimeMessages(user?.tenantId);
+  const tenantId = getDealerActiveTenantId(user?.tenantId ?? null) || user?.tenantId || '';
+  const { conversations, loading } = useRealtimeMessages(tenantId);
   const { messages: conversationMessages, loading: messagesLoading } = useRealtimeConversation(
-    user?.tenantId,
+    tenantId,
     selectedConversation?.leadId
   );
 
@@ -157,10 +164,19 @@ export default function MessagesPage() {
                       : ''
                   }`}
                 >
-                  <div className="flex justify-between">
-                    <p className="font-medium">{conv.leadName}</p>
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium truncate">{conv.leadName}</p>
+                      <Link
+                        href={`/leads/${conv.leadId}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-xs text-primary-600 hover:underline"
+                      >
+                        Ver ficha del lead
+                      </Link>
+                    </div>
                     {conv.unread > 0 && (
-                      <span className="bg-primary-600 text-white text-xs rounded-full px-2 py-1">
+                      <span className="bg-primary-600 text-white text-xs rounded-full px-2 py-1 shrink-0">
                         {conv.unread}
                       </span>
                     )}
@@ -179,8 +195,14 @@ export default function MessagesPage() {
         <div className="col-span-2 bg-white rounded-lg shadow flex flex-col">
           {selectedConversation ? (
             <>
-              <div className="p-4 border-b">
+              <div className="p-4 border-b flex flex-wrap items-center justify-between gap-2">
                 <h2 className="font-bold">{selectedConversation.leadName}</h2>
+                <Link
+                  href={`/leads/${selectedConversation.leadId}`}
+                  className="text-sm font-medium text-primary-600 hover:underline"
+                >
+                  Ver ficha del lead →
+                </Link>
               </div>
 
               <div className="flex-1 overflow-y-auto p-4 space-y-4">

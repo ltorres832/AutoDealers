@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase-client-base';
-import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 
 interface Banner {
   id: string;
@@ -38,11 +38,7 @@ export function useRealtimeBanners(tenantId: string, userId: string) {
     const bannersRef = collection(db, 'tenants', tenantId, 'premium_banners');
     
     // Query para banners del dealer
-    const q = query(
-      bannersRef,
-      where('createdBy', '==', userId),
-      orderBy('createdAt', 'desc')
-    );
+    const q = query(bannersRef, orderBy('createdAt', 'desc'));
 
     const unsubscribe = onSnapshot(
       q,
