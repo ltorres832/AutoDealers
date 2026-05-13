@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "dev": "turbo run dev --concurrency=15",
+    "dev:public": "cd apps/public-web && npm run dev",
     "build": "turbo run build",
     "build:packages": "cd packages/shared && npm run build && cd ../core && npm run build && cd ../crm && npm run build && cd ../inventory && npm run build && cd ../billing && npm run build && cd ../ai && npm run build && cd ../messaging && npm run build && cd ../reports && npm run build && cd ../..",
     "build:all": "npm run build:packages && npm run build:public && npm run build:admin && npm run build:dealer && npm run build:seller && npm run build:advertiser",
@@ -21,6 +22,12 @@
     "dev:admin-web": "cd apps/admin-web && flutter run -d chrome",
     "deploy:admin:vercel": "cd apps/admin && vercel --prod",
     "deploy:public:vercel": "cd apps/public-web && vercel --prod",
+    "deploy:public:firebase": "firebase deploy --only apphosting:public-web-app",
+    "deploy:admin:firebase": "firebase deploy --only apphosting:admin-app",
+    "deploy:dealer:firebase": "firebase deploy --only apphosting:dealer-app",
+    "deploy:seller:firebase": "firebase deploy --only apphosting:seller-app",
+    "deploy:advertiser:firebase": "firebase deploy --only apphosting:advertiser-app",
+    "deploy:apphosting": "firebase deploy --only apphosting",
     "deploy:dealer:vercel": "cd apps/dealer && vercel --prod",
     "deploy:seller:vercel": "cd apps/seller && vercel --prod",
     "deploy:advertiser:vercel": "cd apps/advertiser && vercel --prod",
@@ -29,12 +36,16 @@
     "flutter:clean": "cd autodealers_flutter && flutter clean && flutter pub get",
     "deploy:hosting": "npm run build:flutter:web && firebase deploy --only hosting",
     "deploy:flutter": "npm run flutter:clean && npm run build:flutter:web && firebase deploy --only hosting",
+    "predeploy:functions": "node ./functions/predeploy.js",
+    "smoke": "node scripts/smoke-production.mjs",
     "lint": "turbo run lint",
     "test": "turbo run test",
     "clean": "turbo run clean"
   },
   "devDependencies": {
-    "typescript": "^5.2.0"
+    "globals": "^17.5.0",
+    "typescript": "^5.2.0",
+    "typescript-eslint": "^8.58.2"
   },
   "engines": {
     "node": ">=18.0.0",
@@ -45,6 +56,7 @@
     "turbo": "^1.10.0"
   },
   "overrides": {
-    "fast-xml-parser": "^5.3.3"
+    "fast-xml-parser": "^5.8.0",
+    "strnum": "^2.3.0"
   }
 }
