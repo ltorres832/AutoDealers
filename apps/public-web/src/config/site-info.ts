@@ -7,12 +7,16 @@
  * Este archivo se mantiene como fallback si no hay conexión a Firestore.
  */
 
+import { DEFAULT_BRAND_LOGO_PATH, normalizePublicSiteLogoField } from '../lib/default-brand-logo';
+
 // Valores por defecto (fallback)
 const DEFAULT_SITE_INFO = {
   // Información de la empresa
   name: 'AutoDealers',
   description: 'La plataforma completa para encontrar y comprar vehículos. Miles de opciones verificadas.',
-  logo: 'AD', // Texto del logo o ruta a imagen
+  logo: DEFAULT_BRAND_LOGO_PATH,
+  /** Subtítulo bajo el nombre en el navbar de la home */
+  tagline: 'Plataforma de Confianza',
 
   // Información de contacto
   contact: {
@@ -78,7 +82,10 @@ export async function getSiteInfo() {
     const response = await fetch('/api/public/site-info', { cache: 'no-store' });
     if (response.ok) {
       const data = await response.json();
-      return data.siteInfo || DEFAULT_SITE_INFO;
+      return normalizePublicSiteLogoField({
+        ...DEFAULT_SITE_INFO,
+        ...(data.siteInfo || {}),
+      });
     }
   } catch (error) {
     console.error('Error loading site info from Firestore:', error);

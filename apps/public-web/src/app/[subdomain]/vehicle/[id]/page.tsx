@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { PublicSiteNavbarBrand } from '../../../../components/PublicSiteNavbarBrand';
 import StarRating from '../../../../components/StarRating';
 import ChatWidget from '../../../../components/ChatWidget';
 import { getVehiclePhotos, handleImageError } from '../../../../lib/vehicle-image';
@@ -291,17 +292,7 @@ export default function VehicleDetailPage() {
       <nav className="bg-white/80 backdrop-blur-md shadow-md border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-3 group">
-              <div className="flex gap-1 transform group-hover:scale-110 transition-transform">
-                <div className="w-3 h-3 bg-teal-500 rounded-sm"></div>
-                <div className="w-3 h-3 bg-purple-400 rounded-sm"></div>
-                <div className="w-3 h-3 bg-orange-500 rounded-sm"></div>
-                <div className="w-3 h-3 bg-purple-700 rounded-sm"></div>
-              </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                AUTODEALERS
-              </span>
-            </Link>
+            <PublicSiteNavbarBrand href="/" className="group" />
             <Link
               href="/"
               className="flex items-center gap-2 text-gray-700 hover:text-gray-900 transition font-medium group"
@@ -730,6 +721,21 @@ export default function VehicleDetailPage() {
                     {vehicle.currency || '$'} {(vehicle.price || 0).toLocaleString()}
                   </p>
                   <p className="text-sm text-gray-500">Precio final</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 mb-6">
+                  <Link
+                    href={`/${tenantId}/appointment?vehicleId=${vehicle.id}&intent=appointment`}
+                    className="text-center bg-amber-600 text-white px-3 py-3 rounded-xl font-semibold text-sm hover:bg-amber-700 shadow-md transition-colors"
+                  >
+                    📅 Agendar cita
+                  </Link>
+                  <Link
+                    href={`/${tenantId}/appointment?vehicleId=${vehicle.id}&intent=test_drive_request`}
+                    className="text-center bg-indigo-600 text-white px-3 py-3 rounded-xl font-semibold text-sm hover:bg-indigo-700 shadow-md transition-colors"
+                  >
+                    🚗 Prueba de manejo
+                  </Link>
                 </div>
 
                 {/* Información del vendedor */}

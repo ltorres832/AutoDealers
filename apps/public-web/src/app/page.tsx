@@ -15,13 +15,37 @@ import ReviewsSection from '../components/ReviewsSection';
 import SponsoredContent from '../components/SponsoredContent';
 import HeroBanner from '../components/HeroBanner';
 import BrandGrid from '../components/BrandGrid';
-import PremiumPromotions from '../components/PremiumPromotions';
+import ExclusiveOffersLandingSection from '../components/ExclusiveOffersLandingSection';
+import InventoryFinderCta from '../components/InventoryFinderCta';
+import WhyChooseUsLandingSection from '../components/WhyChooseUsLandingSection';
+import QuickListingsSection from '../components/QuickListingsSection';
 import SidebarBanner from '../components/SidebarBanner';
 import BetweenContentBanner from '../components/BetweenContentBanner';
 import ContactForm from '../components/ContactForm';
 import LandingFooter from '../components/LandingFooter';
+import {
+  PublicSiteNavbarBrand,
+  type PublicSiteBrandingInfo,
+} from '../components/PublicSiteNavbarBrand';
 import { SITE_INFO as DEFAULT_SITE_INFO, getSiteInfo } from '../config/site-info';
 import { getFirstPhoto, handleImageError } from '../lib/vehicle-image';
+
+/** logo.clearbit.com ya no sirve logos públicos; Simple Icons (jsDelivr) es estable. Lexus no tiene slug en v13 → favicon. */
+const CERTIFIED_BRANDS_ICONS = 'https://cdn.jsdelivr.net/npm/simple-icons@13.21.0/icons';
+const CERTIFIED_BRANDS = [
+  { name: 'Toyota', logo: `${CERTIFIED_BRANDS_ICONS}/toyota.svg` },
+  { name: 'Honda', logo: `${CERTIFIED_BRANDS_ICONS}/honda.svg` },
+  { name: 'Ford', logo: `${CERTIFIED_BRANDS_ICONS}/ford.svg` },
+  { name: 'Chevrolet', logo: `${CERTIFIED_BRANDS_ICONS}/chevrolet.svg` },
+  { name: 'Nissan', logo: `${CERTIFIED_BRANDS_ICONS}/nissan.svg` },
+  { name: 'Jeep', logo: `${CERTIFIED_BRANDS_ICONS}/jeep.svg` },
+  { name: 'BMW', logo: `${CERTIFIED_BRANDS_ICONS}/bmw.svg` },
+  { name: 'Mercedes-Benz', logo: `${CERTIFIED_BRANDS_ICONS}/mercedes.svg` },
+  { name: 'Audi', logo: `${CERTIFIED_BRANDS_ICONS}/audi.svg` },
+  { name: 'Lexus', logo: 'https://www.google.com/s2/favicons?domain=lexus.com&sz=128' },
+  { name: 'Mazda', logo: `${CERTIFIED_BRANDS_ICONS}/mazda.svg` },
+  { name: 'Tesla', logo: `${CERTIFIED_BRANDS_ICONS}/tesla.svg` },
+] as const;
 
 interface Banner {
   id: string;
@@ -121,6 +145,16 @@ export default function LandingPage() {
   const [landingConfig, setLandingConfig] = useState<any>(null);
   const [scrolled, setScrolled] = useState(false);
   const [siteInfo, setSiteInfo] = useState(DEFAULT_SITE_INFO);
+  const [freeListingsCta, setFreeListingsCta] = useState({
+    enabled: true,
+    maxActiveFreeVehiclesPerSeller: 2,
+    quickListingPath: '/publicar-gratis',
+    durationDays: 14,
+    ctaTitle: '¿Quieres vender?',
+    ctaSubtitle: 'Publica tu auto hoy mismo y llega a millones',
+    ctaButtonLabel: 'Publicar Gratis',
+    registerPath: '/register?type=seller',
+  });
   const fetchingVehiclesRef = useRef(false);
 
   useEffect(() => {
@@ -142,6 +176,21 @@ export default function LandingPage() {
       }
     }
     loadSiteInfo();
+  }, []);
+
+  useEffect(() => {
+    async function loadFreeListingsCta() {
+      try {
+        const res = await fetch('/api/public/free-listings-config');
+        if (res.ok) {
+          const data = await res.json();
+          setFreeListingsCta((prev) => ({ ...prev, ...data }));
+        }
+      } catch {
+        /* mantener valores por defecto */
+      }
+    }
+    loadFreeListingsCta();
   }, []);
 
   useEffect(() => {
@@ -647,17 +696,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
             <div className="flex items-center gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-slate-900 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-lg tracking-tight">AD</span>
-                </div>
-                <div>
-                  <span className="text-xl font-bold text-slate-900 tracking-tight">
-                    AutoDealers
-                  </span>
-                  <p className="text-xs text-gray-500 font-normal">Plataforma de Confianza</p>
-                </div>
-              </div>
+              <PublicSiteNavbarBrand siteInfo={siteInfo as PublicSiteBrandingInfo} />
             </div>
             <div className="hidden lg:flex items-center gap-8">
               <a href="#vehicles" className="text-slate-700 hover:text-slate-900 transition font-medium text-sm tracking-wide">Vehículos</a>
@@ -916,23 +955,17 @@ export default function LandingPage() {
 
           <div className="flex overflow-hidden group">
             <div className="flex gap-16 animate-marquee whitespace-nowrap py-8">
-              {[
-                { name: 'Toyota', logo: 'https://logo.clearbit.com/toyota.com' },
-                { name: 'Honda', logo: 'https://logo.clearbit.com/honda.com' },
-                { name: 'Ford', logo: 'https://logo.clearbit.com/ford.com' },
-                { name: 'Chevrolet', logo: 'https://logo.clearbit.com/chevrolet.com' },
-                { name: 'Nissan', logo: 'https://logo.clearbit.com/nissanusa.com' },
-                { name: 'Jeep', logo: 'https://logo.clearbit.com/jeep.com' },
-                { name: 'BMW', logo: 'https://logo.clearbit.com/bmw.com' },
-                { name: 'Mercedes-Benz', logo: 'https://logo.clearbit.com/mercedes-benz.com' },
-                { name: 'Audi', logo: 'https://logo.clearbit.com/audi.com' },
-                { name: 'Lexus', logo: 'https://logo.clearbit.com/lexus.com' },
-                { name: 'Mazda', logo: 'https://logo.clearbit.com/mazda.com' },
-                { name: 'Tesla', logo: 'https://logo.clearbit.com/tesla.com' },
-              ].map((brand) => (
+              {CERTIFIED_BRANDS.map((brand) => (
                 <div key={brand.name} className="flex flex-col items-center gap-4 group/brand">
                   <div className="w-24 h-24 bg-white rounded-3xl shadow-md border border-slate-100 flex items-center justify-center p-5 grayscale group-hover/brand:grayscale-0 transition-all duration-700 hover:shadow-xl hover:border-blue-200">
-                    <img src={brand.logo} alt={brand.name} className="max-w-full max-h-full object-contain transform group-hover/brand:scale-110 transition-transform duration-500" />
+                    <img
+                      src={brand.logo}
+                      alt={brand.name}
+                      referrerPolicy="no-referrer"
+                      loading="lazy"
+                      decoding="async"
+                      className="max-w-full max-h-full object-contain transform group-hover/brand:scale-110 transition-transform duration-500"
+                    />
                   </div>
                   <span className="text-[11px] font-black text-slate-400 group-hover/brand:text-blue-600 uppercase tracking-widest transition-colors">{brand.name}</span>
                 </div>
@@ -940,23 +973,17 @@ export default function LandingPage() {
             </div>
             {/* Repeat for seamless loop */}
             <div className="flex gap-16 animate-marquee whitespace-nowrap py-8" aria-hidden="true">
-              {[
-                { name: 'Toyota', logo: 'https://logo.clearbit.com/toyota.com' },
-                { name: 'Honda', logo: 'https://logo.clearbit.com/honda.com' },
-                { name: 'Ford', logo: 'https://logo.clearbit.com/ford.com' },
-                { name: 'Chevrolet', logo: 'https://logo.clearbit.com/chevrolet.com' },
-                { name: 'Nissan', logo: 'https://logo.clearbit.com/nissanusa.com' },
-                { name: 'Jeep', logo: 'https://logo.clearbit.com/jeep.com' },
-                { name: 'BMW', logo: 'https://logo.clearbit.com/bmw.com' },
-                { name: 'Mercedes-Benz', logo: 'https://logo.clearbit.com/mercedes-benz.com' },
-                { name: 'Audi', logo: 'https://logo.clearbit.com/audi.com' },
-                { name: 'Lexus', logo: 'https://logo.clearbit.com/lexus.com' },
-                { name: 'Mazda', logo: 'https://logo.clearbit.com/mazda.com' },
-                { name: 'Tesla', logo: 'https://logo.clearbit.com/tesla.com' },
-              ].map((brand) => (
+              {CERTIFIED_BRANDS.map((brand) => (
                 <div key={`${brand.name}-loop`} className="flex flex-col items-center gap-4 group/brand">
                   <div className="w-24 h-24 bg-white rounded-3xl shadow-md border border-slate-100 flex items-center justify-center p-5 grayscale group-hover/brand:grayscale-0 transition-all duration-700 hover:shadow-xl hover:border-blue-200">
-                    <img src={brand.logo} alt={brand.name} className="max-w-full max-h-full object-contain transform group-hover/brand:scale-110 transition-transform duration-500" />
+                    <img
+                      src={brand.logo}
+                      alt=""
+                      referrerPolicy="no-referrer"
+                      loading="lazy"
+                      decoding="async"
+                      className="max-w-full max-h-full object-contain transform group-hover/brand:scale-110 transition-transform duration-500"
+                    />
                   </div>
                   <span className="text-[11px] font-black text-slate-400 group-hover/brand:text-blue-600 uppercase tracking-widest transition-colors">{brand.name}</span>
                 </div>
@@ -1090,17 +1117,31 @@ export default function LandingPage() {
 
                 <SidebarBanner />
 
-                {/* Sell CTA Mini */}
-                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm text-center">
-                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 text-green-600">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                {/* Sell CTA Mini — copy y visibilidad desde admin (/admin/settings/free-public-listings) */}
+                {freeListingsCta.enabled && freeListingsCta.maxActiveFreeVehiclesPerSeller > 0 && (
+                  <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm text-center">
+                    <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 text-green-600">
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </div>
+                    <h5 className="font-bold text-slate-900 mb-2">{freeListingsCta.ctaTitle}</h5>
+                    <p className="text-xs text-slate-500 mb-4 font-medium">{freeListingsCta.ctaSubtitle}</p>
+                    <p className="text-[10px] text-slate-400 mb-3">
+                      Hasta {freeListingsCta.maxActiveFreeVehiclesPerSeller} anuncio(s) gratis · {freeListingsCta.durationDays} día(s) cada uno
+                    </p>
+                    <Link
+                      href={freeListingsCta.quickListingPath?.startsWith('/') ? freeListingsCta.quickListingPath : '/publicar-gratis'}
+                      className="block w-full py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-blue-600 transition-colors"
+                    >
+                      {freeListingsCta.ctaButtonLabel}
+                    </Link>
+                    <Link
+                      href={freeListingsCta.registerPath?.startsWith('/') ? freeListingsCta.registerPath : '/register?type=seller'}
+                      className="block w-full py-2 mt-2 text-[11px] font-medium text-slate-600 underline underline-offset-2 hover:text-blue-600"
+                    >
+                      O regístrate como vendedor para más beneficios
+                    </Link>
                   </div>
-                  <h5 className="font-bold text-slate-900 mb-2">¿Quieres vender?</h5>
-                  <p className="text-xs text-slate-500 mb-4 font-medium">Publica tu auto hoy mismo y llega a millones</p>
-                  <Link href="/partners/register" className="block w-full py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-blue-600 transition-colors">
-                    Publicar Gratis
-                  </Link>
-                </div>
+                )}
               </div>
             </aside>
 
@@ -1223,16 +1264,16 @@ export default function LandingPage() {
                               </div>
                             </div>
 
-                            {/* Image Container */}
-                            <div className="relative h-72 bg-slate-100 overflow-hidden">
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent z-10 transition-opacity duration-500 opacity-40 group-hover:opacity-80"></div>
+                            {/* Image Container — panorámico + contain para foto más completa */}
+                            <div className="relative w-full aspect-[16/10] min-h-[220px] bg-slate-100 overflow-hidden">
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent z-10 transition-opacity duration-500 opacity-40 group-hover:opacity-70 pointer-events-none"></div>
                               {(() => {
                                 const src = getFirstPhoto(vehicle);
                                 return src ? (
                                   <img
                                     src={src}
                                     alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
-                                    className="w-full h-full object-cover scale-105 group-hover:scale-115 transition-transform duration-[1.5s] ease-out"
+                                    className="w-full h-full object-contain object-center scale-100 group-hover:scale-[1.02] transition-transform duration-[1.5s] ease-out"
                                     loading="lazy"
                                     referrerPolicy="no-referrer"
                                     onError={handleImageError}
@@ -1340,14 +1381,14 @@ export default function LandingPage() {
                           }}
                         >
                           {/* Image Section */}
-                          <div className="relative w-full md:w-96 overflow-hidden bg-slate-100 flex-shrink-0">
+                          <div className="relative w-full md:w-[420px] aspect-[16/10] md:aspect-auto md:min-h-[280px] overflow-hidden bg-slate-100 flex-shrink-0">
                             {(() => {
                               const src = getFirstPhoto(vehicle);
                               return src ? (
                                 <img
                                   src={src}
                                   alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
-                                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 ease-out"
+                                  className="w-full h-full object-contain object-center group-hover:scale-[1.02] transition-transform duration-1000 ease-out"
                                   loading="lazy"
                                   referrerPolicy="no-referrer"
                                   onError={handleImageError}
@@ -1453,45 +1494,7 @@ export default function LandingPage() {
                     </div>
                   )}
 
-                  {/* Pagination / Load More Premium Button - Enhanced & Premium */}
-                  <div className="mt-32 flex flex-col items-center relative">
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-blue-600/5 rounded-full blur-3xl -z-10"></div>
-
-                    <div className="flex flex-col items-center text-center mb-12">
-                      <div className="w-16 h-1 bg-gradient-to-r from-transparent via-blue-600 to-transparent rounded-full mb-8"></div>
-                      <h4 className="text-2xl font-black text-slate-900 mb-4 tracking-tight uppercase tracking-widest">¿No encuentras lo que buscas?</h4>
-                      <p className="text-slate-500 font-medium max-w-lg leading-relaxed">
-                        Tenemos acceso exclusivo a inventarios de subastas y concesionarios premium en todo el país.
-                        Podemos encontrar exactamente el auto de tus sueños.
-                      </p>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row gap-6 items-center">
-                      <button className="group relative flex items-center gap-8 px-12 py-10 bg-slate-900 text-white rounded-[3rem] shadow-[0_30px_70px_-15px_rgba(0,0,0,0.4)] hover:shadow-blue-900/40 transition-all duration-700 hover:-translate-y-3 active:scale-95 overflow-hidden border border-white/10">
-                        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/0 via-blue-400/10 to-blue-600/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-                        <div className="flex flex-col items-start relative z-10">
-                          <span className="text-[10px] font-black uppercase tracking-[0.5em] text-blue-400 mb-2">Inventario Certificado</span>
-                          <span className="text-xl font-black uppercase tracking-[0.1em]">Explorar Catálogo Full</span>
-                          <div className="mt-2 text-xs font-medium text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity duration-500">+10,000 unidades disponibles</div>
-                        </div>
-                        <div className="w-16 h-16 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-2xl group-hover:scale-110 group-hover:rotate-[360deg] transition-all duration-700 border border-white/20 relative z-10">
-                          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" /></svg>
-                        </div>
-                      </button>
-
-                      <Link href="/contacto" className="group flex items-center gap-4 px-10 py-8 bg-white border border-slate-200 rounded-[2.5rem] shadow-xl hover:shadow-slate-200 hover:-translate-y-2 transition-all duration-500 font-black text-sm uppercase tracking-widest text-slate-900">
-                        Pedido Especial
-                        <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-blue-50 transition-colors">
-                          <svg className="w-5 h-5 text-slate-400 group-hover:text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1 1 0 01-2-2V6a2 2 0 012-2H5a2 2 0 012 2v6a2 2 0 01-2 2h2v4l2-2z" /></svg>
-                        </div>
-                      </Link>
-                    </div>
-
-                    <div className="mt-16 flex items-center gap-3 text-slate-400 font-black text-[10px] uppercase tracking-[0.3em]">
-                      <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                      Actualizado hace 5 minutos • +2,500 vehículos en stock total
-                    </div>
-                  </div>
+                  <InventoryFinderCta publishedVehicleCount={vehicles.length} />
                 </div>
               )}
             </div>
@@ -1501,29 +1504,9 @@ export default function LandingPage() {
 
       <FinanceCalculator />
 
-      <section id="promotions" className="py-24 bg-slate-50 relative overflow-hidden border-t border-slate-200">
-        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 bg-amber-200/20 rounded-full blur-3xl pointer-events-none"></div>
-        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 bg-blue-200/20 rounded-full blur-3xl pointer-events-none"></div>
+      <ExclusiveOffersLandingSection />
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-100 border border-amber-200 rounded-full mb-6 shadow-sm">
-              <span className="text-amber-700 font-bold text-[10px] uppercase tracking-[0.2em] flex items-center gap-1.5">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" /></svg>
-                Promociones Especiales
-              </span>
-            </div>
-            <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-4 tracking-tight">
-              Ofertas Exclusivas
-            </h2>
-            <p className="text-lg text-slate-600 max-w-2xl mx-auto font-medium">
-              Descubre los mejores descuentos y beneficios únicos directamente de nuestros concesionarios certificados.
-            </p>
-          </div>
-
-          <PremiumPromotions />
-        </div>
-      </section>
+      <QuickListingsSection quickListingPath={freeListingsCta.quickListingPath} />
 
       <section id="dealers" className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -1558,87 +1541,7 @@ export default function LandingPage() {
 
       <SponsoredContent />
 
-      <section className="py-24 bg-gradient-to-b from-white to-slate-50 border-t-4 border-blue-600 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-5">
-          <div className="absolute top-0 left-0 w-96 h-96 bg-blue-600 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-0 right-0 w-96 h-96 bg-purple-600 rounded-full blur-3xl"></div>
-        </div>
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-full mb-6">
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 00-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 00-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-              <span className="font-bold text-sm uppercase tracking-wider">Garantía Total</span>
-            </div>
-            <h2 className="text-5xl md:text-6xl font-extrabold text-slate-900 mb-6">
-              ¿Por Qué <span className="text-blue-600">Elegirnos</span>?
-            </h2>
-            <p className="text-xl text-slate-600 max-w-3xl mx-auto">
-              La plataforma más confiable y segura para comprar tu vehículo. Cada transacción está respaldada por nuestras garantías.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <div className="bg-white rounded-2xl p-8 shadow-xl border-2 border-blue-100 hover:border-blue-500 transition-all hover:shadow-2xl hover:-translate-y-2 text-center group">
-              <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg transform group-hover:rotate-6 transition-transform">
-                <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-3">Búsqueda Avanzada</h3>
-              <p className="text-slate-600 leading-relaxed">Filtros inteligentes y búsqueda por múltiples criterios para encontrar exactamente lo que buscas.</p>
-              <div className="mt-6 flex items-center justify-center gap-2">
-                <span className="text-2xl font-bold text-blue-600">✓</span>
-                <span className="text-sm font-semibold text-slate-700">Filtros Inteligentes</span>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl p-8 shadow-xl border-2 border-green-100 hover:border-green-500 transition-all hover:shadow-2xl hover:-translate-y-2 text-center group">
-              <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg transform group-hover:-rotate-6 transition-transform">
-                <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-3">Chat en Tiempo Real</h3>
-              <p className="text-slate-600 leading-relaxed">Comunicación directa con dealers y vendedores a través de WhatsApp y mensajería integrada.</p>
-              <div className="mt-6 flex items-center justify-center gap-2">
-                <span className="text-2xl font-bold text-green-600">✓</span>
-                <span className="text-sm font-semibold text-slate-700">Comunicación Directa</span>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl p-8 shadow-xl border-2 border-purple-100 hover:border-purple-500 transition-all hover:shadow-2xl hover:-translate-y-2 text-center group">
-              <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg transform group-hover:rotate-6 transition-transform">
-                <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2m0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-3">Gestión de Leads</h3>
-              <p className="text-slate-600 leading-relaxed">Sistema CRM integrado para seguimiento profesional de tus consultas y solicitudes.</p>
-              <div className="mt-6 flex items-center justify-center gap-2">
-                <span className="text-2xl font-bold text-purple-600">✓</span>
-                <span className="text-sm font-semibold text-slate-700">CRM Integrado</span>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl p-8 shadow-xl border-2 border-amber-100 hover:border-amber-500 transition-all hover:shadow-2xl hover:-translate-y-2 text-center group">
-              <div className="w-20 h-20 bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg transform group-hover:-rotate-6 transition-transform">
-                <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-3">Soporte Premium</h3>
-              <p className="text-slate-600 leading-relaxed">Nuestro equipo de expertos está disponible en todo momento para asesorarte en tu compra.</p>
-              <div className="mt-6 flex items-center justify-center gap-2">
-                <span className="text-2xl font-bold text-amber-600">✓</span>
-                <span className="text-sm font-semibold text-slate-700">Atención 24/7</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      <WhyChooseUsLandingSection />
 
       <section id="contact" className="py-24 bg-slate-50 border-t border-slate-200">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">

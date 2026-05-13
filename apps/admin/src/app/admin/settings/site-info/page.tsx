@@ -2,11 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { DEFAULT_BRAND_LOGO_PATH } from '@/lib/default-brand-logo';
 
 interface SiteInfo {
   name: string;
   description: string;
   logo: string;
+  /** Subtítulo bajo el nombre (navbar home) */
+  tagline: string;
   contact: {
     phone: string;
     email: string;
@@ -46,6 +49,7 @@ interface SiteInfo {
     name: boolean;
     description: boolean;
     logo: boolean;
+    tagline: boolean;
     contact: {
       phone: boolean;
       email: boolean;
@@ -66,7 +70,8 @@ export default function SiteInfoSettingsPage() {
   const [siteInfo, setSiteInfo] = useState<SiteInfo>({
     name: 'AutoDealers',
     description: 'La plataforma completa para encontrar y comprar vehículos. Miles de opciones verificadas.',
-    logo: 'AD',
+    logo: DEFAULT_BRAND_LOGO_PATH,
+    tagline: 'Plataforma de Confianza',
     contact: {
       phone: '+1 (555) 123-4567',
       email: 'info@autodealers.com',
@@ -115,6 +120,7 @@ export default function SiteInfoSettingsPage() {
       name: true,
       description: true,
       logo: true,
+      tagline: true,
       contact: {
         phone: true,
         email: true,
@@ -152,6 +158,7 @@ export default function SiteInfoSettingsPage() {
               name: true,
               description: true,
               logo: true,
+              tagline: true,
               contact: {
                 phone: true,
                 email: true,
@@ -173,6 +180,12 @@ export default function SiteInfoSettingsPage() {
               averageRating: true,
               satisfactionRate: true,
             };
+          }
+          if (siteInfoData.visibility && siteInfoData.visibility.tagline === undefined) {
+            siteInfoData.visibility.tagline = true;
+          }
+          if (siteInfoData.tagline == null) {
+            siteInfoData.tagline = 'Plataforma de Confianza';
           }
           setSiteInfo(siteInfoData);
         }
@@ -324,9 +337,41 @@ export default function SiteInfoSettingsPage() {
                 value={siteInfo.logo}
                 onChange={(e) => setSiteInfo({ ...siteInfo, logo: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                placeholder="AD"
+                placeholder="AD o URL (/ruta.png o https://...)"
               />
-              <p className="text-xs text-gray-500 mt-1">Texto que aparece en el logo del footer</p>
+              <p className="text-xs text-gray-500 mt-1">
+                Texto corto (2 letras) o URL de imagen para el logo en navbar y footer
+              </p>
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium text-gray-700">Subtítulo (navbar)</label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={siteInfo.visibility?.tagline ?? true}
+                    onChange={(e) =>
+                      setSiteInfo({
+                        ...siteInfo,
+                        visibility: {
+                          ...siteInfo.visibility,
+                          tagline: e.target.checked,
+                        } as any,
+                      })
+                    }
+                    className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                  />
+                  <span className="text-xs text-gray-600">Mostrar</span>
+                </label>
+              </div>
+              <input
+                type="text"
+                value={siteInfo.tagline}
+                onChange={(e) => setSiteInfo({ ...siteInfo, tagline: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                placeholder="Plataforma de Confianza"
+              />
+              <p className="text-xs text-gray-500 mt-1">Dejar vacío para ocultar la línea bajo el nombre</p>
             </div>
           </div>
         </div>

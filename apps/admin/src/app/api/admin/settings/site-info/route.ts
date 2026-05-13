@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { getFirestore } from '@autodealers/core';
+import {
+  DEFAULT_BRAND_LOGO_PATH,
+  normalizePublicSiteLogoField,
+} from '@/lib/default-brand-logo';
 
 const db = getFirestore();
 
@@ -15,15 +19,19 @@ export async function GET(request: NextRequest) {
     const doc = await docRef.get();
 
     if (doc.exists) {
-      return NextResponse.json({ siteInfo: doc.data() });
+      const siteInfo = normalizePublicSiteLogoField({
+        ...(doc.data() as Record<string, unknown>),
+      });
+      return NextResponse.json({ siteInfo });
     }
 
     // Retornar valores por defecto si no existe
     return NextResponse.json({
-      siteInfo: {
+      siteInfo: normalizePublicSiteLogoField({
         name: 'AutoDealers',
         description: 'La plataforma completa para encontrar y comprar vehículos. Miles de opciones verificadas.',
-        logo: 'AD',
+        logo: DEFAULT_BRAND_LOGO_PATH,
+        tagline: 'Plataforma de Confianza',
         contact: {
           phone: '+1 (555) 123-4567',
           email: 'info@autodealers.com',
@@ -68,7 +76,7 @@ export async function GET(request: NextRequest) {
           warrantyIncluded: true,
           supportAvailable: true,
         },
-      },
+      }),
     });
   } catch (error: any) {
     console.error('Error fetching site info:', error);
