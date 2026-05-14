@@ -3,9 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import PublicBackButton from '@/components/PublicBackButton';
 import StarRating from '../../../components/StarRating';
 import ChatWidget from '../../../components/ChatWidget';
 import { getFirstPhoto, handleImageError } from '@/lib/vehicle-image';
+import { externalWebsiteHref, normalizeMisplacedFirebaseAppHostingUrl } from '@/lib/normalize-app-hosting-url';
 
 interface Seller {
   id: string;
@@ -147,9 +149,9 @@ export default function SellerPublicPage() {
       <div className="flex justify-center items-center min-h-screen">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Vendedor no encontrado</h1>
-          <Link href="/" className="text-purple-600 hover:underline">
-            Volver al inicio
-          </Link>
+          <PublicBackButton className="text-purple-600 hover:underline font-medium">
+            ← Volver
+          </PublicBackButton>
         </div>
       </div>
     );
@@ -159,19 +161,16 @@ export default function SellerPublicPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <nav className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
-          <button
-            onClick={() => window.history.back()}
-            className="text-gray-600 hover:text-gray-900 hover:underline flex items-center gap-1"
-          >
+        <div className="max-w-7xl mx-auto px-4 py-4 flex flex-wrap items-center gap-3">
+          <PublicBackButton className="text-gray-700 hover:text-gray-900 hover:underline flex items-center gap-1 font-medium">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            Atrás
-          </button>
-          <span className="text-gray-300">|</span>
-          <Link href="/" className="text-purple-600 hover:underline">
-            ← Volver al inicio
+            Volver
+          </PublicBackButton>
+          <span className="text-gray-300 hidden sm:inline">|</span>
+          <Link href="/" className="text-sm text-gray-500 hover:text-purple-600">
+            Ir al inicio
           </Link>
         </div>
       </nav>
@@ -252,12 +251,12 @@ export default function SellerPublicPage() {
                   </svg>
                   {seller.website ? (
                     <a 
-                      href={seller.website.startsWith('http') ? seller.website : `https://${seller.website}`}
+                      href={externalWebsiteHref(seller.website)}
                       target="_blank" 
                       rel="noopener noreferrer"
                       className="text-blue-600 hover:text-blue-800 hover:underline"
                     >
-                      {seller.website.replace(/^https?:\/\//, '')}
+                      {normalizeMisplacedFirebaseAppHostingUrl(seller.website).replace(/^https?:\/\//, '')}
                     </a>
                   ) : (
                     <span className="text-gray-400">No disponible</span>
@@ -349,39 +348,52 @@ export default function SellerPublicPage() {
               {vehicles.map((vehicle) => (
                 <div
                   key={vehicle.id}
-                  className="bg-white rounded-lg shadow hover:shadow-lg transition overflow-hidden"
+                  className="bg-white rounded-lg shadow hover:shadow-lg transition overflow-hidden flex flex-col"
                 >
-                  {getFirstPhoto(vehicle) ? (
-                    <div className="relative h-48 bg-gray-200">
-                      <img
-                        src={getFirstPhoto(vehicle)!}
-                        alt={`${vehicle.make} ${vehicle.model}`}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                        referrerPolicy="no-referrer"
-                        onError={handleImageError}
-                      />
-                    </div>
-                  ) : (
-                    <div className="relative h-48 bg-gray-200 flex items-center justify-center">
-                      <span className="text-6xl">🚗</span>
-                    </div>
-                  )}
-                  <div className="p-4">
-                    <h3 className="font-bold text-lg mb-2">
-                      {vehicle.year} {vehicle.make} {vehicle.model}
-                    </h3>
-                    <p className="text-2xl font-bold text-purple-600 mb-2">
-                      {vehicle.currency} {vehicle.price.toLocaleString()}
-                    </p>
-                    {vehicle.mileage && (
-                      <p className="text-sm text-gray-600 mb-2">
-                        {vehicle.mileage.toLocaleString()} km
-                      </p>
+                  <Link
+                    href={`/${seller.tenantId}/vehicle/${vehicle.id}`}
+                    className="block group focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 rounded-t-lg"
+                  >
+                    {getFirstPhoto(vehicle) ? (
+                      <div className="relative h-48 bg-gray-200 overflow-hidden">
+                        <img
+                          src={getFirstPhoto(vehicle)!}
+                          alt={`${vehicle.make} ${vehicle.model}`}
+                          className="w-full h-full object-cover transition group-hover:scale-[1.02]"
+                          loading="lazy"
+                          referrerPolicy="no-referrer"
+                          onError={handleImageError}
+                        />
+                      </div>
+                    ) : (
+                      <div className="relative h-48 bg-gray-200 flex items-center justify-center">
+                        <span className="text-6xl">🚗</span>
+                      </div>
                     )}
-                    <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                      {vehicle.description}
-                    </p>
+                    <div className="p-4 pb-2">
+                      <h3 className="font-bold text-lg mb-2 group-hover:text-purple-700 transition-colors">
+                        {vehicle.year} {vehicle.make} {vehicle.model}
+                      </h3>
+                      <p className="text-2xl font-bold text-purple-600 mb-2">
+                        {vehicle.currency} {vehicle.price.toLocaleString()}
+                      </p>
+                      {vehicle.mileage ? (
+                        <p className="text-sm text-gray-600 mb-2">
+                          {vehicle.mileage.toLocaleString()} km
+                        </p>
+                      ) : null}
+                      <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+                        {vehicle.description}
+                      </p>
+                      <span className="inline-flex items-center text-sm font-semibold text-purple-600 group-hover:underline">
+                        Ver detalle del vehículo
+                        <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </span>
+                    </div>
+                  </Link>
+                  <div className="p-4 pt-2 mt-auto border-t border-gray-100">
                     <div className="flex gap-2">
                       <a
                         href={(seller.whatsapp || seller.phone) ? `https://wa.me/${(seller.whatsapp || seller.phone || '').replace(/[^0-9]/g, '')}?text=Hola, estoy interesado en el vehículo: ${vehicle.year} ${vehicle.make} ${vehicle.model} - ${vehicle.currency} ${vehicle.price.toLocaleString()}` : '#'}

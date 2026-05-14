@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirestore } from '@autodealers/core';
+import { normalizeMisplacedFirebaseAppHostingUrl } from '@/lib/normalize-app-hosting-url';
 import { normalizeVehiclesArray } from '@/lib/vehicle-photos-normalize';
 
 // Exportar configuración de runtime
@@ -258,7 +259,9 @@ export async function GET(
         email: sellerData.email || '',
         phone: sellerData.phone || '',
         whatsapp: sellerData.whatsapp || sellerData.phone || '',
-        website: sellerData.website || tenantData?.website || tenantData?.domain || '',
+        website: normalizeMisplacedFirebaseAppHostingUrl(
+          sellerData.website || tenantData?.website || tenantData?.domain || ''
+        ),
         tenantId: tenantId,
         tenantName: tenantData?.name || 'Dealer',
       },
