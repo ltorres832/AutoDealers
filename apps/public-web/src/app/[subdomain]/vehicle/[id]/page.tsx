@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { PublicSiteNavbarBrand } from '../../../../components/PublicSiteNavbarBrand';
@@ -133,12 +133,31 @@ export default function VehicleDetailPage() {
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [showFullSpecs, setShowFullSpecs] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const catalogViewSent = useRef(false);
+
+  const [interestForm, setInterestForm] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    message: '',
+  });
+  const [interestSubmitting, setInterestSubmitting] = useState(false);
+  const [interestFeedback, setInterestFeedback] = useState<string | null>(null);
 
   useEffect(() => {
     if (tenantId && vehicleId) {
       fetchVehicle();
     }
   }, [tenantId, vehicleId]);
+
+  useEffect(() => {
+    if (!vehicle?.id || !vehicle.tenantId || catalogViewSent.current) return;
+    catalogViewSent.current = true;
+    void fetch(
+      `/api/public/vehicles/${vehicle.id}/view?tenantId=${encodeURIComponent(vehicle.tenantId)}`,
+      { method: 'POST' }
+    ).catch(() => {});
+  }, [vehicle?.id, vehicle?.tenantId]);
 
   async function fetchVehicle() {
     try {
@@ -194,8 +213,6 @@ export default function VehicleDetailPage() {
       
       console.log('📸 Fotos después del filtro:', cleanedPhotos.length, cleanedPhotos);
       
-      fetch(`/api/public/vehicles/${vehicleId}/view`, { method: 'POST' }).catch(console.error);
-      
       const vehicleToSet = {
         ...foundVehicle,
         photos: cleanedPhotos,
@@ -216,6 +233,58 @@ export default function VehicleDetailPage() {
       setError(err.message || 'Error al cargar el vehículo');
     } finally {
       setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    catalogViewSent.current = false;
+  }, [tenantId, vehicleId]);
+
+  async function submitCatalogInterest(e: React.FormEvent) {
+    e.preventDefault();
+    if (!vehicle?.id || !vehicle.tenantId) return;
+    const name = interestForm.name.trim();
+    const phone = interestForm.phone.trim();
+    if (!name || !phone) {
+      setInterestFeedback('Escribe tu nombre y un teléfono de contacto.');
+      return;
+    }
+    setInterestSubmitting(true);
+    setInterestFeedback(null);
+    try {
+      const r = await fetch(
+        `/api/public/vehicles/${vehicle.id}/view?tenantId=${encodeURIComponent(vehicle.tenantId)}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tenantId: vehicle.tenantId,
+            contact: {
+              name,
+              phone,
+              ...(interestForm.email.trim() ? { email: interestForm.email.trim() } : {}),
+              ...(interestForm.message.trim() ? { message: interestForm.message.trim() } : {}),
+            },
+          }),
+        }
+      );
+      const j = (await r.json().catch(() => ({}))) as { error?: string; leadCreated?: boolean };
+      if (!r.ok) {
+        setInterestFeedback(typeof j.error === 'string' ? j.error : 'No se pudo registrar. Intenta de nuevo.');
+        return;
+      }
+      if (j.leadCreated) {
+        setInterestFeedback(
+          'Listo: el vendedor verá tu interés en su CRM (como prospecto desde el catálogo) y podrá contactarte.'
+        );
+        setInterestForm({ name: '', phone: '', email: '', message: '' });
+      } else {
+        setInterestFeedback('No se creó el registro. Revisa los datos e intenta otra vez.');
+      }
+    } catch {
+      setInterestFeedback('Error de conexión. Intenta de nuevo.');
+    } finally {
+      setInterestSubmitting(false);
     }
   }
 
@@ -736,6 +805,63 @@ export default function VehicleDetailPage() {
                   >
                     🚗 Prueba de manejo
                   </Link>
+                </div>
+
+                <div className="mb-6 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                  <h3 className="font-semibold text-slate-900 mb-1">¿Te interesa este vehículo?</h3>
+                  <p className="text-xs text-slate-600 mb-3">
+                    Si dejas tu nombre y teléfono, el vendedor recibirá un lead en su CRM con el vehículo vinculado
+                    (estado inicial &quot;Perdido&quot; = prospecto frío desde el catálogo; puede reabrirlo y llamarte).
+                  </p>
+                  <form onSubmit={submitCatalogInterest} className="space-y-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        required
+                        autoComplete="name"
+                        placeholder="Tu nombre"
+                        value={interestForm.name}
+                        onChange={(e) => setInterestForm((f) => ({ ...f, name: e.target.value }))}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                      />
+                      <input
+                        type="tel"
+                        required
+                        autoComplete="tel"
+                        placeholder="Teléfono / WhatsApp"
+                        value={interestForm.phone}
+                        onChange={(e) => setInterestForm((f) => ({ ...f, phone: e.target.value }))}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <input
+                      type="email"
+                      autoComplete="email"
+                      placeholder="Correo (opcional)"
+                      value={interestForm.email}
+                      onChange={(e) => setInterestForm((f) => ({ ...f, email: e.target.value }))}
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    />
+                    <textarea
+                      placeholder="Mensaje u horario preferido (opcional)"
+                      rows={2}
+                      value={interestForm.message}
+                      onChange={(e) => setInterestForm((f) => ({ ...f, message: e.target.value }))}
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    />
+                    <button
+                      type="submit"
+                      disabled={interestSubmitting}
+                      className="w-full py-2.5 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 disabled:opacity-50"
+                    >
+                      {interestSubmitting ? 'Enviando…' : 'Enviar mis datos al vendedor'}
+                    </button>
+                  </form>
+                  {interestFeedback ? (
+                    <p className="text-sm mt-2 text-slate-700" role="status">
+                      {interestFeedback}
+                    </p>
+                  ) : null}
                 </div>
 
                 {/* Información del vendedor */}

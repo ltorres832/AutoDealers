@@ -1251,7 +1251,10 @@ export default function LandingPage() {
                             className="bg-white rounded-[2.5rem] shadow-[0_15px_45px_-15px_rgba(0,0,0,0.08)] hover:shadow-[0_30px_70px_-20px_rgba(0,0,0,0.15)] transition-all duration-700 overflow-hidden group cursor-pointer border border-slate-100 flex flex-col hover:-translate-y-3 relative active:scale-95"
                             onClick={(e) => {
                               if ((e.target as HTMLElement).closest('.compare-checkbox') || (e.target as HTMLElement).closest('button')) return;
-                              fetch(`/api/public/vehicles/${vehicle.id}/view`, { method: 'POST' }).catch(console.error);
+                              fetch(
+                                `/api/public/vehicles/${vehicle.id}/view?tenantId=${encodeURIComponent(vehicle.tenantId)}`,
+                                { method: 'POST' }
+                              ).catch(console.error);
                               window.location.href = `/${vehicle.tenantId}/vehicle/${vehicle.id}`;
                             }}
                           >
@@ -1376,7 +1379,10 @@ export default function LandingPage() {
                           className="bg-white rounded-[3rem] shadow-[0_15px_40px_-15px_rgba(0,0,0,0.05)] hover:shadow-[0_30px_70px_-20px_rgba(0,0,0,0.12)] transition-all duration-500 overflow-hidden group cursor-pointer border border-slate-100 flex flex-col md:flex-row h-auto md:h-72 hover:-translate-y-1.5"
                           onClick={(e) => {
                             if ((e.target as HTMLElement).closest('.compare-checkbox') || (e.target as HTMLElement).closest('button')) return;
-                            fetch(`/api/public/vehicles/${vehicle.id}/view`, { method: 'POST' }).catch(console.error);
+                            fetch(
+                                `/api/public/vehicles/${vehicle.id}/view?tenantId=${encodeURIComponent(vehicle.tenantId)}`,
+                                { method: 'POST' }
+                              ).catch(console.error);
                             window.location.href = `/${vehicle.tenantId}/vehicle/${vehicle.id}`;
                           }}
                         >

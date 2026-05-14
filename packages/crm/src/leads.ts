@@ -8,6 +8,32 @@ function getDb() {
   return getFirestore();
 }
 
+/** Campos opcionales al crear (admin, importaciones, etc.) — todo en `tenants/{tenantId}/leads`. */
+export interface CreateLeadExtras {
+  assignedTo?: string | null;
+  createdBy?: string;
+  createdByAdmin?: boolean;
+  vehicleInterest?: string | null;
+  vehicleId?: string;
+  vehicleStockNumber?: string;
+  vehicleStockSnapshot?: import('@autodealers/inventory').VehicleStockSnapshot;
+  publicTrackingToken?: string;
+  budget?: string | number | null;
+  lastContactDate?: Date | null;
+  nextFollowUpDate?: Date | null;
+  tradeIn?: import('./finance-insurance').TradeInVehicleProfile;
+  leadFormResponses?: Record<string, string>;
+  metaLeadGenId?: string;
+  metaFormId?: string;
+  metaAdId?: string;
+  /** Normaliza email, ciudad y vehicleInterest (strings, pueden ser vacíos) */
+  populateStandardContactFields?: boolean;
+  /** Etiquetas CRM (p. ej. origen catálogo web). */
+  tags?: string[];
+  /** Estado inicial (por defecto `new`). Ej. `lost` para prospectos muy fríos si el negocio lo desea. */
+  initialStatus?: LeadStatus;
+}
+
 /**
  * Crea un nuevo lead
  */
@@ -19,16 +45,112 @@ export async function createLead(
     email?: string;
     phone: string;
     preferredChannel: string;
+    city?: string;
   },
-  notes?: string
+  notes?: string,
+  extras?: CreateLeadExtras
 ): Promise<Lead> {
+  const assignedToFromExtras =
+    typeof extras?.assignedTo === 'string' && extras.assignedTo.trim()
+      ? extras.assignedTo.trim()
+      : undefined;
+
+  let assignedTo = assignedToFromExtras;
+  if (!assignedTo) {
+    try {
+      const { pickNextAssignedSellerForNewLead } = await import('./lead-routing');
+      const auto = await pickNextAssignedSellerForNewLead(tenantId, source);
+      if (auto) {
+        assignedTo = auto;
+      }
+    } catch (error) {
+      console.warn('[crm] lead routing skipped:', error);
+    }
+  }
+
+  const fillStandard = extras?.populateStandardContactFields === true;
+  const contactResolved = fillStandard
+    ? {
+        name: contact.name,
+        phone: contact.phone,
+        preferredChannel: contact.preferredChannel,
+        email: contact.email ?? '',
+        city: contact.city ?? '',
+      }
+    : {
+        name: contact.name,
+        phone: contact.phone,
+        preferredChannel: contact.preferredChannel,
+        ...(contact.email !== undefined && contact.email !== '' ? { email: contact.email } : {}),
+        ...(contact.city !== undefined && contact.city !== '' ? { city: contact.city } : {}),
+      };
+
+  const vehicleInterestForDoc = fillStandard
+    ? String(extras?.vehicleInterest ?? '').trim()
+    : extras?.vehicleInterest != null && String(extras.vehicleInterest).trim() !== ''
+      ? String(extras.vehicleInterest).trim()
+      : undefined;
+
+  const ST: LeadStatus[] = [
+    'new',
+    'contacted',
+    'qualified',
+    'pre_qualified',
+    'appointment',
+    'test_drive',
+    'negotiation',
+    'closed',
+    'lost',
+  ];
+  const initialStatus: LeadStatus =
+    extras?.initialStatus && ST.includes(extras.initialStatus) ? extras.initialStatus : 'new';
+
   const leadData: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'> = {
     tenantId,
     source,
-    status: 'new',
-    contact,
+    status: initialStatus,
+    contact: contactResolved as Lead['contact'],
     notes: notes || '',
     interactions: [],
+    ...(assignedTo ? { assignedTo } : {}),
+    ...(extras?.createdBy ? { createdBy: extras.createdBy } : {}),
+    ...(extras?.createdByAdmin ? { createdByAdmin: true } : {}),
+    ...(vehicleInterestForDoc !== undefined ? { vehicleInterest: vehicleInterestForDoc } : {}),
+    ...(extras?.vehicleId && String(extras.vehicleId).trim() !== ''
+      ? { vehicleId: String(extras.vehicleId).trim() }
+      : {}),
+    ...(extras?.vehicleStockNumber && String(extras.vehicleStockNumber).trim() !== ''
+      ? { vehicleStockNumber: String(extras.vehicleStockNumber).trim() }
+      : {}),
+    ...(extras?.vehicleStockSnapshot ? { vehicleStockSnapshot: extras.vehicleStockSnapshot } : {}),
+    ...(extras?.publicTrackingToken && String(extras.publicTrackingToken).trim() !== ''
+      ? { publicTrackingToken: String(extras.publicTrackingToken).trim() }
+      : {}),
+    ...(extras?.budget != null && String(extras.budget).trim() !== ''
+      ? { budget: extras.budget }
+      : {}),
+    ...(extras?.tradeIn && Object.keys(extras.tradeIn).length > 0 ? { tradeIn: extras.tradeIn } : {}),
+    ...(extras?.lastContactDate !== undefined
+      ? { lastContactDate: extras.lastContactDate }
+      : {}),
+    ...(extras?.nextFollowUpDate !== undefined
+      ? { nextFollowUpDate: extras.nextFollowUpDate }
+      : {}),
+    ...(extras?.leadFormResponses && Object.keys(extras.leadFormResponses).length > 0
+      ? { leadFormResponses: extras.leadFormResponses }
+      : {}),
+    ...(extras?.metaLeadGenId && String(extras.metaLeadGenId).trim() !== ''
+      ? { metaLeadGenId: String(extras.metaLeadGenId).trim() }
+      : {}),
+    ...(extras?.metaFormId && String(extras.metaFormId).trim() !== ''
+      ? { metaFormId: String(extras.metaFormId).trim() }
+      : {}),
+    ...(extras?.metaAdId && String(extras.metaAdId).trim() !== ''
+      ? { metaAdId: String(extras.metaAdId).trim() }
+      : {}),
+    ...(Array.isArray(extras?.tags) && extras.tags.length > 0
+      ? { tags: extras.tags.filter((t): t is string => typeof t === 'string' && t.trim().length > 0).slice(0, 24) }
+      : {}),
   };
 
   const db = getDb();
@@ -108,23 +230,53 @@ export async function createLead(
     console.warn('Scoring calculation skipped for new lead:', error);
   }
 
-  // Notificar a gerentes y administradores sobre el nuevo lead (asíncrono, no bloquea)
+  // Notificar a gerentes / dealers sobre el nuevo lead (asíncrono, no bloquea)
   try {
     const { notifyManagersAndAdmins } = await import('@autodealers/core');
-    await notifyManagersAndAdmins(tenantId, {
-      type: 'lead_created',
-      title: 'Nuevo Lead Creado',
-      message: `Se ha creado un nuevo lead de ${contact.name} (${contact.phone}) desde ${source}. ${notes ? `Notas: ${notes.substring(0, 100)}${notes.length > 100 ? '...' : ''}` : ''}`,
-      metadata: {
-        leadId: newLead.id,
-        contactName: contact.name,
-        contactPhone: contact.phone,
-        source,
+    await notifyManagersAndAdmins(
+      tenantId,
+      {
+        type: 'lead_created',
+        title: 'Nuevo Lead Creado',
+        message: `Se ha creado un nuevo lead de ${contact.name} (${contact.phone}) desde ${source}. ${notes ? `Notas: ${notes.substring(0, 100)}${notes.length > 100 ? '...' : ''}` : ''}`,
+        metadata: {
+          leadId: newLead.id,
+          contactName: contact.name,
+          contactPhone: contact.phone,
+          source,
+        },
       },
-    });
+      assignedTo ? { excludeUserIds: [assignedTo] } : undefined
+    );
   } catch (error) {
     // No fallar si las notificaciones no están disponibles
     console.warn('Manager notification skipped for new lead:', error);
+  }
+
+  // Notificar al vendedor asignado (incl. email / SMS / WhatsApp según preferencias)
+  if (assignedTo) {
+    try {
+      const { createNotification } = await import('@autodealers/core');
+      const { resolveUserNotificationChannels } = await import('./user-notification-channels');
+      const channels = await resolveUserNotificationChannels(assignedTo);
+      await createNotification({
+        tenantId,
+        userId: assignedTo,
+        type: 'lead_created',
+        title: 'Nuevo lead asignado a ti',
+        message: `Lead de ${contact.name} (${contact.phone}) — origen: ${source}. ${notes ? `Notas: ${notes.substring(0, 200)}${notes.length > 200 ? '…' : ''}` : ''}`,
+        channels,
+        metadata: {
+          leadId: newLead.id,
+          contactName: contact.name,
+          contactPhone: contact.phone,
+          source,
+          route: '/leads',
+        },
+      });
+    } catch (error) {
+      console.warn('Assigned seller notification skipped for new lead:', error);
+    }
   }
 
   return newLead;
@@ -330,6 +482,34 @@ export async function updateLead(
       ...updates,
       updatedAt: getFirestoreFieldValue().serverTimestamp(),
     } as any);
+}
+
+/**
+ * Busca lead ya importado desde el mismo Meta Leadgen ID (dedupe).
+ */
+export async function findLeadByMetaLeadGenId(
+  tenantId: string,
+  metaLeadGenId: string
+): Promise<Lead | null> {
+  const id = String(metaLeadGenId || '').trim();
+  if (!id) return null;
+  const db = getDb();
+  const snap = await db
+    .collection('tenants')
+    .doc(tenantId)
+    .collection('leads')
+    .where('metaLeadGenId', '==', id)
+    .limit(1)
+    .get();
+  if (snap.empty) return null;
+  const leadDoc = snap.docs[0];
+  const data = leadDoc.data();
+  return {
+    id: leadDoc.id,
+    ...data,
+    createdAt: data?.createdAt?.toDate() || new Date(),
+    updatedAt: data?.updatedAt?.toDate() || new Date(),
+  } as Lead;
 }
 
 /**
