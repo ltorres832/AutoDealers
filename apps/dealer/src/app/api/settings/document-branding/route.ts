@@ -1,35 +1,17 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { getDocumentBrandingConfig, setDocumentBrandingConfig } from '@autodealers/core';
+import { verifyAuth } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('authToken')?.value;
-    
-    if (!token) {
+    const auth = await verifyAuth(request);
+    if (!auth?.userId || !auth.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Obtener tenantId y userId del token (simplificado - deberías usar verifyAuth)
-    const userResponse = await fetch(`${request.nextUrl.origin}/api/user`, {
-      headers: {
-        Cookie: `authToken=${token}`,
-      },
-    });
-
-    if (!userResponse.ok) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const userData = await userResponse.json();
-    const tenantId = userData.user?.tenantId;
-    const userId = userData.user?.id;
-
-    if (!tenantId) {
-      return NextResponse.json({ error: 'Tenant ID no encontrado' }, { status: 400 });
-    }
+    const tenantId = auth.tenantId;
+    const userId = auth.userId;
 
     const config = await getDocumentBrandingConfig(tenantId, userId);
     return NextResponse.json({ config });
@@ -44,31 +26,13 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('authToken')?.value;
-    
-    if (!token) {
+    const auth = await verifyAuth(request);
+    if (!auth?.userId || !auth.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Obtener tenantId y userId del token
-    const userResponse = await fetch(`${request.nextUrl.origin}/api/user`, {
-      headers: {
-        Cookie: `authToken=${token}`,
-      },
-    });
-
-    if (!userResponse.ok) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const userData = await userResponse.json();
-    const tenantId = userData.user?.tenantId;
-    const userId = userData.user?.id;
-
-    if (!tenantId) {
-      return NextResponse.json({ error: 'Tenant ID no encontrado' }, { status: 400 });
-    }
+    const tenantId = auth.tenantId;
+    const userId = auth.userId;
 
     const body = await request.json();
     const config = await setDocumentBrandingConfig({
