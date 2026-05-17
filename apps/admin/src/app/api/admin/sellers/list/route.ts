@@ -23,17 +23,22 @@ export async function GET(request: NextRequest) {
     const db = getFirestore();
     let query = db.collection('users').where('role', '==', 'seller');
 
-    // Si se especifica un dealer, filtrar por ese dealer
+    const sellersSnapshot = await query.limit(500).get();
+
+    let docs = sellersSnapshot.docs;
     if (dealerId) {
-      query = query.where('tenantId', '==', dealerId);
+      docs = docs.filter((doc) => {
+        const d = doc.data();
+        return d.dealerId === dealerId || (!d.dealerId && d.tenantId === dealerId);
+      });
     }
 
-    const sellersSnapshot = await query
-      .orderBy('name', 'asc')
-      .limit(200)
-      .get();
+    docs.sort((a, b) =>
+      String(a.data().name || '').localeCompare(String(b.data().name || ''), 'es')
+    );
+    docs = docs.slice(0, 200);
 
-    const sellers = sellersSnapshot.docs.map((doc) => {
+    const sellers = docs.map((doc) => {
       const data = doc.data();
       return {
         id: doc.id,

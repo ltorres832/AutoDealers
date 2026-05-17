@@ -37,8 +37,13 @@ export default function AdminUsersPage() {
     if (hydratedSearchFromUrl.current || typeof window === 'undefined') return;
     const q = new URLSearchParams(window.location.search);
     const s = q.get('search');
-    if (s) {
-      setFilters((f) => ({ ...f, search: s }));
+    const role = q.get('role');
+    if (s || role) {
+      setFilters((f) => ({
+        ...f,
+        ...(s ? { search: s } : {}),
+        ...(role ? { role } : {}),
+      }));
       hydratedSearchFromUrl.current = true;
     }
   }, []);

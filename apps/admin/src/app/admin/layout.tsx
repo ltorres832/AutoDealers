@@ -185,6 +185,7 @@ export default function AdminLayout({
       { href: '/admin/all-sales', label: 'Todas las Ventas', icon: '💰' },
       { href: '/admin/fi', label: 'F&I', icon: '💳' },
       { href: '/admin/dealers', label: 'Dealers (Aprobar)', icon: '🏢' },
+      { href: '/admin/sellers', label: 'Vendedores', icon: '🧑‍💼' },
       { href: '/admin/multi-dealer-requests', label: 'Solicitudes Multi Dealer', icon: '🏢' },
       { href: '/admin/email-aliases', label: 'Aliases de Email', icon: '📧' },
       { href: '/admin/corporate-emails', label: 'Emails Corporativos', icon: '📨' },
