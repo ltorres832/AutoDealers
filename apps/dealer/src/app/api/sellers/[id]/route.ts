@@ -7,6 +7,10 @@ import { getAppointments } from '@autodealers/crm';
 import { getVehicles } from '@autodealers/inventory';
 import { getCampaigns } from '@autodealers/core';
 import { getPromotions } from '@autodealers/core';
+import {
+  normalizePromoVideoUrls,
+  sellerPromoVideoFields,
+} from '@autodealers/shared/promo-video-urls';
 
 export const dynamic = 'force-dynamic';
 
@@ -88,8 +92,13 @@ export async function GET(
         status: sellerData.status || 'active',
         tenantId: sellerData.tenantId,
         dealerId: sellerData.dealerId,
+        publicPromoVideoUrls: normalizePromoVideoUrls(
+          sellerData.publicPromoVideoUrls,
+          sellerData.publicPromoVideoUrl
+        ),
         publicPromoVideoUrl:
-          typeof sellerData.publicPromoVideoUrl === 'string' ? sellerData.publicPromoVideoUrl : '',
+          normalizePromoVideoUrls(sellerData.publicPromoVideoUrls, sellerData.publicPromoVideoUrl)[0] ||
+          '',
         createdAt: sellerData?.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
       },
       stats: {
@@ -159,9 +168,9 @@ export async function PATCH(
 
     if (body.name !== undefined) updates.name = body.name;
     if (body.status !== undefined) updates.status = body.status;
-    if (body.publicPromoVideoUrl !== undefined) {
-      const v = body.publicPromoVideoUrl;
-      updates.publicPromoVideoUrl = typeof v === 'string' ? v.trim() : '';
+    if (body.publicPromoVideoUrls !== undefined || body.publicPromoVideoUrl !== undefined) {
+      const urls = normalizePromoVideoUrls(body.publicPromoVideoUrls, body.publicPromoVideoUrl);
+      Object.assign(updates, sellerPromoVideoFields(urls));
     }
 
     await db.collection('users').doc(sellerId).update(updates);

@@ -30,6 +30,16 @@
       "import": "./dist/client.js",
       "require": "./dist/client.js",
       "types": "./dist/client.d.ts"
+    },
+    "./promo-video-urls": {
+      "import": "./dist/promo-video-urls.js",
+      "require": "./dist/promo-video-urls.js",
+      "types": "./dist/promo-video-urls.d.ts"
+    },
+    "./components/PromoVideosEditor": {
+      "import": "./dist/components/PromoVideosEditor.js",
+      "require": "./dist/components/PromoVideosEditor.js",
+      "types": "./dist/components/PromoVideosEditor.d.ts"
     }
   },
   "scripts": {

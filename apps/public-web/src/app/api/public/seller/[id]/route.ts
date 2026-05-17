@@ -9,6 +9,7 @@ import {
   filterVehiclesForSellerPublicCatalog,
   vehicleBelongsToSeller,
 } from '@/lib/seller-public-catalog';
+import { normalizePromoVideoUrls } from '@autodealers/shared/promo-video-urls';
 
 // Exportar configuración de runtime
 export const runtime = 'nodejs';
@@ -282,7 +283,7 @@ export async function GET(
       seller: {
         id: sellerDoc.id,
         name: sellerData.name || 'Vendedor',
-        title: sellerData.title || sellerData.jobTitle || 'Vendedor',
+        title: sellerData.title || sellerData.jobTitle || 'Vendedor profesional',
         photo: sellerData.photo || sellerData.photoUrl || '',
         sellerRating,
         sellerRatingCount,
@@ -294,10 +295,13 @@ export async function GET(
         ),
         tenantId: tenantId,
         tenantName: tenantData?.name || 'Dealer',
+        publicPromoVideoUrls: normalizePromoVideoUrls(
+          sellerData.publicPromoVideoUrls,
+          sellerData.publicPromoVideoUrl
+        ),
         publicPromoVideoUrl:
-          typeof sellerData.publicPromoVideoUrl === 'string'
-            ? sellerData.publicPromoVideoUrl.trim()
-            : '',
+          normalizePromoVideoUrls(sellerData.publicPromoVideoUrls, sellerData.publicPromoVideoUrl)[0] ||
+          '',
         socialMedia: {
           ...pickSocialMedia(tenantData?.socialMedia),
           ...pickSocialMedia(sellerData.socialMedia),
@@ -320,7 +324,9 @@ export async function GET(
         state: typeof sellerData.state === 'string' ? sellerData.state : '',
         zipCode: typeof sellerData.zipCode === 'string' ? sellerData.zipCode : '',
         businessHours:
-          typeof sellerData.businessHours === 'string' ? sellerData.businessHours : '',
+          (typeof sellerData.businessHours === 'string' && sellerData.businessHours.trim()) ||
+          (typeof tenantData?.businessHours === 'string' ? tenantData.businessHours : '') ||
+          '',
       },
       vehicles: vehiclesOut,
       reviews: publicReviews.map((r) => ({

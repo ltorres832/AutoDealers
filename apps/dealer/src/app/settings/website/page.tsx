@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { PromoVideosEditor } from '@autodealers/shared/components/PromoVideosEditor';
+import { normalizePromoVideoUrls, heroPromoVideoFields } from '@autodealers/shared/promo-video-urls';
 
 interface WebsiteSettings {
   hero: {
@@ -11,6 +13,7 @@ interface WebsiteSettings {
     backgroundImage?: string;
     /** YouTube, Vimeo o URL HTTPS a .mp4/.webm — se muestra antes del inventario en la web pública */
     promoVideoUrl?: string;
+    promoVideoUrls?: string[];
   };
   sections: {
     about: {
@@ -52,6 +55,7 @@ export default function WebsiteSettingsPage() {
       subtitle: 'Tenemos la mejor selección de vehículos',
       ctaText: 'Ver Inventario',
       promoVideoUrl: '',
+      promoVideoUrls: [],
     },
     sections: {
       about: {
@@ -113,10 +117,17 @@ export default function WebsiteSettingsPage() {
       if (websiteRes.ok) {
         const data = await websiteRes.json();
         if (data.settings) {
+          const hero = data.settings.hero || {};
+          const promoUrls = normalizePromoVideoUrls(hero.promoVideoUrls, hero.promoVideoUrl);
           setSettings((prev) => ({
             ...prev,
             ...data.settings,
-            hero: { ...prev.hero, ...(data.settings.hero || {}) },
+            hero: {
+              ...prev.hero,
+              ...hero,
+              promoVideoUrls: promoUrls,
+              promoVideoUrl: promoUrls[0] || '',
+            },
           }));
         }
       }
@@ -180,13 +191,44 @@ export default function WebsiteSettingsPage() {
     }
   }
 
+  async function uploadDealerPromoFile(file: File): Promise<string | null> {
+    try {
+      const { fetchWithAuth } = await import('@/lib/fetch-with-auth');
+      const form = new FormData();
+      form.append('file', file);
+      form.append('type', 'dealer_website_promo');
+      const res = await fetchWithAuth('/api/upload', { method: 'POST', body: form });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return typeof data.url === 'string' ? data.url : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function setPromoVideoUrls(urls: string[]) {
+    const fields = heroPromoVideoFields(urls);
+    setSettings((prev) => ({
+      ...prev,
+      hero: { ...prev.hero, ...fields },
+    }));
+  }
+
   async function handleSave() {
     setSaving(true);
     try {
+      const promoUrls = normalizePromoVideoUrls(
+        settings.hero.promoVideoUrls,
+        settings.hero.promoVideoUrl
+      );
+      const payload = {
+        ...settings,
+        hero: { ...settings.hero, ...heroPromoVideoFields(promoUrls) },
+      };
       const response = await fetch('/api/settings/website', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings),
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
@@ -370,24 +412,16 @@ export default function WebsiteSettingsPage() {
                 </p>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2">Video promocional (opcional)</label>
-                <input
-                  type="url"
-                  value={settings.hero.promoVideoUrl || ''}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      hero: { ...settings.hero, promoVideoUrl: e.target.value },
-                    })
-                  }
-                  className="w-full border rounded px-3 py-2"
-                  placeholder="https://www.youtube.com/watch?v=… o https://…/video.mp4"
+              <div className="border-t pt-4 mt-4">
+                <PromoVideosEditor
+                  urls={settings.hero.promoVideoUrls || []}
+                  onChange={setPromoVideoUrls}
+                  onUploadFile={uploadDealerPromoFile}
+                  onSave={handleSave}
+                  saving={saving}
+                  title="Videos promocionales del dealer"
+                  description="Varios videos en tu mini-sitio público, en filas de dos antes del inventario."
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  Enlace de YouTube, Vimeo o archivo de video en HTTPS (.mp4, .webm). Aparece justo antes del inventario
-                  en tu página pública.
-                </p>
               </div>
             </div>
 

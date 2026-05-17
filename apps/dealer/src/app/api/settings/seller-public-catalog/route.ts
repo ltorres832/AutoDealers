@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuthIncludingSeller } from '@/lib/auth';
 import { getFirestore } from '@autodealers/core';
+import {
+  normalizePromoVideoUrls,
+  resolvePromoVideoUrlsFromBody,
+  sellerPromoVideoFields,
+} from '@autodealers/shared/promo-video-urls';
 import * as admin from 'firebase-admin';
 
 export const dynamic = 'force-dynamic';
 
-/**
- * Catálogo público del vendedor (video). Solo el propio usuario con rol seller.
- */
 export async function GET(request: NextRequest) {
   try {
     const auth = await verifyAuthIncludingSeller(request);
@@ -22,17 +24,15 @@ export async function GET(request: NextRequest) {
     }
 
     const userData = userDoc.data()!;
-    const tenantId = auth.tenantId || userData.tenantId;
-    let tenantSubdomain = '';
-    if (tenantId) {
-      const t = await db.collection('tenants').doc(tenantId).get();
-      tenantSubdomain = (t.data()?.subdomain as string) || '';
-    }
+    const urls = normalizePromoVideoUrls(
+      userData.publicPromoVideoUrls,
+      userData.publicPromoVideoUrl
+    );
 
     return NextResponse.json({
-      publicPromoVideoUrl: typeof userData.publicPromoVideoUrl === 'string' ? userData.publicPromoVideoUrl : '',
+      publicPromoVideoUrls: urls,
+      publicPromoVideoUrl: urls[0] || '',
       sellerId: auth.userId,
-      tenantSubdomain,
     });
   } catch (error: unknown) {
     console.error('seller-public-catalog GET:', error);
@@ -48,18 +48,22 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const raw = body.publicPromoVideoUrl;
-    const publicPromoVideoUrl = typeof raw === 'string' ? raw.trim() : '';
+    const urls = resolvePromoVideoUrlsFromBody(body as Record<string, unknown>);
+    const fields = sellerPromoVideoFields(urls);
 
     await getFirestore()
       .collection('users')
       .doc(auth.userId)
       .update({
-        publicPromoVideoUrl,
+        ...fields,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
-    return NextResponse.json({ success: true, publicPromoVideoUrl });
+    return NextResponse.json({
+      success: true,
+      publicPromoVideoUrls: urls,
+      publicPromoVideoUrl: fields.publicPromoVideoUrl,
+    });
   } catch (error: unknown) {
     console.error('seller-public-catalog PUT:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

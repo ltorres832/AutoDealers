@@ -11,7 +11,7 @@ import HeroBanner from '../../components/HeroBanner';
 import SidebarBanner from '../../components/SidebarBanner';
 import SponsoredContent from '../../components/SponsoredContent';
 import BetweenContentBanner from '../../components/BetweenContentBanner';
-import PublicPromoVideo from '../../components/PublicPromoVideo';
+import PublicPromoVideoGrid from '../../components/PublicPromoVideoGrid';
 import { SocialMediaLinks } from '@/components/SocialMediaLinks';
 import { getPublicVehicleConditionLabel } from '@/lib/vehicle-condition-label';
 
@@ -852,9 +852,12 @@ export default function TenantPublicPage() {
         <BetweenContentBanner />
       </div>
 
-      <PublicPromoVideo
-        url={tenant.websiteSettings?.hero?.promoVideoUrl}
-        title={`Video — ${tenant.name}`}
+      <PublicPromoVideoGrid
+        urls={
+          (tenant.websiteSettings?.hero as { promoVideoUrls?: string[] } | undefined)?.promoVideoUrls
+        }
+        legacyUrl={tenant.websiteSettings?.hero?.promoVideoUrl}
+        titlePrefix={`Video — ${tenant.name}`}
         className="container mx-auto px-4 pt-10 pb-2"
       />
 

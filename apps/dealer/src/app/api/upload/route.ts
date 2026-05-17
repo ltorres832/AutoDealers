@@ -57,7 +57,46 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (type === 'vehicle') {
+    if (type === 'dealer_website_promo') {
+      if (isSellerRole(auth.role)) {
+        return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
+      }
+      if (!isVideo) {
+        return NextResponse.json({ error: 'Solo se permiten archivos de video' }, { status: 400 });
+      }
+      const { getStorage } = await import('@autodealers/core');
+      const storage = getStorage();
+      const bucket = storage.bucket();
+      const timestamp = Date.now();
+      const sanitizedFilename = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const filePath = `tenants/${auth.tenantId}/website-promo/${timestamp}_${sanitizedFilename}`;
+      const fileRef = bucket.file(filePath);
+      await fileRef.save(buffer, {
+        metadata: {
+          contentType: file.type,
+          metadata: { tenantId: auth.tenantId, type: 'dealer_website_promo' },
+        },
+      });
+      await fileRef.makePublic();
+      url = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+    } else if (type === 'seller_public_promo' && isVideo) {
+      const { getStorage } = await import('@autodealers/core');
+      const storage = getStorage();
+      const bucket = storage.bucket();
+      const userId = isSellerRole(auth.role) ? auth.userId : auth.userId;
+      const timestamp = Date.now();
+      const sanitizedFilename = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const filePath = `tenants/${auth.tenantId}/seller-public/${userId}/${timestamp}_${sanitizedFilename}`;
+      const fileRef = bucket.file(filePath);
+      await fileRef.save(buffer, {
+        metadata: {
+          contentType: file.type,
+          metadata: { tenantId: auth.tenantId, userId, type: 'seller_public_promo' },
+        },
+      });
+      await fileRef.makePublic();
+      url = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+    } else if (type === 'vehicle') {
       const vehicleId = formData.get('vehicleId') as string || 'temp';
       url = await uploadVehicleImage(
         auth.tenantId,

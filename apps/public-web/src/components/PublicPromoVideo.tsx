@@ -7,15 +7,21 @@ type Props = {
   /** Contenedor exterior (márgenes, fondo) */
   className?: string;
   title?: string;
+  compact?: boolean;
 };
 
-export default function PublicPromoVideo({ url, className = '', title = 'Video promocional' }: Props) {
+export default function PublicPromoVideo({
+  url,
+  className = '',
+  title = 'Video promocional',
+  compact = false,
+}: Props) {
   const parsed = parsePromoVideoUrl(url || '');
   if (!parsed) return null;
 
   return (
     <div className={className} role="region" aria-label={title}>
-      <div className="max-w-5xl mx-auto">
+      <div className={compact ? 'w-full' : 'max-w-5xl mx-auto'}>
         <div className="aspect-video w-full rounded-xl overflow-hidden shadow-lg bg-black ring-1 ring-black/10">
           {parsed.kind === 'youtube' ? (
             <iframe
