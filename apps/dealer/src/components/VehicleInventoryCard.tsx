@@ -31,6 +31,7 @@ export interface VehicleInventoryCardProps {
   showSchedule?: boolean;
   showPublish?: boolean;
   onEdit?: (vehicle: RealtimeInventoryVehicle) => void;
+  onPublishSocial?: (vehicle: RealtimeInventoryVehicle) => void;
 }
 
 export default function VehicleInventoryCard({
@@ -40,6 +41,7 @@ export default function VehicleInventoryCard({
   showSchedule = true,
   showPublish = true,
   onEdit,
+  onPublishSocial,
 }: VehicleInventoryCardProps) {
   const [busy, setBusy] = useState(false);
   const [disposition, setDisposition] = useState<DispositionMode>(null);
@@ -198,6 +200,16 @@ export default function VehicleInventoryCard({
               }`}
             >
               {vehicle.publishedOnPublicPage ? '🌐 Publicado en web' : '🌐 Publicar en web'}
+            </button>
+          ) : null}
+
+          {isAvailable && onPublishSocial && (vehicle.photos?.length ?? 0) > 0 ? (
+            <button
+              type="button"
+              onClick={() => onPublishSocial(vehicle)}
+              className="w-full px-4 py-2 rounded font-medium text-sm bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-700 hover:to-indigo-700"
+            >
+              📱 Publicar en redes
             </button>
           ) : null}
 

@@ -1,78 +1,251 @@
 ﻿export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
-import { createSocialIntegration } from '@autodealers/core';
-import { verifyAuth } from '@/lib/auth';
+import { decodeSocialOAuthState, getFirestore, PLATFORM_SOCIAL_TENANT_ID } from '@autodealers/core';
+import * as admin from 'firebase-admin';
+
+const db = getFirestore();
+
+function readPageAccessToken(page: { access_token?: string }): string | undefined {
+  const t = page.access_token;
+  return typeof t === 'string' && t.trim() ? t.trim() : undefined;
+}
+
+function sanitizePagesForStorage(
+  raw: Array<{ id?: string; name?: string; instagram_business_account?: unknown }>
+): Array<Record<string, unknown>> {
+  return raw.map((p) => {
+    const row: Record<string, unknown> = {
+      id: String(p.id ?? ''),
+      name: String(p.name ?? ''),
+    };
+    if (p.instagram_business_account != null) {
+      row.instagram_business_account = p.instagram_business_account;
+    }
+    return row;
+  });
+}
+
+function integrationsRedirect(request: NextRequest, tenantId: string, query: string): NextResponse {
+  const path =
+    tenantId === PLATFORM_SOCIAL_TENANT_ID
+      ? `/admin/settings/integrations?${query}`
+      : `/settings/integrations?${query}`;
+  return NextResponse.redirect(new URL(path, request.url));
+}
 
 export async function GET(request: NextRequest) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth || !auth.tenantId) {
-      return NextResponse.redirect('/login');
-    }
-
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const code = searchParams.get('code');
-    const platform = searchParams.get('platform');
+    const state = searchParams.get('state');
+    const error = searchParams.get('error');
+    const legacyPlatform = searchParams.get('platform');
 
-    if (!code || !platform) {
-      return NextResponse.redirect('/settings/integrations?error=missing_params');
+    if (error) {
+      return integrationsRedirect(
+        request,
+        PLATFORM_SOCIAL_TENANT_ID,
+        `error=${encodeURIComponent(error)}`
+      );
     }
 
-    // Intercambiar código por access token
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001';
-    const redirectUri = `${baseUrl}/api/integrations/callback?platform=${platform}`;
+    if (!code) {
+      return integrationsRedirect(request, PLATFORM_SOCIAL_TENANT_ID, 'error=missing_parameters');
+    }
 
-    let accessToken = '';
-    let accountId = '';
-    let accountName = '';
+    let type: string;
+    let tenantId: string;
+    let leadOwnerUserId: string | undefined;
 
-    if (platform === 'facebook' || platform === 'instagram') {
-      // Obtener credenciales de Meta desde Firestore
-      const { getMetaCredentials } = await import('@autodealers/core');
-      const metaCreds = await getMetaCredentials();
-      const appId = metaCreds.appId;
-      const appSecret = metaCreds.appSecret;
-      
-      if (!appId || !appSecret) {
-        return NextResponse.redirect('/admin/settings/integrations?error=missing_credentials');
+    if (state) {
+      try {
+        const parsed = decodeSocialOAuthState(state);
+        type = parsed.type;
+        tenantId = parsed.tenantId;
+        if (typeof parsed.leadOwnerUserId === 'string' && parsed.leadOwnerUserId.trim()) {
+          leadOwnerUserId = parsed.leadOwnerUserId.trim();
+        }
+      } catch {
+        return integrationsRedirect(request, PLATFORM_SOCIAL_TENANT_ID, 'error=invalid_state');
       }
-
-      // Obtener access token
-      const tokenResponse = await fetch(
-        `https://graph.facebook.com/v18.0/oauth/access_token?client_id=${appId}&client_secret=${appSecret}&redirect_uri=${encodeURIComponent(redirectUri)}&code=${code}`
-      );
-
-      const tokenData = await tokenResponse.json();
-      accessToken = tokenData.access_token;
-
-      // Obtener información de la cuenta
-      const accountResponse = await fetch(
-        `https://graph.facebook.com/v18.0/me?access_token=${accessToken}`
-      );
-      const accountData = await accountResponse.json();
-      accountId = accountData.id;
-      accountName = accountData.name || accountData.username || 'Cuenta conectada';
+    } else if (legacyPlatform) {
+      type = legacyPlatform;
+      tenantId = PLATFORM_SOCIAL_TENANT_ID;
+    } else {
+      return integrationsRedirect(request, PLATFORM_SOCIAL_TENANT_ID, 'error=missing_parameters');
     }
 
-    // Guardar integración
-    await createSocialIntegration({
-      tenantId: auth.tenantId,
-      platform: platform as any,
-      accountId,
-      accountName,
-      accessToken,
-      status: 'active',
-      permissions: [],
-    });
+    if (!type || !tenantId) {
+      return integrationsRedirect(request, PLATFORM_SOCIAL_TENANT_ID, 'error=invalid_state');
+    }
 
-    return NextResponse.redirect('/settings/integrations?success=connected');
-  } catch (error) {
-    console.error('Error in OAuth callback:', error);
-    return NextResponse.redirect('/settings/integrations?error=connection_failed');
+    const credentialsDoc = await db.collection('system_settings').doc('credentials').get();
+    let clientId: string | undefined;
+    let clientSecret: string | undefined;
+
+    if (credentialsDoc.exists) {
+      const credentialsData = credentialsDoc.data();
+      clientId = credentialsData?.metaAppId;
+      clientSecret = credentialsData?.metaAppSecret;
+    }
+
+    if (!clientId || !clientSecret) {
+      return integrationsRedirect(request, tenantId, 'error=meta_app_not_configured');
+    }
+
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001';
+    const redirectUri = `${baseUrl}/api/integrations/callback`;
+
+    const tokenResponse = await fetch(
+      `https://graph.facebook.com/v18.0/oauth/access_token?` +
+        `client_id=${clientId}&` +
+        `client_secret=${clientSecret}&` +
+        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+        `code=${code}`,
+      { method: 'GET' }
+    );
+
+    if (!tokenResponse.ok) {
+      const errorData = await tokenResponse.json().catch(() => ({}));
+      const msg = (errorData as { error?: { message?: string } })?.error?.message || 'token_exchange_failed';
+      return integrationsRedirect(request, tenantId, `error=${encodeURIComponent(msg)}`);
+    }
+
+    const tokenData = await tokenResponse.json();
+    const accessToken = tokenData.access_token as string;
+
+    let primaryAdAccountId: string | undefined;
+    if (type === 'facebook') {
+      try {
+        const ar = await fetch(
+          `https://graph.facebook.com/v18.0/me/adaccounts?fields=id,account_id,name&limit=1&access_token=${encodeURIComponent(accessToken)}`
+        );
+        if (ar.ok) {
+          const aj = await ar.json();
+          const first = aj.data?.[0];
+          if (first?.id) primaryAdAccountId = String(first.id);
+        }
+      } catch (e) {
+        console.warn('[admin oauth] me/adaccounts', e);
+      }
+    }
+
+    let pageId: string | undefined;
+    let pageName: string | undefined;
+    let pageAccessToken: string | undefined;
+    let instagramId: string | undefined;
+    let pagesStored: Array<Record<string, unknown>> = [];
+
+    if (type === 'facebook') {
+      const pagesResponse = await fetch(
+        `https://graph.facebook.com/v18.0/me/accounts?access_token=${accessToken}&fields=id,name,access_token`
+      );
+      if (!pagesResponse.ok) {
+        return integrationsRedirect(request, tenantId, 'error=no_facebook_page');
+      }
+      const pagesData = await pagesResponse.json();
+      const rawList = (pagesData.data || []) as Array<{
+        id?: string;
+        name?: string;
+        access_token?: string;
+      }>;
+      if (rawList.length === 0) {
+        return integrationsRedirect(request, tenantId, 'error=no_facebook_page');
+      }
+      const firstPage = rawList[0];
+      pageId = String(firstPage.id ?? '');
+      pageName = String(firstPage.name ?? '');
+      pageAccessToken = readPageAccessToken(firstPage);
+      if (!pageAccessToken) {
+        return integrationsRedirect(request, tenantId, 'error=no_facebook_page_token');
+      }
+      pagesStored = sanitizePagesForStorage(rawList);
+    } else if (type === 'instagram') {
+      const pagesResponse = await fetch(
+        `https://graph.facebook.com/v18.0/me/accounts?access_token=${accessToken}&fields=id,name,access_token,instagram_business_account{id,username}`
+      );
+      if (pagesResponse.ok) {
+        const pagesData = await pagesResponse.json();
+        const rawList = (pagesData.data || []) as Array<{
+          id?: string;
+          name?: string;
+          access_token?: string;
+          instagram_business_account?: { id?: string };
+        }>;
+        if (rawList.length > 0) {
+          const pageWithInstagram = rawList.find((page) => page.instagram_business_account);
+          const selected = pageWithInstagram ?? rawList[0];
+          pageId = String(selected.id ?? '');
+          pageName = String(selected.name ?? '');
+          pageAccessToken = readPageAccessToken(selected);
+          if (pageWithInstagram?.instagram_business_account?.id != null) {
+            instagramId = String(pageWithInstagram.instagram_business_account.id);
+          }
+          pagesStored = sanitizePagesForStorage(pageWithInstagram ? [pageWithInstagram] : rawList);
+        }
+      }
+    }
+
+    const existingSnapshot = await db
+      .collection('tenants')
+      .doc(tenantId)
+      .collection('integrations')
+      .where('type', '==', type)
+      .get();
+
+    const ownerFields =
+      leadOwnerUserId != null && leadOwnerUserId !== '' ? { leadOwnerUserId } : {};
+
+    if (!existingSnapshot.empty) {
+      const integrationRef = existingSnapshot.docs[0].ref;
+      const prevCreds =
+        (existingSnapshot.docs[0].data()?.credentials as Record<string, unknown>) || {};
+      const nextAdAccountId =
+        primaryAdAccountId ||
+        (prevCreds.adAccountId != null ? String(prevCreds.adAccountId) : undefined);
+      await integrationRef.update({
+        status: 'active',
+        credentials: {
+          ...prevCreds,
+          accessToken,
+          pageAccessToken,
+          pageId,
+          pageName,
+          instagramId,
+          pages: pagesStored,
+          ...(nextAdAccountId ? { adAccountId: nextAdAccountId } : {}),
+        },
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    } else {
+      await db.collection('tenants').doc(tenantId).collection('integrations').add({
+        type,
+        status: 'active',
+        ...ownerFields,
+        credentials: {
+          accessToken,
+          pageAccessToken,
+          pageId,
+          pageName,
+          instagramId,
+          pages: pagesStored,
+          ...(primaryAdAccountId ? { adAccountId: primaryAdAccountId } : {}),
+        },
+        settings: { scope: 'platform_support' },
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    return integrationsRedirect(request, tenantId, 'success=connected');
+  } catch (err: unknown) {
+    console.error('Admin OAuth callback error:', err);
+    const message = err instanceof Error ? err.message : 'connection_failed';
+    return integrationsRedirect(
+      request,
+      PLATFORM_SOCIAL_TENANT_ID,
+      `error=${encodeURIComponent(message)}`
+    );
   }
 }
-
-
-
-
-

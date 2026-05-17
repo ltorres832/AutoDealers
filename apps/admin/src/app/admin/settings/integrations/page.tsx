@@ -8,18 +8,34 @@ interface MetaCredentials {
   appSecret: string;
 }
 
+type PlatformIntegration = { type: string; status: string; name?: string };
+
 export default function AdminIntegrationsPage() {
   const [metaCredentials, setMetaCredentials] = useState<MetaCredentials>({
     appId: '',
     appSecret: '',
   });
+  const [platformIntegrations, setPlatformIntegrations] = useState<PlatformIntegration[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     fetchCredentials();
+    fetchPlatformIntegrations();
   }, []);
+
+  async function fetchPlatformIntegrations() {
+    try {
+      const response = await fetch('/api/admin/social/integrations', { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        setPlatformIntegrations(data.integrations ?? []);
+      }
+    } catch (error) {
+      console.error('Error fetching platform integrations:', error);
+    }
+  }
 
   async function fetchCredentials() {
     try {
@@ -106,7 +122,7 @@ export default function AdminIntegrationsPage() {
       if (data.authUrl) {
         window.location.href = data.authUrl;
       } else {
-        setMessage({ type: 'error', text: 'Error al generar URL de autorización' });
+        setMessage({ type: 'error', text: data.message || data.error || 'Error al generar URL de autorización' });
       }
     } catch (error: any) {
       setMessage({ type: 'error', text: error.message || 'Error al conectar Facebook' });
@@ -126,12 +142,23 @@ export default function AdminIntegrationsPage() {
       if (data.authUrl) {
         window.location.href = data.authUrl;
       } else {
-        setMessage({ type: 'error', text: 'Error al generar URL de autorización' });
+        setMessage({ type: 'error', text: data.message || data.error || 'Error al generar URL de autorización' });
       }
     } catch (error: any) {
       setMessage({ type: 'error', text: error.message || 'Error al conectar Instagram' });
     }
   }
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const q = new URLSearchParams(window.location.search);
+    if (q.get('success') === 'connected') {
+      setMessage({ type: 'success', text: 'Cuenta de soporte conectada correctamente' });
+      void fetchPlatformIntegrations();
+    } else if (q.get('error')) {
+      setMessage({ type: 'error', text: `Error al conectar: ${q.get('error')}` });
+    }
+  }, []);
 
   if (loading) {
     return (
@@ -212,11 +239,39 @@ export default function AdminIntegrationsPage() {
         </div>
       </div>
 
+      {/* Cuenta de soporte para publicar desde el panel admin */}
+      <div className="bg-violet-50 border border-violet-200 rounded-lg p-6 mb-6">
+        <h2 className="text-xl font-semibold mb-2 text-violet-900">📱 Cuenta de soporte (publicar por admin)</h2>
+        <p className="text-sm text-violet-800 mb-4">
+          Conecta aquí la página de Facebook e Instagram de AutoDealers. El equipo admin publicará inventario de
+          cualquier concesionario <strong>sin usar las credenciales del cliente</strong>.
+        </p>
+        <div className="flex flex-wrap gap-3 mb-4 text-sm">
+          {(['facebook', 'instagram'] as const).map((p) => {
+            const row = platformIntegrations.find((i) => i.type === p);
+            const active = row?.status === 'active';
+            return (
+              <span
+                key={p}
+                className={`px-3 py-1 rounded-full border ${
+                  active
+                    ? 'bg-green-100 border-green-300 text-green-800'
+                    : 'bg-white border-violet-200 text-violet-700'
+                }`}
+              >
+                {p === 'facebook' ? 'Facebook' : 'Instagram'}: {active ? `conectado${row?.name ? ` (${row.name})` : ''}` : 'no conectado'}
+              </span>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Sección de OAuth para obtener tokens adicionales */}
       <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4">🔗 Conectar Cuentas (OAuth)</h2>
+        <h2 className="text-xl font-semibold mb-4">🔗 Conectar cuenta de soporte (OAuth)</h2>
         <p className="text-gray-600 mb-6">
-          Una vez que tengas el App ID y App Secret configurados, puedes obtener tokens de acceso adicionales para Facebook Pages e Instagram Business mediante OAuth.
+          Una vez configurado el App ID y App Secret, conecta la página de Facebook / Instagram Business que usará el
+          equipo de soporte para publicar vehículos desde el panel admin.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

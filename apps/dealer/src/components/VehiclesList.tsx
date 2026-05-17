@@ -8,6 +8,10 @@ import ScheduleFromInventoryModal, {
 import VehicleInventoryCard from '@/components/VehicleInventoryCard';
 import { fetchWithAuth } from '@/lib/fetch-with-auth';
 import { getDealerActiveTenantId } from '@/lib/dealer-tenant-storage';
+import {
+  PublishVehicleToSocialModal,
+  type PublishSocialVehicle,
+} from '@autodealers/shared/client';
 
 type SessionUser = { tenantId?: string } | null;
 type InventoryFilter = 'all' | 'available' | 'sold' | 'hidden';
@@ -39,6 +43,7 @@ export default function VehiclesList() {
     vehicle: RealtimeInventoryVehicle;
     mode: ScheduleFromInventoryMode;
   } | null>(null);
+  const [socialPublishVehicle, setSocialPublishVehicle] = useState<PublishSocialVehicle | null>(null);
 
   const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
 
@@ -118,6 +123,7 @@ export default function VehiclesList() {
               vehicle={vehicle}
               onRefresh={refresh}
               onSchedule={(v, mode) => setSchedule({ vehicle: v, mode })}
+              onPublishSocial={(v) => setSocialPublishVehicle(v as PublishSocialVehicle)}
             />
           ))
         )}
@@ -129,6 +135,14 @@ export default function VehiclesList() {
           vehicle={schedule.vehicle}
           mode={schedule.mode}
           onClose={() => setSchedule(null)}
+        />
+      ) : null}
+
+      {socialPublishVehicle ? (
+        <PublishVehicleToSocialModal
+          vehicle={socialPublishVehicle}
+          onClose={() => setSocialPublishVehicle(null)}
+          mode="tenant"
         />
       ) : null}
     </>

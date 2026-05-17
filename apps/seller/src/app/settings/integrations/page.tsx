@@ -1,14 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { SocialIcon, ToastNotification, type ToastData } from '@autodealers/shared/client';
 
 interface Integration {
   id: string;
   type: 'whatsapp' | 'facebook' | 'instagram';
   status: 'active' | 'inactive' | 'error';
   name: string;
-  icon: string;
   description: string;
 }
 
@@ -17,7 +17,6 @@ const availableIntegrations: Integration[] = [
     id: 'whatsapp',
     type: 'whatsapp',
     name: 'WhatsApp Business',
-    icon: '💬',
     description: 'Conecta tu cuenta de WhatsApp Business para enviar y recibir mensajes',
     status: 'inactive',
   },
@@ -25,16 +24,13 @@ const availableIntegrations: Integration[] = [
     id: 'facebook',
     type: 'facebook',
     name: 'Facebook',
-    icon: '📘',
-    description:
-      'Conecta la página de Facebook de tu negocio (Fan Page), no tu perfil personal. Debes ser administrador de esa página para publicar y gestionar mensajes.',
+    description: 'Debes ser administrador de la página para publicar y gestionar mensajes.',
     status: 'inactive',
   },
   {
     id: 'instagram',
     type: 'instagram',
     name: 'Instagram',
-    icon: '📷',
     description: 'Conecta tu cuenta de Instagram para publicar y gestionar mensajes directos',
     status: 'inactive',
   },
@@ -51,6 +47,15 @@ export default function IntegrationsPage() {
   });
   const [debugLogs, setDebugLogs] = useState<string[]>([]);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
+  const [connectingType, setConnectingType] = useState<string | null>(null);
+  const [toast, setToast] = useState<ToastData | null>(null);
+
+  const showToast = useCallback(
+    (type: ToastData['type'], title: string, message?: string) => {
+      setToast({ id: String(Date.now()), type, title, message });
+    },
+    []
+  );
 
   useEffect(() => {
     fetchIntegrations();
@@ -124,31 +129,6 @@ export default function IntegrationsPage() {
         addDebugLog('⚠️ No se pudo renovar el token, continuando con el token existente');
       }
       
-      // Verificar que tenemos la cookie antes de hacer la llamada
-      const cookies = document.cookie.split(';');
-      const authTokenCookie = cookies.find(c => c.trim().startsWith('authToken='));
-      addDebugLog(`🔍 Cookie authToken encontrada: ${!!authTokenCookie}`);
-      
-      if (authTokenCookie) {
-        const cookieValue = authTokenCookie.split('=')[1];
-        addDebugLog(`🔍 Cookie tiene valor: ${cookieValue ? 'Sí (longitud: ' + cookieValue.length + ')' : 'No'}`);
-      } else {
-        addDebugLog('❌ No se encontró cookie authToken');
-        addDebugLog(`🔍 Todas las cookies: ${document.cookie || 'Ninguna'}`);
-      }
-      
-      if (!authTokenCookie) {
-        const errorDetails = `La cookie de autenticación no está presente.\n\nCookies disponibles:\n${document.cookie || 'Ninguna'}\n\nEsto puede ocurrir si:\n- Tu sesión expiró\n- Las cookies están deshabilitadas\n- Hay un problema con el dominio\n\nSOLUCIÓN: Por favor inicia sesión nuevamente.`;
-        setErrorModal({
-          show: true,
-          title: '❌ Error de autenticación',
-          message: 'No se encontró token de autenticación. Por favor inicia sesión nuevamente.',
-          details: errorDetails,
-        });
-        setLoading(false);
-        return;
-      }
-
       addDebugLog('🔍 Haciendo fetch a /api/settings/integrations...');
       let response = await fetch('/api/settings/integrations', {
         credentials: 'include',
@@ -221,8 +201,6 @@ export default function IntegrationsPage() {
   }
 
   async function handleConnect(type: string) {
-    console.log('🔵 handleConnect llamado con type:', type);
-    
     try {
       if (type === 'whatsapp') {
         setShowWhatsAppModal(true);
@@ -230,23 +208,26 @@ export default function IntegrationsPage() {
       }
 
       if (type === 'facebook' || type === 'instagram') {
+        setConnectingType(type);
         addDebugLog(`🔵 Iniciando conexión con ${type}...`);
-        // Simplemente iniciar OAuth - el sistema usará las credenciales globales del admin
         await initiateOAuth(type);
         return;
       }
-    } catch (error: any) {
-      addDebugLog(`❌ Error en handleConnect: ${error.message || 'Error desconocido'}`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Error desconocido';
+      addDebugLog(`❌ Error en handleConnect: ${message}`);
       setErrorModal({
         show: true,
-        title: '❌ Error al conectar',
-        message: error.message || 'Error desconocido',
-        details: `Error completo: ${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}`,
+        title: 'Error al conectar',
+        message,
       });
+    } finally {
+      setConnectingType(null);
     }
   }
 
   async function initiateOAuth(type: string) {
+    setConnectingType(type);
     try {
       const response = await fetch('/api/settings/integrations', {
         method: 'POST',
@@ -305,14 +286,17 @@ export default function IntegrationsPage() {
         }
         console.error('Integration connection error:', data);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Error desconocido';
       console.error('Error en initiateOAuth:', error);
       setErrorModal({
         show: true,
-        title: '❌ Error al iniciar OAuth',
-        message: error.message || 'Error desconocido',
+        title: 'Error al iniciar OAuth',
+        message,
         details: 'Revisa la consola del navegador (F12) para más detalles.',
       });
+    } finally {
+      setConnectingType(null);
     }
   }
 
@@ -333,19 +317,20 @@ export default function IntegrationsPage() {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          alert('WhatsApp conectado exitosamente');
+          showToast('success', 'WhatsApp conectado', 'Tu cuenta quedó vinculada correctamente.');
           setShowWhatsAppModal(false);
           await fetchIntegrations();
         } else {
-          alert(`❌ Error al conectar WhatsApp: ${data.error || 'Error desconocido'}`);
+          showToast('error', 'Error al conectar WhatsApp', data.error || 'Error desconocido');
         }
       } else {
         const error = await response.json().catch(() => ({ error: 'Error desconocido' }));
-        alert(`❌ Error al conectar WhatsApp: ${error.error || 'Error desconocido'}`);
+        showToast('error', 'Error al conectar WhatsApp', error.error || 'Error desconocido');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Error desconocido';
       console.error('Error:', error);
-      alert(`❌ Error al conectar WhatsApp: ${error.message || 'Error desconocido'}`);
+      showToast('error', 'Error al conectar WhatsApp', message);
     }
   }
 
@@ -361,15 +346,16 @@ export default function IntegrationsPage() {
       });
 
       if (response.ok) {
-        alert('Integración desconectada exitosamente');
+        showToast('success', 'Integración desconectada');
         await fetchIntegrations();
       } else {
         const error = await response.json().catch(() => ({ error: 'Error desconocido' }));
-        alert(`❌ Error al desconectar: ${error.error || 'Error desconocido'}`);
+        showToast('error', 'Error al desconectar', error.error || 'Error desconocido');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Error desconocido';
       console.error('Error:', error);
-      alert(`❌ Error al desconectar: ${error.message || 'Error desconocido'}`);
+      showToast('error', 'Error al desconectar', message);
     }
   }
 
@@ -428,7 +414,9 @@ export default function IntegrationsPage() {
           >
             <div className="flex justify-between items-start">
               <div className="flex items-start gap-4">
-                <span className="text-4xl">{integration.icon}</span>
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gray-50 border border-gray-100">
+                  <SocialIcon platform={integration.type} size={32} />
+                </div>
                 <div className="flex-1">
                   <h3 className="text-xl font-bold mb-1">{integration.name}</h3>
                   <p className="text-gray-600 mb-3">{integration.description}</p>
@@ -449,15 +437,12 @@ export default function IntegrationsPage() {
                   </button>
                 ) : (
                   <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      console.log('🔵 Botón Conectar clickeado para:', integration.type);
-                      handleConnect(integration.type);
-                    }}
-                    className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium transition-colors"
+                    type="button"
+                    disabled={connectingType === integration.type}
+                    onClick={() => handleConnect(integration.type)}
+                    className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    Conectar
+                    {connectingType === integration.type ? 'Conectando...' : 'Conectar'}
                   </button>
                 )}
               </div>
@@ -479,8 +464,11 @@ export default function IntegrationsPage() {
         <WhatsAppConnectionModal
           onClose={() => setShowWhatsAppModal(false)}
           onConnect={handleWhatsAppConnect}
+          onValidationError={(msg) => showToast('warning', 'Campos requeridos', msg)}
         />
       )}
+
+      <ToastNotification toast={toast} onClose={() => setToast(null)} />
 
       {/* Modal de Error */}
       {errorModal.show && (
@@ -542,9 +530,11 @@ export default function IntegrationsPage() {
 function WhatsAppConnectionModal({
   onClose,
   onConnect,
+  onValidationError,
 }: {
   onClose: () => void;
   onConnect: (credentials: { phoneNumberId: string; accessToken: string }) => void;
+  onValidationError?: (message: string) => void;
 }) {
   const [phoneNumberId, setPhoneNumberId] = useState('');
   const [accessToken, setAccessToken] = useState('');
@@ -553,7 +543,7 @@ function WhatsAppConnectionModal({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!phoneNumberId || !accessToken) {
-      alert('Por favor completa todos los campos');
+      onValidationError?.('Por favor completa todos los campos');
       return;
     }
     setLoading(true);

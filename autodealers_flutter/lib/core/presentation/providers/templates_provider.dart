@@ -1,6 +1,7 @@
-// Provider de Templates - Presentation Layer
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../../data/repositories/templates_repository.dart';
+import '../../data/repositories/tenant_api_repository.dart';
 
 class TemplatesProvider extends ChangeNotifier {
   final TemplatesRepository _templatesRepository = TemplatesRepository();
@@ -8,120 +9,77 @@ class TemplatesProvider extends ChangeNotifier {
   List<Map<String, dynamic>> _templates = [];
   bool _isLoading = false;
   String? _error;
+  String? _tenantId;
+  TenantApp _app = TenantApp.dealer;
+
+  StreamSubscription<List<Map<String, dynamic>>>? _subscription;
 
   List<Map<String, dynamic>> get templates => _templates;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  // Cargar templates (stream en tiempo real)
+  Future<void> initialize({
+    required String? tenantId,
+    TenantApp app = TenantApp.dealer,
+    String? type,
+    String? role,
+  }) async {
+    _tenantId = tenantId;
+    _app = app;
+    await loadTemplates(type: type, role: role);
+  }
+
   Future<void> loadTemplates({String? type, String? role}) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
+    await _subscription?.cancel();
     try {
-      _templatesRepository.watchTemplates(type: type, role: role).listen((templates) {
-        _templates = templates;
-        _isLoading = false;
-        notifyListeners();
-      });
-    } catch (e) {
-      _error = e.toString();
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  // Crear template
-  Future<bool> createTemplate({
-    required Map<String, dynamic> template,
-    String? tenantId,
-  }) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      await _templatesRepository.createTemplate(template: template, tenantId: tenantId);
-      await loadTemplates();
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _error = e.toString();
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
-  }
-
-  // Actualizar template
-  Future<bool> updateTemplate({
-    required String templateId,
-    required Map<String, dynamic> updates,
-  }) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      await _templatesRepository.updateTemplate(templateId: templateId, updates: updates);
-      await loadTemplates();
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _error = e.toString();
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
-  }
-
-  // Eliminar template
-  Future<bool> deleteTemplate(String templateId) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      await _templatesRepository.deleteTemplate(templateId);
-      await loadTemplates();
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _error = e.toString();
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
-  }
-
-  // Procesar template con variables
-  Future<Map<String, dynamic>?> processTemplate({
-    required Map<String, dynamic> template,
-    required Map<String, String> variables,
-  }) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      final result = await _templatesRepository.processTemplate(
-        template: template,
-        variables: variables,
+      _subscription = _templatesRepository
+          .watchTemplates(tenantId: _tenantId, type: type, role: role)
+          .listen(
+        (templates) {
+          _templates = templates;
+          _isLoading = false;
+          notifyListeners();
+        },
+        onError: (e) {
+          _error = e.toString();
+          _isLoading = false;
+          notifyListeners();
+        },
       );
-      _isLoading = false;
-      notifyListeners();
-      return result;
     } catch (e) {
       _error = e.toString();
       _isLoading = false;
       notifyListeners();
-      return null;
     }
+  }
+
+  Future<int> initializeDefaultTemplates() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final api = TenantApiRepository(_app);
+      final result = await api.initializeDefaultTemplates();
+      final count = (result['count'] as num?)?.toInt() ?? 0;
+      _isLoading = false;
+      notifyListeners();
+      return count;
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
   }
 }
-
-

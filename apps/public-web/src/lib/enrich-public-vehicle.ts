@@ -1,4 +1,5 @@
 import { getFirestore } from '@autodealers/core';
+import { resolveSellerPublicRating } from '@autodealers/crm';
 
 type SellerInfo = {
   id?: string;
@@ -50,6 +51,15 @@ export async function enrichPublicVehicleDetail(
         '';
       sellerRating = typeof s.sellerRating === 'number' ? s.sellerRating : 0;
       sellerRatingCount = typeof s.sellerRatingCount === 'number' ? s.sellerRatingCount : 0;
+
+      const resolved = await resolveSellerPublicRating(
+        [tenantId],
+        sellerId,
+        sellerRating,
+        sellerRatingCount
+      );
+      sellerRating = resolved.rating;
+      sellerRatingCount = resolved.count;
     }
   }
 

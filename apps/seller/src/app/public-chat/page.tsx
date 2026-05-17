@@ -31,6 +31,7 @@ export default function PublicChatPage() {
   const [messages, setMessages] = useState<PublicChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
 
@@ -57,14 +58,30 @@ export default function PublicChatPage() {
 
   async function fetchConversations() {
     setLoading(true);
+    setLoadError(null);
     try {
       const response = await fetch('/api/public-chat/conversations');
       if (response.ok) {
         const data = await response.json();
-        setConversations(data.conversations || []);
+        const list = (data.conversations || []).map(
+          (c: Conversation & { lastMessage?: string | { content?: string } }) => ({
+            ...c,
+            lastMessage:
+              typeof c.lastMessage === 'string'
+                ? c.lastMessage
+                : c.lastMessage?.content
+                  ? String(c.lastMessage.content)
+                  : null,
+          })
+        );
+        setConversations(list);
+      } else {
+        console.error('Chat público:', response.status, await response.text().catch(() => ''));
+        setLoadError('No se pudieron cargar las conversaciones. Vuelve a iniciar sesión si persiste.');
       }
     } catch (error) {
       console.error('Error:', error);
+      setLoadError('No se pudieron cargar las conversaciones.');
     } finally {
       setLoading(false);
     }
@@ -141,6 +158,15 @@ export default function PublicChatPage() {
       <p className="text-gray-600 mb-6">
         Conversaciones con clientes desde tu página web pública
       </p>
+
+      {loadError ? (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {loadError}{' '}
+          <button type="button" onClick={() => void fetchConversations()} className="underline font-medium">
+            Reintentar
+          </button>
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-3 gap-6 h-[calc(100vh-200px)]">
         {/* Lista de Conversaciones */}

@@ -327,8 +327,8 @@ export default function VehicleDetailPage() {
       if (j.leadCreated) {
         setInterestFeedback(
           sellerDisplayName
-            ? `Listo: ${sellerDisplayName} verá tu interés en su CRM y podrá contactarte.`
-            : 'Listo: el vendedor verá tu interés en su CRM y podrá contactarte.'
+            ? `Listo: ${sellerDisplayName} recibirá tu solicitud y te contactará pronto.`
+            : 'Listo: el vendedor recibirá tu solicitud y te contactará pronto.'
         );
         setInterestForm({ name: '', phone: '', email: '', message: '' });
       } else {
@@ -881,15 +881,9 @@ export default function VehicleDetailPage() {
 
                 <div className="mb-6 p-4 bg-slate-50 border border-slate-200 rounded-xl">
                   <h3 className="font-semibold text-slate-900 mb-1">¿Te interesa este vehículo?</h3>
-                  <p className="text-xs text-slate-600 mb-2">
-                    Las visitas al catálogo pueden registrarse de forma anónima (página de origen, campaña UTM, tipo de
-                    dispositivo) para que el vendedor vea de dónde viene el tráfico. Los datos personales solo se envían
-                    si los escribes aquí y pulsas enviar.
-                  </p>
                   <p className="text-xs text-slate-600 mb-3">
-                    Si dejas tu nombre y teléfono
-                    {sellerDisplayName ? `, ${sellerDisplayName} recibirá` : ', el vendedor recibirá'} un lead en su CRM con el vehículo vinculado
-                    (estado inicial &quot;Perdido&quot; = prospecto frío desde el catálogo; puede reabrirlo y llamarte).
+                    Completa tus datos y te contactaremos sobre este vehículo. Tu información solo se envía al pulsar el
+                    botón de abajo.
                   </p>
                   <form onSubmit={submitCatalogInterest} className="space-y-2">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">

@@ -15,7 +15,7 @@ import FIApprovalScore from '@/components/FIApprovalScore';
 import FICreditReport from '@/components/FICreditReport';
 import AdvancedFIRequestReviewModal from '@/components/AdvancedFIRequestReviewModal';
 import { useFeatureFlag } from '@/hooks/useFeatureFlag';
-import { expeditionStageLabel } from '@autodealers/crm';
+import { expeditionStageLabel } from '@autodealers/shared/client';
 import { getDealerActiveTenantId } from '@/lib/dealer-tenant-storage';
 
 interface FIRequest {

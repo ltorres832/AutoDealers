@@ -7,6 +7,7 @@ buildConfig:
     set -e
     if [ -f ../../package-lock.json ]; then cd ../..; fi
     npm ci --legacy-peer-deps
+    npm run build --workspace=@autodealers/shared
     npm run build --workspace=@autodealers/public-web
   outputDir: .next/standalone
 

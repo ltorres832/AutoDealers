@@ -106,7 +106,17 @@ export {
   updateReview, 
   deleteReview, 
   addReviewResponse, 
-  getReviewStats 
+  getReviewStats,
+  getApprovedReviewRatingAggregate,
+  syncUserRatingFromApprovedReviews,
+  getPublicReviewsForSeller,
+  getPublicReviewsForDealer,
+  resolveSellerPublicRating,
+  resolveDealerPublicRating,
+  resyncSellerPublicRatings,
+  resyncDealerPublicRatings,
+  enrichReviewPatchOnApprove,
+  linkApprovedReviewsToSeller,
 } from './reviews';
 export type { Review } from './reviews';
 

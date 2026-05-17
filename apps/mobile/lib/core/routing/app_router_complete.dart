@@ -8,7 +8,10 @@ import '../../features/messaging/pages/messages_page.dart';
 import '../../features/appointments/pages/appointments_page.dart';
 import '../../features/sales/pages/sales_page.dart';
 import '../../features/sales/pages/sales_statistics_page.dart';
-// import '../../features/settings/pages/settings_page.dart'; // TODO: Crear SettingsPage
+import '../../features/settings/pages/settings_page.dart';
+import '../../features/settings/pages/settings_integrations_page.dart';
+import '../../features/settings/pages/settings_templates_page.dart';
+import '../../features/customer_files/pages/customer_files_page.dart';
 
 /// Router completo con TODAS las rutas para Admin, Dealer y Seller
 class AppRouterComplete {
@@ -125,10 +128,7 @@ class AppRouterComplete {
         // Archivos de Cliente
         GoRoute(
           path: '/customer-files',
-          builder: (context, state) {
-            // TODO: Implementar archivos de cliente
-            return const DashboardPage();
-          },
+          builder: (context, state) => const CustomerFilesPage(),
         ),
 
         // Reportes
@@ -143,7 +143,7 @@ class AppRouterComplete {
         // Configuración
         GoRoute(
           path: '/settings',
-          builder: (context, state) => const DashboardPage(), // TODO: Implementar SettingsPage
+          builder: (context, state) => const SettingsPage(),
           routes: [
             GoRoute(
               path: 'profile',
@@ -168,10 +168,7 @@ class AppRouterComplete {
             ),
             GoRoute(
               path: 'integrations',
-              builder: (context, state) {
-                // TODO: Implementar integraciones
-                return const SettingsPage();
-              },
+              builder: (context, state) => const SettingsIntegrationsPage(),
             ),
             GoRoute(
               path: 'membership',
@@ -189,10 +186,7 @@ class AppRouterComplete {
             ),
             GoRoute(
               path: 'templates',
-              builder: (context, state) {
-                // TODO: Implementar plantillas
-                return const SettingsPage();
-              },
+              builder: (context, state) => const SettingsTemplatesPage(),
             ),
           ],
         ),

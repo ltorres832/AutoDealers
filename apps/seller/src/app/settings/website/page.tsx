@@ -7,6 +7,7 @@ import {
   normalizeWebsiteSettingsFromFirestore,
 } from '@/lib/website-settings-normalize';
 import { SocialMediaLinks } from '@autodealers/shared/client';
+import { resolvePrimaryPublicSiteUrl } from '@/lib/public-site-url';
 
 interface WebsiteSettings {
   hero: {
@@ -73,6 +74,7 @@ export default function WebsiteSettingsPage() {
   const [profile, setProfile] = useState<any>(null);
   const [publicCatalogUrl, setPublicCatalogUrl] = useState('');
   const [publicSubdomainUrl, setPublicSubdomainUrl] = useState<string | null>(null);
+  const [primaryPublicSiteUrl, setPrimaryPublicSiteUrl] = useState('');
   const [isIndependentWorkspace, setIsIndependentWorkspace] = useState(false);
 
   useEffect(() => {
@@ -95,6 +97,9 @@ export default function WebsiteSettingsPage() {
         }
         if (typeof data.publicCatalogUrl === 'string') setPublicCatalogUrl(data.publicCatalogUrl);
         if (typeof data.publicSubdomainUrl === 'string') setPublicSubdomainUrl(data.publicSubdomainUrl);
+        if (typeof data.primaryPublicSiteUrl === 'string') {
+          setPrimaryPublicSiteUrl(data.primaryPublicSiteUrl);
+        }
         setIsIndependentWorkspace(Boolean(data.isIndependentSellerWorkspace));
       }
 
@@ -152,8 +157,12 @@ export default function WebsiteSettingsPage() {
   }
 
   const primaryPublicUrl =
+    primaryPublicSiteUrl ||
     publicCatalogUrl ||
-    (profile?.userId ? `https://autodealers-7f62e.web.app/seller/${profile.userId}` : '');
+    resolvePrimaryPublicSiteUrl({
+      sellerId: profile?.userId,
+      publicCatalogUrl,
+    });
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -225,8 +234,17 @@ export default function WebsiteSettingsPage() {
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
         <p className="text-blue-900 text-sm leading-relaxed">
           <strong>Tu catálogo para clientes</strong> es la página{' '}
-          <code className="rounded bg-white/80 px-1 text-xs">/seller/…</code> en el sitio público (botón &quot;Abrir mi
-          catálogo público&quot;). Hero, secciones y chat se guardan con &quot;Guardar Cambios&quot; y se muestran ahí.
+          <code className="rounded bg-white/80 px-1 text-xs">/seller/…</code> del sitio público (botón
+          &quot;Abrir mi catálogo público&quot;). Ahí ven tu foto, contacto, redes e inventario. Hero,
+          secciones y chat de esta pantalla también aplican a esa página cuando están configurados.
+          {publicSubdomainUrl ? (
+            <>
+              {' '}
+              Tu subdominio{' '}
+              <code className="rounded bg-white/80 px-1 text-xs">{publicSubdomainUrl.replace(/^https?:\/\//, '')}</code>{' '}
+              es un sitio adicional del espacio, no sustituye el catálogo /seller/.
+            </>
+          ) : null}
           {!profile?.title ? (
             <>
               {' '}
@@ -238,11 +256,11 @@ export default function WebsiteSettingsPage() {
             </>
           ) : null}
         </p>
-        {publicSubdomainUrl && !isIndependentWorkspace ? (
+        {primaryPublicUrl ? (
           <p className="text-blue-800 text-xs mt-2">
-            Sitio del concesionario:{' '}
-            <a href={publicSubdomainUrl} target="_blank" rel="noopener noreferrer" className="underline">
-              {publicSubdomainUrl}
+            URL pública:{' '}
+            <a href={primaryPublicUrl} target="_blank" rel="noopener noreferrer" className="underline">
+              {primaryPublicUrl.replace(/^https?:\/\//, '')}
             </a>
           </p>
         ) : null}
@@ -265,7 +283,7 @@ export default function WebsiteSettingsPage() {
           settings={settings}
           branding={branding}
           profile={profile}
-          publicCatalogUrl={publicCatalogUrl}
+          primaryPublicUrl={primaryPublicUrl}
           onClose={() => setShowPreview(false)}
         />
       ) : (
@@ -556,13 +574,13 @@ function WebsitePreview({
   settings,
   branding,
   profile,
-  publicCatalogUrl,
+  primaryPublicUrl,
   onClose,
 }: {
   settings: WebsiteSettings;
   branding: any;
   profile: any;
-  publicCatalogUrl?: string;
+  primaryPublicUrl?: string;
   onClose: () => void;
 }) {
   type PreviewVehicle = {
@@ -722,22 +740,14 @@ function WebsitePreview({
 
   const openPublicVehicle = useCallback(
     (v: PreviewVehicle) => {
-      if (!publicCatalogUrl) {
-        alert('Usa «Abrir mi catálogo público» en la parte superior para ver el sitio en vivo.');
+      if (!primaryPublicUrl) {
+        alert('Usa «Abrir sitio público» en la barra superior para ver tu catálogo /seller/…');
         return;
       }
-      try {
-        const origin = new URL(publicCatalogUrl).origin;
-        const tenantId = profile?.tenantId as string | undefined;
-        const url = tenantId
-          ? `${origin}/${tenantId}/vehicle/${v.id}`
-          : publicCatalogUrl;
-        window.open(url, '_blank', 'noopener,noreferrer');
-      } catch {
-        window.open(publicCatalogUrl, '_blank', 'noopener,noreferrer');
-      }
+      const catalog = primaryPublicUrl.replace(/\/$/, '');
+      window.open(`${catalog}#seller-inventory`, '_blank', 'noopener,noreferrer');
     },
-    [publicCatalogUrl, profile?.tenantId]
+    [primaryPublicUrl]
   );
 
   function firstPhoto(v: PreviewVehicle): string {
@@ -752,10 +762,15 @@ function WebsitePreview({
           <h2 className="text-xl font-bold text-gray-900">Vista Previa de tu Página Web</h2>
           <p className="text-sm text-gray-600 mt-1">Así es como verán tu página los clientes</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {publicCatalogUrl ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <SocialMediaLinks
+            socialMedia={socialMedia}
+            className="flex items-center gap-2"
+            iconClassName="w-6 h-6"
+          />
+          {primaryPublicUrl ? (
             <a
-              href={publicCatalogUrl}
+              href={primaryPublicUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium text-sm"

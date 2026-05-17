@@ -27,6 +27,7 @@ export * from './campaigns';
 export * from './faqs';
 export * from './social-integrations';
 export * from './social-oauth-state';
+export * from './platform-social';
 export * from './meta-leadgen-map';
 export * from './webhook-config';
 export * from './social-ai';

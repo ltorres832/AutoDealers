@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { useRealtimeCustomerFiles } from '@/hooks/useRealtimeCustomerFiles';
-import { expeditionStageLabel } from '@autodealers/crm';
+import { expeditionStageLabel } from '@autodealers/shared/client';
 
 interface CustomerFile {
   id: string;

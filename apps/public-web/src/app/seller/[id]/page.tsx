@@ -5,6 +5,8 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import PublicBackButton from '@/components/PublicBackButton';
 import StarRating from '../../../components/StarRating';
+import PublicReviewsList, { type PublicReviewItem } from '@/components/PublicReviewsList';
+import { SocialMediaLinks, type SocialMediaMap } from '@/components/SocialMediaLinks';
 import ChatWidget from '../../../components/ChatWidget';
 import { getFirstPhoto, handleImageError } from '@/lib/vehicle-image';
 import { externalWebsiteHref, normalizeMisplacedFirebaseAppHostingUrl } from '@/lib/normalize-app-hosting-url';
@@ -26,6 +28,7 @@ interface Seller {
   title: string;
   /** YouTube, Vimeo o URL HTTPS a .mp4/.webm — antes del inventario en la página pública del vendedor */
   publicPromoVideoUrl?: string;
+  socialMedia?: SocialMediaMap;
 }
 
 /** Misma estructura que `tenants/{id}.websiteSettings` (panel vendedor / subdominio). */
@@ -321,6 +324,7 @@ export default function SellerPublicPage() {
   const sellerId = params.id as string;
   const [seller, setSeller] = useState<Seller | null>(null);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [reviews, setReviews] = useState<PublicReviewItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [websiteSettings, setWebsiteSettings] = useState<TenantWebsiteSettingsForSellerPage | null>(null);
 
@@ -328,6 +332,17 @@ export default function SellerPublicPage() {
     () => groupSellerInventoryByMakeAndModel(vehicles),
     [vehicles]
   );
+
+  const displayRating = useMemo(() => {
+    if (reviews.length > 0) {
+      const sum = reviews.reduce((acc, r) => acc + (Number(r.rating) || 0), 0);
+      return { rating: sum / reviews.length, count: reviews.length };
+    }
+    if (seller && seller.sellerRatingCount > 0) {
+      return { rating: seller.sellerRating, count: seller.sellerRatingCount };
+    }
+    return { rating: seller?.sellerRating ?? 0, count: seller?.sellerRatingCount ?? 0 };
+  }, [seller, reviews]);
 
   useEffect(() => {
     if (sellerId) {
@@ -398,8 +413,15 @@ export default function SellerPublicPage() {
           return;
         }
         
-        setSeller(data.seller);
+        setSeller({
+          ...data.seller,
+          socialMedia:
+            data.seller.socialMedia && typeof data.seller.socialMedia === 'object'
+              ? data.seller.socialMedia
+              : undefined,
+        });
         setVehicles(data.vehicles || []);
+        setReviews(Array.isArray(data.reviews) ? data.reviews : []);
         setWebsiteSettings(
           data.websiteSettings && typeof data.websiteSettings === 'object'
             ? (data.websiteSettings as TenantWebsiteSettingsForSellerPage)
@@ -581,17 +603,24 @@ export default function SellerPublicPage() {
                 </div>
               </div>
               
-              {/* Calificación - Siempre visible */}
+              {seller.socialMedia &&
+              Object.values(seller.socialMedia).some((v) => typeof v === 'string' && v.trim()) ? (
+                <div className="mt-5 pt-4 border-t border-gray-100">
+                  <p className="text-sm font-semibold text-gray-800 mb-3">Redes sociales</p>
+                  <SocialMediaLinks socialMedia={seller.socialMedia} iconClassName="w-7 h-7" />
+                </div>
+              ) : null}
+
               <div className="mt-4">
-                {seller.sellerRating > 0 ? (
+                {displayRating.count > 0 && displayRating.rating > 0 ? (
                   <StarRating
-                    rating={seller.sellerRating}
-                    count={seller.sellerRatingCount}
+                    rating={displayRating.rating}
+                    count={displayRating.count}
                     size="lg"
                     showCount={true}
                   />
                 ) : (
-                  <div className="flex items-center gap-2 text-gray-500">
+                  <div className="flex items-center gap-2 text-gray-500 justify-center md:justify-start">
                     <span className="text-sm">Sin calificaciones aún</span>
                   </div>
                 )}
@@ -654,6 +683,12 @@ export default function SellerPublicPage() {
           url={seller.publicPromoVideoUrl}
           title={`Video — ${seller.name}`}
           className="mb-10"
+        />
+
+        <PublicReviewsList
+          reviews={reviews}
+          title="Opiniones de clientes"
+          className="mb-8"
         />
 
         {/* Vehículos Publicados */}

@@ -1,7 +1,7 @@
 buildConfig:
   runtime: nodejs20
   # CWD = raíz del repo en App Hosting (igual que public-web). No usar `cd ../..`.
-  buildCommand: npm ci --legacy-peer-deps && cd apps/admin && npm run build
+  buildCommand: npm ci --legacy-peer-deps && npm run build --workspace=@autodealers/shared && cd apps/admin && npm run build
   outputDir: .next
 
 runConfig:

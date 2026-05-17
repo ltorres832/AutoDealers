@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     const customerFileRef = db
       .collection('tenants')
       .doc(auth.tenantId!)
-      .collection('customer-files')
+      .collection('customer_files')
       .doc(customerFileId);
 
     const customerFileDoc = await customerFileRef.get();

@@ -7,6 +7,7 @@ export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
         const limit = parseInt(searchParams.get('limit') || '6', 10);
+        const sellerIdFilter = searchParams.get('sellerId')?.trim() || '';
         const db = getFirestore();
 
         console.log(`🔍 [API] Buscando reseñas (límite: ${limit})...`);
@@ -82,13 +83,20 @@ export async function GET(request: Request) {
                 } catch (e) { /* ignore */ }
             }
 
+            if (sellerIdFilter && data.sellerId !== sellerIdFilter) {
+                continue;
+            }
+
             reviews.push({
                 id: doc.id,
                 tenantId,
+                sellerId: data.sellerId,
+                dealerId: data.dealerId,
                 customerName: data.customerName || 'Cliente',
                 customerPhoto: data.customerPhoto,
                 rating: data.rating || 5,
                 comment: data.comment || '',
+                title: data.title,
                 vehicleName,
                 dealerName,
                 sellerName,

@@ -1,4 +1,3 @@
-// Página Principal de Configuración del Seller
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../widgets/seller_drawer.dart';
@@ -22,6 +21,18 @@ class SellerSettingsPage extends StatelessWidget {
             onTap: () => context.push('/seller/settings/profile'),
           ),
           ListTile(
+            leading: const Icon(Icons.extension),
+            title: const Text('Integraciones'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/seller/settings/integrations'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.description),
+            title: const Text('Plantillas'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/seller/settings/templates'),
+          ),
+          ListTile(
             leading: const Icon(Icons.notifications),
             title: const Text('Notificaciones'),
             trailing: const Icon(Icons.chevron_right),
@@ -38,5 +49,3 @@ class SellerSettingsPage extends StatelessWidget {
     );
   }
 }
-
-

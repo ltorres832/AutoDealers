@@ -3,9 +3,12 @@ import { verifyAuth } from '@/lib/auth';
 import {
   createReview,
   getReviews,
+  getReviewById,
   updateReview,
   deleteReview,
   getReviewStats,
+  resyncSellerPublicRatings,
+  enrichReviewPatchOnApprove,
 } from '@autodealers/crm';
 
 export const dynamic = 'force-dynamic';
@@ -21,7 +24,6 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') as 'pending' | 'approved' | 'rejected' | null;
     const featured = searchParams.get('featured');
     const stats = searchParams.get('stats');
-
     // Si se piden estadísticas
     if (stats === 'true') {
       const statistics = await getReviewStats(auth.tenantId);
@@ -51,7 +53,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
+    const body = await request.json().catch(() => ({}));
+    const action = body?.action as string | undefined;
+
+    if (action === 'sync-public-ratings') {
+      if (auth.role !== 'seller') {
+        return NextResponse.json(
+          { error: 'Solo vendedores pueden sincronizar su calificación pública' },
+          { status: 403 }
+        );
+      }
+      const result = await resyncSellerPublicRatings(auth.tenantId, auth.userId);
+      return NextResponse.json({
+        success: true,
+        message:
+          result.patched > 0
+            ? `Se vincularon ${result.patched} reseña(s) y se actualizó tu perfil público.`
+            : 'Tu calificación pública ya está actualizada.',
+        patched: result.patched,
+      });
+    }
+
     const {
       customerName,
       customerEmail,
@@ -67,7 +89,6 @@ export async function POST(request: NextRequest) {
       featured,
     } = body;
 
-    // Validaciones
     if (!customerName || !rating || !comment) {
       return NextResponse.json(
         { error: 'Faltan campos requeridos: customerName, rating, comment' },
@@ -87,22 +108,26 @@ export async function POST(request: NextRequest) {
       customerName,
       customerEmail,
       customerPhone,
-      rating: parseInt(rating),
+      rating: parseInt(String(rating), 10),
       title,
       comment,
       photos: photos || [],
       videos: videos || [],
       vehicleId,
       saleId,
+      sellerId: auth.role === 'seller' ? auth.userId : body.sellerId,
+      dealerId:
+        auth.role === 'dealer' ? auth.userId : auth.dealerId || body.dealerId,
       status: status || 'pending',
       featured: featured || false,
     });
 
     return NextResponse.json({ review, success: true });
-  } catch (error: any) {
-    console.error('Error creating review:', error);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Error in reviews POST:', error);
     return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
+      { error: 'Internal server error', details: message },
       { status: 500 }
     );
   }
@@ -122,7 +147,15 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'ID de reseña requerido' }, { status: 400 });
     }
 
-    await updateReview(auth.tenantId, id, updates);
+    const existing = await getReviewById(auth.tenantId, id);
+    const patch = await enrichReviewPatchOnApprove(
+      auth.tenantId,
+      existing,
+      updates as Partial<import('@autodealers/crm').Review>,
+      { userId: auth.userId, role: auth.role }
+    );
+
+    await updateReview(auth.tenantId, id, patch);
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

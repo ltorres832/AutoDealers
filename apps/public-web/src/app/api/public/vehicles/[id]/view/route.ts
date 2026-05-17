@@ -200,7 +200,7 @@ export async function POST(
           vehicleStockSnapshot: buildVehicleStockSnapshot(vehicle),
           ...(sellerId ? { assignedTo: sellerId } : {}),
           tags: ['catalogo_web', 'ficha_vehiculo', 'interes_explicito'],
-          initialStatus: 'lost',
+          initialStatus: 'new',
         }
       );
 

@@ -2,6 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import {
+  PublishVehicleToSocialModal,
+  type PublishSocialVehicle,
+} from '@autodealers/shared/client';
 
 interface Vehicle {
   id: string;
@@ -35,6 +39,7 @@ export default function AdminAllVehiclesPage() {
     search: '',
   });
   const hydratedTenantFromUrl = useRef(false);
+  const [socialPublishVehicle, setSocialPublishVehicle] = useState<PublishSocialVehicle | null>(null);
 
   useEffect(() => {
     if (hydratedTenantFromUrl.current || typeof window === 'undefined') return;
@@ -474,6 +479,26 @@ export default function AdminAllVehiclesPage() {
                     >
                       Ver tenant
                     </Link>
+                    {vehicle.status === 'available' && (vehicle.photos?.length ?? 0) > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSocialPublishVehicle({
+                            id: vehicle.id,
+                            tenantId: vehicle.tenantId,
+                            make: vehicle.make,
+                            model: vehicle.model,
+                            year: vehicle.year,
+                            price: vehicle.price,
+                            status: vehicle.status,
+                            photos: vehicle.photos,
+                          })
+                        }
+                        className="text-left text-violet-700 hover:text-violet-900 text-sm font-medium"
+                      >
+                        📱 Publicar en redes
+                      </button>
+                    ) : null}
                   </div>
                 </td>
               </tr>
@@ -482,6 +507,14 @@ export default function AdminAllVehiclesPage() {
           </table>
         )}
       </div>
+
+      {socialPublishVehicle ? (
+        <PublishVehicleToSocialModal
+          vehicle={socialPublishVehicle}
+          onClose={() => setSocialPublishVehicle(null)}
+          mode="admin"
+        />
+      ) : null}
     </div>
   );
 }

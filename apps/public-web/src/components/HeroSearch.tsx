@@ -49,9 +49,18 @@ export default function HeroSearch({ vehicles, onSearch }: HeroSearchProps) {
     return Array.from(set).sort((a, b) => a.localeCompare(b, 'es'));
   }, [vehicles, selectedMake]);
 
+  function scrollToInventory() {
+    const target = document.getElementById('vehicles');
+    if (!target) return;
+    const top = target.getBoundingClientRect().top + window.scrollY - 88;
+    window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+  }
+
   function submit(filters: HeroSearchFilters) {
     onSearch(filters);
-    document.getElementById('vehicles-section')?.scrollIntoView({ behavior: 'smooth' });
+    requestAnimationFrame(() => {
+      setTimeout(scrollToInventory, 80);
+    });
   }
 
   function handleSearch(e: React.FormEvent) {

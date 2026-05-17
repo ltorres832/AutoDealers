@@ -8,6 +8,10 @@ import AdvancedMarkAsSoldModal from '@/components/AdvancedMarkAsSoldModal';
 import ScheduleFromInventoryModal, {
   type ScheduleFromInventoryMode,
 } from '@/components/ScheduleFromInventoryModal';
+import {
+  PublishVehicleToSocialModal,
+  type PublishSocialVehicle,
+} from '@autodealers/shared/client';
 
 interface Vehicle {
   id: string;
@@ -52,6 +56,7 @@ export default function InventoryPage() {
     vehicle: Vehicle;
     mode: ScheduleFromInventoryMode;
   } | null>(null);
+  const [socialPublishVehicle, setSocialPublishVehicle] = useState<PublishSocialVehicle | null>(null);
 
   useEffect(() => {
     fetchVehicles();
@@ -196,6 +201,7 @@ export default function InventoryPage() {
                 setShowEditModal(true);
               }}
               onFullSale={(v) => handleMarkAsSold(v as Vehicle)}
+              onPublishSocial={(v) => setSocialPublishVehicle(v as PublishSocialVehicle)}
             />
           ))
         )}
@@ -206,9 +212,12 @@ export default function InventoryPage() {
           onClose={() => {
             setShowCreateModal(false);
           }}
-          onSuccess={() => {
+          onSuccess={(created) => {
             setShowCreateModal(false);
             fetchVehicles();
+            if (created?.photos?.length) {
+              setSocialPublishVehicle(created);
+            }
           }}
         />
       )}
@@ -251,6 +260,14 @@ export default function InventoryPage() {
           }}
         />
       )}
+
+      {socialPublishVehicle ? (
+        <PublishVehicleToSocialModal
+          vehicle={socialPublishVehicle}
+          onClose={() => setSocialPublishVehicle(null)}
+          mode="tenant"
+        />
+      ) : null}
     </div>
   );
 }
@@ -846,7 +863,13 @@ function MarkAsSoldModal({
   );
 }
 
-function CreateVehicleModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+function CreateVehicleModal({
+  onClose,
+  onSuccess,
+}: {
+  onClose: () => void;
+  onSuccess: (created?: PublishSocialVehicle) => void;
+}) {
   const [formData, setFormData] = useState({
     make: '',
     model: '',
@@ -1208,6 +1231,8 @@ function CreateVehicleModal({ onClose, onSuccess }: { onClose: () => void; onSuc
 
       console.log('📊 URLs obtenidas:', { photoUrls, videoUrls });
 
+      let persistedPhotos = [...photoUrls];
+
       // TERCERO: Actualizar el vehículo con las URLs de las fotos y videos
       console.log('📊 Resumen de subida:', {
         vehicleId,
@@ -1308,6 +1333,9 @@ function CreateVehicleModal({ onClose, onSuccess }: { onClose: () => void; onSuc
 
         if (updateResponse.ok) {
           const updateData = await updateResponse.json();
+          if (updateData.vehicle?.photos?.length) {
+            persistedPhotos = updateData.vehicle.photos;
+          }
           console.log('✅ Vehículo actualizado con fotos/videos:', {
             vehicle: updateData.vehicle,
             photosEnRespuesta: updateData.vehicle?.photos?.length || 0,
@@ -1359,8 +1387,18 @@ function CreateVehicleModal({ onClose, onSuccess }: { onClose: () => void; onSuc
         alert(`Error al actualizar fotos/videos del vehículo: ${error.message}`);
       }
 
-      alert('Vehículo creado exitosamente');
-      onSuccess();
+      onSuccess({
+        id: vehicleId,
+        make: formData.make,
+        model: formData.model,
+        year: formData.year,
+        price: parseFloat(formData.price),
+        currency: formData.currency,
+        condition: formData.condition,
+        status: 'available',
+        mileage: formData.mileage ? parseInt(formData.mileage, 10) : undefined,
+        photos: persistedPhotos,
+      });
     } catch (error: any) {
       console.error('Error:', error);
       alert(error.message || 'Error al crear vehículo');

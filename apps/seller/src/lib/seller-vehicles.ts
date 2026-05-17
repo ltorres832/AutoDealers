@@ -23,11 +23,36 @@ function isExcludedStatus(vehicle: SellerVehicleRow): boolean {
 }
 
 export function vehicleBelongsToSeller(vehicle: SellerVehicleRow, sellerId: string): boolean {
+  const id = sellerId.trim();
+  if (!id) return false;
   return (
-    vehicle.sellerId === sellerId ||
-    vehicle.assignedTo === sellerId ||
-    vehicle.createdBy === sellerId
+    vehicle.sellerId === id ||
+    vehicle.assignedTo === id ||
+    vehicle.createdBy === id
   );
+}
+
+/** Solo vehículos del vendedor — sin fallback al inventario completo del dealer. */
+export function filterVehiclesOwnedBySeller(
+  vehicles: SellerVehicleRow[],
+  sellerId: string
+): SellerVehicleRow[] {
+  return vehicles.filter((v) => vehicleBelongsToSeller(v, sellerId));
+}
+
+export async function findSellerVehicleById(
+  auth: AuthUser,
+  vehicleId: string
+): Promise<{ vehicle: SellerVehicleRow; tenantId: string } | null> {
+  const all = await loadVehiclesForSellerWorkspace(auth);
+  const vehicle = all.find((v) => v.id === vehicleId);
+  if (!vehicle || !vehicleBelongsToSeller(vehicle, auth.userId)) {
+    return null;
+  }
+  const tenantId =
+    (typeof vehicle.tenantId === 'string' && vehicle.tenantId.trim()) ||
+    auth.tenantId;
+  return { vehicle, tenantId };
 }
 
 /** Catálogo del vendedor: no filtrar por publishedOnPublicPage (todos los autos del vendedor se muestran). */
@@ -72,15 +97,8 @@ export function filterSellerWorkspaceInventory(
   vehicles: SellerVehicleRow[],
   sellerId: string
 ): SellerVehicleRow[] {
-  const active = vehicles.filter((v) => !isExcludedStatus(v));
-
-  const mine = active.filter((v) => vehicleBelongsToSeller(v, sellerId));
-  if (mine.length > 0) return mine;
-
-  const anySellerId = active.some((v) => Boolean(v.sellerId));
-  if (anySellerId) return [];
-
-  return active;
+  const owned = filterVehiclesOwnedBySeller(vehicles, sellerId);
+  return owned.filter((v) => !isExcludedStatus(v));
 }
 
 /** Vehículos que deben aparecer en /seller/[id] y catálogo público del vendedor. */

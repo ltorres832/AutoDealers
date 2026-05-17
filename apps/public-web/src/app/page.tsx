@@ -555,7 +555,11 @@ export default function LandingPage() {
     } else if (banner.linkType === 'filter') {
       const filterData = JSON.parse(banner.linkValue);
       setFilters(prev => ({ ...prev, ...filterData }));
-      document.getElementById('vehicles-section')?.scrollIntoView({ behavior: 'smooth' });
+      const target = document.getElementById('vehicles');
+      if (target) {
+        const top = target.getBoundingClientRect().top + window.scrollY - 88;
+        window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+      }
     }
   }, [vehicles]);
 
@@ -805,6 +809,13 @@ export default function LandingPage() {
                       condition: f.condition || 'all',
                       bodyType: f.bodyType ?? prev.bodyType,
                     }));
+                    requestAnimationFrame(() => {
+                      const target = document.getElementById('vehicles');
+                      if (target) {
+                        const top = target.getBoundingClientRect().top + window.scrollY - 88;
+                        window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+                      }
+                    });
                   }}
                 />
             </div>
@@ -1033,111 +1044,6 @@ export default function LandingPage() {
             {/* Sidebar con anuncios y filtros rápidos */}
             <aside className="lg:col-span-1 order-2 lg:order-1 flex flex-col gap-8">
               <div className="sticky top-24 flex flex-col gap-8">
-                {/* Advanced Search Context Card */}
-                <div className="bg-slate-900 rounded-3xl p-6 text-white shadow-2xl relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/20 rounded-full blur-3xl group-hover:bg-blue-600/40 transition-all"></div>
-                  <h4 className="text-sm font-bold opacity-60 uppercase tracking-widest mb-4">Filtrado Inteligente</h4>
-                  <p className="text-lg font-bold mb-6 leading-snug">Refina tu búsqueda por características técnicas</p>
-
-                  <div className="space-y-5 mb-6">
-                    {/* Transmisión */}
-                    <div className="flex flex-col gap-2">
-                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest pl-1">Transmisión</span>
-                      <div className="relative">
-                        <select
-                          value={filters.transmission}
-                          onChange={(e) => setFilters({ ...filters, transmission: e.target.value })}
-                          className="w-full bg-white/5 text-sm font-bold p-3 rounded-xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500/50 appearance-none cursor-pointer"
-                        >
-                          <option value="all" className="bg-slate-900">Todas</option>
-                          <option value="automatic" className="bg-slate-900">Automática</option>
-                          <option value="manual" className="bg-slate-900">Manual</option>
-                        </select>
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/30">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Combustible */}
-                    <div className="flex flex-col gap-2">
-                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest pl-1">Combustible</span>
-                      <div className="relative">
-                        <select
-                          value={filters.fuelType}
-                          onChange={(e) => setFilters({ ...filters, fuelType: e.target.value })}
-                          className="w-full bg-white/5 text-sm font-bold p-3 rounded-xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500/50 appearance-none cursor-pointer"
-                        >
-                          <option value="all" className="bg-slate-900">Todos</option>
-                          <option value="gasoline" className="bg-slate-900">Gasolina</option>
-                          <option value="electric" className="bg-slate-900">Eléctrico</option>
-                          <option value="hybrid" className="bg-slate-900">Híbrido</option>
-                        </select>
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/30">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Rango de Precio */}
-                    <div className="flex flex-col gap-2">
-                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest pl-1">Rango de Precio</span>
-                      <div className="grid grid-cols-2 gap-2">
-                        <input
-                          type="number"
-                          placeholder="Min"
-                          value={filters.priceMin}
-                          onChange={(e) => setFilters({ ...filters, priceMin: e.target.value })}
-                          className="w-full bg-white/5 text-sm font-bold p-3 rounded-xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder:text-white/20"
-                        />
-                        <input
-                          type="number"
-                          placeholder="Max"
-                          value={filters.priceMax}
-                          onChange={(e) => setFilters({ ...filters, priceMax: e.target.value })}
-                          className="w-full bg-white/5 text-sm font-bold p-3 rounded-xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder:text-white/20"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Rango de Año */}
-                    <div className="flex flex-col gap-2 pb-4">
-                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest pl-1">Rango de Año</span>
-                      <div className="grid grid-cols-2 gap-2">
-                        <input
-                          type="number"
-                          placeholder="Desde"
-                          value={filters.yearMin}
-                          onChange={(e) => setFilters({ ...filters, yearMin: e.target.value })}
-                          className="w-full bg-white/5 text-sm font-bold p-3 rounded-xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder:text-white/20"
-                        />
-                        <input
-                          type="number"
-                          placeholder="Hasta"
-                          value={filters.yearMax}
-                          onChange={(e) => setFilters({ ...filters, yearMax: e.target.value })}
-                          className="w-full bg-white/5 text-sm font-bold p-3 rounded-xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder:text-white/20"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => setFilters({
-                      ...filters,
-                      transmission: 'all',
-                      fuelType: 'all',
-                      priceMin: '',
-                      priceMax: '',
-                      yearMin: '',
-                      yearMax: ''
-                    })}
-                    className="w-full py-3 text-[10px] font-black uppercase tracking-[0.2em] text-blue-400 border border-blue-400/30 rounded-xl hover:bg-blue-400 hover:text-white transition-all"
-                  >
-                    Limpiar Filtros
-                  </button>
-                </div>
-
                 <SidebarBanner />
 
                 {/* Sell CTA Mini — copy y visibilidad desde admin (/admin/settings/free-public-listings) */}

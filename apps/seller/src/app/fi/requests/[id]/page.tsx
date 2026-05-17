@@ -10,7 +10,7 @@ import FICalculator from '@/components/FICalculator';
 import FIApprovalScore from '@/components/FIApprovalScore';
 import { useAuth } from '@/hooks/useAuth';
 import { useRealtimeFIRequest } from '@/hooks/useRealtimeFIRequest';
-import { expeditionStageLabel } from '@autodealers/crm';
+import { expeditionStageLabel } from '@autodealers/shared/client';
 
 interface FIRequest {
   id: string;

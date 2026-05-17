@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { ToastNotification, type ToastData } from '@autodealers/shared/client';
 
 interface Template {
   id: string;
@@ -22,6 +23,14 @@ export default function TemplatesPage() {
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [toast, setToast] = useState<ToastData | null>(null);
+
+  const showToast = useCallback(
+    (type: ToastData['type'], title: string, message?: string) => {
+      setToast({ id: String(Date.now()), type, title, message });
+    },
+    []
+  );
 
   useEffect(() => {
     fetchTemplates();
@@ -74,27 +83,31 @@ export default function TemplatesPage() {
         
         // Si es un 404, el endpoint no existe
         if (response.status === 404) {
-          alert('Error: El endpoint no existe. Por favor verifica que la aplicación esté corriendo correctamente.');
+          showToast('error', 'Error', 'El endpoint no existe. Verifica que la aplicación esté corriendo correctamente.');
         } else {
-          alert(`Error: El servidor devolvió una respuesta no válida (${response.status}). Por favor verifica los logs de la consola.`);
+          showToast('error', 'Error', `El servidor devolvió una respuesta no válida (${response.status}).`);
         }
         return;
       }
 
       if (response.ok) {
         const count = data.count || 0;
-        alert(`Templates inicializados exitosamente. Se crearon ${count} templates.`);
+        showToast(
+          'success',
+          'Templates inicializados',
+          `Se crearon ${count} template${count === 1 ? '' : 's'}.`
+        );
         await fetchTemplates();
       } else {
         const errorMsg = data.error || 'Error al inicializar templates';
-        const message = data.message ? `\n${data.message}` : '';
-        const details = data.details ? '\nDetalles: ' + JSON.stringify(data.details) : '';
-        alert(errorMsg + message + details);
+        const message = data.message ? String(data.message) : undefined;
+        showToast('error', errorMsg, message);
         console.error('Error initializing templates:', data);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Error desconocido';
       console.error('Error:', error);
-      alert('Error al inicializar templates: ' + (error.message || 'Error desconocido') + '\nPor favor verifica la consola para más detalles.');
+      showToast('error', 'Error al inicializar templates', message);
     }
   }
 
@@ -312,6 +325,8 @@ export default function TemplatesPage() {
           onSave={fetchTemplates}
         />
       )}
+
+      <ToastNotification toast={toast} onClose={() => setToast(null)} />
     </div>
   );
 }

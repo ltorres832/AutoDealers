@@ -1,7 +1,7 @@
 'use client';
 
 import LeadsList from '@/components/LeadsList';
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import Link from 'next/link';
 
 export default function LeadsPage() {
@@ -43,7 +43,9 @@ export default function LeadsPage() {
         .
       </div>
 
-      <LeadsList />
+      <Suspense fallback={<p className="text-gray-500">Cargando leads…</p>}>
+        <LeadsList />
+      </Suspense>
 
       {showCreateModal && (
         <CreateLeadModal 

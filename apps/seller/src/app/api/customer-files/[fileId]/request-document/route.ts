@@ -13,10 +13,10 @@ function generateRandomId(): string {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ fileId: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { fileId } = await params;
     const auth = await verifyAuth(request);
     if (!auth || !auth.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -45,7 +45,7 @@ export async function POST(
       .collection('tenants')
       .doc(auth.tenantId)
       .collection('customer_files')
-      .doc(id);
+      .doc(fileId);
 
     const fileDoc = await fileRef.get();
     if (!fileDoc.exists) {
@@ -55,7 +55,6 @@ export async function POST(
     const fileData = fileDoc.data();
     const requestedDocuments = fileData?.requestedDocuments || [];
 
-    // Crear el objeto del documento con fecha actual (no serverTimestamp dentro del array)
     const requestedAt = new Date();
     const newRequest = {
       id: generateRandomId(),
@@ -63,7 +62,7 @@ export async function POST(
       description: description || '',
       type: type || 'other',
       required: required !== false,
-      requestedAt: requestedAt, // Usar Date en lugar de serverTimestamp()
+      requestedAt,
       requestedBy: auth.userId,
       status: 'pending',
     };
@@ -76,7 +75,7 @@ export async function POST(
     } as any);
 
     await recordFeatureUsage(auth.tenantId, 'requestCustomerDocuments', {
-      customerFileId: id,
+      customerFileId: fileId,
     });
 
     return NextResponse.json({
@@ -85,12 +84,9 @@ export async function POST(
         requestedAt: new Date(),
       },
     });
-  } catch (error: any) {
-    console.error('Error en POST /api/customer-files/[id]/request-document:', error);
-    return NextResponse.json(
-      { error: error.message || 'Error al solicitar documento' },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Error al solicitar documento';
+    console.error('Error en POST /api/customer-files/[fileId]/request-document:', error);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-

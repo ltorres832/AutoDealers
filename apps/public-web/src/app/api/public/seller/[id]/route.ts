@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirestore } from '@autodealers/core';
+import { getPublicReviewsForSeller } from '@autodealers/crm';
+import { normalizeWebsiteSettingsFromFirestore } from '@/lib/website-settings-normalize';
 import { normalizeMisplacedFirebaseAppHostingUrl } from '@/lib/normalize-app-hosting-url';
 import { normalizeVehiclesArray } from '@/lib/vehicle-photos-normalize';
 import { isSellerVisibleOnPublicListing } from '@/lib/public-catalog-visibility';
@@ -13,6 +15,48 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 // Helper para agregar timeout a promesas
+function pickSocialMedia(source: unknown): Record<string, string> {
+  if (!source || typeof source !== 'object' || Array.isArray(source)) return {};
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(source as Record<string, unknown>)) {
+    if (typeof value === 'string' && value.trim()) {
+      out[key] = value.trim();
+    }
+  }
+  return out;
+}
+
+async function collectTenantIdsForPublicSeller(
+  db: ReturnType<typeof getFirestore>,
+  sellerId: string,
+  sellerData: Record<string, unknown>,
+  primaryTenantId: string
+): Promise<string[]> {
+  const ids = new Set<string>([primaryTenantId]);
+
+  const addRef = async (ref: unknown) => {
+    if (typeof ref !== 'string' || !ref.trim()) return;
+    const r = ref.trim();
+    const tenantDoc = await db.collection('tenants').doc(r).get();
+    if (tenantDoc.exists) {
+      ids.add(r);
+      return;
+    }
+    const userDoc = await db.collection('users').doc(r).get();
+    const tid = userDoc.data()?.tenantId;
+    if (typeof tid === 'string' && tid.trim()) ids.add(tid.trim());
+  };
+
+  await addRef(sellerData.dealerId);
+  if (Array.isArray(sellerData.associatedDealers)) {
+    for (const d of sellerData.associatedDealers) {
+      await addRef(d);
+    }
+  }
+
+  return [...ids];
+}
+
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   return Promise.race([
     promise,
@@ -91,25 +135,24 @@ export async function GET(
 
     const tenantData = tenantDoc.exists ? tenantDoc.data() : null;
 
-    const tenantIds = new Set<string>([tenantId]);
-    if (typeof sellerData.dealerId === 'string' && sellerData.dealerId.trim()) {
-      tenantIds.add(sellerData.dealerId.trim());
-    }
-    if (Array.isArray(sellerData.associatedDealers)) {
-      for (const d of sellerData.associatedDealers) {
-        if (typeof d === 'string' && d.trim()) tenantIds.add(d.trim());
-      }
-    }
+    const tenantIds = new Set(
+      await collectTenantIdsForPublicSeller(
+        db,
+        sellerId,
+        sellerData as Record<string, unknown>,
+        tenantId
+      )
+    );
 
     console.log(`📦 Fetching vehicles from tenants: ${[...tenantIds].join(', ')}...`);
 
     const vehicleDocs: Array<{ id: string; data: () => Record<string, unknown> }> = [];
     try {
       for (const tid of tenantIds) {
-        const snap = await withTimeout(
+        const snap = (await withTimeout(
           db.collection('tenants').doc(tid).collection('vehicles').limit(120).get(),
           15000
-        );
+        )) as { docs: Array<{ id: string }> };
         for (const doc of snap.docs) {
           if (!vehicleDocs.some((x) => x.id === doc.id)) {
             vehicleDocs.push(doc);
@@ -217,14 +260,32 @@ export async function GET(
       vehicles.map((v) => ({ ...v } as Record<string, unknown>))
     );
 
+    const publicReviews = await getPublicReviewsForSeller(
+      [...tenantIds],
+      sellerId,
+      12
+    );
+
+    const approvedRatings = publicReviews
+      .map((r) => Number(r.rating))
+      .filter((n) => n >= 1 && n <= 5);
+    const sellerRating =
+      approvedRatings.length > 0
+        ? approvedRatings.reduce((a, b) => a + b, 0) / approvedRatings.length
+        : Number(sellerData.sellerRating) || 0;
+    const sellerRatingCount =
+      approvedRatings.length > 0
+        ? approvedRatings.length
+        : Number(sellerData.sellerRatingCount) || 0;
+
     const responseData = {
       seller: {
         id: sellerDoc.id,
         name: sellerData.name || 'Vendedor',
         title: sellerData.title || sellerData.jobTitle || 'Vendedor',
         photo: sellerData.photo || sellerData.photoUrl || '',
-        sellerRating: sellerData.sellerRating || 0,
-        sellerRatingCount: sellerData.sellerRatingCount || 0,
+        sellerRating,
+        sellerRatingCount,
         email: sellerData.email || '',
         phone: sellerData.phone || '',
         whatsapp: sellerData.whatsapp || sellerData.phone || '',
@@ -237,9 +298,51 @@ export async function GET(
           typeof sellerData.publicPromoVideoUrl === 'string'
             ? sellerData.publicPromoVideoUrl.trim()
             : '',
+        socialMedia: {
+          ...pickSocialMedia(tenantData?.socialMedia),
+          ...pickSocialMedia(sellerData.socialMedia),
+        },
       },
-      websiteSettings: tenantData?.websiteSettings ?? null,
+      websiteSettings: normalizeWebsiteSettingsFromFirestore(
+        (tenantData?.websiteSettings as Record<string, unknown>) || {}
+      ),
+      branding: {
+        primaryColor:
+          (tenantData?.branding as { primaryColor?: string })?.primaryColor || '#2563EB',
+        secondaryColor:
+          (tenantData?.branding as { secondaryColor?: string })?.secondaryColor || '#1E40AF',
+      },
+      profile: {
+        bio: typeof sellerData.bio === 'string' ? sellerData.bio : '',
+        description: typeof sellerData.description === 'string' ? sellerData.description : '',
+        address: sellerData.address,
+        city: typeof sellerData.city === 'string' ? sellerData.city : '',
+        state: typeof sellerData.state === 'string' ? sellerData.state : '',
+        zipCode: typeof sellerData.zipCode === 'string' ? sellerData.zipCode : '',
+        businessHours:
+          typeof sellerData.businessHours === 'string' ? sellerData.businessHours : '',
+      },
       vehicles: vehiclesOut,
+      reviews: publicReviews.map((r) => ({
+        id: r.id,
+        customerName: r.customerName,
+        rating: r.rating,
+        title: r.title,
+        comment: r.comment,
+        photos: r.photos,
+        createdAt:
+          r.createdAt instanceof Date ? r.createdAt.toISOString() : r.createdAt,
+        response: r.response
+          ? {
+              text: r.response.text,
+              respondedBy: r.response.respondedBy,
+              respondedAt:
+                r.response.respondedAt instanceof Date
+                  ? r.response.respondedAt.toISOString()
+                  : r.response.respondedAt,
+            }
+          : undefined,
+      })),
     };
 
     console.log(`✅ Response ready: seller=${responseData.seller.name}, vehicles=${responseData.vehicles.length}`);

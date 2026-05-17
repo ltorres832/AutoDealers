@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import StarRating from '../../../components/StarRating';
+import PublicReviewsList, { type PublicReviewItem } from '@/components/PublicReviewsList';
 import { getFirstPhoto, handleImageError } from '@/lib/vehicle-image';
 
 interface Dealer {
@@ -53,6 +54,7 @@ export default function DealerPublicPage() {
   const [dealer, setDealer] = useState<Dealer | null>(null);
   const [sellers, setSellers] = useState<Seller[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [reviews, setReviews] = useState<PublicReviewItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -83,6 +85,7 @@ export default function DealerPublicPage() {
         setDealer(data.dealer);
         setSellers(data.sellers || []);
         setVehicles(data.vehicles || []);
+        setReviews(Array.isArray(data.reviews) ? data.reviews : []);
       } else {
         const errorData = await response.json();
         console.error('❌ Error fetching dealer data:', errorData);
@@ -260,6 +263,12 @@ export default function DealerPublicPage() {
             </div>
           </div>
         </div>
+
+        <PublicReviewsList
+          reviews={reviews}
+          title="Opiniones de clientes"
+          className="mb-8"
+        />
 
         {/* Vendedores del Dealer */}
         {sellers.length > 0 && (

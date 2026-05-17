@@ -4,8 +4,11 @@ import { getLeads } from '@autodealers/crm';
 import { getSalesBySeller } from '@autodealers/crm';
 import { getAppointmentsBySeller } from '@autodealers/crm';
 import { getMessagesByChannel } from '@autodealers/crm';
-import { getVehicles } from '@autodealers/inventory';
 import { getFirestore } from '@autodealers/core';
+import {
+  filterVehiclesOwnedBySeller,
+  loadVehiclesForSellerWorkspace,
+} from '@/lib/seller-vehicles';
 
 // Lazy initialization para evitar dependencias circulares
 function getDb() {
@@ -46,7 +49,7 @@ export async function GET(request: NextRequest) {
     const db = getDb();
     
     // Obtener datos en paralelo con límites optimizados
-    const [leads, sales, messages, vehicles, appointmentsToday, promotionsSnapshot] = await Promise.all([
+    const [leads, sales, messages, vehiclesRaw, appointmentsToday, promotionsSnapshot] = await Promise.all([
       getLeads(auth.tenantId, { assignedTo: auth.userId, limit: 50 }).catch(err => {
         console.error('Error fetching leads:', err);
         return [];
@@ -59,7 +62,7 @@ export async function GET(request: NextRequest) {
         console.error('Error fetching messages:', err);
         return [];
       }),
-      getVehicles(auth.tenantId).catch(err => {
+      loadVehiclesForSellerWorkspace(auth).catch((err) => {
         console.error('Error fetching vehicles:', err);
         return [];
       }),
@@ -74,6 +77,8 @@ export async function GET(request: NextRequest) {
         return { docs: [] };
       }),
     ]);
+
+    const vehicles = filterVehiclesOwnedBySeller(vehiclesRaw, auth.userId);
 
     // Calcular estadísticas (las fechas ya están calculadas arriba)
 

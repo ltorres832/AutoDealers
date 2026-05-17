@@ -1,6 +1,6 @@
 buildConfig:
   runtime: nodejs20
-  buildCommand: npm ci --legacy-peer-deps && cd apps/advertiser && npm run build
+  buildCommand: npm ci --legacy-peer-deps && npm run build --workspace=@autodealers/shared && cd apps/advertiser && npm run build
   outputDir: .next
 
 runConfig:

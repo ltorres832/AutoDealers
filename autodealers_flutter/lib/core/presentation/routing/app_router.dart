@@ -103,6 +103,10 @@ import '../../../features/dealer/pages/seller_activity_page.dart';
 import '../../../features/dealer/pages/users_page.dart';
 import '../../../features/dealer/pages/dealers_page.dart';
 import '../../../features/dealer/pages/settings_page.dart';
+import '../pages/settings_integrations_page.dart';
+import '../pages/settings_templates_page.dart';
+import '../pages/customer_file_detail_page.dart';
+import '../../data/repositories/tenant_api_repository.dart';
 
 // Seller pages
 import '../../../features/seller/pages/dashboard_page.dart';
@@ -878,6 +882,15 @@ class AppRouter {
           GoRoute(
             path: 'customer-files',
             builder: (context, state) => const DealerCustomerFilesPage(),
+            routes: [
+              GoRoute(
+                path: ':id',
+                builder: (context, state) {
+                  final id = state.pathParameters['id']!;
+                  return CustomerFileDetailPage(fileId: id);
+                },
+              ),
+            ],
           ),
           GoRoute(
             path: 'fi',
@@ -957,10 +970,24 @@ class AppRouter {
             builder: (context, state) => const DealerSettingsPage(),
             routes: [
               GoRoute(
+                path: 'integrations',
+                builder: (context, state) => const SettingsIntegrationsPage(),
+              ),
+              GoRoute(
+                path: 'templates',
+                builder: (context, state) => const SettingsTemplatesPage(app: TenantApp.dealer),
+              ),
+              GoRoute(
                 path: ':section',
                 builder: (context, state) {
                   final section = state.pathParameters['section'] ?? 'Configuración';
-                  final title = section == 'profile' ? 'Perfil' : section == 'membership' ? 'Membresía' : section == 'payment-methods' ? 'Métodos de Pago' : section == 'integrations' ? 'Integraciones' : section == 'branding' ? 'Branding' : section == 'corporate-emails' ? 'Emails Corporativos' : section == 'templates' ? 'Plantillas' : section == 'policies' ? 'Políticas' : section == 'ai' ? 'Configuración IA' : section == 'website' ? 'Sitio Web' : section == 'fi-manager' ? 'Gestor FI' : section;
+                  if (section == 'integrations') {
+                    return const SettingsIntegrationsPage();
+                  }
+                  if (section == 'templates') {
+                    return const SettingsTemplatesPage(app: TenantApp.dealer);
+                  }
+                  final title = section == 'profile' ? 'Perfil' : section == 'membership' ? 'Membresía' : section == 'payment-methods' ? 'Métodos de Pago' : section == 'branding' ? 'Branding' : section == 'corporate-emails' ? 'Emails Corporativos' : section == 'policies' ? 'Políticas' : section == 'ai' ? 'Configuración IA' : section == 'website' ? 'Sitio Web' : section == 'fi-manager' ? 'Gestor FI' : section;
                   return AdminPlaceholderPage(title: title);
                 },
               ),
@@ -1098,6 +1125,15 @@ class AppRouter {
           GoRoute(
             path: 'customer-files',
             builder: (context, state) => const SellerCustomerFilesPage(),
+            routes: [
+              GoRoute(
+                path: ':id',
+                builder: (context, state) {
+                  final id = state.pathParameters['id']!;
+                  return CustomerFileDetailPage(fileId: id);
+                },
+              ),
+            ],
           ),
           GoRoute(
             path: 'fi',
@@ -1183,9 +1219,23 @@ class AppRouter {
             builder: (context, state) => const SellerSettingsPage(),
             routes: [
               GoRoute(
+                path: 'integrations',
+                builder: (context, state) => const SettingsIntegrationsPage(),
+              ),
+              GoRoute(
+                path: 'templates',
+                builder: (context, state) => const SettingsTemplatesPage(app: TenantApp.seller),
+              ),
+              GoRoute(
                 path: ':section',
                 builder: (context, state) {
                   final section = state.pathParameters['section'] ?? '';
+                  if (section == 'integrations') {
+                    return const SettingsIntegrationsPage();
+                  }
+                  if (section == 'templates') {
+                    return const SettingsTemplatesPage(app: TenantApp.seller);
+                  }
                   final title = section == 'profile' ? 'Perfil' : section == 'notifications' ? 'Notificaciones' : section == 'security' ? 'Seguridad' : section;
                   return AdminPlaceholderPage(title: title.isEmpty ? 'Configuración' : title);
                 },

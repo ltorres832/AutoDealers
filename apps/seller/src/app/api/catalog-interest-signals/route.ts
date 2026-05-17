@@ -270,6 +270,17 @@ export async function GET(request: NextRequest) {
     });
   } catch (e) {
     console.error('[catalog-interest-signals]', e);
+    const code = typeof e === 'object' && e !== null && 'code' in e ? (e as { code: unknown }).code : null;
+    const message = e instanceof Error ? e.message : String(e);
+    if (code === 9 || /index|FAILED_PRECONDITION/i.test(message)) {
+      return NextResponse.json(
+        {
+          error:
+            'Falta un índice de Firestore para esta consulta. Despliega firestore.indexes.json o usa la consola de Firebase para crearlo.',
+        },
+        { status: 503 }
+      );
+    }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

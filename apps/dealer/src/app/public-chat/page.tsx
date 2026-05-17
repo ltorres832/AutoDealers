@@ -73,7 +73,18 @@ export default function PublicChatPage() {
       const response = await fetch('/api/public-chat/conversations');
       if (response.ok) {
         const data = await response.json();
-        setConversations(data.conversations || []);
+        const list = (data.conversations || []).map(
+          (c: Conversation & { lastMessage?: string | { content?: string } }) => ({
+            ...c,
+            lastMessage:
+              typeof c.lastMessage === 'string'
+                ? c.lastMessage
+                : c.lastMessage?.content
+                  ? String(c.lastMessage.content)
+                  : null,
+          })
+        );
+        setConversations(list);
       }
     } catch (error) {
       console.error('Error:', error);

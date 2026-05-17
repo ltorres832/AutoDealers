@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirestore } from '@autodealers/core';
+import {
+  getPublicReviewsForDealer,
+  resolveDealerPublicRating,
+  resolveSellerPublicRating,
+} from '@autodealers/crm';
 import { normalizeVehiclesArray } from '@/lib/vehicle-photos-normalize';
 import { isVehicleVisibleOnPublicListing } from '@/lib/public-catalog-visibility';
 
@@ -124,32 +129,48 @@ export async function GET(
 
     console.log(`📊 [DEALER ENDPOINT] Vehicles by seller (TOTAL, including sold):`, vehiclesBySeller);
 
-    const sellers = sellersSnapshot.docs.map((doc: any) => {
-      const sellerData = doc.data();
-      const sellerId = doc.id;
-      const vehiclesCount = vehiclesBySeller[sellerId] || 0;
+    const sellers = await Promise.all(
+      sellersSnapshot.docs.map(async (doc: any) => {
+        const sellerData = doc.data();
+        const sellerId = doc.id;
+        const vehiclesCount = vehiclesBySeller[sellerId] || 0;
+        const { rating, count } = await resolveSellerPublicRating(
+          [tenantId],
+          sellerId,
+          Number(sellerData.sellerRating) || 0,
+          Number(sellerData.sellerRatingCount) || 0
+        );
 
-      console.log(`👤 [DEALER ENDPOINT] Seller ${sellerData.name} (${sellerId}): ${vehiclesCount} vehicles`);
-
-      return {
-        id: sellerId,
-        name: sellerData.name || 'Sin nombre',
-        title: sellerData.title || sellerData.jobTitle || 'Vendedor',
-        photo: sellerData.photo || sellerData.photoUrl || '',
-        sellerRating: sellerData.sellerRating || 0,
-        sellerRatingCount: sellerData.sellerRatingCount || 0,
-        email: sellerData.email || '',
-        phone: sellerData.phone || '',
-        whatsapp: sellerData.whatsapp || sellerData.phone || '',
-        vehiclesCount: vehiclesCount,
-      };
-    });
+        return {
+          id: sellerId,
+          name: sellerData.name || 'Sin nombre',
+          title: sellerData.title || sellerData.jobTitle || 'Vendedor',
+          photo: sellerData.photo || sellerData.photoUrl || '',
+          sellerRating: rating,
+          sellerRatingCount: count,
+          email: sellerData.email || '',
+          phone: sellerData.phone || '',
+          whatsapp: sellerData.whatsapp || sellerData.phone || '',
+          vehiclesCount: vehiclesCount,
+        };
+      })
+    );
 
     console.log(`✅ Returning ${sellers.length} sellers with vehicle counts`);
 
     const vehiclesNormalized = normalizeVehiclesArray(
       vehicles.map((v) => ({ ...v } as Record<string, unknown>))
     );
+
+    const { rating: dealerRating, count: dealerRatingCount } =
+      await resolveDealerPublicRating(
+        tenantId,
+        dealerId,
+        Number(dealerData.dealerRating) || 0,
+        Number(dealerData.dealerRatingCount) || 0
+      );
+
+    const publicReviews = await getPublicReviewsForDealer(tenantId, dealerId, 12);
 
     return NextResponse.json({
       dealer: {
@@ -158,8 +179,8 @@ export async function GET(
         companyName: tenantData?.companyName || tenantData?.name || 'Dealer',
         tenantId: tenantId,
         tenantName: tenantData?.name || 'Dealer',
-        dealerRating: dealerData.dealerRating || 0,
-        dealerRatingCount: dealerData.dealerRatingCount || 0,
+        dealerRating,
+        dealerRatingCount,
         email: dealerData.email || tenantData?.email || '',
         phone: dealerData.phone || tenantData?.phone || '',
         whatsapp: dealerData.whatsapp || dealerData.phone || tenantData?.phone || '',
@@ -167,6 +188,27 @@ export async function GET(
       },
       vehicles: vehiclesNormalized,
       sellers,
+      reviews: publicReviews.map((r) => ({
+        id: r.id,
+        customerName: r.customerName,
+        rating: r.rating,
+        title: r.title,
+        comment: r.comment,
+        photos: r.photos,
+        sellerId: r.sellerId,
+        createdAt:
+          r.createdAt instanceof Date ? r.createdAt.toISOString() : r.createdAt,
+        response: r.response
+          ? {
+              text: r.response.text,
+              respondedBy: r.response.respondedBy,
+              respondedAt:
+                r.response.respondedAt instanceof Date
+                  ? r.response.respondedAt.toISOString()
+                  : r.response.respondedAt,
+            }
+          : undefined,
+      })),
     }, {
       headers: {
         'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',

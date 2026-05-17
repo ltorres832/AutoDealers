@@ -25,9 +25,13 @@ export async function GET(request: NextRequest) {
     const limits: any[] = [];
 
     // Si el seller tiene su propio inventario (algunos planes lo permiten)
-    if (features.maxInventory && features.maxInventory > 0) {
-      const { getVehicles } = await import('@autodealers/inventory');
-      const vehicles = await getVehicles(auth.tenantId);
+    if (features.maxInventory && features.maxInventory > 0 && auth.role === 'seller') {
+      const {
+        filterVehiclesOwnedBySeller,
+        loadVehiclesForSellerWorkspace,
+      } = await import('@/lib/seller-vehicles');
+      const all = await loadVehiclesForSellerWorkspace(auth);
+      const vehicles = filterVehiclesOwnedBySeller(all, auth.userId);
       limits.push({
         name: 'Inventario',
         current: vehicles.length,

@@ -6,43 +6,9 @@ import {
   applyVehicleListingActionForSeller,
   keepVehicleListingActiveForSeller,
 } from '@/lib/vehicle-listing-actions';
+import { findSellerVehicleById } from '@/lib/seller-vehicles';
 
 const db = getFirestore();
-
-async function resolveVehicleTenantId(
-  auth: { tenantId: string; userId: string; dealerId?: string },
-  vehicleId: string
-): Promise<string | null> {
-  const tenantIds = new Set<string>([auth.tenantId]);
-  if (auth.dealerId) tenantIds.add(auth.dealerId);
-
-  for (const tenantId of tenantIds) {
-    const snap = await db
-      .collection('tenants')
-      .doc(tenantId)
-      .collection('vehicles')
-      .doc(vehicleId)
-      .get();
-    if (snap.exists) return tenantId;
-  }
-
-  const userDoc = await db.collection('users').doc(auth.userId).get();
-  const associated = userDoc.data()?.associatedDealers;
-  if (Array.isArray(associated)) {
-    for (const dealerId of associated) {
-      if (typeof dealerId !== 'string') continue;
-      const snap = await db
-        .collection('tenants')
-        .doc(dealerId)
-        .collection('vehicles')
-        .doc(vehicleId)
-        .get();
-      if (snap.exists) return dealerId;
-    }
-  }
-
-  return null;
-}
 
 export async function PATCH(
   request: NextRequest,
@@ -50,7 +16,7 @@ export async function PATCH(
 ) {
   try {
     const auth = await verifyAuth(request);
-    if (!auth?.tenantId) {
+    if (!auth?.tenantId || auth.role !== 'seller') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -59,10 +25,11 @@ export async function PATCH(
     const action = body.action as VehicleListingAction | 'keep_active';
     const showPublicSoldBadge = Boolean(body.showPublicSoldBadge);
 
-    const tenantId = await resolveVehicleTenantId(auth, vehicleId);
-    if (!tenantId) {
+    const owned = await findSellerVehicleById(auth, vehicleId);
+    if (!owned) {
       return NextResponse.json({ error: 'Vehículo no encontrado' }, { status: 404 });
     }
+    const tenantId = owned.tenantId;
 
     if (action === 'keep_active') {
       await keepVehicleListingActiveForSeller(tenantId, vehicleId);

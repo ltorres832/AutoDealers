@@ -4,17 +4,15 @@ import { getFirestore } from '@autodealers/core';
 import * as admin from 'firebase-admin';
 import { deepMerge } from '@/lib/deep-merge';
 import { normalizeWebsiteSettingsFromFirestore } from '@/lib/website-settings-normalize';
+import {
+  buildSubdomainSiteUrl,
+  publicWebBaseUrl,
+  resolvePrimaryPublicSiteUrl,
+} from '@/lib/public-site-url';
 
 const db = getFirestore();
 
 export const dynamic = 'force-dynamic';
-
-function publicWebBaseUrl(): string {
-  return (
-    process.env.NEXT_PUBLIC_PUBLIC_WEB_URL?.replace(/\/$/, '') ||
-    'https://autodealers-7f62e.web.app'
-  );
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -43,20 +41,25 @@ export async function GET(request: NextRequest) {
     const catalogPath = `/seller/${auth.userId}`;
     const publicCatalogUrl = `${publicWebBaseUrl()}${catalogPath}`;
 
-    const publicSubdomainUrl = subdomain
-      ? `${publicWebBaseUrl()}/${subdomain}`
-      : null;
+    const publicSubdomainUrl = subdomain ? buildSubdomainSiteUrl(subdomain) : null;
+
+    const primaryPublicSiteUrl = resolvePrimaryPublicSiteUrl({
+      sellerId: auth.userId,
+      publicCatalogUrl,
+    });
 
     return NextResponse.json({
       settings,
       sellerId: auth.userId,
       subdomain,
       isIndependentSellerWorkspace,
-      /** Catálogo personal del vendedor (recomendado para compartir con clientes). */
+      /** Catálogo legacy /seller/{uid} (no usar como enlace principal). */
       publicCatalogUrl,
       publicCatalogPath: catalogPath,
-      /** Sitio del espacio por subdominio (concesionario o vendedor independiente). */
+      /** Mini-sitio por subdominio (ej. pedroortiz.autodealers.com). */
       publicSubdomainUrl,
+      /** Enlace recomendado para clientes. */
+      primaryPublicSiteUrl,
       publicWebBaseUrl: publicWebBaseUrl(),
     });
   } catch (error: unknown) {

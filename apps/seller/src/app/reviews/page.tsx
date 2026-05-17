@@ -43,6 +43,30 @@ export default function ReviewsPage() {
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
   const [showResponseModal, setShowResponseModal] = useState(false);
   const [responseText, setResponseText] = useState('');
+  const [syncingPublic, setSyncingPublic] = useState(false);
+
+  async function handleSyncPublicRatings() {
+    setSyncingPublic(true);
+    try {
+      const response = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'sync-public-ratings' }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        alert(data.message || 'Calificaciones sincronizadas en la web pública.');
+        fetchReviews();
+        fetchStats();
+      } else {
+        alert(data.error || 'No se pudo sincronizar');
+      }
+    } catch {
+      alert('Error al sincronizar calificaciones');
+    } finally {
+      setSyncingPublic(false);
+    }
+  }
 
   useEffect(() => {
     fetchReviews();
@@ -201,12 +225,22 @@ export default function ReviewsPage() {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Reseñas</h1>
           <p className="text-gray-600">Gestiona las reseñas de tus clientes</p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 font-medium"
-        >
-          ➕ Crear Reseña
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={handleSyncPublicRatings}
+            disabled={syncingPublic}
+            className="border border-primary-600 text-primary-700 px-5 py-3 rounded-lg hover:bg-primary-50 font-medium disabled:opacity-50"
+          >
+            {syncingPublic ? 'Sincronizando…' : '🌐 Sincronizar en la web'}
+          </button>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 font-medium"
+          >
+            ➕ Crear Reseña
+          </button>
+        </div>
       </div>
 
       {/* Estadísticas */}

@@ -13,13 +13,17 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       conversations: conversations.map((conv) => ({
-        ...conv,
-        lastMessage: conv.lastMessage
-          ? {
-              ...conv.lastMessage,
-              createdAt: conv.lastMessage.createdAt.toISOString(),
-            }
+        sessionId: conv.sessionId,
+        clientName: conv.clientName,
+        clientEmail: conv.clientEmail,
+        clientPhone: conv.clientPhone,
+        lastMessage: conv.lastMessage?.content
+          ? String(conv.lastMessage.content).slice(0, 280)
           : null,
+        lastMessageAt: conv.lastMessage?.createdAt
+          ? conv.lastMessage.createdAt.toISOString()
+          : null,
+        unreadCount: conv.unreadCount,
         createdAt: conv.createdAt.toISOString(),
       })),
     });

@@ -20,7 +20,7 @@ export function useRealtimeCustomerFile(customerId: string, saleId?: string) {
     }
 
     // Buscar customer file por customerId o saleId
-    const customerFileRef = doc(db, 'tenants', user.tenantId, 'customer-files', customerId);
+    const customerFileRef = doc(db, 'tenants', user.tenantId, 'customer_files', customerId);
     
     const unsubscribe = onSnapshot(
       customerFileRef,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { updateVehicle, getVehicleById } from '@autodealers/inventory';
+import { updateVehicle } from '@autodealers/inventory';
+import { findSellerVehicleById } from '@/lib/seller-vehicles';
 
 export async function GET(
   request: NextRequest,
@@ -9,22 +10,37 @@ export async function GET(
   try {
     const { id } = await params;
     const auth = await verifyAuth(request);
-    if (!auth || !auth.tenantId) {
+    if (!auth || !auth.tenantId || auth.role !== 'seller') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const vehicle = await getVehicleById(auth.tenantId, id);
-    
-    if (!vehicle) {
+    const found = await findSellerVehicleById(auth, id);
+    if (!found) {
       return NextResponse.json({ error: 'Vehicle not found' }, { status: 404 });
     }
+
+    const vehicle = found.vehicle as Record<string, unknown> & {
+      id: string;
+      createdAt?: Date | string;
+      updatedAt?: Date | string;
+      soldAt?: Date | string;
+    };
 
     return NextResponse.json({
       vehicle: {
         ...vehicle,
-        createdAt: vehicle.createdAt.toISOString(),
-        updatedAt: vehicle.updatedAt.toISOString(),
-        soldAt: vehicle.soldAt?.toISOString(),
+        createdAt:
+          vehicle.createdAt instanceof Date
+            ? vehicle.createdAt.toISOString()
+            : vehicle.createdAt || new Date().toISOString(),
+        updatedAt:
+          vehicle.updatedAt instanceof Date
+            ? vehicle.updatedAt.toISOString()
+            : vehicle.updatedAt || new Date().toISOString(),
+        soldAt:
+          vehicle.soldAt instanceof Date
+            ? vehicle.soldAt.toISOString()
+            : vehicle.soldAt,
       },
     });
   } catch (error) {
@@ -49,11 +65,11 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verificar que el vehículo existe y pertenece al tenant
-    const existingVehicle = await getVehicleById(auth.tenantId, id);
-    if (!existingVehicle) {
+    const found = await findSellerVehicleById(auth, id);
+    if (!found) {
       return NextResponse.json({ error: 'Vehicle not found' }, { status: 404 });
     }
+    const { tenantId, vehicle: existingVehicle } = found;
 
     const body = await request.json();
     
@@ -147,14 +163,15 @@ export async function PUT(
     if (body.publishedOnPublicPage !== undefined) updateData.publishedOnPublicPage = body.publishedOnPublicPage;
 
     console.log('🔄 Llamando a updateVehicle con:', {
-      tenantId: auth.tenantId,
+      tenantId,
       vehicleId: id,
       updateData,
     });
-    
-    await updateVehicle(auth.tenantId, id, updateData);
 
-    const updatedVehicle = await getVehicleById(auth.tenantId, id);
+    await updateVehicle(tenantId, id, updateData);
+
+    const updatedFound = await findSellerVehicleById(auth, id);
+    const updatedVehicle = updatedFound?.vehicle as typeof existingVehicle | undefined;
     
     console.log('✅ Vehículo actualizado, datos retornados:', {
       vehicleId: updatedVehicle?.id,
@@ -163,13 +180,36 @@ export async function PUT(
       photos: updatedVehicle?.photos,
     });
 
-    return NextResponse.json({ 
+    if (!updatedVehicle) {
+      return NextResponse.json({ error: 'Vehicle not found' }, { status: 404 });
+    }
+
+    const createdAt = updatedVehicle.createdAt;
+    const updatedAt = updatedVehicle.updatedAt;
+    const soldAt = updatedVehicle.soldAt;
+
+    return NextResponse.json({
       vehicle: {
-        ...updatedVehicle!,
-        createdAt: updatedVehicle!.createdAt.toISOString(),
-        updatedAt: updatedVehicle!.updatedAt.toISOString(),
-        soldAt: updatedVehicle!.soldAt?.toISOString(),
-      }
+        ...updatedVehicle,
+        createdAt:
+          createdAt instanceof Date
+            ? createdAt.toISOString()
+            : typeof createdAt === 'string'
+              ? createdAt
+              : new Date().toISOString(),
+        updatedAt:
+          updatedAt instanceof Date
+            ? updatedAt.toISOString()
+            : typeof updatedAt === 'string'
+              ? updatedAt
+              : new Date().toISOString(),
+        soldAt:
+          soldAt instanceof Date
+            ? soldAt.toISOString()
+            : typeof soldAt === 'string'
+              ? soldAt
+              : undefined,
+      },
     });
   } catch (error: any) {
     console.error('❌ Error updating vehicle:', {

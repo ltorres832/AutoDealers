@@ -11,10 +11,15 @@ class TemplatesRepository {
 
   // Obtener templates (stream en tiempo real)
   Stream<List<Map<String, dynamic>>> watchTemplates({
+    String? tenantId,
     String? type,
     String? role,
   }) {
     Query query = _firestore.collection('templates');
+
+    if (tenantId != null && tenantId.isNotEmpty) {
+      query = query.where('tenantId', isEqualTo: tenantId);
+    }
 
     if (type != null) {
       query = query.where('type', isEqualTo: type);

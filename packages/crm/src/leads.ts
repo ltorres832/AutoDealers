@@ -263,8 +263,12 @@ export async function createLead(
         tenantId,
         userId: assignedTo,
         type: 'lead_created',
-        title: 'Nuevo lead asignado a ti',
-        message: `Lead de ${contact.name} (${contact.phone}) — origen: ${source}. ${notes ? `Notas: ${notes.substring(0, 200)}${notes.length > 200 ? '…' : ''}` : ''}`,
+        title: extras?.tags?.includes('catalogo_web')
+          ? 'Interés en vehículo (web)'
+          : 'Nuevo lead asignado a ti',
+        message: extras?.tags?.includes('catalogo_web')
+          ? `${contact.name} (${contact.phone}) dejó sus datos en la ficha de un vehículo. Revisa Leads para dar seguimiento.`
+          : `Lead de ${contact.name} (${contact.phone}) — origen: ${source}. ${notes ? `Notas: ${notes.substring(0, 200)}${notes.length > 200 ? '…' : ''}` : ''}`,
         channels,
         metadata: {
           leadId: newLead.id,

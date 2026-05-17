@@ -1,18 +1,27 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import type { Lead } from '@autodealers/crm';
 import { LeadRowExtras } from '@/components/LeadProfileSections';
 import { useRealtimeLeads } from '@/hooks/useRealtimeLeads';
 
 export default function LeadsList() {
+  const searchParams = useSearchParams();
   const [user, setUser] = useState<any>(null);
   const [filters, setFilters] = useState({
-    status: '',
-    source: '',
-    search: '',
+    status: searchParams.get('status') || '',
+    source: searchParams.get('source') || '',
+    search: searchParams.get('q') || '',
   });
+
+  useEffect(() => {
+    const status = searchParams.get('status');
+    if (status) {
+      setFilters((f) => ({ ...f, status }));
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     fetch('/api/user')
