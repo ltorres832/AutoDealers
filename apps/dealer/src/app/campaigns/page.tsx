@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { fetchWithAuth } from '@/lib/fetch-with-auth';
 
 interface Campaign {
   id: string;
@@ -9,6 +10,10 @@ interface Campaign {
   type: string;
   platforms: string[];
   status: string;
+  metaDistribution?: string;
+  metaAdsCampaignId?: string;
+  metaAdsAdSetId?: string;
+  metaAdsPublishError?: string;
   budgets: Array<{ platform: string; amount: number; currency: string }>;
   metrics?: {
     impressions: number;
@@ -23,14 +28,44 @@ export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [publishingId, setPublishingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCampaigns();
   }, []);
 
+  async function publishCampaignSocial(campaignId: string) {
+    setPublishingId(campaignId);
+    try {
+      const res = await fetchWithAuth(`/api/campaigns/${campaignId}/social-publish`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(typeof data.error === 'string' ? data.error : 'No se pudo publicar en redes');
+        return;
+      }
+      const results = data.results as { success: boolean; platform: string; error?: string; url?: string }[];
+      if (Array.isArray(results)) {
+        const ok = results.filter((r) => r.success);
+        const bad = results.filter((r) => !r.success);
+        let m = '';
+        if (ok.length) m += `Publicado: ${ok.map((r) => r.platform).join(', ')}. `;
+        if (bad.length) m += `Fallos: ${bad.map((r) => `${r.platform} (${r.error})`).join('; ')}`;
+        alert(m.trim() || 'Listo');
+      } else {
+        alert('Publicación enviada');
+      }
+      fetchCampaigns();
+    } catch (e) {
+      console.error(e);
+      alert('Error al publicar en redes');
+    } finally {
+      setPublishingId(null);
+    }
+  }
+
   async function fetchCampaigns() {
     try {
-      const response = await fetch('/api/campaigns');
+      const response = await fetchWithAuth('/api/campaigns', {});
       const data = await response.json();
       setCampaigns(data.campaigns || []);
     } catch (error) {
@@ -113,6 +148,32 @@ export default function CampaignsPage() {
                     </span>
                   ))}
                 </div>
+                {campaign.metaDistribution === 'paid_ads' &&
+                  (campaign.platforms.includes('facebook') || campaign.platforms.includes('instagram')) && (
+                    <p className="mt-2 text-xs text-amber-900 bg-amber-50 border border-amber-100 rounded px-2 py-1.5">
+                      Meta Ads (pago): el gasto se factura en la cuenta publicitaria de Meta.
+                      {campaign.metaAdsCampaignId ? (
+                        <>
+                          {' '}
+                          Borrador en Graph: campaña <code className="text-[11px]">{campaign.metaAdsCampaignId}</code>
+                          {campaign.metaAdsAdSetId ? (
+                            <>
+                              , conjunto <code className="text-[11px]">{campaign.metaAdsAdSetId}</code>
+                            </>
+                          ) : null}
+                          . Completa creativos y activa en Ads Manager.
+                        </>
+                      ) : campaign.metaAdsPublishError ? (
+                        <> Error al crear en Meta: {campaign.metaAdsPublishError}</>
+                      ) : (
+                        <>
+                          {' '}
+                          Con estado Activa y Facebook en plataformas se intenta crear un borrador PAUSED en Ads Manager
+                          (requiere permisos ads y cuenta publicitaria).
+                        </>
+                      )}
+                    </p>
+                  )}
               </div>
 
               {campaign.metrics && (
@@ -138,7 +199,7 @@ export default function CampaignsPage() {
                 </div>
               )}
 
-              <div className="mt-4 pt-4 border-t">
+              <div className="mt-4 pt-4 border-t space-y-2">
                 <p className="text-xs text-gray-500">
                   Presupuesto total:{' '}
                   <span className="font-medium">
@@ -148,6 +209,17 @@ export default function CampaignsPage() {
                     {campaign.budgets[0]?.currency || 'USD'}
                   </span>
                 </p>
+                {(campaign.platforms.includes('facebook') || campaign.platforms.includes('instagram')) &&
+                  campaign.metaDistribution !== 'paid_ads' && (
+                  <button
+                    type="button"
+                    disabled={publishingId === campaign.id}
+                    onClick={() => publishCampaignSocial(campaign.id)}
+                    className="w-full rounded border border-primary-200 bg-white px-3 py-2 text-sm font-medium text-primary-800 hover:bg-primary-50 disabled:opacity-50"
+                  >
+                    {publishingId === campaign.id ? 'Publicando…' : 'Publicar en redes (Facebook / Instagram)'}
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -184,6 +256,8 @@ function CreateCampaignModal({
     content: '',
     images: [] as string[],
     videos: [] as string[],
+    publishToSocial: true,
+    metaDistribution: 'organic' as 'organic' | 'paid_ads',
   });
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -201,7 +275,7 @@ function CreateCampaignModal({
       uploadFormData.append('file', file);
       uploadFormData.append('type', 'campaign');
       
-      const uploadResponse = await fetch('/api/upload', {
+      const uploadResponse = await fetchWithAuth('/api/upload', {
         method: 'POST',
         body: uploadFormData,
       });
@@ -237,14 +311,62 @@ function CreateCampaignModal({
       
       setUploading(false);
       
-      const response = await fetch('/api/campaigns', {
+      const response = await fetchWithAuth('/api/campaigns', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
 
       if (response.ok) {
-        alert('Campaña creada exitosamente');
+        const data = await response.json();
+        let msg = 'Campaña creada exitosamente.';
+        const sp = data.socialPublish as
+          | {
+              attempted?: boolean;
+              skippedReason?: string;
+              results?: { success: boolean; platform: string; error?: string; url?: string }[];
+            }
+          | undefined;
+        const map = data.metaAdsPublish as
+          | {
+              attempted?: boolean;
+              success?: boolean;
+              metaCampaignId?: string;
+              metaAdSetId?: string;
+              error?: string;
+              skippedReason?: string;
+            }
+          | undefined;
+        if (sp?.attempted && sp.results?.length) {
+          const ok = sp.results.filter((r) => r.success);
+          const failed = sp.results.filter((r) => !r.success);
+          if (ok.length) {
+            msg += ` Publicado en: ${ok.map((r) => r.platform).join(', ')}.`;
+            const urls = ok.map((r) => r.url).filter(Boolean);
+            if (urls.length) msg += ` Enlace: ${urls[0]}`;
+          }
+          if (failed.length) {
+            msg += ` Sin publicar: ${failed.map((r) => `${r.platform} (${r.error || 'error'})`).join('; ')}.`;
+          }
+        }
+        if (sp?.skippedReason === 'membership_social_disabled') {
+          msg += ' (Redes: el plan no incluye publicación en redes o no se pudo verificar.)';
+        } else if (sp?.skippedReason === 'campaign_not_active') {
+          msg +=
+            ' La publicación en redes al guardar solo ocurre si el estado es Activa; puedes usar «Publicar en redes» en la tarjeta.';
+        }
+        if (map?.attempted) {
+          if (map.success && map.metaCampaignId) {
+            msg += ` Meta Ads: borrador creado (campaña ${map.metaCampaignId}`;
+            if (map.metaAdSetId) msg += `, conjunto ${map.metaAdSetId}`;
+            msg += '). Revisa y activa en Ads Manager; aún falta el anuncio creativo.';
+          } else if (map.skippedReason === 'paid_ads_requires_facebook') {
+            msg += ` ${map.error || ''}`;
+          } else if (map.error) {
+            msg += ` Meta Ads: no se pudo crear el borrador (${map.error}).`;
+          }
+        }
+        alert(msg);
         onSuccess();
       } else {
         const error = await response.json();
@@ -297,10 +419,14 @@ function CreateCampaignModal({
   }
 
   function removePlatform(platform: string) {
+    const platforms = formData.platforms.filter((p) => p !== platform);
+    const budgets = formData.budgets.filter((b) => b.platform !== platform);
+    const hasMeta = platforms.includes('facebook') || platforms.includes('instagram');
     setFormData({
       ...formData,
-      platforms: formData.platforms.filter((p) => p !== platform),
-      budgets: formData.budgets.filter((b) => b.platform !== platform),
+      platforms,
+      budgets,
+      metaDistribution: hasMeta ? formData.metaDistribution : 'organic',
     });
   }
 
@@ -423,6 +549,47 @@ function CreateCampaignModal({
             </div>
           </div>
 
+          {(formData.platforms.includes('facebook') || formData.platforms.includes('instagram')) && (
+            <div className="rounded-lg border border-gray-200 bg-gray-50/80 p-3 space-y-2">
+              <p className="text-sm font-medium text-gray-900">Facebook / Instagram</p>
+              <label className="flex cursor-pointer items-start gap-2">
+                <input
+                  type="radio"
+                  name="metaDistribution"
+                  checked={formData.metaDistribution === 'organic'}
+                  onChange={() =>
+                    setFormData((prev) => ({ ...prev, metaDistribution: 'organic', publishToSocial: true }))
+                  }
+                  className="mt-1"
+                />
+                <span className="text-sm text-gray-800">
+                  <strong>Post orgánico</strong> — publicación en el feed de la página/cuenta conectada (sin cobro de
+                  anuncio en Meta por este flujo).
+                </span>
+              </label>
+              <label className="flex cursor-pointer items-start gap-2">
+                <input
+                  type="radio"
+                  name="metaDistribution"
+                  checked={formData.metaDistribution === 'paid_ads'}
+                  onChange={() =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      metaDistribution: 'paid_ads',
+                      publishToSocial: false,
+                    }))
+                  }
+                  className="mt-1"
+                />
+                <span className="text-sm text-gray-800">
+                  <strong>Anuncio de pago (Meta Ads)</strong> — el gasto lo cobra Meta a la cuenta publicitaria
+                  configurada en Ads Manager. Con estado Activa y Facebook en plataformas, intentamos crear en Meta una
+                  campaña y un conjunto en PAUSED; debes completar el anuncio (creativo) y activar allí.
+                </span>
+              </label>
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium mb-2">Contenido *</label>
             <textarea
@@ -501,6 +668,23 @@ function CreateCampaignModal({
               <option value="paused">Pausada</option>
             </select>
           </div>
+
+          {(formData.platforms.includes('facebook') || formData.platforms.includes('instagram')) &&
+            formData.metaDistribution === 'organic' && (
+            <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-primary-100 bg-primary-50/50 p-3">
+              <input
+                type="checkbox"
+                checked={formData.publishToSocial}
+                onChange={(e) => setFormData({ ...formData, publishToSocial: e.target.checked })}
+                className="mt-1 h-4 w-4"
+              />
+              <span className="text-sm text-gray-800">
+                <strong>Publicar en redes al guardar</strong> (Facebook / Instagram) solo si el estado de la campaña es{' '}
+                <strong>Activa</strong>. Con borrador, usa el botón <strong>Publicar en redes</strong> en la tarjeta. Requiere
+                integración en <span className="font-medium">Configuración → Integraciones</span>; Instagram exige imagen.
+              </span>
+            </label>
+          )}
 
           <div className="flex gap-2 justify-end pt-4">
             <button

@@ -15,6 +15,7 @@ interface Seller {
   createdAt: string;
   tenantId?: string;
   dealerId?: string;
+  publicPromoVideoUrl?: string;
 }
 
 interface Vehicle {
@@ -376,7 +377,13 @@ function EditSellerModal({
   onSuccess: () => void;
 }) {
   const [name, setName] = useState(seller.name);
+  const [publicPromoVideoUrl, setPublicPromoVideoUrl] = useState(seller.publicPromoVideoUrl || '');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setName(seller.name);
+    setPublicPromoVideoUrl(seller.publicPromoVideoUrl || '');
+  }, [seller.name, seller.publicPromoVideoUrl]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -387,7 +394,7 @@ function EditSellerModal({
       const response = await fetchWithAuth(`/api/sellers/${seller.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, publicPromoVideoUrl }),
       });
 
       if (response.ok) {
@@ -430,6 +437,19 @@ function EditSellerModal({
               className="w-full border rounded px-3 py-2 bg-gray-100"
             />
             <p className="text-xs text-gray-500 mt-1">El email no se puede cambiar</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Video en página pública del vendedor (opcional)</label>
+            <input
+              type="url"
+              value={publicPromoVideoUrl}
+              onChange={(e) => setPublicPromoVideoUrl(e.target.value)}
+              className="w-full border rounded px-3 py-2"
+              placeholder="https://www.youtube.com/watch?v=… o https://…/video.mp4"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              YouTube, Vimeo o enlace HTTPS a .mp4/.webm. Se muestra antes del inventario en /seller/[id].
+            </p>
           </div>
           <div className="flex gap-2 justify-end pt-4">
             <button

@@ -6,7 +6,7 @@ import { getFreePublicListingsSettings } from './free-public-listings';
  * Quick Listings ("Publicar Gratis")
  * --------------------------------------------------------------
  * Anuncios públicos creados por particulares SIN registrarse.
- * Solo se expone el teléfono y los datos del vehículo. Vencen
+ * Se muestran nombre, teléfono y datos del vehículo. Vencen
  * automáticamente a los N días definidos por el admin
  * (system_settings/free_public_listings.durationDays).
  *
@@ -29,6 +29,7 @@ export interface QuickListingInput {
   model: string;
   year: number;
 
+  /** Odómetro en millas (mercado PR / US). */
   mileage?: number | null;
   price: number;
   currency?: string;
@@ -57,6 +58,7 @@ export interface QuickListing {
   make: string;
   model: string;
   year: number;
+  /** Millas recorridas. */
   mileage: number | null;
   price: number;
   currency: string;
@@ -252,12 +254,14 @@ export async function createQuickListing(
     return {
       ok: false,
       status: 403,
-      message: `Ya tienes ${settings.maxActiveFreeVehiclesPerSeller} anuncio(s) gratuito(s) activo(s) con este teléfono. Espera a que venzan o regístrate como vendedor para publicar más.`,
+      message: `Ya tienes ${settings.maxActiveFreeVehiclesPerSeller} anuncio(s) activo(s) con este teléfono. Espera a que venzan o regístrate como vendedor para publicar más.`,
     };
   }
 
   const photos = Array.isArray(input.photos)
-    ? input.photos.filter((p): p is string => typeof p === 'string' && p.startsWith('http')).slice(0, 8)
+    ? input.photos
+        .filter((p): p is string => typeof p === 'string' && /^https?:\/\//i.test(p))
+        .slice(0, 6)
     : [];
 
   const now = new Date();

@@ -116,7 +116,7 @@ export async function GET(request: NextRequest) {
       .slice(0, 5)
       .map((lead) => ({
         id: lead.id,
-        name: lead.contact.name,
+        name: lead.contact?.name || (lead as { name?: string }).name || 'Cliente',
         source: lead.source,
         status: lead.status,
         createdAt: lead.createdAt.toISOString(),

@@ -1,11 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createCampaign, getCampaigns } from '@autodealers/core';
-import { verifyAuth } from '@/lib/auth';
+import { createCampaign, getCampaigns, getFirestore } from '@autodealers/core';
+import { verifyAuth, isDealerPortalRole } from '@/lib/auth';
+import * as admin from 'firebase-admin';
+import { SocialPublisherService, type PublishResult, MetaMarketingPublisherService } from '@autodealers/messaging';
+import { pickSocialPlatforms, campaignContentToPostContent } from '@/lib/campaign-social-publish';
+
+function resolveFacebookDailyBudgetMajor(
+  budgets: Array<{ platform: string; amount: number; dailyLimit?: number }> | undefined
+): number {
+  const fb = budgets?.find((b) => b.platform === 'facebook');
+  if (fb?.dailyLimit != null && fb.dailyLimit > 0) return Math.min(fb.dailyLimit, 50000);
+  if (fb?.amount != null && fb.amount > 0) return Math.max(1, Math.round(fb.amount / 30));
+  return 5;
+}
 
 export async function GET(request: NextRequest) {
   try {
     const auth = await verifyAuth(request);
-    if (!auth || !auth.tenantId || auth.role !== 'dealer') {
+    if (!auth || !auth.tenantId || !isDealerPortalRole(auth.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -34,7 +46,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const auth = await verifyAuth(request);
-    if (!auth || !auth.tenantId || auth.role !== 'dealer') {
+    if (!auth || !auth.tenantId || !isDealerPortalRole(auth.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -109,6 +121,9 @@ export async function POST(request: NextRequest) {
     };
     const campaignType = campaignTypeMap[body.type] || 'promotion';
 
+    const metaDistribution: 'organic' | 'paid_ads' =
+      body.metaDistribution === 'paid_ads' ? 'paid_ads' : 'organic';
+
     const campaign = await createCampaign({
       tenantId: auth.tenantId,
       name: body.name,
@@ -120,15 +135,162 @@ export async function POST(request: NextRequest) {
       schedule: body.schedule || undefined,
       status: body.status || 'draft',
       aiGenerated: body.aiGenerated || false,
+      metaDistribution,
     });
 
-    return NextResponse.json({ 
-      campaign: {
-        ...campaign,
-        createdAt: campaign.createdAt.toISOString(),
-        updatedAt: campaign.updatedAt.toISOString(),
+    /** Solo publicamos en el feed de Meta (orgánico) si la campaña queda **Activa**. Anuncios de pago no usan este flujo. */
+    const effectiveStatus = body.status || 'draft';
+    const socialPlatforms = pickSocialPlatforms(body.platforms);
+    const wantOrganicSocialPublish =
+      metaDistribution === 'organic' &&
+      body.publishToSocial !== false &&
+      socialPlatforms.length > 0 &&
+      effectiveStatus === 'active';
+
+    let socialPublish:
+      | { attempted: boolean; results?: PublishResult[]; skippedReason?: string }
+      | undefined;
+
+    let metaAdsPublish:
+      | {
+          attempted: boolean;
+          success?: boolean;
+          metaCampaignId?: string;
+          metaAdSetId?: string;
+          error?: string;
+          skippedReason?: string;
+        }
+      | undefined;
+
+    if (socialPlatforms.length > 0) {
+      if (metaDistribution === 'paid_ads') {
+        if (effectiveStatus !== 'active') {
+          socialPublish = { attempted: false, skippedReason: 'campaign_not_active' };
+        }
+      } else if (body.publishToSocial !== false && effectiveStatus !== 'active') {
+        socialPublish = { attempted: false, skippedReason: 'campaign_not_active' };
       }
-    }, { status: 201 });
+    }
+
+    if (wantOrganicSocialPublish && socialPlatforms.length > 0) {
+      try {
+        const { tenantHasFeature } = await import('@autodealers/core');
+        const canUseSocial = await tenantHasFeature(auth.tenantId, 'socialMediaEnabled');
+        if (!canUseSocial) {
+          socialPublish = { attempted: false, skippedReason: 'membership_social_disabled' };
+        } else {
+          const publisher = new SocialPublisherService();
+          const postContent = campaignContentToPostContent(
+            contentObj,
+            String(body.description || ''),
+            String(body.name || '')
+          );
+          const results = await publisher.publishToMultiple(auth.tenantId, postContent, socialPlatforms);
+          socialPublish = { attempted: true, results };
+          await getFirestore()
+            .collection('tenants')
+            .doc(auth.tenantId)
+            .collection('campaigns')
+            .doc(campaign.id)
+            .update({
+              socialPublishAt: admin.firestore.FieldValue.serverTimestamp(),
+              socialPublishResults: results,
+            });
+        }
+      } catch (socialErr) {
+        console.error('[campaigns] social publish after create:', socialErr);
+        socialPublish = {
+          attempted: true,
+          results: socialPlatforms.map((platform) => ({
+            success: false,
+            platform,
+            error: socialErr instanceof Error ? socialErr.message : 'Error al publicar',
+          })),
+        };
+      }
+    }
+
+    const wantPaidMetaStructure =
+      metaDistribution === 'paid_ads' &&
+      socialPlatforms.length > 0 &&
+      effectiveStatus === 'active' &&
+      socialPlatforms.includes('facebook');
+
+    if (metaDistribution === 'paid_ads' && socialPlatforms.length > 0 && effectiveStatus === 'active') {
+      if (!socialPlatforms.includes('facebook')) {
+        metaAdsPublish = {
+          attempted: false,
+          skippedReason: 'paid_ads_requires_facebook',
+          error:
+            'Para crear borradores en Meta Ads automáticamente, incluye Facebook en las plataformas (usa la cuenta publicitaria vinculada).',
+        };
+      }
+    }
+
+    if (wantPaidMetaStructure) {
+      try {
+        const { tenantHasFeature } = await import('@autodealers/core');
+        const canUseSocial = await tenantHasFeature(auth.tenantId, 'socialMediaEnabled');
+        if (!canUseSocial) {
+          metaAdsPublish = { attempted: false, skippedReason: 'membership_social_disabled', error: 'Plan sin redes' };
+        } else {
+          const adsPub = new MetaMarketingPublisherService();
+          const r = await adsPub.createDraftCampaignAndAdSet(auth.tenantId, {
+            name: body.name,
+            dailyBudgetMajorUnits: resolveFacebookDailyBudgetMajor(body.budgets),
+          });
+          metaAdsPublish = {
+            attempted: true,
+            success: r.success,
+            metaCampaignId: r.metaCampaignId,
+            metaAdSetId: r.metaAdSetId,
+            error: r.error,
+          };
+          const patch: Record<string, unknown> = {
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          };
+          if (r.success && r.metaCampaignId) {
+            patch.metaAdsCampaignId = r.metaCampaignId;
+            if (r.metaAdSetId) patch.metaAdsAdSetId = r.metaAdSetId;
+            patch.metaAdsPublishError = admin.firestore.FieldValue.delete();
+          } else {
+            patch.metaAdsPublishError = r.error || 'Error al crear en Meta';
+          }
+          await getFirestore()
+            .collection('tenants')
+            .doc(auth.tenantId)
+            .collection('campaigns')
+            .doc(campaign.id)
+            .update(patch);
+        }
+      } catch (adsErr) {
+        console.error('[campaigns] Meta paid draft after create:', adsErr);
+        const errMsg = adsErr instanceof Error ? adsErr.message : 'Error al crear anuncios en Meta';
+        metaAdsPublish = { attempted: true, success: false, error: errMsg };
+        await getFirestore()
+          .collection('tenants')
+          .doc(auth.tenantId)
+          .collection('campaigns')
+          .doc(campaign.id)
+          .update({
+            metaAdsPublishError: errMsg,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+      }
+    }
+
+    return NextResponse.json(
+      {
+        campaign: {
+          ...campaign,
+          createdAt: campaign.createdAt.toISOString(),
+          updatedAt: campaign.updatedAt.toISOString(),
+        },
+        socialPublish,
+        metaAdsPublish,
+      },
+      { status: 201 }
+    );
   } catch (error: any) {
     console.error('Error creating campaign:', error);
     return NextResponse.json(

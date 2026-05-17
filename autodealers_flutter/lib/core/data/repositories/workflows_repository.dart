@@ -39,7 +39,7 @@ class WorkflowsRepository {
             ...data,
             'createdAt': data['createdAt']?.toDate(),
             'updatedAt': data['updatedAt']?.toDate(),
-          } as Map<String, dynamic>;
+          };
         })
         .toList());
   }

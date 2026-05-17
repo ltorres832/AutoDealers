@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getLeads, createLead } from '@autodealers/crm';
-import { createNotification } from '@autodealers/core';
+import { getLeads, createLead, normalizeLeadSource, sanitizeLeadTradeIn } from '@autodealers/crm';
+import { getVehicleById, buildVehicleStockSnapshot } from '@autodealers/inventory';
+import { createNotification, canPerformAction } from '@autodealers/core';
 
 export async function GET(request: NextRequest) {
   try {
@@ -28,9 +29,9 @@ export async function GET(request: NextRequest) {
       const searchLower = search.toLowerCase();
       filteredLeads = leads.filter(
         (lead) =>
-          lead.contact.name.toLowerCase().includes(searchLower) ||
-          lead.contact.phone.includes(search) ||
-          lead.contact.email?.toLowerCase().includes(searchLower)
+          (lead.contact?.name || '').toLowerCase().includes(searchLower) ||
+          (lead.contact?.phone || '').includes(search) ||
+          (lead.contact?.email || '').toLowerCase().includes(searchLower)
       );
     }
 
@@ -67,12 +68,62 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Crear el lead asignado automáticamente al seller
+    const contact = {
+      name: String(body.contact.name).trim(),
+      phone: String(body.contact.phone).trim(),
+      ...(body.contact.email != null && String(body.contact.email).trim()
+        ? { email: String(body.contact.email).trim() }
+        : {}),
+      preferredChannel:
+        typeof body.contact.preferredChannel === 'string' && body.contact.preferredChannel.trim()
+          ? String(body.contact.preferredChannel).trim().slice(0, 40)
+          : 'phone',
+    };
+
+    const quota = await canPerformAction(auth.tenantId, 'addLead');
+    if (!quota.allowed) {
+      return NextResponse.json({ error: quota.reason || 'No puedes crear más leads' }, { status: 403 });
+    }
+
+    let vehicleStockSnapshot = body.vehicleStockSnapshot;
+    let vehicleStockNumber = body.vehicleStockNumber;
+    const vehicleId = typeof body.vehicleId === 'string' && body.vehicleId.trim() ? body.vehicleId.trim() : undefined;
+    if (vehicleId && !vehicleStockSnapshot) {
+      const v = await getVehicleById(auth.tenantId, vehicleId);
+      if (v) {
+        vehicleStockSnapshot = buildVehicleStockSnapshot(v);
+        vehicleStockNumber = vehicleStockNumber || v.stockNumber || v.specifications?.stockNumber;
+      }
+    }
+
+    const vehicleInterest =
+      typeof body.vehicleInterest === 'string' && body.vehicleInterest.trim()
+        ? body.vehicleInterest.trim().slice(0, 2000)
+        : undefined;
+    const budgetRaw = body.budget;
+    const budget =
+      budgetRaw !== undefined && budgetRaw !== null && String(budgetRaw).trim() !== ''
+        ? typeof budgetRaw === 'number'
+          ? budgetRaw
+          : String(budgetRaw).trim().slice(0, 80)
+        : undefined;
+
+    const tradeIn = sanitizeLeadTradeIn(body.tradeIn);
+
     const lead = await createLead(
       auth.tenantId,
-      body.source || 'manual',
-      body.contact,
-      body.notes || ''
+      normalizeLeadSource(body.source, 'manual'),
+      contact,
+      body.notes || '',
+      {
+        assignedTo: auth.userId,
+        ...(vehicleId ? { vehicleId } : {}),
+        ...(vehicleStockNumber ? { vehicleStockNumber: String(vehicleStockNumber) } : {}),
+        ...(vehicleStockSnapshot ? { vehicleStockSnapshot } : {}),
+        ...(vehicleInterest ? { vehicleInterest } : {}),
+        ...(budget !== undefined ? { budget } : {}),
+        ...(tradeIn ? { tradeIn } : {}),
+      }
     );
 
     // Crear notificación

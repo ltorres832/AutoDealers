@@ -35,6 +35,10 @@ const baseConfig = JSON.parse(fs.readFileSync(tsconfigPath, 'utf8'));
 
 const buildConfig = {
   ...baseConfig,
+  compilerOptions: {
+    ...baseConfig.compilerOptions,
+    noEmit: false,
+  },
   files: files,
   include: [],
   exclude: []

@@ -39,9 +39,43 @@ export async function tenantHasFeature(
  */
 export async function canPerformAction(
   tenantId: string,
-  action: 'createSeller' | 'addVehicle' | 'useSubdomain' | 'useAI' | 'useSocialMedia' | 'useMarketplace' | 'viewAdvancedReports'
+  action:
+    | 'createSeller'
+    | 'addVehicle'
+    | 'addLead'
+    | 'useSubdomain'
+    | 'useAI'
+    | 'useSocialMedia'
+    | 'useMarketplace'
+    | 'viewAdvancedReports'
 ): Promise<{ allowed: boolean; reason?: string }> {
   const membership = await getTenantMembership(tenantId);
+
+  if (action === 'addLead') {
+    if (!membership) {
+      return { allowed: true };
+    }
+    const billingModule = await import('@autodealers/billing');
+    const maxLeads = membership.features?.maxLeadsPerMonth as number | undefined;
+    if (maxLeads == null) {
+      return { allowed: true };
+    }
+    const { getLeads } = await import('@autodealers/crm');
+    const leads = await getLeads(tenantId, { limit: 5000 });
+    const start = new Date();
+    start.setDate(1);
+    start.setHours(0, 0, 0, 0);
+    const countThisMonth = leads.filter((l) => l.createdAt >= start).length;
+    const ok = billingModule.checkLimit(membership, 'maxLeadsPerMonth', countThisMonth);
+    if (!ok) {
+      return {
+        allowed: false,
+        reason: `Has alcanzado el máximo de leads nuevos este mes para tu plan (${maxLeads}).`,
+      };
+    }
+    return { allowed: true };
+  }
+
   if (!membership) {
     return { allowed: false, reason: 'No tiene membresía activa' };
   }

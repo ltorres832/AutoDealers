@@ -288,7 +288,7 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  Kilometraje
+                  Millaje (millas)
                 </label>
                 <input
                   type="number"
@@ -298,7 +298,7 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
                     setFormData({ ...formData, mileage: e.target.value })
                   }
                   className="w-full border rounded px-3 py-2"
-                  placeholder="Ej: 50000"
+                  placeholder="Ej: 0 para nuevo"
                 />
               </div>
             </div>

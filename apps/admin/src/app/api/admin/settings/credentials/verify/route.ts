@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
         stripe: {
           secretKey: !!data.stripeSecretKey,
           webhookSecret: !!data.stripeWebhookSecret,
+          advertiserWebhookSecret: !!data.stripeAdvertiserWebhookSecret,
         },
         openai: {
           apiKey: !!data.openaiApiKey,

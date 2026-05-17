@@ -46,7 +46,7 @@ class BannersRepository {
             'expiresAt': data['expiresAt']?.toDate(),
             'approvedAt': data['approvedAt']?.toDate(),
             'rejectedAt': data['rejectedAt']?.toDate(),
-          } as Map<String, dynamic>;
+          };
         })
         .toList());
   }

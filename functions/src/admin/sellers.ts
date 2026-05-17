@@ -7,6 +7,9 @@ import * as admin from 'firebase-admin';
 
 const db = admin.firestore();
 
+/** Mismo shape que `count().get()` cuando no hay tenant (evita consultas inválidas). */
+const emptyAggregateCount = { data: () => ({ count: 0 }) } as any;
+
 /**
  * Obtener todos los sellers (Admin only)
  */
@@ -29,25 +32,41 @@ export const getAllSellers = functions.https.onCall(async (data, context) => {
         const sellerData = doc.data();
         
         // Obtener estadísticas del seller
+        const sellerTenantId = sellerData?.tenantId as string | undefined;
         const [leadsCount, salesCount, revenue] = await Promise.all([
-          db.collection('leads')
-            .where('assignedTo', '==', doc.id)
-            .count()
-            .get(),
-          db.collection('sales')
-            .where('sellerId', '==', doc.id)
-            .count()
-            .get(),
-          db.collection('sales')
-            .where('sellerId', '==', doc.id)
-            .where('status', '==', 'completed')
-            .get()
-            .then((snapshot) => {
-              return snapshot.docs.reduce((sum, saleDoc) => {
-                const sale = saleDoc.data();
-                return sum + (sale.totalAmount || 0);
-              }, 0);
-            }),
+          sellerTenantId
+            ? db
+                .collection('tenants')
+                .doc(sellerTenantId)
+                .collection('leads')
+                .where('assignedTo', '==', doc.id)
+                .count()
+                .get()
+            : Promise.resolve(emptyAggregateCount),
+          sellerTenantId
+            ? db
+                .collection('tenants')
+                .doc(sellerTenantId)
+                .collection('sales')
+                .where('sellerId', '==', doc.id)
+                .count()
+                .get()
+            : Promise.resolve(emptyAggregateCount),
+          sellerTenantId
+            ? db
+                .collection('tenants')
+                .doc(sellerTenantId)
+                .collection('sales')
+                .where('sellerId', '==', doc.id)
+                .where('status', '==', 'completed')
+                .get()
+                .then((snapshot) => {
+                  return snapshot.docs.reduce((sum, saleDoc) => {
+                    const sale = saleDoc.data();
+                    return sum + (sale.totalAmount || 0);
+                  }, 0);
+                })
+            : Promise.resolve(0),
         ]);
 
         return {
@@ -105,26 +124,42 @@ export const getSellerById = functions.https.onCall(async (data, context) => {
       );
     }
 
-    // Obtener estadísticas
+    const sellerTenantId = sellerData?.tenantId as string | undefined;
+
     const [leadsCount, salesCount, revenue] = await Promise.all([
-      db.collection('leads')
-        .where('assignedTo', '==', sellerId)
-        .count()
-        .get(),
-      db.collection('sales')
-        .where('sellerId', '==', sellerId)
-        .count()
-        .get(),
-      db.collection('sales')
-        .where('sellerId', '==', sellerId)
-        .where('status', '==', 'completed')
-        .get()
-        .then((snapshot) => {
-          return snapshot.docs.reduce((sum, saleDoc) => {
-            const sale = saleDoc.data();
-            return sum + (sale.totalAmount || 0);
-          }, 0);
-        }),
+      sellerTenantId
+        ? db
+            .collection('tenants')
+            .doc(sellerTenantId)
+            .collection('leads')
+            .where('assignedTo', '==', sellerId)
+            .count()
+            .get()
+        : Promise.resolve(emptyAggregateCount),
+      sellerTenantId
+        ? db
+            .collection('tenants')
+            .doc(sellerTenantId)
+            .collection('sales')
+            .where('sellerId', '==', sellerId)
+            .count()
+            .get()
+        : Promise.resolve(emptyAggregateCount),
+      sellerTenantId
+        ? db
+            .collection('tenants')
+            .doc(sellerTenantId)
+            .collection('sales')
+            .where('sellerId', '==', sellerId)
+            .where('status', '==', 'completed')
+            .get()
+            .then((snapshot) => {
+              return snapshot.docs.reduce((sum, saleDoc) => {
+                const sale = saleDoc.data();
+                return sum + (sale.totalAmount || 0);
+              }, 0);
+            })
+        : Promise.resolve(0),
     ]);
 
     return {

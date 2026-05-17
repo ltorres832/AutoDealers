@@ -42,7 +42,7 @@ class _AdminMaintenancePageState extends State<AdminMaintenancePage> {
           }
 
           final status = maintenanceProvider.maintenanceStatus;
-          final isEnabled = status?['enabled'] == true;
+          final isEnabled = status['enabled'] == true;
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),

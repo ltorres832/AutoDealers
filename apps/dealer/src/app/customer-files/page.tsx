@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/hooks/useAuth';
+import { useRealtimeCustomerFiles } from '@/hooks/useRealtimeCustomerFiles';
+import { expeditionStageLabel } from '@autodealers/crm';
 
 interface CustomerFile {
   id: string;
@@ -35,6 +38,9 @@ interface CustomerFile {
   uploadToken: string;
   status: 'active' | 'completed' | 'archived' | 'deleted';
   notes: string;
+  expeditionStage?: string;
+  linkedFiRequestId?: string;
+  customerId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -47,49 +53,57 @@ interface Vehicle {
 }
 
 export default function CustomerFilesPage() {
-  const [files, setFiles] = useState<CustomerFile[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { user, loading: authLoading } = useAuth();
+  const [filter, setFilter] = useState<'all' | 'active' | 'completed' | 'archived'>('all');
+  const { files, loading: filesLoading, error: filesError } = useRealtimeCustomerFiles(
+    user?.tenantId,
+    filter
+  );
   const [selectedFile, setSelectedFile] = useState<CustomerFile | null>(null);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [vehicles, setVehicles] = useState<Record<string, Vehicle>>({});
-  const [filter, setFilter] = useState<'all' | 'active' | 'completed' | 'archived'>('all');
 
   useEffect(() => {
-    fetchFiles();
-  }, [filter]);
+    setSelectedFile((prev) => {
+      if (!prev) return prev;
+      const fresh = files.find((f) => f.id === prev.id);
+      return (fresh as CustomerFile) || prev;
+    });
+  }, [files]);
 
-  async function fetchFiles() {
-    try {
-      const params = new URLSearchParams();
-      if (filter !== 'all') {
-        params.append('status', filter);
-      }
-      const response = await fetch(`/api/customer-files?${params.toString()}`);
-      if (response.ok) {
-        const data = await response.json();
-        setFiles(data.files || []);
-        
-        // Obtener información de vehículos
-        const vehicleIds = [...new Set(data.files.map((f: CustomerFile) => f.vehicleId))];
-        const vehiclePromises = vehicleIds.map(id => 
-          fetch(`/api/vehicles?id=${id}`).then(r => r.json())
+  useEffect(() => {
+    if (!files.length) return;
+    let cancelled = false;
+    (async () => {
+      const vehicleIds = [...new Set(files.map((f) => f.vehicleId).filter(Boolean))];
+      const missing = vehicleIds.filter((id) => !vehicles[id]);
+      if (!missing.length) return;
+      try {
+        const vehiclePromises = missing.map((id) =>
+          fetch(`/api/vehicles?id=${id}`).then((r) => r.json())
         );
         const vehicleResults = await Promise.all(vehiclePromises);
-        const vehicleMap: Record<string, Vehicle> = {};
-        vehicleResults.forEach(result => {
-          if (result.vehicle) {
-            vehicleMap[result.vehicle.id] = result.vehicle;
-          }
+        if (cancelled) return;
+        setVehicles((prev) => {
+          const next = { ...prev };
+          vehicleResults.forEach((result) => {
+            if (result.vehicle) {
+              next[result.vehicle.id] = result.vehicle;
+            }
+          });
+          return next;
         });
-        setVehicles(vehicleMap);
+      } catch (e) {
+        console.error('vehicles fetch', e);
       }
-    } catch (error) {
-      console.error('Error:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [files]);
+
+  const loading = authLoading || filesLoading;
 
   async function getUploadLink(fileId: string) {
     try {
@@ -118,6 +132,11 @@ export default function CustomerFilesPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {filesError && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          No se pudo sincronizar en tiempo real: {filesError.message}
+        </div>
+      )}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Casos de Cliente</h1>
         <button
@@ -126,6 +145,18 @@ export default function CustomerFilesPage() {
         >
           + Crear Caso Manualmente
         </button>
+      </div>
+
+      <div
+        className="mb-6 rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-blue-50 px-4 py-4 text-sm text-indigo-950 shadow-sm"
+        role="region"
+        aria-label="Colaboración del equipo en casos"
+      >
+        <p className="font-semibold text-indigo-950">Misma carpeta para gerencia, vendedores y cliente</p>
+        <p className="mt-1 leading-relaxed text-indigo-900/90">
+          Desde aquí y desde el panel F&amp;I trabajan el mismo caso: solicita documentos al cliente, adjunta
+          archivos y mantén un solo historial rumbo al cierre — sin duplicar correos ni versiones sueltas.
+        </p>
       </div>
 
       {/* Filtros */}
@@ -169,6 +200,12 @@ export default function CustomerFilesPage() {
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Estado
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Expedición F&amp;I
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  F&amp;I
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Acciones
@@ -226,6 +263,21 @@ export default function CustomerFilesPage() {
                         {file.status === 'active' ? 'Activo' : file.status === 'completed' ? 'Completado' : 'Archivado'}
                       </span>
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                      {expeditionStageLabel(file.expeditionStage)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {file.linkedFiRequestId ? (
+                        <Link
+                          href={`/fi?openRequest=${encodeURIComponent(file.linkedFiRequestId)}`}
+                          className="text-blue-600 hover:text-blue-900 font-medium"
+                        >
+                          Abrir en F&amp;I
+                        </Link>
+                      ) : (
+                        <span className="text-gray-400">Sin vincular</span>
+                      )}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <button
                         onClick={() => {
@@ -260,7 +312,7 @@ export default function CustomerFilesPage() {
             setSelectedFile(null);
             setShowRequestModal(false);
           }}
-          onUpdate={fetchFiles}
+          onUpdate={() => {}}
         />
       )}
 
@@ -270,7 +322,6 @@ export default function CustomerFilesPage() {
           onClose={() => setShowCreateModal(false)}
           onSuccess={() => {
             setShowCreateModal(false);
-            fetchFiles();
           }}
         />
       )}

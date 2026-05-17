@@ -1,6 +1,6 @@
 buildConfig:
   runtime: nodejs20
-  buildCommand: cd ../.. && npm ci --legacy-peer-deps && cd apps/seller && npm run build
+  buildCommand: npm ci --legacy-peer-deps && cd apps/seller && npm run build
   outputDir: .next
 
 runConfig:

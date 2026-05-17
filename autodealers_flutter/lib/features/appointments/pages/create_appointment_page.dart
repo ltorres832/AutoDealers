@@ -8,13 +8,21 @@ import '../../../core/presentation/providers/auth_provider.dart';
 import '../../../core/presentation/providers/crm_provider.dart';
 import '../../../core/presentation/providers/inventory_provider.dart';
 import '../../../core/domain/models/appointment.dart';
-import '../../../core/domain/models/lead.dart';
 import '../../../core/domain/models/vehicle.dart';
 
 class CreateAppointmentPage extends StatefulWidget {
   final String? leadId;
+  /// Desde inventario: preasocia el vehículo a la cita.
+  final String? vehicleId;
+  /// `test_drive` o `consultation` (cita general). Igual que la web.
+  final String? appointmentTypeQuery;
 
-  const CreateAppointmentPage({super.key, this.leadId});
+  const CreateAppointmentPage({
+    super.key,
+    this.leadId,
+    this.vehicleId,
+    this.appointmentTypeQuery,
+  });
 
   @override
   State<CreateAppointmentPage> createState() => _CreateAppointmentPageState();
@@ -37,6 +45,15 @@ class _CreateAppointmentPageState extends State<CreateAppointmentPage> {
   void initState() {
     super.initState();
     _selectedLeadId = widget.leadId;
+    final q = widget.appointmentTypeQuery?.toLowerCase().trim();
+    if (q == 'test_drive' || q == 'testdrive' || q == 'prueba') {
+      _type = AppointmentType.testDrive;
+    } else if (q == 'consultation' || q == 'appointment' || q == 'cita') {
+      _type = AppointmentType.consultation;
+    }
+    if (widget.vehicleId != null && widget.vehicleId!.trim().isNotEmpty) {
+      _selectedVehicleIds = [widget.vehicleId!.trim()];
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = context.read<AuthProvider>();
       final crmProvider = context.read<CrmProvider>();
@@ -165,11 +182,52 @@ class _CreateAppointmentPageState extends State<CreateAppointmentPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (_selectedVehicleIds.isNotEmpty)
+                Consumer<InventoryProvider>(
+                  builder: (context, inventoryProvider, _) {
+                    final id = _selectedVehicleIds.first;
+                    Vehicle? v;
+                    try {
+                      v = inventoryProvider.vehicles.firstWhere((e) => e.id == id);
+                    } catch (_) {
+                      v = null;
+                    }
+                    final label = v != null
+                        ? '${v.year} ${v.make} ${v.model}'
+                        : 'ID: $id';
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Material(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Row(
+                            children: [
+                              Icon(Icons.directions_car, color: Colors.blue.shade800),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'Vehículo: $label\nElige el cliente (lead) y completa la cita.',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.blue.shade900,
+                                    height: 1.35,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
               // Seleccionar Lead
               Consumer<CrmProvider>(
                 builder: (context, crmProvider, _) {
                   return DropdownButtonFormField<String>(
-                    value: _selectedLeadId,
+                    initialValue: _selectedLeadId,
                     decoration: const InputDecoration(
                       labelText: 'Lead *',
                       border: OutlineInputBorder(),
@@ -197,7 +255,7 @@ class _CreateAppointmentPageState extends State<CreateAppointmentPage> {
               const SizedBox(height: 16),
               // Tipo de cita
               DropdownButtonFormField<AppointmentType>(
-                value: _type,
+                initialValue: _type,
                 decoration: const InputDecoration(
                   labelText: 'Tipo de Cita *',
                   border: OutlineInputBorder(),

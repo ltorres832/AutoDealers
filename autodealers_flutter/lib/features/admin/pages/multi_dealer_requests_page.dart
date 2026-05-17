@@ -40,7 +40,7 @@ class _AdminMultiDealerRequestsPageState extends State<AdminMultiDealerRequestsP
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: DropdownButtonFormField<String>(
-              value: _statusFilter.isEmpty ? null : _statusFilter,
+              initialValue: _statusFilter.isEmpty ? null : _statusFilter,
               decoration: const InputDecoration(
                 labelText: 'Estado',
                 border: OutlineInputBorder(),

@@ -1,8 +1,41 @@
 ﻿export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
+import { randomUUID } from 'node:crypto';
 import { verifyAuth } from '@/lib/auth';
 import { uploadVehicleImage } from '@autodealers/inventory';
 import { getStorage } from '@autodealers/core';
+
+const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|ico|bmp|avif)$/i;
+const VIDEO_EXT = /\.(mp4|webm|mov|mkv|m4v)$/i;
+
+function guessContentType(file: File): string {
+  if (file.type && file.type !== 'application/octet-stream') {
+    return file.type;
+  }
+  const lower = file.name.toLowerCase();
+  if (lower.endsWith('.ico')) return 'image/x-icon';
+  if (lower.endsWith('.svg')) return 'image/svg+xml';
+  if (lower.endsWith('.png')) return 'image/png';
+  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+  if (lower.endsWith('.gif')) return 'image/gif';
+  if (lower.endsWith('.webp')) return 'image/webp';
+  if (lower.endsWith('.bmp')) return 'image/bmp';
+  if (lower.endsWith('.avif')) return 'image/avif';
+  if (lower.endsWith('.mp4')) return 'video/mp4';
+  if (lower.endsWith('.webm')) return 'video/webm';
+  if (lower.endsWith('.mov')) return 'video/quicktime';
+  return 'application/octet-stream';
+}
+
+function isProbablyImage(file: File): boolean {
+  if (file.type.startsWith('image/')) return true;
+  return IMAGE_EXT.test(file.name);
+}
+
+function isProbablyVideo(file: File): boolean {
+  if (file.type.startsWith('video/')) return true;
+  return VIDEO_EXT.test(file.name);
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,16 +64,18 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Validar tipo de archivo
-    const isImage = file.type.startsWith('image/');
-    const isVideo = file.type.startsWith('video/');
-    
+    // Validar tipo de archivo (algunos .ico llegan con type vacío en Windows)
+    const isImage = isProbablyImage(file);
+    const isVideo = isProbablyVideo(file);
+
     if (!isImage && !isVideo) {
       return NextResponse.json(
         { error: 'El archivo debe ser una imagen o un video' },
         { status: 400 }
       );
     }
+
+    const contentType = guessContentType(file);
 
     // Validar tamaño (máximo 100MB para videos, 10MB para imágenes)
     const maxSize = isVideo ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
@@ -63,10 +98,19 @@ export async function POST(request: NextRequest) {
         vehicleId,
         buffer,
         file.name,
-        file.type
+        contentType
       );
-    } else if (type === 'campaign' || type === 'promotion' || type === 'review' || type === 'general') {
-      // Para campaigns, promotions, reviews y archivos generales
+    } else if (
+      type === 'campaign' ||
+      type === 'promotion' ||
+      type === 'review' ||
+      type === 'general' ||
+      type === 'branding'
+    ) {
+      if (type === 'branding' && auth.role !== 'admin') {
+        return NextResponse.json({ error: 'Solo administradores pueden subir branding' }, { status: 403 });
+      }
+      // Para campaigns, promotions, reviews, archivos generales y marca del panel admin
       const storage = getStorage();
       const bucket = storage.bucket();
       
@@ -76,13 +120,17 @@ export async function POST(request: NextRequest) {
       
       // Usar tenantId si está disponible, sino usar 'admin' o 'global'
       const tenantId = auth.tenantId || 'admin';
-      const filePath = `tenants/${tenantId}/${type}s/${timestamp}_${sanitizedFilename}`;
+      const folderPrefix = type === 'branding' ? 'admin/branding' : `tenants/${tenantId}/${type}s`;
+      const filePath = `${folderPrefix}/${timestamp}_${sanitizedFilename}`;
       const fileRef = bucket.file(filePath);
+      // URL con token: compatible con buckets con "uniform bucket-level access" (makePublic() falla ahí).
+      const downloadToken = randomUUID();
 
       await fileRef.save(buffer, {
         metadata: {
-          contentType: file.type,
+          contentType,
           metadata: {
+            firebaseStorageDownloadTokens: downloadToken,
             tenantId: tenantId,
             type: type,
             uploadedBy: auth.userId,
@@ -91,8 +139,8 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      await fileRef.makePublic();
-      url = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+      const encodedPath = encodeURIComponent(filePath);
+      url = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodedPath}?alt=media&token=${downloadToken}`;
     } else {
       return NextResponse.json({ error: 'Invalid upload type' }, { status: 400 });
     }

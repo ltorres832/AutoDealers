@@ -1,6 +1,5 @@
 // Hero Section con búsqueda
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'hero_search_widget.dart';
 
 class HeroSection extends StatelessWidget {

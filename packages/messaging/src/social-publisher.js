@@ -2,10 +2,10 @@
 // Servicio para publicar posts en Facebook e Instagram usando credenciales del tenant
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SocialPublisherService = void 0;
-const core_1 = require("@autodealers/core");
+const shared_1 = require("@autodealers/shared");
 class SocialPublisherService {
     constructor() {
-        this.db = (0, core_1.getFirestore)();
+        this.db = (0, shared_1.getFirestore)();
     }
     /**
      * Obtiene las credenciales de integración del tenant
@@ -222,4 +222,3 @@ class SocialPublisherService {
     }
 }
 exports.SocialPublisherService = SocialPublisherService;
-//# sourceMappingURL=social-publisher.js.map

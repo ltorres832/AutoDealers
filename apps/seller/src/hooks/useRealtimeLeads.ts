@@ -97,8 +97,52 @@ export function useRealtimeLeads(options: UseRealtimeLeadsOptions = {}) {
               const matchesName = lead.contact.name?.toLowerCase().includes(searchLower);
               const matchesPhone = lead.contact.phone?.toLowerCase().includes(searchLower);
               const matchesEmail = lead.contact.email?.toLowerCase().includes(searchLower);
-              
-              if (matchesName || matchesPhone || matchesEmail) {
+              const ext = lead as Lead & {
+                vehicleInterest?: string;
+                budget?: string | number;
+                tradeIn?: Record<string, unknown>;
+                vehicleStockSnapshot?: {
+                  make?: string;
+                  model?: string;
+                  year?: number;
+                  stockNumber?: string;
+                  vin?: string;
+                };
+              };
+              const interest = ext.vehicleInterest;
+              const matchesInterest =
+                typeof interest === 'string' && interest.toLowerCase().includes(searchLower);
+              const matchesBudget =
+                ext.budget != null && String(ext.budget).toLowerCase().includes(searchLower);
+              const trade = ext.tradeIn;
+              const tradeStr = trade
+                ? Object.values(trade)
+                    .filter((v) => v != null && v !== '' && typeof v !== 'object')
+                    .join(' ')
+                    .toLowerCase()
+                : '';
+              const matchesTrade = tradeStr.includes(searchLower);
+              const stock = ext.vehicleStockSnapshot;
+              const stockStr = stock
+                ? [stock.year, stock.make, stock.model, stock.stockNumber, stock.vin]
+                    .filter((x) => x != null && x !== '')
+                    .join(' ')
+                    .toLowerCase()
+                : '';
+              const matchesStock = stockStr.includes(searchLower);
+              const notesStr = typeof ext.notes === 'string' ? ext.notes.toLowerCase() : '';
+              const matchesNotes = notesStr.includes(searchLower);
+
+              if (
+                matchesName ||
+                matchesPhone ||
+                matchesEmail ||
+                matchesInterest ||
+                matchesBudget ||
+                matchesTrade ||
+                matchesStock ||
+                matchesNotes
+              ) {
                 leadsData.push(lead);
               }
             } else {

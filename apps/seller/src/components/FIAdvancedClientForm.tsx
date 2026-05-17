@@ -5,7 +5,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
-interface FormData {
+export interface FIAdvancedClientFormData {
   // Paso 1: Información Personal
   firstName: string;
   lastName: string;
@@ -46,6 +46,14 @@ interface FormData {
   tradeInModel: string;
   tradeInYear: string;
   tradeInValue: number;
+  tradeInVin: string;
+  tradeInMileage: string;
+  tradeInColor: string;
+  tradeInPayoff: string;
+  tradeInLienholder: string;
+  tradeInTitleStatus: '' | 'clean' | 'salvage' | 'rebuilt' | 'unknown';
+  tradeInAccidentHistory: string;
+  tradeInNotes: string;
   
   // Paso 5: Información Adicional
   identificationType: 'drivers_license' | 'passport' | 'id_card' | '';
@@ -68,13 +76,13 @@ export default function FIAdvancedClientForm({
   onSave, 
   onComplete 
 }: { 
-  initialData?: Partial<FormData>;
-  onSave?: (data: FormData) => void;
-  onComplete?: (data: FormData) => void;
+  initialData?: Partial<FIAdvancedClientFormData>;
+  onSave?: (data: FIAdvancedClientFormData) => void;
+  onComplete?: (data: FIAdvancedClientFormData) => void;
 }) {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState<FormData>({
+  const [formData, setFormData] = useState<FIAdvancedClientFormData>({
     firstName: initialData?.firstName || '',
     lastName: initialData?.lastName || '',
     phone: initialData?.phone || '',
@@ -105,6 +113,14 @@ export default function FIAdvancedClientForm({
     tradeInModel: initialData?.tradeInModel || '',
     tradeInYear: initialData?.tradeInYear || '',
     tradeInValue: initialData?.tradeInValue || 0,
+    tradeInVin: initialData?.tradeInVin || '',
+    tradeInMileage: initialData?.tradeInMileage || '',
+    tradeInColor: initialData?.tradeInColor || '',
+    tradeInPayoff: initialData?.tradeInPayoff || '',
+    tradeInLienholder: initialData?.tradeInLienholder || '',
+    tradeInTitleStatus: initialData?.tradeInTitleStatus || '',
+    tradeInAccidentHistory: initialData?.tradeInAccidentHistory || '',
+    tradeInNotes: initialData?.tradeInNotes || '',
     identificationType: initialData?.identificationType || '',
     identificationNumber: initialData?.identificationNumber || '',
     notes: initialData?.notes || '',
@@ -224,7 +240,7 @@ export default function FIAdvancedClientForm({
     }
   };
 
-  const handleFieldChange = (field: keyof FormData, value: any) => {
+  const handleFieldChange = (field: keyof FIAdvancedClientFormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     
     // Validación en tiempo real
@@ -883,6 +899,90 @@ export default function FIAdvancedClientForm({
                   step="0.01"
                   value={formData.tradeInValue}
                   onChange={(e) => handleFieldChange('tradeInValue', parseFloat(e.target.value) || 0)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">VIN</label>
+                <input
+                  type="text"
+                  value={formData.tradeInVin}
+                  onChange={(e) => handleFieldChange('tradeInVin', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Millaje</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.tradeInMileage}
+                  onChange={(e) => handleFieldChange('tradeInMileage', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
+                <input
+                  type="text"
+                  value={formData.tradeInColor}
+                  onChange={(e) => handleFieldChange('tradeInColor', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Saldo payoff</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.tradeInPayoff}
+                  onChange={(e) => handleFieldChange('tradeInPayoff', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Acreedor</label>
+                <input
+                  type="text"
+                  value={formData.tradeInLienholder}
+                  onChange={(e) => handleFieldChange('tradeInLienholder', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Título</label>
+                <select
+                  value={formData.tradeInTitleStatus}
+                  onChange={(e) =>
+                    handleFieldChange('tradeInTitleStatus', e.target.value as FIAdvancedClientFormData['tradeInTitleStatus'])
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">—</option>
+                  <option value="clean">Limpio</option>
+                  <option value="salvage">Salvage</option>
+                  <option value="rebuilt">Reconstruido</option>
+                  <option value="unknown">Desconocido</option>
+                </select>
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Historial de accidentes
+                </label>
+                <input
+                  type="text"
+                  value={formData.tradeInAccidentHistory}
+                  onChange={(e) => handleFieldChange('tradeInAccidentHistory', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notas trade-in</label>
+                <textarea
+                  rows={2}
+                  value={formData.tradeInNotes}
+                  onChange={(e) => handleFieldChange('tradeInNotes', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>

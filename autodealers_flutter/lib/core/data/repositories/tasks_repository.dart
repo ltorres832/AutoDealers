@@ -44,7 +44,7 @@ class TasksRepository {
             'createdAt': data['createdAt']?.toDate(),
             'updatedAt': data['updatedAt']?.toDate(),
             'completedAt': data['completedAt']?.toDate(),
-          } as Map<String, dynamic>;
+          };
         })
         .toList());
   }

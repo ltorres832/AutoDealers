@@ -65,21 +65,41 @@ export async function createAppointment(
       minute: '2-digit',
     });
 
-    // Notificar a gerentes y administradores sobre la nueva cita (asíncrono, no bloquea)
-    const { notifyManagersAndAdmins } = await import('@autodealers/core');
-    await notifyManagersAndAdmins(appointmentData.tenantId, {
+    // Notificar a gerentes / dealers (excluye al vendedor asignado para evitar duplicado)
+    const { notifyManagersAndAdmins, createNotification } = await import('@autodealers/core');
+    const { resolveUserNotificationChannels } = await import('./user-notification-channels');
+    await notifyManagersAndAdmins(
+      appointmentData.tenantId,
+      {
+        type: 'appointment_created',
+        title: 'Nueva Cita Programada',
+        message: `Se ha programado una nueva cita de tipo ${appointmentData.type} para ${lead?.contact?.name || 'Cliente'} (${lead?.contact?.phone || ''}) con ${sellerName} el ${formattedDate}.`,
+        metadata: {
+          appointmentId: newAppointment.id,
+          leadId: appointmentData.leadId,
+          assignedTo: appointmentData.assignedTo,
+          assignedToName: sellerName,
+          type: appointmentData.type,
+          scheduledAt: appointmentData.scheduledAt.toISOString(),
+          contactName: lead?.contact?.name,
+          contactPhone: lead?.contact?.phone,
+        },
+      },
+      { excludeUserIds: [appointmentData.assignedTo] }
+    );
+
+    const sellerChannels = await resolveUserNotificationChannels(appointmentData.assignedTo);
+    await createNotification({
+      tenantId: appointmentData.tenantId,
+      userId: appointmentData.assignedTo,
       type: 'appointment_created',
-      title: 'Nueva Cita Programada',
-      message: `Se ha programado una nueva cita de tipo ${appointmentData.type} para ${lead?.contact?.name || 'Cliente'} (${lead?.contact?.phone || ''}) con ${sellerName} el ${formattedDate}.`,
+      title: 'Nueva cita — revisa y confirma',
+      message: `Cita (${appointmentData.type}) con ${lead?.contact?.name || 'cliente'} el ${formattedDate}.`,
+      channels: sellerChannels,
       metadata: {
         appointmentId: newAppointment.id,
         leadId: appointmentData.leadId,
-        assignedTo: appointmentData.assignedTo,
-        assignedToName: sellerName,
-        type: appointmentData.type,
-        scheduledAt: appointmentData.scheduledAt.toISOString(),
-        contactName: lead?.contact?.name,
-        contactPhone: lead?.contact?.phone,
+        route: '/appointments',
       },
     });
   } catch (error) {
@@ -116,6 +136,7 @@ export async function getAppointmentById(
     scheduledAt: data?.scheduledAt?.toDate() || new Date(),
     createdAt: data?.createdAt?.toDate() || new Date(),
     updatedAt: data?.updatedAt?.toDate() || new Date(),
+    confirmedAt: data?.confirmedAt?.toDate?.() ?? data?.confirmedAt,
   } as Appointment;
 }
 
@@ -369,3 +390,83 @@ export async function checkAvailability(
   return true; // Disponible
 }
 
+/**
+ * Confirma la cita, guarda quién confirmó y escribe `clientAppointmentNotification` en el lead
+ * para que apps cliente / web pública escuchen en tiempo real (Firestore onSnapshot).
+ */
+export async function confirmAppointmentAndNotifyClient(
+  tenantId: string,
+  appointmentId: string,
+  confirmedBy: { userId: string; name: string }
+): Promise<Appointment> {
+  const apt = await getAppointmentById(tenantId, appointmentId);
+  if (!apt) {
+    throw new Error('Cita no encontrada');
+  }
+  if (apt.status === 'cancelled' || apt.status === 'completed') {
+    throw new Error('La cita no se puede confirmar');
+  }
+
+  const updated = await updateAppointment(tenantId, appointmentId, {
+    status: 'confirmed',
+    confirmedByUserId: confirmedBy.userId,
+    confirmedByName: confirmedBy.name,
+    confirmedAt: new Date(),
+  } as Partial<Appointment>);
+
+  const db = getDb();
+  const scheduledIso =
+    apt.scheduledAt instanceof Date ? apt.scheduledAt.toISOString() : String(apt.scheduledAt);
+
+  const clientAppointmentNotification = {
+    appointmentId,
+    headline: 'Cita confirmada',
+    body: `Tu cita fue confirmada por ${confirmedBy.name}.`,
+    confirmedByName: confirmedBy.name,
+    appointmentType: apt.type,
+    scheduledAt: scheduledIso,
+    at: getFirestoreFieldValue().serverTimestamp(),
+  };
+
+  await db
+    .collection('tenants')
+    .doc(tenantId)
+    .collection('leads')
+    .doc(apt.leadId)
+    .update({
+      clientAppointmentNotification,
+      updatedAt: getFirestoreFieldValue().serverTimestamp(),
+    } as any);
+
+  try {
+    const { mirrorPublicAppointmentTracking } = await import('./public-appointment-tracking');
+    await mirrorPublicAppointmentTracking(tenantId, apt.leadId, clientAppointmentNotification as Record<string, unknown>);
+  } catch (e) {
+    console.warn('mirrorPublicAppointmentTracking skipped:', e);
+  }
+
+  try {
+    const { addInteraction } = await import('./leads');
+    await addInteraction(tenantId, apt.leadId, {
+      type: 'appointment',
+      content: `Cita confirmada por ${confirmedBy.name}`,
+      userId: confirmedBy.userId,
+    });
+  } catch (e) {
+    console.warn('addInteraction on confirm skipped:', e);
+  }
+
+  try {
+    const { notifyManagersAndAdmins } = await import('@autodealers/core');
+    await notifyManagersAndAdmins(tenantId, {
+      type: 'appointment_confirmed',
+      title: 'Cita confirmada',
+      message: `La cita (${apt.type}) fue confirmada por ${confirmedBy.name} para el lead ${apt.leadId}.`,
+      metadata: { appointmentId, leadId: apt.leadId },
+    });
+  } catch (e) {
+    console.warn('Manager notify on confirm skipped:', e);
+  }
+
+  return updated;
+}

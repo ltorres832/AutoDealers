@@ -48,6 +48,12 @@ service firebase.storage {
                       request.resource.size < 2 * 1024 * 1024 && // 2MB
                       request.resource.contentType.matches('image/.*');
     }
+
+    // Marca del panel admin (subida vía Admin SDK a admin/branding/…; lectura pública con ?token=)
+    match /admin/branding/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
   }
 }
 

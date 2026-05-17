@@ -24,7 +24,7 @@ class TestimonialsRepository {
                 return {
                   'id': doc.id,
                   ...data,
-                } as Map<String, dynamic>;
+                };
               })
           .where((t) => t['isActive'] != false)
           .toList();

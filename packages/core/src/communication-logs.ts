@@ -6,11 +6,11 @@ import { TemplateType, TemplateEvent } from './communication-templates';
 
 let db: admin.firestore.Firestore | null = null;
 
-function getDb() {
+function getDb(): admin.firestore.Firestore {
   if (!db) {
     db = getFirestore();
   }
-  return db;
+  return db!;
 }
 
 export interface CommunicationLog {

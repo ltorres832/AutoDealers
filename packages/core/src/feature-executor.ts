@@ -69,7 +69,10 @@ export type FeatureAction =
   | 'runABTest'
   | 'useSEOTools'
   | 'createCustomIntegration'
-  | 'publishFreePromotion';
+  | 'publishFreePromotion'
+  | 'useCorporateEmail'
+  | 'requestCustomerDocuments'
+  | 'useFIModule';
 
 export interface FeatureCheckResult {
   allowed: boolean;
@@ -269,6 +272,73 @@ async function checkNumericLimits(
       };
     }
 
+    case 'createLead': {
+      if (features.maxLeadsPerMonth === undefined || features.maxLeadsPerMonth === null) {
+        return null;
+      }
+      const maxLeads = features.maxLeadsPerMonth as number;
+      const { getLeads } = await import('@autodealers/crm');
+      const leads = await getLeads(tenantId, { limit: 5000 });
+      const start = new Date();
+      start.setDate(1);
+      start.setHours(0, 0, 0, 0);
+      const countThisMonth = leads.filter((l: { createdAt: Date }) => l.createdAt >= start).length;
+      if (countThisMonth >= maxLeads) {
+        return {
+          allowed: false,
+          reason: `Has alcanzado el máximo de leads nuevos este mes para tu plan (${maxLeads}).`,
+          limit: maxLeads,
+          current: countThisMonth,
+          remaining: 0,
+        };
+      }
+      return {
+        allowed: true,
+        limit: maxLeads,
+        current: countThisMonth,
+        remaining: maxLeads - countThisMonth,
+      };
+    }
+
+    case 'requestCustomerDocuments': {
+      if ((features as Record<string, unknown>).customerDocumentRequestsEnabled === false) {
+        return {
+          allowed: false,
+          reason: 'Tu plan no incluye solicitudes de documentos al cliente en el expediente',
+        };
+      }
+      const docLim = features.maxCustomerDocumentRequestsPerMonth;
+      if (docLim === undefined || docLim === null) {
+        return null;
+      }
+      const monthStartDoc = new Date();
+      monthStartDoc.setDate(1);
+      monthStartDoc.setHours(0, 0, 0, 0);
+      const docUsageSnap = await getDb()
+        .collection('feature_usage')
+        .where('tenantId', '==', tenantId)
+        .where('timestamp', '>=', admin.firestore.Timestamp.fromDate(monthStartDoc))
+        .get();
+      const docCount = docUsageSnap.docs.filter(
+        (d) => d.data().action === 'requestCustomerDocuments'
+      ).length;
+      if (docCount >= docLim) {
+        return {
+          allowed: false,
+          reason: `Límite mensual de solicitudes de documentos al cliente alcanzado`,
+          limit: docLim,
+          current: docCount,
+          remaining: 0,
+        };
+      }
+      return {
+        allowed: true,
+        limit: docLim,
+        current: docCount,
+        remaining: docLim - docCount,
+      };
+    }
+
     default:
       return null;
   }
@@ -281,12 +351,13 @@ function checkBooleanFeatures(
   action: FeatureAction,
   features: MembershipFeatures
 ): FeatureCheckResult | null {
-  const featureMap: Record<FeatureAction, keyof MembershipFeatures | 'maxLeadsPerMonth'> = {
+  const featureMap: Partial<
+    Record<FeatureAction, keyof MembershipFeatures | 'maxLeadsPerMonth'>
+  > = {
     createSeller: 'maxSellers',
     addVehicle: 'maxInventory',
     createCampaign: 'maxCampaigns',
     createPromotion: 'maxPromotions',
-    createLead: 'maxLeadsPerMonth',
     createAppointment: 'maxAppointmentsPerMonth',
     uploadFile: 'maxStorageGB',
     makeApiCall: 'maxApiCallsPerMonth',
@@ -335,6 +406,8 @@ function checkBooleanFeatures(
     useSEOTools: 'seoTools',
     createCustomIntegration: 'customIntegrations',
     publishFreePromotion: 'freePromotionsOnLanding',
+    useCorporateEmail: 'corporateEmailEnabled',
+    useFIModule: 'fiModule',
   };
 
   const featureKey = featureMap[action];

@@ -29,7 +29,7 @@ export async function verifyAuth(request: NextRequest): Promise<AuthContext | nu
         role: (decoded as any).role,
         advertiserId: (decoded as any).advertiserId,
       };
-    } catch (err) {
+    } catch {
       // Continuar intentando como sesión base64
     }
 

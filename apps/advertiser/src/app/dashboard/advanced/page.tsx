@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRealtimeAdvertiserPricing } from '@/hooks/useRealtimeAdvertiserPricing';
 
 interface Campaign {
   id: string;
@@ -39,7 +38,6 @@ interface AdvancedStats {
 }
 
 export default function AdvancedDashboardPage() {
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [stats, setStats] = useState<AdvancedStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [advertiser, setAdvertiser] = useState<any>(null);
@@ -119,7 +117,7 @@ export default function AdvancedDashboardPage() {
     }
   }
 
-  function generateTrendData(period: string, campaigns: Campaign[]) {
+  function generateTrendData(period: string, _campaigns: Campaign[]) {
     const days = period === '7d' ? 7 : period === '30d' ? 30 : 90;
     const impressions: Array<{ date: string; value: number }> = [];
     const clicks: Array<{ date: string; value: number }> = [];
@@ -151,30 +149,6 @@ export default function AdvancedDashboardPage() {
   function getPercentageChange(current: number, previous: number): number {
     if (previous === 0) return current > 0 ? 100 : 0;
     return ((current - previous) / previous) * 100;
-  }
-
-  function getStatusBadge(status: string) {
-    const styles = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      approved: 'bg-green-100 text-green-800',
-      active: 'bg-blue-100 text-blue-800',
-      paused: 'bg-gray-100 text-gray-800',
-      expired: 'bg-red-100 text-red-800',
-      rejected: 'bg-red-100 text-red-800',
-    };
-    const labels = {
-      pending: 'Pendiente',
-      approved: 'Aprobada',
-      active: 'Activa',
-      paused: 'Pausada',
-      expired: 'Expirada',
-      rejected: 'Rechazada',
-    };
-    return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[status as keyof typeof styles]}`}>
-        {labels[status as keyof typeof labels]}
-      </span>
-    );
   }
 
   if (loading) {

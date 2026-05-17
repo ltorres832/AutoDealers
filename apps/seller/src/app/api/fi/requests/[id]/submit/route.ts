@@ -2,9 +2,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
+import { requireTenantFeature } from '@/lib/membership-middleware';
 import { createNotification } from '@autodealers/core';
 import { getFirestore } from '@autodealers/core';
 import * as admin from 'firebase-admin';
+import { fiStatusToExpeditionStage, syncLinkedCustomerFileExpedition } from '@autodealers/crm';
 import { EmailService } from '@autodealers/messaging';
 import { SMSService } from '@autodealers/messaging';
 
@@ -74,12 +76,19 @@ async function submitFIRequestDirect(
 
   await requestRef.update({
     status: 'submitted',
+    expeditionStage: fiStatusToExpeditionStage('submitted'),
     submittedAt: admin.firestore.FieldValue.serverTimestamp(),
     submittedBy,
     sellerNotes: sellerNotes || currentData?.sellerNotes,
     history: [...currentHistory, historyEntry],
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   } as any);
+
+  try {
+    await syncLinkedCustomerFileExpedition(tenantId, requestId);
+  } catch (e) {
+    console.error('syncLinkedCustomerFileExpedition (submit route):', e);
+  }
 }
 
 export async function POST(
@@ -97,6 +106,9 @@ export async function POST(
     if (user.role !== 'seller') {
       return NextResponse.json({ error: 'Solo vendedores pueden enviar solicitudes F&I' }, { status: 403 });
     }
+
+    const fiGate = await requireTenantFeature(user.tenantId!, 'useFIModule');
+    if (fiGate) return fiGate;
 
     const body = await request.json();
     const { sellerNotes } = body;

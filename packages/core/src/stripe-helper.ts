@@ -1,7 +1,11 @@
 // Helper para obtener instancias de Stripe usando credenciales desde Firestore
 
 import Stripe from 'stripe';
-import { getStripeSecretKey, getStripeWebhookSecret } from './credentials';
+import {
+  getStripeSecretKey,
+  getStripeWebhookSecret,
+  getStripeAdvertiserWebhookSecret,
+} from './credentials';
 
 /**
  * Obtiene una instancia de Stripe usando las credenciales desde Firestore
@@ -27,6 +31,22 @@ export async function getStripeWebhookSecretValue(): Promise<string> {
   
   if (!secret) {
     throw new Error('Stripe Webhook Secret no está configurado. Configúralo en Admin → Configuración → General → Stripe');
+  }
+
+  return secret;
+}
+
+/**
+ * Webhook secret para `apps/advertiser` (URL distinta en Stripe).
+ * Si no hay secreto dedicado, usa el mismo que {@link getStripeWebhookSecretValue}.
+ */
+export async function getStripeAdvertiserWebhookSecretValue(): Promise<string> {
+  const secret = await getStripeAdvertiserWebhookSecret();
+
+  if (!secret) {
+    throw new Error(
+      'Stripe Webhook Secret no está configurado para advertiser. Configura stripeAdvertiserWebhookSecret (o STRIPE_ADVERTISER_WEBHOOK_SECRET), o el webhook principal compartido en Admin → Configuración → General → Stripe'
+    );
   }
 
   return secret;

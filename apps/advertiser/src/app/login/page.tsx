@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { ForgotPasswordPanel } from '@/components/ForgotPasswordPanel';
 
-export default function AdvertiserLoginPage() {
+function AdvertiserLoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -37,8 +39,12 @@ export default function AdvertiserLoginPage() {
       const data = await response.json();
 
       if (response.ok) {
-        // La cookie se establece automáticamente por el servidor
-        router.push('/dashboard');
+        const next = searchParams.get('next');
+        const safe =
+          next && next.startsWith('/') && !next.startsWith('//')
+            ? next
+            : '/dashboard';
+        router.push(safe);
       } else {
         setError(data.error || 'Error al iniciar sesión');
       }
@@ -110,6 +116,8 @@ export default function AdvertiserLoginPage() {
           </button>
         </form>
 
+        <ForgotPasswordPanel />
+
         <div className="mt-6 text-center">
           <Link href="/register" className="text-blue-600 hover:text-blue-700 text-sm">
             ¿No tienes cuenta? Regístrate aquí
@@ -120,3 +128,16 @@ export default function AdvertiserLoginPage() {
   );
 }
 
+export default function AdvertiserLoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" />
+        </div>
+      }
+    >
+      <AdvertiserLoginForm />
+    </Suspense>
+  );
+}

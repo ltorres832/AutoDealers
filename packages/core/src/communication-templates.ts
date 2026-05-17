@@ -7,11 +7,11 @@ import { notifyAdminTemplateCreated } from './communication-logs';
 // Inicializar db de forma lazy para evitar problemas de inicialización
 let db: admin.firestore.Firestore | null = null;
 
-function getDb() {
+function getDb(): admin.firestore.Firestore {
   if (!db) {
     db = getFirestore();
   }
-  return db;
+  return db!;
 }
 
 export type TemplateType = 'email' | 'sms' | 'whatsapp';

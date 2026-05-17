@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuth, isDealerPortalRole } from '@/lib/auth';
 import { createSubUser, getSubUsers, canPerformAction } from '@autodealers/core';
 import { getTenantSales } from '@autodealers/crm';
 import { validateMembershipFeature } from '@/lib/membership-middleware';
@@ -7,7 +7,7 @@ import { validateMembershipFeature } from '@/lib/membership-middleware';
 export async function GET(request: NextRequest) {
   try {
     const auth = await verifyAuth(request);
-    if (!auth || !auth.tenantId || auth.role !== 'dealer') {
+    if (!auth || !auth.tenantId || !isDealerPortalRole(auth.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized: No tenantId' }, { status: 401 });
     }
     
-    if (auth.role !== 'dealer') {
+    if (!isDealerPortalRole(auth.role)) {
       return NextResponse.json({ error: 'Unauthorized: Only dealers can create sellers' }, { status: 403 });
     }
 

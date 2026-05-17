@@ -81,12 +81,19 @@ export default function CustomerCasePage() {
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <div className="flex items-center space-x-3 mb-2">
+            <div className="flex items-center space-x-3 mb-2 flex-wrap gap-y-2">
               <Link
                 href="/leads"
                 className="text-blue-600 hover:text-blue-800"
               >
                 ← Volver a Leads
+              </Link>
+              <span className="text-gray-300">|</span>
+              <Link
+                href={`/leads/${customerId}`}
+                className="text-blue-600 hover:text-blue-800 font-medium"
+              >
+                Ficha CRM del lead →
               </Link>
             </div>
             <h1 className="text-3xl font-bold text-gray-900">

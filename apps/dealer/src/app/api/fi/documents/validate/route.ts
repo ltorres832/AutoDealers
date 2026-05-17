@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuth, isDealerPortalRole } from '@/lib/auth';
+import { requireTenantFeature } from '@/lib/membership-middleware';
 import { validateDocument, getFIRequestById, DocumentType } from '@autodealers/crm';
 
 export async function POST(request: NextRequest) {
   try {
     const auth = await verifyAuth(request);
-    if (!auth || (auth.role !== 'dealer' && auth.role !== 'seller')) {
+    if (!auth || (!isDealerPortalRole(auth.role) && auth.role !== 'seller')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -22,6 +23,9 @@ export async function POST(request: NextRequest) {
     if (!auth.tenantId) {
       return NextResponse.json({ error: 'Tenant ID is required' }, { status: 400 });
     }
+
+    const fiGate = await requireTenantFeature(auth.tenantId, 'useFIModule');
+    if (fiGate) return fiGate;
 
     const fiRequest = await getFIRequestById(auth.tenantId, requestId);
     if (!fiRequest) {

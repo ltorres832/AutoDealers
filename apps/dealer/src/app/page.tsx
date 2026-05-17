@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase-client';
+import { canAccessDealerApp, isSellerRole } from '@/lib/dealer-portal-roles';
 
 export default function HomePage() {
   const router = useRouter();
@@ -31,10 +32,10 @@ export default function HomePage() {
 
         if (!userResponse.ok) {
           if (userResponse.status === 403) {
-            // Usuario no es dealer, limpiar cookies y redirigir
-            console.error('❌ Usuario no es dealer');
+            // Usuario no permitido, limpiar cookies y redirigir
+            console.error('❌ Usuario no permitido en portal dealer');
             document.cookie = 'authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-            alert('Solo dealers pueden acceder a este dashboard.');
+            alert('No tienes acceso a este portal.');
             router.push('/login');
             setLoading(false);
             return;
@@ -47,17 +48,22 @@ export default function HomePage() {
 
         const userData = await userResponse.json();
         
-        if (userData.user?.role !== 'dealer') {
-          // Usuario no es dealer, limpiar cookies y redirigir
-          console.error('❌ Usuario no es dealer, rol:', userData.user?.role);
+        if (!canAccessDealerApp(userData.user?.role)) {
+          console.error('❌ Rol no permitido en app dealer:', userData.user?.role);
           document.cookie = 'authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-          alert('Solo dealers pueden acceder a este dashboard.');
+          alert('Solo cuentas de concesionario o vendedores pueden acceder a este portal.');
           router.push('/login');
           setLoading(false);
           return;
         }
 
-        // Usuario es dealer, redirigir a dashboard
+        if (isSellerRole(userData.user?.role)) {
+          router.push('/settings/seller-public-page');
+          setLoading(false);
+          return;
+        }
+
+        // Staff del concesionario → dashboard
         router.push('/dashboard');
         setLoading(false);
       } catch (error) {

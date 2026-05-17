@@ -333,7 +333,13 @@ class AppRouter {
             path: 'create',
             builder: (context, state) {
               final leadId = state.uri.queryParameters['leadId'];
-              return CreateAppointmentPage(leadId: leadId);
+              final vehicleId = state.uri.queryParameters['vehicleId'];
+              final type = state.uri.queryParameters['type'];
+              return CreateAppointmentPage(
+                leadId: leadId,
+                vehicleId: vehicleId,
+                appointmentTypeQuery: type,
+              );
             },
           ),
           GoRoute(

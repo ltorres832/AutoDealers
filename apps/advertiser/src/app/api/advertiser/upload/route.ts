@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { getStorage } from '@autodealers/core';
-import * as admin from 'firebase-admin';
 
 const MAX_IMAGE_MB = 10;
 const MAX_VIDEO_MB = 50;

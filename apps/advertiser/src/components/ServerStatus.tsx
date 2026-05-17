@@ -1,17 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 export default function ServerStatus() {
   const [serverOnline, setServerOnline] = useState<boolean | null>(null);
 
-  useEffect(() => {
-    checkServer();
-    const interval = setInterval(checkServer, 5000); // Verificar cada 5 segundos
-    return () => clearInterval(interval);
-  }, []);
-
-  async function checkServer() {
+  const checkServer = useCallback(async () => {
     try {
       const response = await fetch('/api/public/advertiser-pricing', {
         method: 'HEAD', // Solo verificar si responde, sin descargar contenido
@@ -20,7 +14,13 @@ export default function ServerStatus() {
     } catch {
       setServerOnline(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    void checkServer();
+    const interval = setInterval(() => void checkServer(), 5000);
+    return () => clearInterval(interval);
+  }, [checkServer]);
 
   if (serverOnline === null) {
     return null; // No mostrar nada mientras verifica

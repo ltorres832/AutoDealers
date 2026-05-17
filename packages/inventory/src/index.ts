@@ -8,4 +8,5 @@ export * from './vehicle-types';
 // Estas exportaciones solo deben usarse en API routes o Server Components
 export * from './vehicles';
 export * from './storage';
+export * from './listing-disposition';
 

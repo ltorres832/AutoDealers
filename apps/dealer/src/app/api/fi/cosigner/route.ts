@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuth, isDealerPortalRole } from '@/lib/auth';
+import { requireTenantFeature } from '@/lib/membership-middleware';
 import { addCosignerToRequest, updateCosignerStatus, calculateCombinedScore, getFIRequestById } from '@autodealers/crm';
 import { getFirestore } from '@autodealers/core';
 import * as admin from 'firebase-admin';
@@ -7,7 +8,7 @@ import * as admin from 'firebase-admin';
 export async function POST(request: NextRequest) {
   try {
     const auth = await verifyAuth(request);
-    if (!auth || (auth.role !== 'dealer' && auth.role !== 'seller')) {
+    if (!auth || (!isDealerPortalRole(auth.role) && auth.role !== 'seller')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -24,6 +25,9 @@ export async function POST(request: NextRequest) {
     if (!auth.tenantId) {
       return NextResponse.json({ error: 'Tenant ID is required' }, { status: 400 });
     }
+
+    const fiGatePost = await requireTenantFeature(auth.tenantId, 'useFIModule');
+    if (fiGatePost) return fiGatePost;
 
     const cosigner = await addCosignerToRequest(
       auth.tenantId,
@@ -66,7 +70,7 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const auth = await verifyAuth(request);
-    if (!auth || auth.role !== 'dealer') {
+    if (!auth || !isDealerPortalRole(auth.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -83,6 +87,9 @@ export async function PATCH(request: NextRequest) {
     if (!auth.tenantId) {
       return NextResponse.json({ error: 'Tenant ID is required' }, { status: 400 });
     }
+
+    const fiGatePatch = await requireTenantFeature(auth.tenantId, 'useFIModule');
+    if (fiGatePatch) return fiGatePatch;
 
     await updateCosignerStatus(
       auth.tenantId,

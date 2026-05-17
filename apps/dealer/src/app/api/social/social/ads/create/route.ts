@@ -10,7 +10,17 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, objective, vehicleId, profileId, budget, dailyBudget, duration, platforms } = body;
+    const {
+      name,
+      objective,
+      vehicleId,
+      profileId,
+      budget,
+      dailyBudget,
+      duration,
+      platforms,
+      leadCaptureCustomFields,
+    } = body;
 
     if (!name || !objective || !budget || !duration || !platforms || platforms.length === 0) {
       return NextResponse.json(
@@ -38,6 +48,9 @@ export async function POST(request: NextRequest) {
       duration,
       platforms,
       status: 'draft',
+      ...(Array.isArray(leadCaptureCustomFields) && leadCaptureCustomFields.length > 0
+        ? { leadCaptureCustomFields }
+        : {}),
     });
 
     return NextResponse.json({ campaign }, { status: 201 });

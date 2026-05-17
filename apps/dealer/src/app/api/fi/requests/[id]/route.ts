@@ -3,9 +3,10 @@
 // PATCH: Actualizar estado o agregar notas
 
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuth, isDealerPortalRole } from '@/lib/auth';
+import { requireTenantFeature } from '@/lib/membership-middleware';
 import { createNotification, getFirestore } from '@autodealers/core';
-import { getFIRequestById } from '@autodealers/crm';
+import { getFIRequestById, fiStatusToExpeditionStage, syncLinkedCustomerFileExpedition } from '@autodealers/crm';
 import * as admin from 'firebase-admin';
 
 async function updateFIRequestStatusDirect(
@@ -43,6 +44,7 @@ async function updateFIRequestStatusDirect(
 
   const updateData: any = {
     status: newStatus,
+    expeditionStage: fiStatusToExpeditionStage(newStatus),
     reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
     reviewedBy,
     history: [...currentHistory, historyEntry],
@@ -53,7 +55,17 @@ async function updateFIRequestStatusDirect(
     updateData.fiManagerNotes = fiManagerNotes;
   }
 
+  if (internalNotes) {
+    updateData.internalNotes = internalNotes;
+  }
+
   await requestRef.update(updateData);
+
+  try {
+    await syncLinkedCustomerFileExpedition(tenantId, requestId);
+  } catch (e) {
+    console.error('syncLinkedCustomerFileExpedition (dealer PATCH):', e);
+  }
 }
 
 async function addFIRequestNoteDirect(
@@ -103,9 +115,12 @@ export async function GET(
     }
 
     // Verificar que el usuario es dealer
-    if (user.role !== 'dealer') {
+    if (!isDealerPortalRole(user.role)) {
       return NextResponse.json({ error: 'Solo dealers pueden acceder' }, { status: 403 });
     }
+
+    const fiGateGet = await requireTenantFeature(user.tenantId!, 'useFIModule');
+    if (fiGateGet) return fiGateGet;
 
     const { id } = await params;
     const fiRequest = await getFIRequestById(user.tenantId!, id);
@@ -135,9 +150,12 @@ export async function PATCH(
     }
 
     // Verificar que el usuario es dealer
-    if (user.role !== 'dealer') {
+    if (!isDealerPortalRole(user.role)) {
       return NextResponse.json({ error: 'Solo dealers pueden actualizar solicitudes F&I' }, { status: 403 });
     }
+
+    const fiGatePatch = await requireTenantFeature(user.tenantId!, 'useFIModule');
+    if (fiGatePatch) return fiGatePatch;
 
     const { id } = await params;
     const body = await request.json();

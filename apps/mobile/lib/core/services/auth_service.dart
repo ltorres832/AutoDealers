@@ -1,7 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_role.dart';
-import 'firestore_service.dart';
 
 /// Servicio de autenticación con detección de roles
 class AuthService {

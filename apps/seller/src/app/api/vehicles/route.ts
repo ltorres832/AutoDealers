@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { getVehicles, createVehicle } from '@autodealers/inventory';
-import { createNotification } from '@autodealers/core';
+import { createNotification, resolveSellerVehicleCreatePolicy } from '@autodealers/core';
 
 export async function GET(request: NextRequest) {
   try {
@@ -125,6 +125,24 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+    delete (body as any).isFreePublicListing;
+    delete (body as any).freeListingExpiresAt;
+
+    const policy = await resolveSellerVehicleCreatePolicy(auth.tenantId, auth.userId);
+    if (policy.mode === 'blocked') {
+      return NextResponse.json({ error: policy.message }, { status: policy.status });
+    }
+
+    const payload =
+      policy.mode === 'free'
+        ? {
+            ...body,
+            isFreePublicListing: true,
+            freeListingExpiresAt: policy.expiresAt,
+            publishedOnPublicPage: body.publishedOnPublicPage !== false,
+          }
+        : { ...body };
+
     console.log('📥 POST /api/vehicles - Datos recibidos:', {
       make: body.make,
       model: body.model,
@@ -142,7 +160,7 @@ export async function POST(request: NextRequest) {
     });
     console.log(`💾 Guardando vehículo con tenantId: "${auth.tenantId}" y sellerId: "${auth.userId}"`);
     // Asignar sellerId automáticamente cuando un seller crea un vehículo
-    const vehicle = await createVehicle(auth.tenantId, body, auth.userId);
+    const vehicle = await createVehicle(auth.tenantId, payload, auth.userId);
     console.log(`✅ Vehículo creado con sellerId: ${(vehicle as any).sellerId || 'NO ASIGNADO'}`);
     console.log('✅ Vehículo creado:', {
       id: vehicle.id,

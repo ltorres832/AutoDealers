@@ -1,8 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useState, useEffect, useMemo } from 'react';
+import VehicleInventoryCard from '@/components/VehicleInventoryCard';
 import { VEHICLE_TYPES, TRANSMISSION_OPTIONS, FUEL_TYPE_OPTIONS, DRIVE_TYPE_OPTIONS } from '@autodealers/inventory/client';
 import AdvancedMarkAsSoldModal from '@/components/AdvancedMarkAsSoldModal';
+import ScheduleFromInventoryModal, {
+  type ScheduleFromInventoryMode,
+} from '@/components/ScheduleFromInventoryModal';
 
 interface Vehicle {
   id: string;
@@ -28,15 +33,25 @@ interface Vehicle {
     stockNumber?: string;
     [key: string]: any;
   };
+  showSoldBadge?: boolean;
+  showPublicSoldBadge?: boolean;
+  deleted?: boolean;
 }
+
+type InventoryFilter = 'all' | 'available' | 'sold' | 'hidden';
 
 export default function InventoryPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
+  const [inventoryFilter, setInventoryFilter] = useState<InventoryFilter>('all');
   const [showMarkAsSoldModal, setShowMarkAsSoldModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+  const [schedule, setSchedule] = useState<{
+    vehicle: Vehicle;
+    mode: ScheduleFromInventoryMode;
+  } | null>(null);
 
   useEffect(() => {
     fetchVehicles();
@@ -73,6 +88,17 @@ export default function InventoryPage() {
     setShowMarkAsSoldModal(true);
   }
 
+  const visibleVehicles = useMemo(() => {
+    return vehicles.filter((v) => {
+      if (v.deleted === true) return false;
+      if (inventoryFilter === 'all') return true;
+      if (inventoryFilter === 'available') return v.status === 'available';
+      if (inventoryFilter === 'sold') return v.status === 'sold';
+      if (inventoryFilter === 'hidden') return v.status === 'hidden';
+      return true;
+    });
+  }, [vehicles, inventoryFilter]);
+
   async function togglePublishVehicle(vehicle: Vehicle) {
     try {
       const response = await fetch(`/api/vehicles/${vehicle.id}/publish`, {
@@ -106,101 +132,71 @@ export default function InventoryPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
         <div>
           <h1 className="text-3xl font-bold">Inventario</h1>
           <p className="text-gray-600 mt-2">
             Gestiona los vehículos y marca como vendido cuando completes una venta
           </p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="bg-primary-600 text-white px-4 py-2 rounded hover:bg-primary-700 font-medium"
-        >
-          Agregar Vehículo
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/catalog-interest"
+            className="px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-800 hover:bg-slate-50"
+          >
+            👁️ Interés en la web
+          </Link>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="bg-primary-600 text-white px-4 py-2 rounded hover:bg-primary-700 font-medium"
+          >
+            Agregar Vehículo
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 mb-6">
+        {(
+          [
+            { id: 'all' as const, label: 'Todos' },
+            { id: 'available' as const, label: 'Activos' },
+            { id: 'sold' as const, label: 'Vendidos' },
+            { id: 'hidden' as const, label: 'Ocultos' },
+          ] as const
+        ).map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setInventoryFilter(tab.id)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium border ${
+              inventoryFilter === tab.id
+                ? 'bg-primary-600 text-white border-primary-600'
+                : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {vehicles.length === 0 ? (
+        {visibleVehicles.length === 0 ? (
           <div className="col-span-full text-center text-gray-500 py-8">
-            No hay vehículos disponibles
+            No hay vehículos en esta vista
           </div>
         ) : (
-          vehicles.map((vehicle) => (
-            <div
+          visibleVehicles.map((vehicle) => (
+            <VehicleInventoryCard
               key={vehicle.id}
-              className="bg-white rounded-lg shadow overflow-hidden hover:shadow-lg transition"
-            >
-              {vehicle.photos && vehicle.photos.length > 0 && (
-                <div className="relative h-48 bg-gray-200">
-                  <img
-                    src={vehicle.photos[0]}
-                    alt={`${vehicle.make} ${vehicle.model}`}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              )}
-              <div className="p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <h3 className="font-bold text-lg">
-                    {vehicle.year} {vehicle.make} {vehicle.model}
-                  </h3>
-                  {(vehicle.stockNumber || (vehicle as any).specifications?.stockNumber) && (
-                    <span className="text-xs font-semibold bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                      #{(vehicle.stockNumber || (vehicle as any).specifications?.stockNumber)}
-                    </span>
-                  )}
-                </div>
-                <p className="text-2xl font-bold text-primary-600 mt-2">
-                  {vehicle.currency} {vehicle.price.toLocaleString()}
-                </p>
-                <span
-                  className={`inline-block mt-2 px-2 py-1 text-xs rounded ${
-                    vehicle.status === 'available'
-                      ? 'bg-green-100 text-green-800'
-                      : vehicle.status === 'sold'
-                      ? 'bg-red-100 text-red-800'
-                      : 'bg-gray-100 text-gray-800'
-                  }`}
-                >
-                  {vehicle.status === 'available' ? 'Disponible' : vehicle.status === 'sold' ? 'Vendido' : vehicle.status}
-                </span>
-                
-                <div className="mt-4 space-y-2">
-                  <button
-                    onClick={() => {
-                      setSelectedVehicle(vehicle);
-                      setShowEditModal(true);
-                    }}
-                    className="w-full bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 font-medium"
-                  >
-                    ✏️ Editar Vehículo
-                  </button>
-                  {vehicle.status === 'available' && (
-                    <>
-                      <button
-                        onClick={() => togglePublishVehicle(vehicle)}
-                        className={`w-full px-4 py-2 rounded font-medium ${
-                          vehicle.publishedOnPublicPage
-                            ? 'bg-green-600 text-white hover:bg-green-700'
-                            : 'bg-blue-600 text-white hover:bg-blue-700'
-                        }`}
-                      >
-                        {vehicle.publishedOnPublicPage ? '🌐 Publicado en Página Pública' : '🌐 Publicar en Página Pública'}
-                      </button>
-                      <button
-                        onClick={() => handleMarkAsSold(vehicle)}
-                        className="w-full bg-primary-600 text-white px-4 py-2 rounded hover:bg-primary-700 font-medium"
-                      >
-                        Marcar como Vendido
-                      </button>
-                    </>
-                  )}
-                </div>
-
-              </div>
-            </div>
+              vehicle={vehicle}
+              onRefresh={fetchVehicles}
+              onSchedule={(v, mode) => setSchedule({ vehicle: v as Vehicle, mode })}
+              onEdit={(v) => {
+                setSelectedVehicle(v as Vehicle);
+                setShowEditModal(true);
+              }}
+              onFullSale={(v) => handleMarkAsSold(v as Vehicle)}
+            />
           ))
         )}
       </div>
@@ -214,6 +210,15 @@ export default function InventoryPage() {
             setShowCreateModal(false);
             fetchVehicles();
           }}
+        />
+      )}
+
+      {schedule && (
+        <ScheduleFromInventoryModal
+          key={`${schedule.vehicle.id}-${schedule.mode}`}
+          vehicle={schedule.vehicle}
+          mode={schedule.mode}
+          onClose={() => setSchedule(null)}
         />
       )}
 
@@ -1488,7 +1493,7 @@ function CreateVehicleModal({ onClose, onSuccess }: { onClose: () => void; onSuc
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2">Kilometraje</label>
+              <label className="block text-sm font-medium mb-2">Millaje (millas)</label>
               <input
                 type="number"
                 value={formData.mileage}
@@ -2285,7 +2290,7 @@ function EditVehicleModal({ vehicle, onClose, onSuccess }: { vehicle: Vehicle; o
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2">Kilometraje</label>
+              <label className="block text-sm font-medium mb-2">Millaje (millas)</label>
               <input
                 type="number"
                 value={formData.mileage}

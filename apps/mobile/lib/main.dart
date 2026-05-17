@@ -1,14 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
-import 'package:go_router/go_router.dart';
 
-import 'package:provider/provider.dart';
 import 'core/config/firebase_config.dart';
 import 'core/routing/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/services/firestore_service.dart';
-import 'core/services/sync_service.dart';
 import 'features/auth/providers/auth_provider.dart';
 
 void main() async {

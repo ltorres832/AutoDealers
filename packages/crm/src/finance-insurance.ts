@@ -2,6 +2,8 @@
 // Gestión completa de solicitudes F&I, clientes, historial y trazabilidad
 
 import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
+import type { ExpeditionStage } from './expedition-sync';
+import { fiStatusToExpeditionStage, syncLinkedCustomerFileExpedition } from './expedition-sync';
 
 // Lazy initialization
 function getDb() {
@@ -40,6 +42,38 @@ export type HousingType =
   | 'own'
   | 'family';
 
+/**
+ * Trade-in completo: misma profundidad que inventario / lead snapshot (F&I, reglas, historial).
+ */
+export interface TradeInVehicleProfile {
+  make?: string;
+  model?: string;
+  year?: number;
+  trim?: string;
+  vin?: string;
+  mileage?: number;
+  stockNumber?: string;
+  color?: string;
+  interiorColor?: string;
+  transmission?: string;
+  fuelType?: string;
+  engine?: string;
+  bodyType?: string;
+  condition?: string;
+  estimatedValue?: number;
+  payoffBalance?: number;
+  lienholder?: string;
+  titleStatus?: 'clean' | 'salvage' | 'rebuilt' | 'unknown';
+  accidentHistory?: string;
+  serviceRecords?: boolean;
+  photoUrls?: string[];
+  notes?: string;
+  /** Si el trade-in corresponde a un ID de inventario del tenant */
+  linkedVehicleId?: string;
+  /** Copia serializable al momento de captura (opcional) */
+  linkedStockSnapshot?: Record<string, unknown>;
+}
+
 export interface FIClient {
   id: string;
   tenantId: string;
@@ -57,12 +91,7 @@ export interface FIClient {
   vehiclePrice?: number;
   downPayment?: number;
   hasTradeIn?: boolean;
-  tradeInDetails?: {
-    make?: string;
-    model?: string;
-    year?: number;
-    estimatedValue?: number;
-  };
+  tradeInDetails?: TradeInVehicleProfile;
   // Metadata
   createdBy: string; // userId del vendedor
   createdAt: Date;
@@ -115,7 +144,11 @@ export interface FIRequest {
   digitalSignatures?: DigitalSignature[];
   // Historial
   history: FIRequestHistory[];
-  // Metadata
+  // Metadata expediente (vinculación con Casos de cliente)
+  /** ID del documento en `customer_files` cuando el caso post-venta está ligado a esta solicitud */
+  customerFileId?: string;
+  /** Etapa operativa unificada para vendedor / gerencia / cliente */
+  expeditionStage?: ExpeditionStage;
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;
@@ -280,6 +313,7 @@ export async function createFIRequest(
     ...requestData,
     tenantId,
     status: 'draft',
+    expeditionStage: fiStatusToExpeditionStage('draft'),
     history: [initialHistory],
     createdBy,
     createdAt: getFirestoreFieldValue().serverTimestamp() as any,
@@ -287,6 +321,12 @@ export async function createFIRequest(
   };
 
   await requestRef.set(request);
+
+  try {
+    await syncLinkedCustomerFileExpedition(tenantId, requestRef.id);
+  } catch (e) {
+    console.error('syncLinkedCustomerFileExpedition tras crear F&I:', e);
+  }
 
   return {
     id: requestRef.id,
@@ -332,12 +372,19 @@ export async function submitFIRequest(
 
   await requestRef.update({
     status: 'submitted',
+    expeditionStage: fiStatusToExpeditionStage('submitted'),
     submittedAt: getFirestoreFieldValue().serverTimestamp(),
     submittedBy,
     sellerNotes: sellerNotes || currentData.sellerNotes,
     history: [...currentHistory, historyEntry],
     updatedAt: getFirestoreFieldValue().serverTimestamp(),
   });
+
+  try {
+    await syncLinkedCustomerFileExpedition(tenantId, requestId);
+  } catch (e) {
+    console.error('syncLinkedCustomerFileExpedition tras enviar F&I:', e);
+  }
 
   // Ejecutar workflows automáticos
   try {
@@ -409,6 +456,12 @@ export async function updateFIRequestStatus(
   }
 
   await requestRef.update(updateData);
+
+  try {
+    await syncLinkedCustomerFileExpedition(tenantId, requestId);
+  } catch (e) {
+    console.error('syncLinkedCustomerFileExpedition tras cambio de estado F&I:', e);
+  }
 
   // Enviar notificación al vendedor que creó la solicitud
   if (currentData.createdBy && previousStatus !== newStatus) {

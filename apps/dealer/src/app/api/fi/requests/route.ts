@@ -1,6 +1,7 @@
 // API route para obtener solicitudes F&I (Dealer)
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
+import { requireTenantFeature } from '@/lib/membership-middleware';
 import { getFirestore } from '@autodealers/core';
 import * as admin from 'firebase-admin';
 
@@ -16,6 +17,9 @@ export async function GET(request: NextRequest) {
     if (!allowedRoles.includes(user.role as string)) {
       return NextResponse.json({ error: 'Solo dealers pueden acceder' }, { status: 403 });
     }
+
+    const fiGate = await requireTenantFeature(user.tenantId, 'useFIModule');
+    if (fiGate) return fiGate;
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status') || undefined;

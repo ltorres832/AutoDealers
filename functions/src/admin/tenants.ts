@@ -31,7 +31,7 @@ export const getAllTenants = functions.https.onCall(async (data, context) => {
         const [usersCount, vehiclesCount, leadsCount] = await Promise.all([
           db.collection('users').where('tenantId', '==', tenant.id).count().get(),
           db.collection('vehicles').where('tenantId', '==', tenant.id).count().get(),
-          db.collection('leads').where('tenantId', '==', tenant.id).count().get(),
+          db.collection('tenants').doc(tenant.id).collection('leads').count().get(),
         ]);
 
         return {
@@ -83,7 +83,7 @@ export const getTenantById = functions.https.onCall(async (data, context) => {
     const [usersCount, vehiclesCount, leadsCount] = await Promise.all([
       db.collection('users').where('tenantId', '==', tenantId).count().get(),
       db.collection('vehicles').where('tenantId', '==', tenantId).count().get(),
-      db.collection('leads').where('tenantId', '==', tenantId).count().get(),
+      db.collection('tenants').doc(tenantId).collection('leads').count().get(),
     ]);
 
     return {

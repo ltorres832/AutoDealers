@@ -2,7 +2,10 @@
 
 export type VehicleCondition = 'new' | 'used' | 'certified';
 
-export type VehicleStatus = 'available' | 'reserved' | 'sold';
+export type VehicleStatus = 'available' | 'reserved' | 'sold' | 'hidden';
+
+/** Acción rápida al cerrar una unidad sin borrar el registro del inventario. */
+export type VehicleListingAction = 'sold' | 'hide' | 'reactivate' | 'delete';
 
 export type VehicleBodyType = 
   | 'suv' 
@@ -68,9 +71,44 @@ export interface Vehicle {
   accessoriesCommissionRate?: number; // Porcentaje de comisión del vendedor por accesorios (opcional)
   accessoriesCommissionFixed?: number; // Monto fijo de comisión del vendedor por accesorios (opcional)
   publishedOnPublicPage?: boolean; // Si el vehículo está publicado en la página pública
+  /** Muestra etiqueta SOLD en tarjetas del panel (y en web si sigue publicado). */
+  showSoldBadge?: boolean;
+  /** Si está vendido pero debe seguir listado en la web con etiqueta SOLD. */
+  showPublicSoldBadge?: boolean;
+  /** Soft delete: el registro se conserva pero no aparece en inventario salvo restauración futura. */
+  deleted?: boolean;
+  /** Anuncio bajo cupo gratuito (tenant sin plan); caduca en freeListingExpiresAt */
+  isFreePublicListing?: boolean;
+  freeListingExpiresAt?: Date | { toDate?: () => Date; _seconds?: number } | string | null;
   createdAt: Date;
   updatedAt: Date;
   soldAt?: Date;
+}
+
+/**
+ * Copia serializable del vehículo al vincular stock con lead/FI/trade-in.
+ * Se guarda en CRM para no depender de que el inventario siga igual después.
+ */
+export interface VehicleStockSnapshot {
+  vehicleId: string;
+  tenantId: string;
+  stockNumber: string;
+  make: string;
+  model: string;
+  year: number;
+  price: number;
+  currency: string;
+  mileage?: number;
+  condition: VehicleCondition;
+  status: VehicleStatus;
+  description: string;
+  vin?: string;
+  bodyType?: VehicleBodyType;
+  photos: string[];
+  videos?: string[];
+  specifications: VehicleSpecs;
+  /** ISO — momento en que se tomó el snapshot */
+  capturedAt: string;
 }
 
 export interface VehicleFilters {

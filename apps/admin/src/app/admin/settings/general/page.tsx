@@ -25,6 +25,7 @@ interface SystemSettings {
 interface CredentialsConfig {
   stripeSecretKey: string;
   stripeWebhookSecret: string;
+  stripeAdvertiserWebhookSecret: string;
   stripePublishableKey: string;
   openaiApiKey: string;
   metaAppId: string;
@@ -61,6 +62,7 @@ export default function GeneralSettingsPage() {
   const [credentials, setCredentials] = useState<CredentialsConfig>({
     stripeSecretKey: '',
     stripeWebhookSecret: '',
+    stripeAdvertiserWebhookSecret: '',
     stripePublishableKey: '',
     openaiApiKey: '',
     metaAppId: '',
@@ -604,7 +606,26 @@ export default function GeneralSettingsPage() {
                   className="w-full border rounded px-3 py-2 font-mono text-sm"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Para verificar eventos de Stripe
+                  Para verificar eventos de Stripe (webhook de Admin / membresías)
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Webhook Secret (Advertiser)
+                </label>
+                <input
+                  type="password"
+                  value={credentials.stripeAdvertiserWebhookSecret}
+                  onChange={(e) =>
+                    setCredentials({ ...credentials, stripeAdvertiserWebhookSecret: e.target.value })
+                  }
+                  placeholder="whsec_... (opcional si usas otra URL en Stripe)"
+                  className="w-full border rounded px-3 py-2 font-mono text-sm"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Solo si en Stripe tienes un endpoint distinto apuntando a la app Advertiser
+                  (<code className="text-xs">/api/webhooks/stripe</code>). Si lo dejas vacío, se usa el
+                  mismo secreto que &quot;Webhook Secret&quot; de arriba.
                 </p>
               </div>
             </div>

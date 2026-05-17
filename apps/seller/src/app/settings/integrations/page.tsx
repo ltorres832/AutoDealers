@@ -26,7 +26,8 @@ const availableIntegrations: Integration[] = [
     type: 'facebook',
     name: 'Facebook',
     icon: '📘',
-    description: 'Conecta tu página de Facebook para publicar y gestionar mensajes',
+    description:
+      'Conecta la página de Facebook de tu negocio (Fan Page), no tu perfil personal. Debes ser administrador de esa página para publicar y gestionar mensajes.',
     status: 'inactive',
   },
   {
@@ -78,6 +79,14 @@ export default function IntegrationsPage() {
           break;
         case 'invalid_state':
           errorMessage = 'Estado de autorización inválido. Por favor intenta nuevamente.';
+          break;
+        case 'no_facebook_page':
+          errorMessage =
+            'No hay ninguna página de Facebook de negocio vinculada a tu cuenta. Crea una Fan Page en Facebook y asegúrate de ser su administrador; un perfil personal no sirve para esta integración.';
+          break;
+        case 'no_facebook_page_token':
+          errorMessage =
+            'Meta no devolvió el permiso de página. Vuelve a intentar y acepta los permisos de páginas de Facebook, o revisa la configuración de la app en Meta.';
           break;
         case 'token_exchange_failed':
           errorMessage = 'Error al obtener el token de acceso. Por favor intenta nuevamente.';

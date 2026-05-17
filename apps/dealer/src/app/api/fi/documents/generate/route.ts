@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuth, isDealerPortalRole } from '@/lib/auth';
+import { requireTenantFeature } from '@/lib/membership-middleware';
 import { getFirestore } from '@autodealers/core';
 
 const db = getFirestore();
@@ -64,9 +65,15 @@ type DocumentTemplate =
 export async function POST(request: NextRequest) {
   try {
     const auth = await verifyAuth(request);
-    if (!auth || auth.role !== 'dealer') {
+    if (!auth || !isDealerPortalRole(auth.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    if (!auth.tenantId) {
+      return NextResponse.json({ error: 'Tenant ID is required' }, { status: 400 });
+    }
+    const fiGate = await requireTenantFeature(auth.tenantId, 'useFIModule');
+    if (fiGate) return fiGate;
 
     const body = await request.json();
     const { requestId, template, customData } = body;

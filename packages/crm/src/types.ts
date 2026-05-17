@@ -1,5 +1,9 @@
 // Tipos del módulo CRM
 
+import type { VehicleStockSnapshot } from '@autodealers/inventory';
+import type { TradeInVehicleProfile } from './finance-insurance';
+import type { ExpeditionStage } from './expedition-sync';
+
 export type LeadSource =
   | 'whatsapp'
   | 'facebook'
@@ -7,7 +11,11 @@ export type LeadSource =
   | 'web'
   | 'email'
   | 'sms'
-  | 'phone';
+  | 'phone'
+  /** Creado desde el panel de administración (misma colección que el resto del CRM) */
+  | 'admin_manual'
+  /** Creado manualmente desde la app dealer/seller */
+  | 'manual';
 
 export type LeadStatus =
   | 'new'
@@ -31,8 +39,25 @@ export interface Lead {
     email?: string;
     phone: string;
     preferredChannel: string;
+    /** Pueblo / ciudad (formularios Meta, web, etc.) */
+    city?: string;
   };
   interestedVehicles?: string[];
+  /** Texto libre de interés (p. ej. desde admin); preferir `interestedVehicles` cuando sea lista de IDs */
+  vehicleInterest?: string | null;
+  /** Vehículo de inventario vinculado por ID */
+  vehicleId?: string;
+  /** Número de stock (clave operativa dealer/vendedor) */
+  vehicleStockNumber?: string;
+  /** Copia completa del vehículo al vincular (lead/FI/trade-in sincronizados) */
+  vehicleStockSnapshot?: VehicleStockSnapshot;
+  budget?: string | number | null;
+  /** Vehículo de intercambio (millaje, título, payoff, etc.) */
+  tradeIn?: TradeInVehicleProfile;
+  createdBy?: string;
+  createdByAdmin?: boolean;
+  lastContactDate?: Date | null;
+  nextFollowUpDate?: Date | null;
   notes: string;
   aiClassification?: {
     priority: 'high' | 'medium' | 'low';
@@ -54,6 +79,23 @@ export interface Lead {
   interactions: Interaction[];
   createdAt: Date;
   updatedAt: Date;
+  /** Respuestas de formulario Meta / campos extra del anuncio */
+  leadFormResponses?: Record<string, string>;
+  metaLeadGenId?: string;
+  metaFormId?: string;
+  metaAdId?: string;
+  /** Token opaco para que el cliente consulte estado (citas) sin login */
+  publicTrackingToken?: string;
+  /** Última alerta visible para el cliente (p. ej. cita confirmada) — escuchar con onSnapshot en tiempo real */
+  clientAppointmentNotification?: {
+    appointmentId: string;
+    headline: string;
+    body: string;
+    confirmedByName: string;
+    appointmentType?: string;
+    scheduledAt?: string;
+    at?: Date | { toDate?: () => Date };
+  };
 }
 
 export interface ScoreHistory {
@@ -115,6 +157,10 @@ export interface Appointment {
   reminders: Reminder[];
   createdAt: Date;
   updatedAt: Date;
+  /** Quién confirmó la cita (vendedor/dealer) — notificación al cliente usa este nombre */
+  confirmedByUserId?: string;
+  confirmedByName?: string;
+  confirmedAt?: Date;
 }
 
 export interface Reminder {
@@ -157,6 +203,8 @@ export interface Sale {
   tablilla?: number; // Costo de tablilla
   insurance?: number; // Seguro
   accessories?: number; // Accesorios
+  warranty?: number;
+  servicePackage?: number;
   other?: number; // Otros
   total: number; // Suma total (salePrice + bonus1 + bonus2 + rebate + tablilla + insurance + accessories + other)
   currency: string;
@@ -167,12 +215,18 @@ export interface Sale {
   insuranceCommission?: number; // Comisión calculada del seguro
   accessoriesCommissionRate?: number; // Porcentaje de comisión de accesorios
   accessoriesCommission?: number; // Comisión calculada de accesorios
+  warrantyCommission?: number;
+  servicePackageCommission?: number;
   totalCommission?: number; // Comisión total del vendedor
   // Otros
   paymentMethod: string;
+  financingDetails?: Record<string, unknown>;
   status: 'pending' | 'completed' | 'cancelled';
   documents: string[];
   notes: string;
+  /** Valor de trade-in aplicado al cálculo (si aplica). */
+  tradeInValue?: number;
+  tradeInDetails?: TradeInVehicleProfile;
   createdAt: Date;
   completedAt?: Date;
 }
@@ -211,6 +265,10 @@ export interface CustomerFile {
   uploadToken: string;
   // Estado del file
   status: 'active' | 'completed' | 'archived' | 'deleted';
+  /** Solicitud F&I vinculada (misma etapa operativa sincronizada en tiempo real) */
+  linkedFiRequestId?: string;
+  expeditionStage?: ExpeditionStage;
+  lastExpeditionSyncAt?: Date | { toDate?: () => Date };
   // Notas y evidencia
   notes: string;
   evidence: EvidenceItem[];

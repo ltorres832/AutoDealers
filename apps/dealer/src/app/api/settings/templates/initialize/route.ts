@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuth, isDealerPortalRole } from '@/lib/auth';
 import { createTemplate } from '@autodealers/core';
 import { getFirestore } from '@autodealers/core';
 import * as admin from 'firebase-admin';
@@ -377,7 +377,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!auth || !auth.tenantId || auth.role !== 'dealer') {
+    if (!auth || !auth.tenantId || !isDealerPortalRole(auth.role)) {
       return NextResponse.json(
         { error: 'Unauthorized', message: 'You must be a dealer to access this endpoint' },
         { status: 401 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -177,7 +178,7 @@ export default function AppointmentsPage() {
                   className="p-4 hover:bg-gray-50 cursor-pointer"
                   onClick={() => setSelectedAppointment(apt)}
                 >
-                  <div className="flex justify-between items-start">
+                  <div className="flex justify-between items-start gap-3">
                     <div>
                       <h3 className="font-semibold">
                         {lead?.contact?.name || 'Cliente'} - {apt.type === 'test_drive' ? 'Prueba de Manejo' : apt.type === 'consultation' ? 'Consulta' : apt.type}
@@ -192,19 +193,28 @@ export default function AppointmentsPage() {
                         <p className="text-sm text-gray-600">📞 {lead.contact.phone}</p>
                       )}
                     </div>
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        apt.status === 'confirmed'
-                          ? 'bg-green-100 text-green-700'
-                          : apt.status === 'pending'
-                          ? 'bg-yellow-100 text-yellow-700'
-                          : apt.status === 'cancelled'
-                          ? 'bg-red-100 text-red-700'
-                          : 'bg-blue-100 text-blue-700'
-                      }`}
-                    >
-                      {apt.status === 'confirmed' ? 'Confirmada' : apt.status === 'pending' ? 'Pendiente' : apt.status === 'cancelled' ? 'Cancelada' : apt.status}
-                    </span>
+                    <div className="flex flex-col items-end gap-2 shrink-0">
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          apt.status === 'confirmed'
+                            ? 'bg-green-100 text-green-700'
+                            : apt.status === 'pending'
+                            ? 'bg-yellow-100 text-yellow-700'
+                            : apt.status === 'cancelled'
+                            ? 'bg-red-100 text-red-700'
+                            : 'bg-blue-100 text-blue-700'
+                        }`}
+                      >
+                        {apt.status === 'confirmed' ? 'Confirmada' : apt.status === 'pending' ? 'Pendiente' : apt.status === 'cancelled' ? 'Cancelada' : apt.status}
+                      </span>
+                      <Link
+                        href={`/leads/${apt.leadId}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-xs font-medium text-primary-600 hover:underline"
+                      >
+                        Ficha lead
+                      </Link>
+                    </div>
                   </div>
                 </div>
               );
@@ -474,6 +484,14 @@ function AppointmentDetailModal({
             {lead?.contact?.email && (
               <p className="text-sm text-gray-600">✉️ {lead.contact.email}</p>
             )}
+            <p className="mt-3">
+              <Link
+                href={`/leads/${appointment.leadId}`}
+                className="text-sm font-medium text-primary-600 hover:underline"
+              >
+                Ver ficha completa del lead en CRM →
+              </Link>
+            </p>
           </div>
           <div>
             <h3 className="font-semibold text-gray-900 mb-2">Tipo</h3>

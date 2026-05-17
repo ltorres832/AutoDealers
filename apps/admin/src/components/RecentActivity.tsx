@@ -20,7 +20,14 @@ export default function RecentActivity({ leads = [], sales = [] }: RecentActivit
         <div className="space-y-4">
           {leads.slice(0, 5).map((lead: any, index: number) => (
             <div key={`lead-${index}`} className="border-b pb-4 last:border-0">
-              <p className="text-sm text-gray-600">Nuevo lead: {lead.name || lead.email || 'Sin nombre'}</p>
+              <p className="text-sm text-gray-600">
+                Nuevo lead:{' '}
+                {lead.contact?.name?.trim() ||
+                  lead.name?.trim() ||
+                  lead.contact?.email ||
+                  lead.email ||
+                  'Sin nombre'}
+              </p>
               <p className="text-xs text-gray-400 mt-1">
                 {lead.createdAt ? new Date(lead.createdAt).toLocaleString() : 'Reciente'}
               </p>

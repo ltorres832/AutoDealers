@@ -48,10 +48,22 @@ export async function getWhatsAppConfig(tenantId: string): Promise<WhatsAppConfi
     }
 
     const integration = integrationsSnapshot.docs[0].data();
+    const cred = (integration.credentials || {}) as Record<string, unknown>;
+    const phoneNumberId = String(
+      integration.phoneNumberId || cred.phoneNumberId || cred.phone_number_id || ''
+    ).trim();
+    const accessToken = String(
+      integration.accessToken || cred.accessToken || cred.longLivedUserToken || ''
+    ).trim();
+
+    if (!phoneNumberId || !accessToken) {
+      return null;
+    }
+
     return {
       enabled: true,
-      phoneNumberId: integration.phoneNumberId || '',
-      accessToken: integration.accessToken || '', // TODO: Desencriptar
+      phoneNumberId,
+      accessToken,
       verifyToken: integration.verifyToken,
       webhookUrl: integration.webhookUrl,
       autoRespond: integration.autoRespond || false,

@@ -2,7 +2,7 @@
 // PUT: Designar o remover gerente F&I
 
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuth, isDealerPortalRole } from '@/lib/auth';
 import { getFirestore } from '@autodealers/core';
 import * as admin from 'firebase-admin';
 
@@ -16,7 +16,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Verificar que el usuario es dealer
-    if (user.role !== 'dealer') {
+    if (!isDealerPortalRole(user.role)) {
       return NextResponse.json({ error: 'Solo dealers pueden designar gerente F&I' }, { status: 403 });
     }
 
@@ -42,7 +42,7 @@ export async function PUT(request: NextRequest) {
       }
 
       // Verificar que el usuario es dealer o tiene permisos F&I
-      if (managerData?.role !== 'dealer' && !managerData?.permissions?.canManageFI) {
+      if (!isDealerPortalRole(managerData?.role) && !managerData?.permissions?.canManageFI) {
         return NextResponse.json(
           { error: 'El usuario debe ser dealer o tener permisos F&I' },
           { status: 400 }
@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Verificar que el usuario es dealer
-    if (user.role !== 'dealer') {
+    if (!isDealerPortalRole(user.role)) {
       return NextResponse.json({ error: 'Solo dealers pueden ver esta información' }, { status: 403 });
     }
 

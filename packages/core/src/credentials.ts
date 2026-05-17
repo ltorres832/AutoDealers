@@ -74,6 +74,23 @@ export async function getStripeWebhookSecret(): Promise<string | undefined> {
 }
 
 /**
+ * Webhook secret para la app Advertiser (segunda URL en Stripe Dashboard).
+ * Orden: Firestore `stripeAdvertiserWebhookSecret` → env `STRIPE_ADVERTISER_WEBHOOK_SECRET`
+ * → mismo valor que {@link getStripeWebhookSecret} (comportamiento histórico si no configuras nada aparte).
+ */
+export async function getStripeAdvertiserWebhookSecret(): Promise<string | undefined> {
+  const fromDoc = await getSystemCredential('stripeAdvertiserWebhookSecret');
+  if (fromDoc != null && String(fromDoc).trim() !== '') {
+    return String(fromDoc).trim();
+  }
+  const envAdv = process.env.STRIPE_ADVERTISER_WEBHOOK_SECRET;
+  if (envAdv != null && String(envAdv).trim() !== '') {
+    return String(envAdv).trim();
+  }
+  return await getStripeWebhookSecret();
+}
+
+/**
  * Obtiene el Publishable Key de Stripe desde Firestore o variables de entorno
  */
 export async function getStripePublishableKey(): Promise<string | undefined> {

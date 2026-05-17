@@ -40,7 +40,7 @@ class RemindersRepository {
             'nextReminder': data['nextReminder']?.toDate(),
             'sentAt': data['sentAt']?.toDate(),
             'createdAt': data['createdAt']?.toDate(),
-          } as Map<String, dynamic>;
+          };
         })
         .toList());
   }

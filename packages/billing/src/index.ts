@@ -5,6 +5,7 @@ export * from './subscriptions';
 export * from './receipt';
 export * from './memberships';
 export * from './types';
+export * from './membership-network';
 export * from './subscription-management';
 export * from './email-suspension';
 

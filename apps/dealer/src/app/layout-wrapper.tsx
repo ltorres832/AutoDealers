@@ -10,15 +10,23 @@ import { MaintenanceScreen } from '@/components/MaintenanceScreen';
 import { MaintenanceBanner } from '@/components/MaintenanceBanner';
 import { AnnouncementsBanner } from '@/components/AnnouncementsBanner';
 import { PolicyAcceptanceModal } from '@/components/PolicyAcceptanceModal';
+import { isDealerPortalRole, isSellerRole } from '@/lib/dealer-portal-roles';
+import { useRouter } from 'next/navigation';
 
 // Rutas que no deben usar el layout wrapper
 const publicRoutes = ['/login'];
+
+const sellerNavigationItems = [
+  { name: 'Mi página pública (video)', href: '/settings/seller-public-page', icon: '🎬', featureKey: null },
+];
 
 // Navigation items con feature flags
 const navigationItems = [
   { name: 'Dashboard', href: '/dashboard', icon: '📊', featureKey: null },
   { name: 'Leads', href: '/leads', icon: '📞', featureKey: null },
+  { name: 'Interés catálogo web', href: '/catalog-interest', icon: '👁️', featureKey: null },
   { name: 'Pipeline Kanban', href: '/leads/kanban', icon: '📋', featureKey: 'crm_kanban' },
+  { name: 'CRM — Reglas de leads', href: '/settings/crm-lead-routing', icon: '🎯', featureKey: null },
   { name: 'Tareas', href: '/tasks', icon: '✅', featureKey: 'crm_tasks' },
   { name: 'Workflows', href: '/workflows', icon: '⚙️', featureKey: 'crm_workflows' },
   { name: 'Inventario', href: '/inventory', icon: '🚗', featureKey: null },
@@ -40,6 +48,7 @@ const navigationItems = [
   { name: 'Estadísticas de Ventas', href: '/sales-statistics', icon: '📊', featureKey: null },
   { name: 'Reportes', href: '/reports', icon: '📈', featureKey: 'crm_reports' },
   { name: 'Usuarios', href: '/users', icon: '👥', featureKey: null },
+  { name: 'Mis concesionarios', href: '/dealers', icon: '🏢', featureKey: null },
   { name: 'Configuración', href: '/settings', icon: '⚙️', featureKey: null },
 ];
 
@@ -49,103 +58,102 @@ export default function DealerLayoutWrapper({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [maintenanceActive, setMaintenanceActive] = useState(false);
   const [showPolicyModal, setShowPolicyModal] = useState(false);
 
   async function fetchUser() {
     try {
-      // Primero verificar si hay un usuario autenticado en Firebase
       const { auth } = await import('@/lib/firebase-client');
       if (auth && auth.currentUser) {
-        // Si hay usuario en Firebase, intentar obtener datos del servidor
         const { fetchWithAuth } = await import('@/lib/fetch-with-auth');
         const response = await fetchWithAuth('/api/user', {});
-        
+
         if (response.ok) {
           const data = await response.json();
-          
-          
-          // Verificar que sea dealer
-          if (data.user?.role === 'dealer') {
+          const role = data.user?.role;
+
+          if (isSellerRole(role)) {
             setUser(data.user);
-            
-            // Verificar membresía activa (excepto en páginas de membresía y login)
-          // CRÍTICO: Si el usuario tiene membershipId Y status active, PERMITIR acceso inmediatamente
-          if (pathname && 
-              !pathname.startsWith('/settings/membership') && 
+            return;
+          }
+
+          if (isDealerPortalRole(role)) {
+            setUser(data.user);
+
+            if (
+              pathname &&
+              !pathname.startsWith('/settings/membership') &&
               !pathname.startsWith('/login') &&
-              pathname !== '/register') {
-            
-            // VERIFICACIÓN PRINCIPAL: Si tiene membershipId y está activo, PERMITIR acceso
-            if (data.user?.membershipId && data.user?.status === 'active') {
-              // PERMITIR ACCESO - El usuario pagó y está activo
-              return; // Salir sin bloquear
-            }
-            
-            // Si NO tiene membershipId, verificar si hay suscripción (puede ser que el webhook aún no haya procesado)
-            if (!data.user?.membershipId) {
-              
-              try {
-                // Verificar suscripción con retry (el webhook puede tardar unos segundos)
-                let subscriptionFound = false;
-                let retries = 0;
-                const maxRetries = 3; // 3 intentos = 3 segundos máximo
-                
-                while (!subscriptionFound && retries < maxRetries) {
-                  const subResponse = await fetchWithAuth('/api/settings/membership/subscription', {});
-                  
-                  if (subResponse.ok) {
-                    const subData = await subResponse.json();
-                    
-                    if (subData.subscription && 
-                        (subData.subscription.status === 'active' || subData.subscription.status === 'trialing')) {
-                      subscriptionFound = true;
-                      // PERMITIR ACCESO - tiene suscripción activa
-                      return; // Salir sin bloquear
+              pathname !== '/register'
+            ) {
+              if (data.user?.membershipId && data.user?.status === 'active') {
+                return;
+              }
+
+              if (!data.user?.membershipId) {
+                try {
+                  let subscriptionFound = false;
+                  let retries = 0;
+                  const maxRetries = 3;
+
+                  while (!subscriptionFound && retries < maxRetries) {
+                    const subResponse = await fetchWithAuth('/api/settings/membership/subscription', {});
+
+                    if (subResponse.ok) {
+                      const subData = await subResponse.json();
+
+                      if (
+                        subData.subscription &&
+                        (subData.subscription.status === 'active' ||
+                          subData.subscription.status === 'trialing')
+                      ) {
+                        subscriptionFound = true;
+                        return;
+                      }
+                    }
+
+                    if (!subscriptionFound && retries < maxRetries - 1) {
+                      await new Promise((resolve) => setTimeout(resolve, 1000));
+                      retries++;
+                    } else {
+                      break;
                     }
                   }
-                  
-                  if (!subscriptionFound && retries < maxRetries - 1) {
-                    await new Promise(resolve => setTimeout(resolve, 1000)); // Esperar 1 segundo
-                    retries++;
-                  } else {
-                    break;
+
+                  if (!subscriptionFound) {
+                    alert(
+                      'Debes tener una membresía activa para acceder a tu cuenta. Por favor, selecciona y paga una membresía primero.'
+                    );
+                    window.location.href = '/settings/membership';
+                    return;
+                  }
+                } catch {
+                  if (!data.user?.membershipId) {
+                    alert('Error al verificar tu membresía. Por favor, intenta de nuevo.');
+                    window.location.href = '/settings/membership';
+                    return;
                   }
                 }
-                
-                // Si después de los reintentos no hay suscripción ni membershipId, BLOQUEAR
-                if (!subscriptionFound) {
-                  alert('Debes tener una membresía activa para acceder a tu cuenta. Por favor, selecciona y paga una membresía primero.');
-                  window.location.href = '/settings/membership';
-                  return;
-                }
-              } catch (subError) {
-                // Si hay error, bloquear acceso solo si definitivamente no tiene membershipId
-                if (!data.user?.membershipId) {
-                  alert('Error al verificar tu membresía. Por favor, intenta de nuevo.');
-                  window.location.href = '/settings/membership';
-                  return;
-                }
+              } else if (data.user?.status !== 'active') {
+                alert(`Tu cuenta está en estado: ${data.user?.status}. Por favor, contacta a soporte.`);
+                window.location.href = '/settings/membership';
+                return;
               }
-            } else if (data.user?.status !== 'active') {
-              // Usuario tiene membershipId pero no está activo
-              alert(`Tu cuenta está en estado: ${data.user?.status}. Por favor, contacta a soporte.`);
-              window.location.href = '/settings/membership';
-              return;
             }
+            return;
           }
-        } else if (data.user?.role) {
-          // Solo redirigir si definitivamente no es dealer Y no estamos en login
-          if (window.location.pathname !== '/login') {
+
+          if (role && window.location.pathname !== '/login') {
             document.cookie = 'authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
             setTimeout(() => {
               window.location.href = '/login';
             }, 1000);
           }
-        }
-      } else if (response.status === 401) {
+        } else if (response.status === 401) {
         // Solo intentar refrescar si es 401
         const { refreshAuthToken } = await import('@/lib/token-refresh');
         const newToken = await refreshAuthToken();
@@ -155,7 +163,7 @@ export default function DealerLayoutWrapper({
           
           if (response2.ok) {
             const data2 = await response2.json();
-            if (data2.user?.role === 'dealer') {
+            if (isDealerPortalRole(data2.user?.role) || isSellerRole(data2.user?.role)) {
               setUser(data2.user);
             }
           }
@@ -209,7 +217,8 @@ export default function DealerLayoutWrapper({
 
   async function checkRequiredPolicies() {
     if (!user?.id || pathname === '/login') return;
-    
+    if (isSellerRole(user.role)) return;
+
     try {
       const response = await fetch(
         `/api/policies/required?userId=${user.id}&role=dealer${user.tenantId ? `&tenantId=${user.tenantId}` : ''}`,
@@ -238,6 +247,10 @@ export default function DealerLayoutWrapper({
       checkRequiredPolicies();
     }, 500);
   }
+
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     // No ejecutar en rutas públicas
@@ -315,6 +328,17 @@ export default function DealerLayoutWrapper({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname, user]);
 
+  useEffect(() => {
+    if (!user?.role || !pathname || publicRoutes.includes(pathname)) return;
+    if (!isSellerRole(user.role)) return;
+    const allowed =
+      pathname === '/settings/seller-public-page' ||
+      pathname.startsWith('/settings/seller-public-page/');
+    if (!allowed) {
+      router.replace('/settings/seller-public-page');
+    }
+  }, [user, pathname, router]);
+
   async function handleLogout() {
     try {
       // Si hay Firebase auth, cerrar sesión ahí también
@@ -346,6 +370,16 @@ export default function DealerLayoutWrapper({
     }
   }
 
+  const sidebarNavItems = user?.role === 'seller' ? sellerNavigationItems : navigationItems;
+  const homeHref = user?.role === 'seller' ? '/settings/seller-public-page' : '/dashboard';
+  const portalLabel = user?.role === 'seller' ? 'Vendedor' : 'Dealer';
+  const policyRole = user?.role === 'seller' ? 'seller' : 'dealer';
+  const settingsHref = user?.role === 'seller' ? '/settings/seller-public-page' : '/settings';
+  const settingsActive =
+    user?.role === 'seller'
+      ? pathname?.startsWith('/settings/seller-public-page')
+      : pathname?.startsWith('/settings');
+
   // Si es una ruta pública, renderizar sin layout (después de todos los hooks)
   if (pathname && publicRoutes.includes(pathname)) {
     return React.createElement('div', null, children);
@@ -361,47 +395,76 @@ export default function DealerLayoutWrapper({
     null,
     showPolicyModal && user && user.id && React.createElement(PolicyAcceptanceModal, {
       userId: user.id,
-      role: 'dealer',
+      role: policyRole,
       tenantId: user.tenantId,
       onComplete: handlePolicyModalComplete
     }),
     React.createElement(
       'div',
-      { className: 'flex h-screen overflow-hidden bg-gray-50' },
+      { className: 'flex h-[100dvh] min-h-0 overflow-hidden bg-gray-50' },
       React.createElement(MaintenanceBanner),
       React.createElement(AnnouncementsBanner, { userId: user?.id, tenantId: user?.tenantId }),
+      React.createElement('button', {
+        type: 'button',
+        'aria-label': 'Abrir menú',
+        className: `fixed left-3 top-3 z-[60] flex h-11 w-11 items-center justify-center rounded-lg border border-gray-200 bg-white shadow-md md:hidden ${mobileNavOpen ? 'hidden' : ''}`,
+        onClick: () => {
+          setSidebarCollapsed(false);
+          setMobileNavOpen(true);
+        },
+      }, React.createElement('svg', { className: 'h-6 w-6 text-gray-700', fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor' },
+        React.createElement('path', { strokeLinecap: 'round', strokeLinejoin: 'round', strokeWidth: 2, d: 'M4 6h16M4 12h16M4 18h16' }))),
+      React.createElement('div', {
+        role: 'presentation',
+        className: `fixed inset-0 z-40 bg-black/40 transition-opacity duration-200 md:hidden ${mobileNavOpen ? 'opacity-100' : 'pointer-events-none opacity-0'}`,
+        onClick: () => setMobileNavOpen(false),
+      }),
       React.createElement(
         'aside',
-        { className: `bg-white border-r border-gray-200 h-screen sticky top-0 transition-all duration-300 shadow-elegant ${sidebarCollapsed ? 'w-20' : 'w-64'}` },
+        { className: `fixed inset-y-0 left-0 z-50 flex h-full shrink-0 flex-col border-r border-gray-200 bg-white shadow-elegant transition-transform duration-200 ease-out md:static md:z-auto md:translate-x-0 ${mobileNavOpen ? 'translate-x-0' : '-translate-x-full'} w-[min(20rem,92vw)] ${sidebarCollapsed ? 'md:w-20' : 'md:w-64'}` },
         React.createElement('div', { className: 'flex flex-col h-full' },
           React.createElement('div', { className: `flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'} px-6 py-4 border-b border-gray-200` },
-            !sidebarCollapsed && React.createElement(Link, { href: '/dashboard', className: 'flex items-center space-x-3' },
+            !sidebarCollapsed && React.createElement(Link, { href: homeHref, onClick: () => setMobileNavOpen(false), className: 'flex items-center space-x-3' },
               React.createElement(TenantLogo, { size: 'sm' }),
               React.createElement('div', null,
                 React.createElement('h2', { className: 'text-lg font-bold text-gray-900' }, user?.name || 'Dashboard'),
-                React.createElement('p', { className: 'text-xs text-gray-500' }, 'Dealer')
+                React.createElement('p', { className: 'text-xs text-gray-500' }, portalLabel)
               )
             ),
-            sidebarCollapsed && React.createElement(Link, { href: '/dashboard' },
+            sidebarCollapsed && React.createElement(Link, { href: homeHref, onClick: () => setMobileNavOpen(false) },
               React.createElement(TenantLogo, { size: 'sm' })
             ),
             React.createElement('button', {
+              type: 'button',
               onClick: () => setSidebarCollapsed(!sidebarCollapsed),
-              className: 'p-2 rounded-lg hover:bg-gray-100 transition-colors'
+              className: 'hidden rounded-lg p-2 transition-colors hover:bg-gray-100 md:inline-flex'
             },
               React.createElement('svg', { className: 'h-5 w-5 text-gray-600', fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor' },
                 React.createElement('path', { strokeLinecap: 'round', strokeLinejoin: 'round', strokeWidth: 2, d: sidebarCollapsed ? 'M9 5l7 7-7 7' : 'M15 19l-7-7 7-7' })
               )
-            )
+            ),
+            React.createElement('button', {
+              type: 'button',
+              className: 'rounded-lg p-2 text-gray-600 hover:bg-gray-100 md:hidden',
+              'aria-label': 'Cerrar menú',
+              onClick: () => setMobileNavOpen(false),
+            },
+              React.createElement('svg', { className: 'h-6 w-6', fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor' },
+                React.createElement('path', { strokeLinecap: 'round', strokeLinejoin: 'round', strokeWidth: 2, d: 'M6 18L18 6M6 6l12 12' })))
           ),
           React.createElement('nav', { className: 'flex-1 px-4 py-6 space-y-1 overflow-y-auto custom-scrollbar' },
-            React.createElement(NavigationWithFeatureFlags, { items: navigationItems, sidebarCollapsed: sidebarCollapsed })
+            React.createElement(NavigationWithFeatureFlags, {
+              items: sidebarNavItems,
+              sidebarCollapsed: sidebarCollapsed,
+              onNavigate: () => setMobileNavOpen(false),
+            })
           ),
 
           React.createElement('div', { className: 'px-4 py-4 border-t border-gray-200' },
             React.createElement(Link, {
-              href: '/settings/branding',
-              className: `flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-start'} px-4 py-3 rounded-lg transition-all ${pathname?.startsWith('/settings') ? 'bg-primary-50 text-primary-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`,
+              href: settingsHref,
+              onClick: () => setMobileNavOpen(false),
+              className: `flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-start'} px-4 py-3 rounded-lg transition-all ${settingsActive ? 'bg-primary-50 text-primary-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}`,
               title: sidebarCollapsed ? 'Configuración' : undefined
             },
               React.createElement('span', { className: 'text-xl' }, '⚙️'),
@@ -414,7 +477,7 @@ export default function DealerLayoutWrapper({
                 user.name?.charAt(0).toUpperCase() || 'V'
               ),
               React.createElement('div', { className: 'flex-1 min-w-0' },
-                React.createElement('p', { className: 'text-sm font-medium text-gray-900 truncate' }, user.name || 'Dealer'),
+                React.createElement('p', { className: 'text-sm font-medium text-gray-900 truncate' }, user.name || portalLabel),
                 React.createElement('p', { className: 'text-xs text-gray-500 truncate' }, user.email || '')
               )
             ),
@@ -428,11 +491,11 @@ export default function DealerLayoutWrapper({
           )
         )
       ),
-      React.createElement('div', { className: 'flex-1 flex flex-col overflow-hidden' },
-        React.createElement('header', { className: 'bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between' },
-          React.createElement('div', { className: 'flex items-center gap-4' },
-            React.createElement('h1', { className: 'text-xl font-semibold text-gray-900' },
-              navigationItems.find(nav => nav.href === pathname)?.name || 'Dashboard'
+      React.createElement('div', { className: 'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden' },
+        React.createElement('header', { className: 'flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 pl-14 sm:px-6 md:pl-6' },
+          React.createElement('div', { className: 'flex min-w-0 flex-1 items-center gap-2' },
+            React.createElement('h1', { className: 'truncate text-base font-semibold text-gray-900 sm:text-xl' },
+              sidebarNavItems.find(nav => nav.href === pathname)?.name || (user?.role === 'seller' ? 'Mi página pública' : 'Dashboard')
             )
           ),
           React.createElement('div', { className: 'flex items-center gap-4' },
@@ -440,7 +503,7 @@ export default function DealerLayoutWrapper({
             React.createElement('div', { className: 'flex items-center gap-3' },
               user ? React.createElement(React.Fragment, null,
                 React.createElement('div', { className: 'text-right hidden sm:block' },
-                  React.createElement('p', { className: 'text-sm font-medium text-gray-900' }, user.name || 'Dealer'),
+                  React.createElement('p', { className: 'text-sm font-medium text-gray-900' }, user.name || portalLabel),
                   React.createElement('p', { className: 'text-xs text-gray-500' }, user.email || '')
                 ),
                 React.createElement('button', {
@@ -462,8 +525,8 @@ export default function DealerLayoutWrapper({
             )
           )
         ),
-        React.createElement('main', { className: 'flex-1 overflow-y-auto custom-scrollbar' },
-          React.createElement('div', { className: 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8' },
+        React.createElement('main', { className: 'custom-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto' },
+          React.createElement('div', { className: 'mx-auto max-w-7xl px-3 py-6 sm:px-6 lg:px-8' },
             children
           )
         )

@@ -71,7 +71,7 @@ class _AdminMembershipCreatePageState extends State<AdminMembershipCreatePage> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              value: _type,
+              initialValue: _type,
               decoration: const InputDecoration(labelText: 'Tipo'),
               items: const [
                 DropdownMenuItem(value: 'dealer', child: Text('Dealer')),
@@ -92,7 +92,7 @@ class _AdminMembershipCreatePageState extends State<AdminMembershipCreatePage> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              value: _billingCycle,
+              initialValue: _billingCycle,
               decoration: const InputDecoration(labelText: 'Ciclo de facturación'),
               items: const [
                 DropdownMenuItem(value: 'monthly', child: Text('Mensual')),

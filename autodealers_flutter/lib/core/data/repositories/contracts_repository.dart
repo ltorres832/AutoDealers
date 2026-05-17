@@ -50,7 +50,7 @@ class ContractsRepository {
             'completedAt': data['completedAt']?.toDate(),
             'sentForSignatureAt': data['sentForSignatureAt']?.toDate(),
             'signedAt': data['signedAt']?.toDate(),
-          } as Map<String, dynamic>;
+          };
         })
         .toList());
   }

@@ -29,7 +29,7 @@ class PublicChatRepository {
         .map((snapshot) {
       final conversationsMap = <String, Map<String, dynamic>>{};
       snapshot.docs.forEach((doc) {
-        final data = doc.data() as Map<String, dynamic>;
+        final data = doc.data();
         final sessionId = data['sessionId'] as String;
         if (!conversationsMap.containsKey(sessionId)) {
           conversationsMap[sessionId] = {
@@ -77,11 +77,11 @@ class PublicChatRepository {
         .snapshots()
         .map((snapshot) {
       return snapshot.docs.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
+        final data = doc.data();
         return {
           'id': doc.id,
           ...data,
-        } as Map<String, dynamic>;
+        };
       }).toList();
     });
   }

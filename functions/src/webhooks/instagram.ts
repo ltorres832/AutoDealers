@@ -1,307 +1,307 @@
-// Webhook de Instagram Direct Messages
+// Webhook Instagram Direct — alineado con apps/admin (integración + dueño + CRM)
 
 import { onRequest } from 'firebase-functions/v2/https';
 import { getFirestore } from 'firebase-admin/firestore';
 import * as admin from 'firebase-admin';
+import {
+  createLead,
+  findLeadByPhoneInTenant,
+  updateLead,
+  addInteraction,
+  assignLead,
+} from '@autodealers/crm';
+import { createNotification, resolveMetaWebhookVerifyToken } from '@autodealers/core';
+import { UnifiedMessagingService } from '@autodealers/messaging';
+import { publicWebhookHttpsOptions } from './public-http';
 
 const db = getFirestore();
 
-/**
- * Webhook de Instagram - Verificación GET
- */
-export const instagramWebhookGet = onRequest(
-  {
-    cors: true,
-    maxInstances: 10,
-  },
-  async (req, res) => {
-    const mode = req.query['hub.mode'] as string;
-    const token = req.query['hub.verify_token'] as string;
-    const challenge = req.query['hub.challenge'] as string;
+export const instagramWebhookGet = onRequest(publicWebhookHttpsOptions, async (req, res) => {
+  const mode = req.query['hub.mode'] as string;
+  const token = req.query['hub.verify_token'] as string;
+  const challenge = req.query['hub.challenge'] as string;
+  const verifyToken = await resolveMetaWebhookVerifyToken();
 
-    const verifyToken = process.env.FACEBOOK_VERIFY_TOKEN || 'default_verify_token';
+  if (mode === 'subscribe' && token === verifyToken) {
+    res.set('Content-Type', 'text/plain');
+    res.status(200).send(challenge || '');
+    return;
+  }
 
-    if (mode === 'subscribe' && token === verifyToken) {
-      res.set('Content-Type', 'text/plain');
-      res.status(200).send(challenge || '');
+  res.status(403).json({ error: 'Invalid token' });
+});
+
+export const instagramWebhookPost = onRequest(publicWebhookHttpsOptions, async (req, res) => {
+  try {
+    // Meta envía GET de verificación a la misma URL que POST: soportar ambos en el endpoint POST.
+    if (req.method === 'GET') {
+      const mode = req.query['hub.mode'] as string;
+      const token = req.query['hub.verify_token'] as string;
+      const challenge = req.query['hub.challenge'] as string;
+      const verifyToken = await resolveMetaWebhookVerifyToken();
+      if (mode === 'subscribe' && token === verifyToken) {
+        res.set('Content-Type', 'text/plain');
+        res.status(200).send(challenge || '');
+        return;
+      }
+      res.status(403).json({ error: 'Invalid token' });
       return;
     }
 
-    res.status(403).json({ error: 'Invalid token' });
-  }
-);
+    const body = (req.body || {}) as {
+      entry?: Array<{
+        id?: string;
+        messaging?: Array<{
+          message?: { text?: string; mid?: string };
+          sender?: { id?: string; name?: string };
+          recipient?: { id?: string };
+          timestamp?: number;
+        }>;
+      }>;
+    };
+    const entry0 = body.entry?.[0];
+    const instagramId = entry0?.id;
+    if (!instagramId) {
+      res.status(200).json({ received: true, error: 'No Instagram ID' });
+      return;
+    }
 
-/**
- * Webhook de Instagram - Procesamiento POST
- */
-export const instagramWebhookPost = onRequest(
-  {
-    cors: true,
-    maxInstances: 10,
-  },
-  async (req, res) => {
-    try {
-      const body = req.body;
+    let tenantId: string | null = null;
+    let leadOwnerUserId: string | undefined;
+    let igIntegrationData: Record<string, unknown> | null = null;
 
-      // Obtener tenantId de la cuenta de Instagram
-      const instagramId = body.entry?.[0]?.id;
-      if (!instagramId) {
-        return res.json({ received: true, error: 'No Instagram ID' });
+    const igIntSnap = await db
+      .collectionGroup('integrations')
+      .where('type', '==', 'instagram')
+      .where('credentials.instagramId', '==', instagramId)
+      .limit(1)
+      .get();
+
+    if (!igIntSnap.empty) {
+      const igDoc = igIntSnap.docs[0];
+      tenantId = igDoc.ref.parent.parent?.id ?? null;
+      igIntegrationData = igDoc.data() as Record<string, unknown>;
+      const lo = igIntegrationData?.leadOwnerUserId;
+      if (typeof lo === 'string' && lo.trim()) {
+        leadOwnerUserId = lo.trim();
       }
+    }
 
-      // Buscar tenant por Instagram ID
+    if (!tenantId) {
       const tenantsSnapshot = await db
         .collection('tenants')
         .where('settings.instagram.accountId', '==', instagramId)
         .limit(1)
         .get();
-
-      let tenantId: string | null = null;
       if (!tenantsSnapshot.empty) {
         tenantId = tenantsSnapshot.docs[0].id;
+      }
+    }
+
+    if (!tenantId) {
+      const activeTenants = await db
+        .collection('tenants')
+        .where('status', '==', 'active')
+        .limit(1)
+        .get();
+      if (!activeTenants.empty) {
+        tenantId = activeTenants.docs[0].id;
+        console.warn(`⚠️ Instagram ${instagramId}: tenant fallback ${tenantId}`);
       } else {
-        const activeTenants = await db
-          .collection('tenants')
-          .where('status', '==', 'active')
-          .limit(1)
-          .get();
-        
-        if (!activeTenants.empty) {
-          tenantId = activeTenants.docs[0].id;
-          console.warn(`⚠️ No se encontró tenant para Instagram ${instagramId}, usando fallback: ${tenantId}`);
-        } else {
-          return res.json({ received: true, error: 'No tenant found' });
-        }
+        res.status(200).json({ received: true, error: 'No tenant found' });
+        return;
       }
+    }
 
-      // Obtener configuración de Instagram
-      const tenantDoc = await db.collection('tenants').doc(tenantId).get();
-      const tenantData = tenantDoc.data();
-      const instagramConfig = tenantData?.settings?.instagram;
+    const tenantDoc = await db.collection('tenants').doc(tenantId).get();
+    const tenantData = tenantDoc.data();
+    const instagramConfig = tenantData?.settings?.instagram as Record<string, unknown> | undefined;
 
-      if (!instagramConfig || !instagramConfig.enabled) {
-        return res.json({ received: true, error: 'Instagram not configured' });
+    const creds = (igIntegrationData?.credentials || {}) as Record<string, unknown>;
+    const intToken = creds.accessToken as string | undefined;
+    const intPageId = creds.pageId as string | undefined;
+    const intActive =
+      igIntegrationData?.status === 'active' &&
+      typeof intToken === 'string' &&
+      intToken.length > 0 &&
+      typeof intPageId === 'string' &&
+      intPageId.length > 0;
+
+    const tenantToken =
+      typeof instagramConfig?.accessToken === 'string' ? instagramConfig.accessToken : undefined;
+    const tenantPageId =
+      typeof instagramConfig?.pageId === 'string' ? instagramConfig.pageId : undefined;
+    const tenantEnabled = instagramConfig?.enabled === true;
+
+    if (!intActive && (!tenantEnabled || !tenantToken || !tenantPageId)) {
+      res.status(200).json({ received: true, error: 'Instagram not configured' });
+      return;
+    }
+
+    const accessToken = intToken || tenantToken;
+    const pageId = intPageId || tenantPageId;
+    if (!accessToken || !pageId) {
+      res.status(200).json({ received: true, error: 'Instagram credentials not found' });
+      return;
+    }
+
+    const messaging = entry0?.messaging?.[0];
+    if (!messaging?.message) {
+      res.status(200).json({ received: true });
+      return;
+    }
+
+    const messagePayload = {
+      tenantId,
+      channel: 'instagram' as const,
+      direction: 'inbound' as const,
+      from: messaging.sender?.id || '',
+      to: messaging.recipient?.id || '',
+      content: messaging.message.text || '',
+      metadata: {
+        messageId: messaging.message.mid,
+        timestamp: messaging.timestamp,
+        contactName: messaging.sender?.name || 'Cliente Instagram',
+      },
+    };
+
+    let lead = await findLeadByPhoneInTenant(tenantId, messagePayload.from);
+
+    if (lead) {
+      await addInteraction(tenantId, lead.id, {
+        type: 'message',
+        content: messagePayload.content,
+        userId: 'system',
+      });
+      await updateLead(tenantId, lead.id, { updatedAt: new Date() } as any);
+      if (leadOwnerUserId && !lead.assignedTo) {
+        await assignLead(tenantId, lead.id, leadOwnerUserId);
       }
-
-      const accessToken = instagramConfig.accessToken;
-      const pageId = instagramConfig.pageId;
-      if (!accessToken || !pageId) {
-        return res.json({ received: true, error: 'Instagram credentials not found' });
-      }
-
-      // Procesar mensaje (Instagram usa estructura similar a Facebook)
-      const entry = body.entry?.[0];
-      const messaging = entry?.messaging?.[0];
-
-      if (!messaging || !messaging.message) {
-        return res.json({ received: true });
-      }
-
-      const messagePayload = {
+      (messagePayload as { leadId?: string }).leadId = lead.id;
+    } else {
+      lead = await createLead(
         tenantId,
-        channel: 'instagram' as const,
-        direction: 'inbound' as const,
-        from: messaging.sender.id,
-        to: messaging.recipient.id,
-        content: messaging.message.text || '',
-        metadata: {
-          messageId: messaging.message.mid,
-          timestamp: messaging.timestamp,
-          contactName: messaging.sender.name || 'Cliente Instagram',
+        'instagram',
+        {
+          name: messagePayload.metadata.contactName || 'Cliente Instagram',
+          email: '',
+          phone: messagePayload.from,
+          preferredChannel: 'instagram',
+          city: '',
         },
-      };
+        `Mensaje inicial: ${messagePayload.content}`,
+        {
+          assignedTo: leadOwnerUserId,
+          populateStandardContactFields: true,
+          vehicleInterest: '',
+        }
+      );
+      (messagePayload as { leadId?: string }).leadId = lead.id;
+      await createNotification({
+        tenantId,
+        userId: leadOwnerUserId || '',
+        type: 'lead_created' as any,
+        title: 'Nuevo Lead de Instagram',
+        message: `${messagePayload.metadata.contactName || 'Cliente'} envió un mensaje`,
+        channels: ['system'],
+        metadata: { leadId: lead.id } as any,
+      } as any);
+    }
 
-      // Buscar lead existente
-      const leadsSnapshot = await db
+    const unifiedService = new UnifiedMessagingService();
+    await unifiedService.sendMessage(messagePayload as any);
+
+    const leadId = lead.id;
+
+    try {
+      const { classifyLeadWithTenantConfig, generateResponseWithTenantConfig } =
+        await import('@autodealers/ai');
+
+      const leadDoc = await db
         .collection('tenants')
         .doc(tenantId)
         .collection('leads')
-        .where('contact.phone', '==', messagePayload.from)
-        .limit(1)
+        .doc(leadId)
         .get();
+      const leadData = leadDoc.data();
 
-      let leadId: string | null = null;
+      const classification = await classifyLeadWithTenantConfig(tenantId, {
+        name: leadData?.contact?.name || messagePayload.metadata.contactName || 'Cliente',
+        phone: messagePayload.from,
+        source: 'instagram',
+        messages: [messagePayload.content],
+      });
 
-      if (!leadsSnapshot.empty) {
-        const leadDoc = leadsSnapshot.docs[0];
-        leadId = leadDoc.id;
-
-        const leadData = leadDoc.data();
-        const interactions = leadData.interactions || [];
-        interactions.push({
-          type: 'message',
-          content: messagePayload.content,
-          userId: 'system',
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-
+      if (classification) {
         await db
           .collection('tenants')
           .doc(tenantId)
           .collection('leads')
           .doc(leadId)
           .update({
-            interactions,
+            aiClassification: {
+              priority: classification.priority,
+              sentiment: classification.sentiment,
+              intent: classification.intent,
+              confidence: classification.confidence,
+              reasoning: classification.reasoning,
+            },
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           });
-      } else {
-        // Nuevo lead
-        const newLeadRef = db
-          .collection('tenants')
-          .doc(tenantId)
-          .collection('leads')
-          .doc();
-
-        await newLeadRef.set({
-          tenantId,
-          source: 'instagram',
-          status: 'new',
-          contact: {
-            name: messagePayload.metadata?.contactName || 'Cliente Instagram',
-            phone: messagePayload.from,
-            preferredChannel: 'instagram',
-          },
-          notes: `Mensaje inicial: ${messagePayload.content}`,
-          interactions: [
-            {
-              type: 'message',
-              content: messagePayload.content,
-              userId: 'system',
-              createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            },
-          ],
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-
-        leadId = newLeadRef.id;
-
-        // Crear notificación
-        await db.collection('notifications').add({
-          tenantId,
-          userId: '',
-          type: 'lead_created',
-          title: 'Nuevo Lead de Instagram',
-          message: `${messagePayload.metadata?.contactName || 'Cliente'} envió un mensaje`,
-          channels: ['system'],
-          metadata: { leadId },
-          read: false,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
       }
 
-      // Guardar mensaje
-      await db.collection('tenants')
-        .doc(tenantId)
-        .collection('messages')
-        .add({
-          ...messagePayload,
-          leadId,
-          status: 'received',
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
+      if (leadData?.status === 'new') {
+        const autoResponse = await generateResponseWithTenantConfig(
+          tenantId,
+          `Lead de Instagram - ${leadData?.contact?.name || 'Cliente'}`,
+          messagePayload.content,
+          leadData?.interactions?.map((i: { content?: string }) => i.content) || []
+        );
 
-      // Procesar con IA (similar a WhatsApp y Facebook)
-      try {
-        const { classifyLeadWithTenantConfig, generateResponseWithTenantConfig } = await import('@autodealers/ai');
-        
-        if (leadId) {
-          const leadDoc = await db
-            .collection('tenants')
-            .doc(tenantId)
-            .collection('leads')
-            .doc(leadId)
-            .get();
-          
-          const leadData = leadDoc.data();
-          
-          const classification = await classifyLeadWithTenantConfig(tenantId, {
-            name: leadData?.contact?.name || messagePayload.metadata?.contactName || 'Cliente',
-            phone: messagePayload.from,
-            source: 'instagram',
-            messages: [messagePayload.content],
+        if (autoResponse && !autoResponse.requiresApproval) {
+          const graphRes = await fetch(`https://graph.facebook.com/v18.0/${pageId}/messages`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              recipient: { id: messagePayload.from },
+              message: { text: autoResponse.content },
+            }),
           });
 
-          if (classification) {
+          if (graphRes.ok) {
             await db
               .collection('tenants')
               .doc(tenantId)
-              .collection('leads')
-              .doc(leadId)
-              .update({
-                aiClassification: {
-                  priority: classification.priority,
-                  sentiment: classification.sentiment,
-                  intent: classification.intent,
-                  confidence: classification.confidence,
-                  reasoning: classification.reasoning,
+              .collection('messages')
+              .add({
+                tenantId,
+                channel: 'instagram',
+                direction: 'outbound',
+                from: pageId,
+                to: messagePayload.from,
+                content: autoResponse.content,
+                metadata: {
+                  autoGenerated: true,
+                  leadId,
+                  aiConfidence: autoResponse.confidence,
                 },
-                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                status: 'sent',
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
               });
           }
-
-          // Generar respuesta automática
-          if (leadData?.status === 'new') {
-            const autoResponse = await generateResponseWithTenantConfig(
-              tenantId,
-              `Lead de Instagram - ${leadData?.contact?.name || 'Cliente'}`,
-              messagePayload.content,
-              leadData?.interactions?.map((i: any) => i.content) || []
-            );
-
-            if (autoResponse && !autoResponse.requiresApproval) {
-              // Enviar respuesta automática vía Instagram Graph API
-              const response = await fetch(
-                `https://graph.facebook.com/v18.0/${pageId}/messages`,
-                {
-                  method: 'POST',
-                  headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    recipient: { id: messagePayload.from },
-                    message: { text: autoResponse.content },
-                  }),
-                }
-              );
-
-              if (response.ok) {
-                await db.collection('tenants')
-                  .doc(tenantId)
-                  .collection('messages')
-                  .add({
-                    tenantId,
-                    channel: 'instagram',
-                    direction: 'outbound',
-                    from: pageId,
-                    to: messagePayload.from,
-                    content: autoResponse.content,
-                    metadata: {
-                      autoGenerated: true,
-                      leadId,
-                      aiConfidence: autoResponse.confidence,
-                    },
-                    status: 'sent',
-                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                  });
-              }
-            }
-          }
         }
-      } catch (aiError) {
-        console.warn('IA processing skipped:', aiError);
       }
-
-      res.json({ received: true, leadId });
-    } catch (error: any) {
-      console.error('Instagram webhook error:', error);
-      res.status(400).json({
-        error: 'Webhook processing failed',
-        details: error.message,
-      });
+    } catch (aiError) {
+      console.warn('IA processing skipped:', aiError);
     }
+
+    res.status(200).json({ received: true, leadId });
+  } catch (error: unknown) {
+    console.error('Instagram webhook error:', error);
+    const message = error instanceof Error ? error.message : 'Webhook processing failed';
+    res.status(400).json({ error: 'Webhook processing failed', details: message });
   }
-);
-
-
+});

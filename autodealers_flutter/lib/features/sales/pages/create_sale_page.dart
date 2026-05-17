@@ -201,7 +201,7 @@ class _CreateSalePageState extends State<CreateSalePage> {
               Consumer<InventoryProvider>(
                 builder: (context, inventoryProvider, _) {
                   return DropdownButtonFormField<String>(
-                    value: _selectedVehicleId,
+                    initialValue: _selectedVehicleId,
                     decoration: const InputDecoration(
                       labelText: 'Vehículo *',
                       border: OutlineInputBorder(),
@@ -240,7 +240,7 @@ class _CreateSalePageState extends State<CreateSalePage> {
               Consumer<CrmProvider>(
                 builder: (context, crmProvider, _) {
                   return DropdownButtonFormField<String>(
-                    value: _selectedLeadId,
+                    initialValue: _selectedLeadId,
                     decoration: const InputDecoration(
                       labelText: 'Lead (Opcional)',
                       border: OutlineInputBorder(),
@@ -493,7 +493,7 @@ class _CreateSalePageState extends State<CreateSalePage> {
               const SizedBox(height: 16),
               // Método de pago
               DropdownButtonFormField<String>(
-                value: _paymentMethod,
+                initialValue: _paymentMethod,
                 decoration: const InputDecoration(
                   labelText: 'Método de Pago *',
                   border: OutlineInputBorder(),

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdvertiser, getAdvertiserPricingConfig, getStripeInstance } from '@autodealers/core';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,8 +11,6 @@ export async function POST(request: NextRequest) {
       phone,
       website,
       industry,
-      message,
-      plan,
     } = body;
 
     // Validaciones

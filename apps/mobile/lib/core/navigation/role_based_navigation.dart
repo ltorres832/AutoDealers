@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../models/user_role.dart';
-import '../services/auth_service.dart';
 
 /// Navegación basada en roles
 class RoleBasedNavigation {

@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
+import { requireTenantFeature } from '@/lib/membership-middleware';
 import { getFirestore } from '@autodealers/core';
 import * as admin from 'firebase-admin';
 
@@ -23,12 +24,7 @@ async function createFIClientDirect(
     vehiclePrice?: number;
     downPayment?: number;
     hasTradeIn?: boolean;
-    tradeInDetails?: {
-      make?: string;
-      model?: string;
-      year?: number;
-      estimatedValue?: number;
-    };
+    tradeInDetails?: Record<string, unknown>;
     createdBy: string;
   }
 ) {
@@ -105,6 +101,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No se pudo determinar el tenantId' }, { status: 400 });
     }
 
+    const fiGate = await requireTenantFeature(tenantId, 'useFIModule');
+    if (fiGate) return fiGate;
+
     const clients = await getFIClientsDirect(tenantId);
 
     return NextResponse.json({ clients });
@@ -148,6 +147,9 @@ export async function POST(request: NextRequest) {
       console.error('❌ POST /api/fi/clients - No tenantId disponible para usuario:', user.userId);
       return NextResponse.json({ error: 'No se pudo determinar el tenantId' }, { status: 400 });
     }
+
+    const fiGatePost = await requireTenantFeature(tenantId, 'useFIModule');
+    if (fiGatePost) return fiGatePost;
 
     console.log('✅ POST /api/fi/clients - Auth OK:', {
       userId: user.userId,

@@ -2,7 +2,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../domain/models/lead.dart';
 import '../../config/firebase_config.dart';
-import '../services/firestore_service.dart';
 
 class CrmRepository {
   final FirebaseFirestore _firestore = FirebaseConfig.firestore;

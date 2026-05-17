@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getVehiclePhotos, handleImageError } from '../../lib/vehicle-image';
+import { getPublicVehicleConditionLabel } from '@/lib/vehicle-condition-label';
 import { pingCatalogVehicleClick } from '@/lib/catalog-vehicle-click';
 
 interface Vehicle {
@@ -137,15 +138,19 @@ export default function VehicleDetailModal({ vehicle, subdomain, catalogTenantId
                   {vehicle.currency} {vehicle.price.toLocaleString()}
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  <span className={`px-3 py-1 rounded text-sm font-medium ${
-                    vehicle.condition === 'new' 
-                      ? 'bg-green-100 text-green-800'
-                      : vehicle.condition === 'certified'
-                      ? 'bg-blue-100 text-blue-800'
-                      : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    {vehicle.condition === 'new' ? 'Nuevo' : vehicle.condition === 'certified' ? 'Certificado' : 'Usado'}
-                  </span>
+                  {getPublicVehicleConditionLabel(vehicle) ? (
+                    <span
+                      className={`px-3 py-1 rounded text-sm font-medium ${
+                        getPublicVehicleConditionLabel(vehicle) === 'Nuevo'
+                          ? 'bg-green-100 text-green-800'
+                          : getPublicVehicleConditionLabel(vehicle) === 'Certificado'
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-gray-100 text-gray-800'
+                      }`}
+                    >
+                      {getPublicVehicleConditionLabel(vehicle)}
+                    </span>
+                  ) : null}
                   <span className="px-3 py-1 bg-gray-100 text-gray-800 rounded text-sm">
                     Millaje: {(vehicle.mileage ?? 0).toLocaleString()} millas
                   </span>

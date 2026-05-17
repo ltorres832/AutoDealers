@@ -86,7 +86,7 @@ class _AdminCampaignCreatePageState extends State<AdminCampaignCreatePage> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _status,
+                initialValue: _status,
                 decoration: const InputDecoration(
                   labelText: 'Estado',
                   border: OutlineInputBorder(),
@@ -100,7 +100,7 @@ class _AdminCampaignCreatePageState extends State<AdminCampaignCreatePage> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _platform,
+                initialValue: _platform,
                 decoration: const InputDecoration(
                   labelText: 'Plataforma',
                   border: OutlineInputBorder(),

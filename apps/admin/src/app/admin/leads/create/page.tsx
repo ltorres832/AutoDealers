@@ -108,7 +108,7 @@ export default function CreateLeadPage() {
   return (
     <div className="p-8">
       <div className="mb-6">
-        <BackButton href="/admin/all-leads" label="Volver a Leads" />
+        <BackButton label="Volver" />
       </div>
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Crear Lead Manualmente</h1>

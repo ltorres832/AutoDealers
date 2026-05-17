@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
       schedule: body.schedule,
       status: body.status || 'draft',
       aiGenerated: body.aiGenerated || false,
+      metaDistribution: body.metaDistribution === 'paid_ads' ? 'paid_ads' : 'organic',
     });
 
     return NextResponse.json({ campaign }, { status: 201 });

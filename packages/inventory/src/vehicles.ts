@@ -1,6 +1,6 @@
 // Gestión de vehículos
 
-import { Vehicle, VehicleFilters, VehicleStatus } from './types';
+import { Vehicle, VehicleFilters, VehicleStatus, VehicleStockSnapshot } from './types';
 import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
 
 // Lazy initialization - solo se inicializa cuando se necesita
@@ -119,10 +119,11 @@ export async function createVehicle(
     stockNumber,
   };
 
-  // Asignar sellerId automáticamente si se proporciona y no está en vehicleData
-  if (sellerId && !finalVehicleData.sellerId && !finalVehicleData.assignedTo) {
+  // Vendedor creador: siempre asignar su sellerId al vehículo
+  if (sellerId) {
     finalVehicleData.sellerId = sellerId;
-    console.log(`👤 Asignando sellerId automáticamente: ${sellerId}`);
+    finalVehicleData.createdBy = sellerId;
+    console.log(`👤 Asignando sellerId/createdBy: ${sellerId}`);
   }
 
   // Si vehicleData ya tiene sellerId o assignedTo, mantenerlo
@@ -171,6 +172,7 @@ export async function createVehicle(
     tenantId,
     ...finalVehicleData,
     status: vehicleStatus,
+    publishedOnPublicPage: finalVehicleData.publishedOnPublicPage !== false,
     createdAt: getFirestoreFieldValue().serverTimestamp(),
     updatedAt: getFirestoreFieldValue().serverTimestamp(),
   };
@@ -244,6 +246,73 @@ export async function getVehicleById(
   } as Vehicle;
 }
 
+/**
+ * Construye un snapshot completo del vehículo para CRM / FI / trade-in (copia en el momento T).
+ */
+export function buildVehicleStockSnapshot(vehicle: Vehicle): VehicleStockSnapshot {
+  const specs = vehicle.specifications || ({} as Vehicle['specifications']);
+  return {
+    vehicleId: vehicle.id,
+    tenantId: vehicle.tenantId,
+    stockNumber: vehicle.stockNumber || specs.stockNumber || '',
+    make: vehicle.make,
+    model: vehicle.model,
+    year: vehicle.year,
+    price: vehicle.price,
+    currency: vehicle.currency,
+    mileage: vehicle.mileage ?? specs.mileage,
+    condition: vehicle.condition,
+    status: vehicle.status,
+    description: vehicle.description || '',
+    vin: vehicle.vin || specs.vin,
+    bodyType: vehicle.bodyType || specs.bodyType,
+    photos: Array.isArray(vehicle.photos) ? [...vehicle.photos] : [],
+    videos: Array.isArray(vehicle.videos) ? [...vehicle.videos] : undefined,
+    specifications: { ...specs, stockNumber: vehicle.stockNumber || specs.stockNumber },
+    capturedAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * Busca un vehículo por número de stock dentro del tenant (único operativo por dealer).
+ */
+export async function getVehicleByStockNumber(
+  tenantId: string,
+  stockNumber: string
+): Promise<Vehicle | null> {
+  const raw = (stockNumber || '').trim();
+  if (!raw) return null;
+
+  const snap = await getDb()
+    .collection('tenants')
+    .doc(tenantId)
+    .collection('vehicles')
+    .where('stockNumber', '==', raw)
+    .limit(2)
+    .get();
+
+  if (snap.empty) return null;
+  if (snap.docs.length > 1) {
+    console.warn('[inventory] Múltiples vehículos con mismo stockNumber en tenant', tenantId, raw);
+  }
+
+  const doc = snap.docs[0];
+  const data = doc.data();
+  const photos = Array.isArray(data?.photos)
+    ? data.photos
+    : Array.isArray(data?.images)
+      ? data.images
+      : [];
+  return {
+    id: doc.id,
+    ...data,
+    photos,
+    createdAt: data?.createdAt?.toDate() || new Date(),
+    updatedAt: data?.updatedAt?.toDate() || new Date(),
+    soldAt: data?.soldAt?.toDate(),
+  } as Vehicle;
+}
+
 /** True si hay que usar consulta filtrada en Firestore (no lectura completa del subcolección) */
 function hasVehicleFilters(filters?: VehicleFilters): boolean {
   if (!filters) return false;
@@ -277,6 +346,9 @@ function mapVehicleDocs(docs: any[]): Vehicle[] {
       createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : data.createdAt,
       updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : data.updatedAt,
       soldAt: data.soldAt?.toDate ? data.soldAt.toDate() : data.soldAt,
+      freeListingExpiresAt: data.freeListingExpiresAt?.toDate
+        ? data.freeListingExpiresAt.toDate()
+        : data.freeListingExpiresAt,
     } as Vehicle;
   });
 }
@@ -648,7 +720,8 @@ export async function deleteVehicle(
   tenantId: string,
   vehicleId: string
 ): Promise<void> {
-  await updateVehicleStatus(tenantId, vehicleId, 'sold');
+  const { applyVehicleListingAction } = await import('./listing-disposition');
+  await applyVehicleListingAction(tenantId, vehicleId, 'delete');
 }
 
 /**

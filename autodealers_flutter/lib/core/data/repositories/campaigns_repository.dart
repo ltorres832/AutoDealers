@@ -43,7 +43,7 @@ class CampaignsRepository {
                   'updatedAt': data['updatedAt']?.toDate(),
                   'startedAt': data['startedAt']?.toDate(),
                   'completedAt': data['completedAt']?.toDate(),
-                } as Map<String, dynamic>;
+                };
               })
           .toList();
 

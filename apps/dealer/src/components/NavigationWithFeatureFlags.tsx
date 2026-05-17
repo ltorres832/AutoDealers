@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useFeatureFlag } from '@/hooks/useFeatureFlag';
 
 interface NavItem {
   name: string;
@@ -15,11 +14,14 @@ interface NavItem {
 interface NavigationWithFeatureFlagsProps {
   items: NavItem[];
   sidebarCollapsed: boolean;
+  /** Cierra drawer móvil al navegar */
+  onNavigate?: () => void;
 }
 
 export default function NavigationWithFeatureFlags({
   items,
   sidebarCollapsed,
+  onNavigate,
 }: NavigationWithFeatureFlagsProps) {
   const pathname = usePathname();
   const [enabledFeatures, setEnabledFeatures] = useState<Record<string, boolean>>({});
@@ -33,7 +35,7 @@ export default function NavigationWithFeatureFlags({
         if (item.featureKey) {
           try {
             const response = await fetch(
-              `/api/feature-flags/check?dashboard=dealer&featureKey=${item.featureKey}`,
+              `/api/feature-flags/check?dashboard=dealer&featureKey=${encodeURIComponent(item.featureKey)}`,
               { credentials: 'include' }
             );
             if (response.ok) {
@@ -67,6 +69,7 @@ export default function NavigationWithFeatureFlags({
           <Link
             key={item.href}
             href={item.href}
+            onClick={() => onNavigate?.()}
             className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-start'} px-4 py-3 rounded-lg transition-all ${
               isActive
                 ? 'bg-primary-50 text-primary-700 font-medium shadow-sm'

@@ -1,10 +1,24 @@
 // Wrapper de fetch que automáticamente renueva el token antes de cada request
 
 import { auth } from './firebase-client';
+import { DEALER_ACTIVE_TENANT_KEY } from './dealer-tenant-storage';
 
-// Cache del último token renovado y su timestamp
-let lastToken: string | null = null;
-let lastTokenTime: number = 0;
+function headerBagWithAuth(base: HeadersInit | undefined, token: string): Headers {
+  const headers = new Headers(base);
+  headers.set('Authorization', `Bearer ${token}`);
+  if (typeof window !== 'undefined') {
+    try {
+      const active = sessionStorage.getItem(DEALER_ACTIVE_TENANT_KEY)?.trim();
+      if (active) {
+        headers.set('X-Dealer-Tenant-Id', active);
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return headers;
+}
+
 const TOKEN_REFRESH_INTERVAL = 50 * 60 * 1000; // 50 minutos (renovar antes de que expire)
 
 /**
@@ -26,7 +40,7 @@ async function getFreshToken(): Promise<string | null> {
       await new Promise<void>((resolve) => {
         const { onAuthStateChanged } = require('firebase/auth');
         let resolved = false;
-        const unsubscribe = onAuthStateChanged(auth, (u: any) => {
+        const unsubscribe = onAuthStateChanged(auth, (u) => {
           if (u && !resolved) {
             user = u;
             resolved = true;
@@ -60,10 +74,6 @@ async function getFreshToken(): Promise<string | null> {
       return null;
     }
     
-    // Actualizar cache
-    lastToken = token;
-    lastTokenTime = Date.now();
-    
     // Actualizar la cookie inmediatamente
     const isSecure = window.location.protocol === 'https:';
     const cookieValue = encodeURIComponent(token);
@@ -84,7 +94,7 @@ async function getFreshToken(): Promise<string | null> {
     await new Promise(resolve => setTimeout(resolve, 150));
     
     return token;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Error al obtener token fresco:', error);
     return null;
   }
@@ -95,7 +105,9 @@ if (typeof window !== 'undefined') {
   setInterval(async () => {
     try {
       await getFreshToken();
-      console.log('✅ Token renovado automáticamente (cada 50 min)');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ Token renovado automáticamente (cada 50 min)');
+      }
     } catch (error) {
       console.error('❌ Error en renovación automática:', error);
     }
@@ -119,15 +131,15 @@ export async function fetchWithAuth(
     throw new Error('No se pudo obtener token de autenticación. Por favor, inicia sesión nuevamente.');
   }
   
-  console.log('✅ fetchWithAuth: Token renovado antes de request, longitud:', token.length);
+  if (process.env.NODE_ENV === 'development') {
+    console.log('✅ fetchWithAuth: Token listo, longitud:', token.length);
+  }
 
   // Esperar un momento adicional para asegurar que la cookie se guarde
   await new Promise(resolve => setTimeout(resolve, 300));
 
-  // Preparar headers - agregar Authorization header además de la cookie
-  const headers = new Headers(options.headers);
-  headers.set('Authorization', `Bearer ${token}`);
-  
+  const headers = headerBagWithAuth(options.headers, token);
+
   // Hacer la request con credentials para incluir cookies Y Authorization header
   let response = await fetch(url, {
     ...options,
@@ -145,8 +157,7 @@ export async function fetchWithAuth(
       const newToken = await getFreshToken();
       if (newToken) {
         await new Promise(resolve => setTimeout(resolve, 500));
-        const retryHeaders = new Headers(options.headers);
-        retryHeaders.set('Authorization', `Bearer ${newToken}`);
+        const retryHeaders = headerBagWithAuth(options.headers, newToken);
         response = await fetch(url, {
           ...options,
           headers: retryHeaders,
@@ -166,10 +177,8 @@ export async function fetchWithAuth(
       // Esperar más tiempo para asegurar que la cookie se actualice
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Preparar headers con el nuevo token
-      const retryHeaders = new Headers(options.headers);
-      retryHeaders.set('Authorization', `Bearer ${newToken}`);
-      
+      const retryHeaders = headerBagWithAuth(options.headers, newToken);
+
       // Reintentar la request con el nuevo token en header también
       response = await fetch(url, {
         ...options,

@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
+import { requireTenantFeature } from '@/lib/membership-middleware';
 import { getFirestore } from '@autodealers/core';
 import { EmailService } from '@autodealers/messaging';
 import { getFIRequestById, getFIClientById } from '@autodealers/crm';
@@ -63,6 +64,9 @@ export async function POST(
         { status: 403 }
       );
     }
+
+    const fiGate = await requireTenantFeature(user.tenantId, 'useFIModule');
+    if (fiGate) return fiGate;
 
     const { id } = await params;
     const body = await request.json();

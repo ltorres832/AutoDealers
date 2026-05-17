@@ -11,6 +11,7 @@ export * from './sms';
 export * from './unified';
 export * from './types';
 export * from './social-publisher';
+export * from './meta-marketing-publisher';
 
 
 

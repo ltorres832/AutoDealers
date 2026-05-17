@@ -1,3 +1,4 @@
+import { isDealerPortalRole } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirestore, getAuth } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
@@ -103,11 +104,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verificar que sea dealer
-    if (userData.role !== 'dealer') {
-      console.log('❌ Usuario no es dealer. Rol:', userData.role);
+    // Verificar que sea dealer o vendedor (portal dealer compartido)
+    if (!isDealerPortalRole(userData.role) && userData.role !== 'seller') {
+      console.log('❌ Usuario no es dealer ni vendedor. Rol:', userData.role);
       return NextResponse.json(
-        { error: 'Solo dealers pueden acceder aquí. Tu rol actual es: ' + (userData.role || 'no definido') },
+        { error: 'Solo cuentas de concesionario o vendedores pueden acceder aquí. Tu rol actual es: ' + (userData.role || 'no definido') },
         { status: 403 }
       );
     }

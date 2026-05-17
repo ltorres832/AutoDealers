@@ -12,6 +12,9 @@ export type CampaignStatus = 'draft' | 'scheduled' | 'active' | 'paused' | 'comp
 
 export type CampaignPlatform = 'facebook' | 'instagram' | 'whatsapp' | 'tiktok';
 
+/** En Meta: post en el feed (orgánico) vs anuncio facturado en la cuenta publicitaria (Marketing API). */
+export type MetaCampaignDistribution = 'organic' | 'paid_ads';
+
 export interface CampaignBudget {
   platform: CampaignPlatform;
   amount: number;
@@ -59,6 +62,12 @@ export interface Campaign {
   };
   status: CampaignStatus;
   aiGenerated: boolean;
+  /** Solo aplica cuando la campaña usa Facebook e Instagram como canal Meta. */
+  metaDistribution?: MetaCampaignDistribution;
+  /** IDs en Meta Ads Manager cuando metaDistribution es paid_ads y la creación en Graph tuvo éxito. */
+  metaAdsCampaignId?: string;
+  metaAdsAdSetId?: string;
+  metaAdsPublishError?: string;
   metrics?: CampaignMetrics;
   createdAt: Date;
   updatedAt: Date;

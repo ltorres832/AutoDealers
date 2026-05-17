@@ -8,11 +8,11 @@ import { updateTenant } from '@autodealers/core';
 // NO inicializar db aquí - se inicializa en cada función
 let db: admin.firestore.Firestore | null = null;
 
-function getDb() {
+function getDb(): admin.firestore.Firestore {
   if (!db) {
     db = getFirestore();
   }
-  return db;
+  return db!;
 }
 
 /**
@@ -279,7 +279,7 @@ export async function changeMembership(
   }
 
   // Actualizar membershipId en todos los usuarios del tenant
-  const usersSnapshot = await (db || getDb())
+  const usersSnapshot = await getDb()
     .collection('users')
     .where('tenantId', '==', subscription.tenantId)
     .get();

@@ -3,9 +3,9 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { FacebookMessengerService } from '@autodealers/messaging';
 import { UnifiedMessagingService } from '@autodealers/messaging';
-import { createLead, findLeadByPhoneInTenant, updateLead, addInteraction } from '@autodealers/crm';
+import { createLead, findLeadByPhoneInTenant, updateLead, addInteraction, assignLead } from '@autodealers/crm';
 import { getFirestore } from '@autodealers/shared';
-import { createNotification } from '@autodealers/core';
+import { createNotification, resolveMetaWebhookVerifyToken } from '@autodealers/core';
 import * as admin from 'firebase-admin';
 
 const db = getFirestore();
@@ -16,11 +16,7 @@ export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get('hub.verify_token');
   const challenge = request.nextUrl.searchParams.get('hub.challenge');
 
-  // Obtener verify token desde Firestore
-  // TODO: Implementar getMetaVerifyToken en @autodealers/core
-  // const { getMetaVerifyToken } = await import('@autodealers/core');
-  // const verifyToken = await getMetaVerifyToken();
-  const verifyToken = process.env.FACEBOOK_VERIFY_TOKEN || 'default_verify_token';
+  const verifyToken = await resolveMetaWebhookVerifyToken();
 
   if (mode === 'subscribe' && token === verifyToken) {
     return new NextResponse(challenge || '', {
@@ -33,7 +29,28 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const url = request.nextUrl;
+    const qMode = url.searchParams.get('hub.mode');
+    const qToken = url.searchParams.get('hub.verify_token');
+    const qChallenge = url.searchParams.get('hub.challenge');
+    if (qMode === 'subscribe' && qToken != null && qChallenge != null) {
+      const verifyToken = await resolveMetaWebhookVerifyToken();
+      if (qToken === verifyToken) {
+        return new NextResponse(qChallenge, {
+          headers: { 'Content-Type': 'text/plain' },
+        });
+      }
+      return NextResponse.json({ error: 'Invalid token' }, { status: 403 });
+    }
+
     const body = await request.json();
+
+    const entry0 = body.entry?.[0] as { changes?: Array<{ field?: string; value?: { leadgen_id?: string } }> } | undefined;
+    const leadgenChange = entry0?.changes?.find((c) => c.field === 'leadgen');
+    if (leadgenChange?.value?.leadgen_id) {
+      const { processFacebookLeadgenFromBody } = await import('./leadgen-post');
+      return processFacebookLeadgenFromBody(body, db);
+    }
 
     // Obtener tenantId de la página de Facebook
     const pageId = body.entry?.[0]?.id;
@@ -41,24 +58,47 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ received: true, error: 'No page ID' });
     }
 
-    // Buscar tenant por pageId en configuración
-    const tenantsSnapshot = await db
-      .collection('tenants')
-      .where('settings.facebook.pageId', '==', pageId)
+    // Resolver tenant y dueño del canal (integración OAuth del seller/dealer)
+    let tenantId: string | null = null;
+    let leadOwnerUserId: string | undefined;
+    let fbIntegrationData: Record<string, any> | null = null;
+
+    const fbIntSnap = await db
+      .collectionGroup('integrations')
+      .where('type', '==', 'facebook')
+      .where('credentials.pageId', '==', pageId)
       .limit(1)
       .get();
 
-    let tenantId: string | null = null;
-    if (!tenantsSnapshot.empty) {
-      tenantId = tenantsSnapshot.docs[0].id;
-    } else {
-      // Fallback: usar el primer tenant activo
+    if (!fbIntSnap.empty) {
+      const fbDoc = fbIntSnap.docs[0];
+      tenantId = fbDoc.ref.parent.parent?.id ?? null;
+      fbIntegrationData = fbDoc.data();
+      const lo = fbIntegrationData?.leadOwnerUserId;
+      if (typeof lo === 'string' && lo.trim()) {
+        leadOwnerUserId = lo.trim();
+      }
+    }
+
+    if (!tenantId) {
+      const tenantsSnapshot = await db
+        .collection('tenants')
+        .where('settings.facebook.pageId', '==', pageId)
+        .limit(1)
+        .get();
+
+      if (!tenantsSnapshot.empty) {
+        tenantId = tenantsSnapshot.docs[0].id;
+      }
+    }
+
+    if (!tenantId) {
       const activeTenants = await db
         .collection('tenants')
         .where('status', '==', 'active')
         .limit(1)
         .get();
-      
+
       if (!activeTenants.empty) {
         tenantId = activeTenants.docs[0].id;
         console.warn(`⚠️ No se encontró tenant para Facebook page ${pageId}, usando fallback: ${tenantId}`);
@@ -67,16 +107,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Obtener configuración de Facebook del tenant
     const tenantDoc = await db.collection('tenants').doc(tenantId).get();
     const tenantData = tenantDoc.data();
     const facebookConfig = tenantData?.settings?.facebook;
 
-    if (!facebookConfig || !facebookConfig.enabled) {
+    const intToken = fbIntegrationData?.credentials?.accessToken;
+    const intActive =
+      fbIntegrationData?.status === 'active' &&
+      typeof intToken === 'string' &&
+      intToken.length > 0;
+
+    const tenantToken =
+      typeof facebookConfig?.accessToken === 'string' ? facebookConfig.accessToken : undefined;
+    const tenantEnabled = facebookConfig?.enabled === true;
+
+    if (!intActive && (!tenantEnabled || !tenantToken)) {
       return NextResponse.json({ received: true, error: 'Facebook not configured' });
     }
 
-    const accessToken = facebookConfig.accessToken;
+    const accessToken = intToken || tenantToken;
     if (!accessToken) {
       return NextResponse.json({ received: true, error: 'Facebook access token not found' });
     }
@@ -104,6 +153,10 @@ export async function POST(request: NextRequest) {
         updatedAt: new Date(),
       } as any);
 
+      if (leadOwnerUserId && !lead.assignedTo) {
+        await assignLead(tenantId, lead.id, leadOwnerUserId);
+      }
+
       (messagePayload as any).leadId = lead.id;
     } else {
       // Nuevo lead
@@ -112,17 +165,24 @@ export async function POST(request: NextRequest) {
         'facebook',
         {
           name: messagePayload.metadata?.contactName || 'Cliente Facebook',
+          email: '',
           phone: messagePayload.from,
           preferredChannel: 'facebook',
+          city: '',
         },
-        `Mensaje inicial: ${messagePayload.content}`
+        `Mensaje inicial: ${messagePayload.content}`,
+        {
+          assignedTo: leadOwnerUserId,
+          populateStandardContactFields: true,
+          vehicleInterest: '',
+        }
       );
 
       (messagePayload as any).leadId = lead.id;
 
       await createNotification({
         tenantId,
-        userId: '',
+        userId: leadOwnerUserId || '',
         type: 'lead_created' as any,
         title: 'Nuevo Lead de Facebook',
         message: `${messagePayload.metadata?.contactName || 'Cliente'} envió un mensaje`,

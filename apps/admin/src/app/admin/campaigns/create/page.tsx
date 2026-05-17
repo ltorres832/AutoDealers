@@ -31,6 +31,7 @@ export default function CreateCampaignPage() {
     videoUrl: '',
     hashtags: '',
     publishNow: false,
+    metaDistribution: 'organic' as 'organic' | 'paid_ads',
   });
 
   useEffect(() => {
@@ -151,23 +152,29 @@ export default function CreateCampaignPage() {
   }
 
   function togglePlatform(platform: string) {
-    setFormData((prev) => ({
-      ...prev,
-      platforms: prev.platforms.includes(platform)
+    setFormData((prev) => {
+      const platforms = prev.platforms.includes(platform)
         ? prev.platforms.filter((p) => p !== platform)
-        : [...prev.platforms, platform],
-    }));
+        : [...prev.platforms, platform];
+      const hasMeta = platforms.includes('facebook') || platforms.includes('instagram');
+      return {
+        ...prev,
+        platforms,
+        metaDistribution: hasMeta ? prev.metaDistribution : 'organic',
+      };
+    });
   }
 
   return (
     <div className="max-w-4xl mx-auto">
       <div className="mb-6">
-        <BackButton href="/admin/all-campaigns" label="Volver a Campañas" />
+        <BackButton label="Volver" />
       </div>
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Crear Campaña</h1>
         <p className="text-gray-600 mt-2">
-          Crea una campaña para un dealer o vendedor. Se publicará automáticamente si tienen credenciales configuradas.
+          Crea una campaña para un dealer o vendedor. Puedes elegir post orgánico (feed) o marcar intención de anuncios
+          de pago (Meta Ads). La publicación inmediata solo aplica a posts orgánicos cuando el tenant tiene credenciales.
         </p>
       </div>
 
@@ -247,9 +254,44 @@ export default function CreateCampaignPage() {
             </label>
           </div>
           <p className="text-xs text-gray-500 mt-2">
-            Solo se publicará en las plataformas donde el tenant tenga credenciales configuradas
+            Solo se publicará en las plataformas donde el tenant tenga credenciales configuradas (posts orgánicos).
           </p>
         </div>
+
+        {(formData.platforms.includes('facebook') || formData.platforms.includes('instagram')) && (
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-2">
+            <p className="text-sm font-medium text-gray-900">Facebook / Instagram</p>
+            <label className="flex cursor-pointer items-start gap-2">
+              <input
+                type="radio"
+                name="metaDistribution"
+                checked={formData.metaDistribution === 'organic'}
+                onChange={() =>
+                  setFormData((p) => ({ ...p, metaDistribution: 'organic' }))
+                }
+                className="mt-1"
+              />
+              <span className="text-sm text-gray-800">
+                <strong>Post orgánico</strong> — publicación gratuita en el feed de la página conectada.
+              </span>
+            </label>
+            <label className="flex cursor-pointer items-start gap-2">
+              <input
+                type="radio"
+                name="metaDistribution"
+                checked={formData.metaDistribution === 'paid_ads'}
+                onChange={() =>
+                  setFormData((p) => ({ ...p, metaDistribution: 'paid_ads', publishNow: false }))
+                }
+                className="mt-1"
+              />
+              <span className="text-sm text-gray-800">
+                <strong>Anuncio de pago (Meta Ads)</strong> — el cobro es en la cuenta publicitaria de Meta. La creación
+                automática desde aquí no está disponible; usa Ads Manager.
+              </span>
+            </label>
+          </div>
+        )}
 
         {/* Contenido */}
         <div>
@@ -330,12 +372,13 @@ export default function CreateCampaignPage() {
             <input
               type="checkbox"
               checked={formData.publishNow}
+              disabled={formData.metaDistribution === 'paid_ads'}
               onChange={(e) => setFormData({ ...formData, publishNow: e.target.checked })}
             />
-            <span className="font-medium">Publicar inmediatamente en redes sociales</span>
+            <span className="font-medium">Publicar inmediatamente en redes (solo post orgánico)</span>
           </label>
           <p className="text-xs text-gray-500 mt-1">
-            Si está marcado, se publicará automáticamente si el tenant tiene credenciales configuradas
+            Si está marcado, se publicará en el feed cuando el tenant tenga credenciales. No aplica a Meta Ads (pago).
           </p>
         </div>
 

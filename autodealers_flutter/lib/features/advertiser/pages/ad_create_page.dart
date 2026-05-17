@@ -95,7 +95,7 @@ class _AdvertiserAdCreatePageState extends State<AdvertiserAdCreatePage> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              value: _type,
+              initialValue: _type,
               decoration: const InputDecoration(labelText: 'Tipo'),
               items: const [
                 DropdownMenuItem(value: 'banner', child: Text('Banner')),
@@ -106,7 +106,7 @@ class _AdvertiserAdCreatePageState extends State<AdvertiserAdCreatePage> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              value: _placement,
+              initialValue: _placement,
               decoration: const InputDecoration(labelText: 'Ubicación'),
               items: const [
                 DropdownMenuItem(value: 'hero', child: Text('Hero')),
@@ -144,7 +144,7 @@ class _AdvertiserAdCreatePageState extends State<AdvertiserAdCreatePage> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<int>(
-              value: _durationDays,
+              initialValue: _durationDays,
               decoration: const InputDecoration(labelText: 'Duración (días)'),
               items: const [
                 DropdownMenuItem(value: 7, child: Text('7 días')),

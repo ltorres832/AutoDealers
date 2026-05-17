@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useRealtimeFIRequests } from '@/hooks/useRealtimeFIRequests';
 import { useRealtimeFIClients } from '@/hooks/useRealtimeFIClients';
+import FIHubOverview from '@/components/FIHubOverview';
 
 interface FIClient {
   id: string;
@@ -131,12 +132,7 @@ export default function FIPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Módulo F&I</h1>
-        <p className="mt-2 text-gray-600">
-          Gestiona clientes y solicitudes de Financiamiento e Seguro
-        </p>
-      </div>
+      <FIHubOverview />
 
       {/* Tabs */}
       <div className="border-b border-gray-200 mb-6">
@@ -167,25 +163,36 @@ export default function FIPage() {
       {/* Contenido de tabs */}
       {activeTab === 'clients' && (
         <div>
-          <div className="mb-4 flex justify-between items-center">
-            <h2 className="text-xl font-semibold text-gray-900">Clientes F&I</h2>
-            <Link
-              href="/fi/clients/new"
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-            >
-              + Nuevo Cliente
-            </Link>
+          <div className="mb-4 flex flex-wrap justify-between items-center gap-3">
+            <h2 className="text-xl font-semibold text-gray-900">Clientes F&amp;I</h2>
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href="/fi/clients/new"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium"
+              >
+                + Nuevo cliente
+              </Link>
+              <Link
+                href="/fi/clients/advanced"
+                className="border border-indigo-600 text-indigo-700 bg-white px-4 py-2 rounded-lg hover:bg-indigo-50 text-sm font-medium"
+              >
+                + Avanzado
+              </Link>
+            </div>
           </div>
 
           {clients.length === 0 ? (
             <div className="text-center py-12 bg-gray-50 rounded-lg">
               <p className="text-gray-500 mb-4">No hay clientes registrados</p>
-              <Link
-                href="/fi/clients/new"
-                className="text-blue-600 hover:text-blue-700"
-              >
-                Crear primer cliente →
-              </Link>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+                <Link href="/fi/clients/new" className="text-blue-600 hover:text-blue-700 font-medium">
+                  Crear primer cliente (rápido) →
+                </Link>
+                <span className="text-gray-300 hidden sm:inline">|</span>
+                <Link href="/fi/clients/advanced" className="text-indigo-600 hover:text-indigo-700 font-medium">
+                  Formulario avanzado →
+                </Link>
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

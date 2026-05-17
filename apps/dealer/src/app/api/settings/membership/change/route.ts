@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuth, isDealerPortalRole, billingTenantId } from '@/lib/auth';
 import { getSubscriptionByTenantId, changeMembership } from '@autodealers/billing';
 import { getMembershipById } from '@autodealers/billing';
 import { getFirestore } from '@autodealers/core';
@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   try {
     const auth = await verifyAuth(request);
-    if (!auth || !auth.tenantId || auth.role !== 'dealer') {
+    if (!auth || !auth.tenantId || !isDealerPortalRole(auth.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -28,12 +28,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid membership' }, { status: 400 });
     }
 
+    const billTid = billingTenantId(auth) ?? auth.tenantId;
     // Obtener suscripción actual
-    let subscription = await getSubscriptionByTenantId(auth.tenantId);
+    let subscription = await getSubscriptionByTenantId(billTid!);
     
     // Si no hay suscripción, crear una nueva
     if (!subscription) {
-      console.log(`📝 [DEALER] No hay suscripción, creando una nueva para tenant: ${auth.tenantId}`);
+      console.log(`📝 [DEALER] No hay suscripción, creando una nueva para tenant: ${billTid}`);
       
       // Obtener información del usuario
       const db = getFirestore();
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
       periodEnd.setMonth(periodEnd.getMonth() + 1); // 1 mes desde ahora
       
       const newSubscription = {
-        tenantId: auth.tenantId,
+        tenantId: billTid,
         userId: auth.userId,
         membershipId: membershipId,
         stripeSubscriptionId: '', // Se creará cuando se configure el pago
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
       
       subscription = {
         id: subscriptionRef.id,
-        tenantId: auth.tenantId,
+        tenantId: billTid!,
         userId: auth.userId,
         membershipId: membershipId,
         stripeSubscriptionId: '',

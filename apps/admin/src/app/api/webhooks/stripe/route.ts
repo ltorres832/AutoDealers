@@ -14,6 +14,7 @@ import {
   suspendAccountForNonPayment,
   checkAndSuspendEmailsOnSubscriptionChange,
 } from '@autodealers/billing';
+import type { SubscriptionStatus } from '@autodealers/billing';
 import Stripe from 'stripe';
 import * as admin from 'firebase-admin';
 import { getStripeInstance, getStripeWebhookSecretValue } from '@autodealers/core';
@@ -360,15 +361,53 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   const subscriptionDoc = subscriptionSnapshot.docs[0];
   const subscriptionId_local = subscriptionDoc.id;
 
-  // Mapear estado de Stripe
-  let status: 'active' | 'past_due' | 'cancelled' | 'suspended' = 'active';
-  if (subscription.status === 'past_due' || subscription.status === 'unpaid') {
-    status = 'past_due';
-  } else if (subscription.status === 'canceled' || subscription.status === 'incomplete_expired') {
-    status = 'cancelled';
+  let status: SubscriptionStatus = 'active';
+  switch (subscription.status) {
+    case 'trialing':
+      status = 'trialing';
+      break;
+    case 'active':
+      status = 'active';
+      break;
+    case 'past_due':
+      status = 'past_due';
+      break;
+    case 'unpaid':
+      status = 'unpaid';
+      break;
+    case 'canceled':
+      status = 'cancelled';
+      break;
+    case 'incomplete_expired':
+      status = 'incomplete_expired';
+      break;
+    case 'incomplete':
+      status = 'incomplete';
+      break;
+    case 'paused':
+      status = 'suspended';
+      break;
+    default:
+      status = 'active';
   }
 
   await updateSubscriptionStatus(subscriptionId_local, status);
+
+  const sync: Record<string, unknown> = {
+    currentPeriodStart: admin.firestore.Timestamp.fromDate(
+      new Date(subscription.current_period_start * 1000)
+    ),
+    currentPeriodEnd: admin.firestore.Timestamp.fromDate(
+      new Date(subscription.current_period_end * 1000)
+    ),
+    cancelAtPeriodEnd: subscription.cancel_at_period_end || false,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+  const mid = subscription.metadata?.membershipId;
+  if (typeof mid === 'string' && mid.trim() !== '') {
+    sync.membershipId = mid.trim();
+  }
+  await db.collection('subscriptions').doc(subscriptionId_local).update(sync as Record<string, any>);
 }
 
 /**

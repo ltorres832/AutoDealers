@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuth, isDealerPortalRole, billingTenantId } from '@/lib/auth';
 import { getStripeInstance, getFirestore } from '@autodealers/core';
 import { getSubscriptionByTenantId } from '@autodealers/billing';
 import * as admin from 'firebase-admin';
@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   try {
     const auth = await verifyAuth(request);
-    if (!auth || !auth.tenantId || auth.role !== 'dealer') {
+    if (!auth || !auth.tenantId || !isDealerPortalRole(auth.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -22,7 +22,8 @@ export async function POST(request: NextRequest) {
 
     // Obtener o crear cliente de Stripe
     let customerId: string;
-    const subscription = await getSubscriptionByTenantId(auth.tenantId);
+    const billTid = billingTenantId(auth) ?? auth.tenantId;
+    const subscription = await getSubscriptionByTenantId(billTid!);
     
     if (subscription?.stripeCustomerId) {
       customerId = subscription.stripeCustomerId;
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
         email: userData?.email,
         name: userData?.name || userData?.email,
         metadata: {
-          tenantId: auth.tenantId,
+          tenantId: billTid,
           userId: auth.userId,
         },
       });

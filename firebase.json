@@ -53,7 +53,7 @@
         "firebase-debug.*.log"
       ],
       "predeploy": [
-        "node functions/predeploy.js"
+        "npm run predeploy:functions"
       ]
     }
   ],

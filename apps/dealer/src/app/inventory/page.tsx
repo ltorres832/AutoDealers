@@ -2,6 +2,7 @@
 
 import VehiclesList from '@/components/VehiclesList';
 import { useState } from 'react';
+import Link from 'next/link';
 import { VEHICLE_TYPES, TRANSMISSION_OPTIONS, FUEL_TYPE_OPTIONS, DRIVE_TYPE_OPTIONS } from '@autodealers/inventory/client';
 
 export default function InventoryPage() {
@@ -9,14 +10,22 @@ export default function InventoryPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
         <h1 className="text-3xl font-bold">Inventario</h1>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="bg-primary-600 text-white px-4 py-2 rounded hover:bg-primary-700"
-        >
-          Agregar Vehículo
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/catalog-interest"
+            className="px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-800 hover:bg-slate-50"
+          >
+            👁️ Interés en la web
+          </Link>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="bg-primary-600 text-white px-4 py-2 rounded hover:bg-primary-700"
+          >
+            Agregar Vehículo
+          </button>
+        </div>
       </div>
 
       <VehiclesList />
@@ -308,7 +317,7 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  Kilometraje
+                  Millaje (millas)
                 </label>
                 <input
                   type="number"
@@ -318,7 +327,7 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
                     setFormData({ ...formData, mileage: e.target.value })
                   }
                   className="w-full border rounded px-3 py-2"
-                  placeholder="Ej: 50000"
+                  placeholder="Ej: 0 para nuevo"
                 />
               </div>
             </div>

@@ -135,7 +135,8 @@ export async function getTenantByWhatsAppNumber(
 ): Promise<string | null> {
   try {
     // Buscar en la colección de integraciones
-    const integrationsSnapshot = await getDb().collection('integrations')
+    const integrationsSnapshot = await getDb()
+      .collectionGroup('integrations')
       .where('type', '==', 'whatsapp')
       .where('phoneNumberId', '==', phoneNumberId)
       .where('status', '==', 'active')
@@ -143,8 +144,10 @@ export async function getTenantByWhatsAppNumber(
       .get();
 
     if (!integrationsSnapshot.empty) {
-      const integration = integrationsSnapshot.docs[0].data();
-      return integration.tenantId || null;
+      const doc = integrationsSnapshot.docs[0];
+      const integration = doc.data();
+      const parentId = doc.ref.parent?.parent?.id;
+      return (typeof integration.tenantId === 'string' && integration.tenantId) || parentId || null;
     }
 
     // Si no se encuentra, buscar en todos los tenants por settings

@@ -9,7 +9,10 @@ export function useFeatureFlag(featureKey: string, dashboard: DashboardType = 's
   useEffect(() => {
     async function checkFeature() {
       try {
-        const response = await fetch(`/api/feature-flags/check?dashboard=${dashboard}&featureKey=${featureKey}`);
+        const response = await fetch(
+          `/api/feature-flags/check?dashboard=${dashboard}&featureKey=${encodeURIComponent(featureKey)}`,
+          { credentials: 'include' }
+        );
         if (response.ok) {
           const data = await response.json();
           setEnabled(data.enabled !== false);

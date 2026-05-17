@@ -127,7 +127,7 @@ class _AdminTenantEditPageState extends State<AdminTenantEditPage> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: _status,
+                  initialValue: _status,
                   decoration: const InputDecoration(labelText: 'Estado'),
                   items: const [
                     DropdownMenuItem(value: 'active', child: Text('Activo')),

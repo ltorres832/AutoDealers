@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
+import { requireTenantFeature } from '@/lib/membership-middleware';
 import {
   suspendCorporateEmail,
   activateCorporateEmail,
@@ -17,6 +18,9 @@ export async function PATCH(
     if (!auth || !auth.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const emailGatePatch = await requireTenantFeature(auth.tenantId, 'useCorporateEmail');
+    if (emailGatePatch) return emailGatePatch;
 
     const { id: emailId } = await params;
     const body = await request.json();
@@ -80,6 +84,9 @@ export async function DELETE(
     if (!auth || !auth.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const emailGateDel = await requireTenantFeature(auth.tenantId, 'useCorporateEmail');
+    if (emailGateDel) return emailGateDel;
 
     const { id: emailId } = await params;
     await deleteCorporateEmail(emailId, auth.tenantId);

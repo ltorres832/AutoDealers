@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuth, billingTenantId } from '@/lib/auth';
 import { getSubscriptionByTenantId } from '@autodealers/billing';
 
 export const dynamic = 'force-dynamic';
@@ -12,8 +12,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    console.log('🔍 [SUBSCRIPTION API] Buscando suscripción para tenantId:', auth.tenantId);
-    const subscription = await getSubscriptionByTenantId(auth.tenantId);
+    const billTid = billingTenantId(auth) ?? auth.tenantId;
+    console.log('🔍 [SUBSCRIPTION API] Buscando suscripción para tenantId:', billTid);
+    const subscription = await getSubscriptionByTenantId(billTid!);
     
     console.log('🔍 [SUBSCRIPTION API] Resultado de getSubscriptionByTenantId:', {
       found: !!subscription,

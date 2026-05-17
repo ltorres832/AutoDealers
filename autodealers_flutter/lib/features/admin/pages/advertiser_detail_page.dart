@@ -1,8 +1,6 @@
 // Página de Detalle de Anunciante (Admin)
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/presentation/providers/auth_provider.dart';
 
 class AdminAdvertiserDetailPage extends StatelessWidget {
   final String advertiserId;

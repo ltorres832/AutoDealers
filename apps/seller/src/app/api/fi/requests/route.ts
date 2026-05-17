@@ -4,8 +4,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
+import { requireTenantFeature } from '@/lib/membership-middleware';
 import { getFirestore } from '@autodealers/core';
 import * as admin from 'firebase-admin';
+import { fiStatusToExpeditionStage, syncLinkedCustomerFileExpedition } from '@autodealers/crm';
 
 // Implementación directa para evitar problemas de webpack
 function generateRandomId(): string {
@@ -22,6 +24,7 @@ async function createFIRequestDirect(
     status: string;
     sellerNotes?: string;
     createdBy: string;
+    customerFileId?: string;
   }
 ) {
   const db = getFirestore();
@@ -39,14 +42,21 @@ async function createFIRequestDirect(
     notes: 'Solicitud F&I creada',
   };
 
+  const status = requestData.status || 'draft';
   const request = {
     ...requestData,
     tenantId,
-    status: requestData.status || 'draft',
+    status,
+    expeditionStage: fiStatusToExpeditionStage(status),
     history: [initialHistory],
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
+
+  // No persistir undefined en Firestore
+  if (!requestData.customerFileId) {
+    delete (request as any).customerFileId;
+  }
 
   console.log('💾 createFIRequestDirect: Guardando en Firestore...');
   console.log('  createdBy que se guardará:', request.createdBy);
@@ -54,6 +64,12 @@ async function createFIRequestDirect(
   console.log('  clientId:', request.clientId);
 
   await requestRef.set(request);
+
+  try {
+    await syncLinkedCustomerFileExpedition(tenantId, requestRef.id);
+  } catch (e) {
+    console.error('syncLinkedCustomerFileExpedition (create seller):', e);
+  }
 
   console.log('✅ createFIRequestDirect: Solicitud guardada exitosamente');
   console.log('  Document ID:', requestRef.id);
@@ -177,12 +193,19 @@ async function submitFIRequestDirect(
 
   await requestRef.update({
     status: 'submitted',
+    expeditionStage: fiStatusToExpeditionStage('submitted'),
     submittedAt: admin.firestore.FieldValue.serverTimestamp(),
     submittedBy,
     sellerNotes: sellerNotes || currentData?.sellerNotes,
     history: [...currentHistory, historyEntry],
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   } as any);
+
+  try {
+    await syncLinkedCustomerFileExpedition(tenantId, requestId);
+  } catch (e) {
+    console.error('syncLinkedCustomerFileExpedition (submit seller):', e);
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -196,6 +219,9 @@ export async function GET(request: NextRequest) {
     if (user.role !== 'seller') {
       return NextResponse.json({ error: 'Solo vendedores pueden acceder' }, { status: 403 });
     }
+
+    const fiGate = await requireTenantFeature(user.tenantId, 'useFIModule');
+    if (fiGate) return fiGate;
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status') as any;
@@ -229,6 +255,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Solo vendedores pueden crear solicitudes F&I' }, { status: 403 });
     }
 
+    const fiGatePost = await requireTenantFeature(user.tenantId, 'useFIModule');
+    if (fiGatePost) return fiGatePost;
+
     const body = await request.json();
     const {
       clientId,
@@ -236,6 +265,7 @@ export async function POST(request: NextRequest) {
       creditInfo,
       personalInfo,
       sellerNotes,
+      customerFileId,
       submit = false, // Si es true, envía directamente a F&I
     } = body;
 
@@ -263,6 +293,9 @@ export async function POST(request: NextRequest) {
         status: 'draft',
         sellerNotes,
         createdBy: user.userId, // Este es el userId que debe coincidir con user.id del frontend
+        ...(typeof customerFileId === 'string' && customerFileId.trim()
+          ? { customerFileId: customerFileId.trim() }
+          : {}),
       }
     );
 

@@ -49,7 +49,7 @@ class ReviewsRepository {
             'updatedAt': data['updatedAt']?.toDate(),
             'approvedAt': data['approvedAt']?.toDate(),
             'respondedAt': data['respondedAt']?.toDate(),
-          } as Map<String, dynamic>;
+          };
         })
         .toList());
   }

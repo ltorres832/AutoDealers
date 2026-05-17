@@ -68,8 +68,9 @@ async function getZohoMailService(): Promise<ZohoMailService | null> {
 
 /**
  * Verifica si el usuario puede crear un email corporativo según su membresía
+ * (límites por usuario para sellers, por tenant para dealers).
  */
-async function canCreateCorporateEmail(userId: string, tenantId?: string): Promise<{
+export async function canCreateCorporateEmail(userId: string, tenantId?: string): Promise<{
   allowed: boolean;
   reason?: string;
   limit?: number;

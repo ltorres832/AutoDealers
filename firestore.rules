@@ -2,6 +2,12 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
+    // Seguimiento público de citas: doc id = token opaco; lectura anónima; solo backend escribe
+    match /publicLeadAppointmentTracking/{token} {
+      allow read: if true;
+      allow write: if false;
+    }
+    
     // Helper functions
     function isAuthenticated() {
       return request.auth != null;
@@ -71,6 +77,18 @@ service cloud.firestore {
       allow update: if isAdmin() || isOwner(tenantId);
       allow delete: if isAdmin();
     }
+
+    function canConfigureTenantSettings(tenantId) {
+      return isAuthenticated() &&
+             request.auth.token.tenantId == tenantId &&
+             request.auth.token.role in ['dealer', 'master_dealer', 'dealer_admin', 'manager'];
+    }
+
+    // Ajustes del tenant (IA, CRM routing, branding en Firestore, etc.)
+    match /tenants/{tenantId}/settings/{settingId} {
+      allow read: if isOwner(tenantId);
+      allow create, update, delete: if isAdmin() || canConfigureTenantSettings(tenantId);
+    }
     
     // Leads collection
     match /tenants/{tenantId}/leads/{leadId} {
@@ -78,6 +96,12 @@ service cloud.firestore {
       allow create: if isOwner(tenantId);
       allow update: if isOwner(tenantId);
       allow delete: if isAdmin() || isDealer(tenantId) || isManagerOrAdmin(tenantId);
+    }
+
+    // Señales de interés en vehículos (clics catálogo público; sin PII). Escritura solo vía Admin SDK.
+    match /tenants/{tenantId}/vehicle_interest_signals/{signalId} {
+      allow read: if isOwner(tenantId);
+      allow create, update, delete: if false;
     }
     
     // Messages collection
@@ -110,6 +134,29 @@ service cloud.firestore {
       allow create: if isOwner(tenantId);
       allow update: if isAdmin() || isDealer(tenantId) || isManagerOrAdmin(tenantId);
       allow delete: if isAdmin() || isManagerOrAdmin(tenantId);
+    }
+    
+    // F&I: clientes y solicitudes (mismo tenant; listeners en tiempo real en seller/dealer)
+    match /tenants/{tenantId}/fi_clients/{clientId} {
+      allow read: if isOwner(tenantId);
+      allow create: if isOwner(tenantId);
+      allow update: if isOwner(tenantId);
+      allow delete: if isAdmin() || isDealer(tenantId) || isManagerOrAdmin(tenantId);
+    }
+
+    match /tenants/{tenantId}/fi_requests/{requestId} {
+      allow read: if isOwner(tenantId);
+      allow create: if isOwner(tenantId);
+      allow update: if isOwner(tenantId);
+      allow delete: if isAdmin() || isDealer(tenantId) || isManagerOrAdmin(tenantId);
+    }
+
+    // Casos de cliente (expediente; etapa F&I sincronizada)
+    match /tenants/{tenantId}/customer_files/{fileId} {
+      allow read: if isOwner(tenantId);
+      allow create: if isOwner(tenantId);
+      allow update: if isOwner(tenantId);
+      allow delete: if isAdmin() || isDealer(tenantId) || isManagerOrAdmin(tenantId);
     }
     
     // Subscriptions collection
@@ -214,6 +261,17 @@ service cloud.firestore {
     // Reviews collection - Public read access
     match /{path=**}/reviews/{reviewId} {
       allow read: if true;
+    }
+
+    // Leads en raíz (deprecado): el CRM usa solo tenants/{tenantId}/leads/{leadId}
+    match /leads/{leadId} {
+      allow read, write: if false;
+    }
+
+    // Marca global (logo/favicon): lectura pública para apps Web; escritura solo vía Admin SDK en API
+    match /admin_settings/{docId} {
+      allow read: if docId == 'branding';
+      allow write: if false;
     }
   }
 }

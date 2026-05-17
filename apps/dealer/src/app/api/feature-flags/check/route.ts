@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isFeatureEnabled, DashboardType } from '@autodealers/core';
+import { resolveDashboardFeatureEnabled, type DashboardType } from '@autodealers/core';
+import { verifyAuth, billingTenantId } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,15 +15,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const enabled = await isFeatureEnabled(dashboard, featureKey);
+    const auth = await verifyAuth(request);
+    const tenantId =
+      auth && (dashboard === 'dealer' || dashboard === 'seller')
+        ? billingTenantId(auth)
+        : undefined;
+
+    const enabled = await resolveDashboardFeatureEnabled(dashboard, featureKey, tenantId);
     return NextResponse.json({ enabled });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Error al verificar feature flag';
     console.error('Error checking feature flag:', error);
-    return NextResponse.json(
-      { error: error.message || 'Error al verificar feature flag' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-
-

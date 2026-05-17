@@ -3,7 +3,15 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { getApps } from 'firebase/app';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { AdminLogo } from '@/components/AdminLogo';
+import { db } from '@/lib/firebase-client';
+import {
+  parsePlatformBrandingFirestoreData,
+  PLATFORM_BRANDING_COLLECTION,
+  PLATFORM_BRANDING_DOC_ID,
+} from '@autodealers/shared/platform-branding-client';
 import { NotificationBell } from '@/components/NotificationBell';
 import { MaintenanceScreen } from '@/components/MaintenanceScreen';
 import { MaintenanceBanner } from '@/components/MaintenanceBanner';
@@ -23,10 +31,10 @@ export default function AdminLayout({
   // Actualizar último acceso automáticamente cuando se accede a cualquier página del admin
   useUpdateLastAccess();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [maintenanceActive, setMaintenanceActive] = useState(false);
   const [showPolicyModal, setShowPolicyModal] = useState(false);
   const [branding, setBranding] = useState({
-    companyName: 'AutoDealers',
     adminName: 'Administrador',
     adminPhoto: null as string | null,
   });
@@ -40,6 +48,10 @@ export default function AdminLayout({
     const interval = setInterval(checkMaintenanceMode, 30000);
     return () => clearInterval(interval);
   }, [auth]);
+
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [pathname]);
 
   async function checkRequiredPolicies() {
     if (!auth?.userId || pathname === '/login') return;
@@ -78,11 +90,13 @@ export default function AdminLayout({
 
   async function fetchBranding() {
     try {
-      const response = await fetch('/api/admin/settings/branding');
+      const response = await fetch('/api/admin/settings/branding', {
+        credentials: 'include',
+        cache: 'no-store',
+      });
       if (response.ok) {
         const data = await response.json();
         setBranding({
-          companyName: data.companyName || 'AutoDealers',
           adminName: data.adminName || 'Administrador',
           adminPhoto: data.adminPhoto || null,
         });
@@ -91,6 +105,34 @@ export default function AdminLayout({
       console.error('Error fetching branding:', error);
     }
   }
+
+  useEffect(() => {
+    let unsub: (() => void) | undefined;
+    if (typeof window !== 'undefined' && getApps().length > 0) {
+      try {
+        const ref = doc(db, PLATFORM_BRANDING_COLLECTION, PLATFORM_BRANDING_DOC_ID);
+        unsub = onSnapshot(ref, (snap) => {
+          if (!snap.exists()) return;
+          const d = snap.data() as Record<string, unknown> | undefined;
+          const p = parsePlatformBrandingFirestoreData(d, d?.updatedAt);
+          setBranding({
+            adminName: p.adminName,
+            adminPhoto: p.adminPhoto || null,
+          });
+        });
+      } catch {
+        /* fetchBranding ya corrió en el efecto principal */
+      }
+    }
+    const onBrandingUpdated = () => {
+      void fetchBranding();
+    };
+    window.addEventListener('autodealers-branding-updated', onBrandingUpdated);
+    return () => {
+      unsub?.();
+      window.removeEventListener('autodealers-branding-updated', onBrandingUpdated);
+    };
+  }, []);
 
   async function handleLogout() {
     try {
@@ -116,7 +158,7 @@ export default function AdminLayout({
     }
   }
 
-    const menuItems = [
+  const menuItems = [
       { href: '/admin/global', label: 'Vista Global', icon: '📊' },
       { href: '/admin/kpis', label: 'KPIs y Métricas', icon: '📊' },
       { href: '/admin/purchase-intents', label: 'Purchase Intents', icon: '✅' },
@@ -157,11 +199,18 @@ export default function AdminLayout({
       { href: '/admin/referrals', label: 'Referidos', icon: '👥' },
       { href: '/admin/all-integrations', label: 'Todas las Integraciones', icon: '🔗' },
       { href: '/admin/landing-config', label: 'Config. Landing Page', icon: '🌐' },
+      { href: '/admin/settings/free-public-listings', label: 'Publicar gratis (home)', icon: '🆓' },
+      { href: '/admin/quick-listings', label: 'Anuncios particulares', icon: '📣' },
+      { href: '/admin/settings/exclusive-offers', label: 'Ofertas exclusivas (home)', icon: '⚡' },
+      { href: '/admin/settings/inventory-finder-cta', label: 'CTA inventario (home)', icon: '🔎' },
+      { href: '/admin/settings/why-choose-us', label: 'Por qué elegirnos (home)', icon: '✓' },
       { href: '/admin/settings', label: 'Configuración del Sistema', icon: '⚙️' },
+      { href: '/admin/settings/general', label: 'General y credenciales', icon: '🔐' },
       { href: '/admin/settings/branding', label: 'Marca Personalizada', icon: '🎨' },
       { href: '/admin/settings/site-info', label: 'Info del Sitio', icon: '🌐' },
       { href: '/admin/settings/zoho-mail', label: 'Zoho Mail', icon: '📧' },
       { href: '/admin/settings/credit-providers', label: 'Proveedores de Crédito', icon: '🏦' },
+      { href: '/admin/settings/crm-pipeline', label: 'Pipeline CRM (Kanban)', icon: '📊' },
       { href: '/admin/settings/ai', label: 'Configuración de IA', icon: '🤖' },
       { href: '/admin/settings/integrations', label: 'Integraciones Meta', icon: '🔗' },
       { href: '/admin/feature-flags', label: 'Feature Flags', icon: '🎛️' },
@@ -192,33 +241,68 @@ export default function AdminLayout({
           onComplete={() => setShowPolicyModal(false)}
         />
       )}
-      <div className="flex h-screen overflow-hidden bg-gray-50">
+      <div className="flex h-[100dvh] min-h-0 overflow-hidden bg-gray-50">
         <MaintenanceBanner />
         <AnnouncementsBanner dashboard="admin" userId={auth?.userId} />
-      {/* Sidebar Profesional */}
-      <aside className={`bg-white border-r border-gray-200 h-screen sticky top-0 transition-all duration-300 shadow-elegant ${sidebarCollapsed ? 'w-20' : 'w-64'}`}>
+      <button
+        type="button"
+        aria-label={mobileNavOpen ? 'Cerrar menú' : 'Abrir menú'}
+        className={`fixed left-3 top-3 z-[60] flex h-11 w-11 items-center justify-center rounded-lg border border-gray-200 bg-white shadow-md md:hidden ${mobileNavOpen ? 'hidden' : ''}`}
+        onClick={() => {
+          setSidebarCollapsed(false);
+          setMobileNavOpen(true);
+        }}
+      >
+        <svg className="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+      <div
+        role="presentation"
+        className={`fixed inset-0 z-40 bg-black/40 transition-opacity duration-200 md:hidden ${mobileNavOpen ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+        onClick={() => setMobileNavOpen(false)}
+      />
+      {/* Sidebar: drawer en móvil / tablet; fijo en md+ */}
+      <aside
+        className={`flex h-full shrink-0 flex-col border-r border-gray-200 bg-white shadow-elegant transition-transform duration-200 ease-out md:static md:translate-x-0 ${
+          mobileNavOpen ? 'translate-x-0' : '-translate-x-full'
+        } fixed inset-y-0 left-0 z-50 w-[min(20rem,92vw)] md:z-auto ${
+          sidebarCollapsed ? 'md:w-20' : 'md:w-64'
+        }`}
+      >
         <div className="flex flex-col h-full">
           {/* Logo y Header */}
           <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'} px-6 py-4 border-b border-gray-200`}>
             {!sidebarCollapsed && (
-              <div className="flex items-center space-x-3">
-                <AdminLogo size="sm" />
-                <div>
-                  <h2 className="text-lg font-bold text-gray-900">{branding.companyName}</h2>
-                  <p className="text-xs text-gray-500">Panel Admin</p>
-                </div>
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <AdminLogo
+                  size="lg"
+                  className="max-h-[3.25rem] w-auto max-w-[min(12rem,calc(100%-2rem))] object-contain object-left"
+                />
+                <p className="text-xs text-gray-500">Panel Admin</p>
               </div>
             )}
             {sidebarCollapsed && (
               <AdminLogo size="sm" />
             )}
             <button
+              type="button"
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              className="hidden rounded-lg p-2 transition-colors hover:bg-gray-100 md:inline-flex"
               title={sidebarCollapsed ? 'Expandir' : 'Colapsar'}
             >
               <svg className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={sidebarCollapsed ? "M9 5l7 7-7 7" : "M15 19l-7-7 7-7"} />
+              </svg>
+            </button>
+            <button
+              type="button"
+              className="rounded-lg p-2 text-gray-600 hover:bg-gray-100 md:hidden"
+              aria-label="Cerrar menú"
+              onClick={() => setMobileNavOpen(false)}
+            >
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
@@ -239,6 +323,7 @@ export default function AdminLayout({
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={() => setMobileNavOpen(false)}
                   className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-start'} px-4 py-3 rounded-lg transition-all group ${
                     isActive
                       ? 'bg-primary-50 text-primary-700 font-medium shadow-sm'
@@ -280,6 +365,7 @@ export default function AdminLayout({
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={() => setMobileNavOpen(false)}
                   className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-start'} px-4 py-3 rounded-lg transition-all group ${
                     isActive
                       ? 'bg-purple-50 text-purple-700 font-medium shadow-sm'
@@ -334,15 +420,15 @@ export default function AdminLayout({
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {/* Top Bar con Notificaciones */}
-        <div className="bg-white border-b border-gray-200 px-8 py-3 flex justify-between items-center">
-          <h2 className="text-lg font-semibold text-gray-800">Dashboard</h2>
+        <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 pl-14 sm:px-6 md:pl-8">
+          <h2 className="truncate text-base font-semibold text-gray-800 sm:text-lg">Dashboard</h2>
           <NotificationBell />
         </div>
         
-        <main className="flex-1 overflow-y-auto custom-scrollbar">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <main className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+          <div className="mx-auto max-w-7xl px-3 py-6 sm:px-6 lg:px-8">
             {children}
           </div>
         </main>

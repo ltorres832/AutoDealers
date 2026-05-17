@@ -86,12 +86,10 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
   Future<void> _pickImages() async {
     final picker = ImagePicker();
     final pickedFiles = await picker.pickMultiImage();
-    if (pickedFiles != null) {
-      setState(() {
-        _newPhotos.addAll(pickedFiles.map((file) => File(file.path)));
-      });
+    setState(() {
+      _newPhotos.addAll(pickedFiles.map((file) => File(file.path)));
+    });
     }
-  }
 
   void _removeExistingPhoto(String url) {
     setState(() {
@@ -344,7 +342,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<VehicleCondition>(
-                value: _condition,
+                initialValue: _condition,
                 decoration: const InputDecoration(
                   labelText: 'Condición *',
                   border: OutlineInputBorder(),
@@ -365,7 +363,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<VehicleStatus>(
-                value: _status,
+                initialValue: _status,
                 decoration: const InputDecoration(
                   labelText: 'Estado *',
                   border: OutlineInputBorder(),
@@ -388,7 +386,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
               TextFormField(
                 controller: _mileageController,
                 decoration: const InputDecoration(
-                  labelText: 'Kilometraje',
+                  labelText: 'Millaje (millas)',
                   border: OutlineInputBorder(),
                 ),
                 keyboardType: TextInputType.number,

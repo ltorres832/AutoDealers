@@ -345,11 +345,11 @@ export function hasFeature(
  */
 export function checkLimit(
   membership: Membership,
-  limit: 'maxSellers' | 'maxInventory',
+  limit: 'maxSellers' | 'maxInventory' | 'maxLeadsPerMonth',
   currentCount: number
 ): boolean {
-  const maxLimit = membership.features[limit];
-  if (maxLimit === undefined) {
+  const maxLimit = membership.features[limit] as number | undefined;
+  if (maxLimit === undefined || maxLimit === null) {
     return true; // Sin límite
   }
   return currentCount < maxLimit;

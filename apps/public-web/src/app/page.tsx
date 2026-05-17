@@ -4,7 +4,11 @@ import { useState, useEffect, useCallback, useMemo, Fragment, useRef } from 'rea
 import Link from 'next/link';
 import Image from 'next/image';
 import StarRating from '../components/StarRating';
-import HeroSearch from '../components/HeroSearch';
+import HeroSearch, { type HeroSearchFilters } from '../components/HeroSearch';
+import {
+  getPublicVehicleConditionLabel,
+  matchesPublicConditionFilter,
+} from '@/lib/vehicle-condition-label';
 import AdvancedFilters from '../components/AdvancedFilters';
 import FeaturedVehicles from '../components/FeaturedVehicles';
 import FinanceCalculator from '../components/FinanceCalculator';
@@ -223,8 +227,9 @@ export default function LandingPage() {
   const applyFilters = useCallback(() => {
     let filtered = [...vehicles];
 
-    if (filters.make !== 'all') {
-      filtered = filtered.filter(v => v.make === filters.make);
+    if (filters.make && filters.make !== 'all') {
+      const makeLower = filters.make.toLowerCase();
+      filtered = filtered.filter((v) => (v.make || '').toLowerCase() === makeLower);
     }
 
     if (filters.model) {
@@ -263,7 +268,9 @@ export default function LandingPage() {
     }
 
     if (filters.condition && filters.condition !== 'all') {
-      filtered = filtered.filter(v => v.condition === filters.condition);
+      filtered = filtered.filter((v) =>
+        matchesPublicConditionFilter(v, filters.condition)
+      );
     }
 
     if (filters.bodyType && filters.bodyType !== 'all') {
@@ -785,31 +792,21 @@ export default function LandingPage() {
             <p className="text-2xl md:text-3xl text-white/90 mb-6 max-w-3xl mx-auto leading-relaxed font-medium">
               La plataforma más confiable para comprar y vender vehículos
             </p>
-            <p className="text-lg text-white/70 mb-12 max-w-2xl mx-auto">
-              Financiamiento aprobado • Garantías verificadas • Transacciones 100% seguras • Inspección profesional incluida
-            </p>
 
-            <div className="max-w-4xl mx-auto mb-16">
-              <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-8 border border-white/20">
-                <HeroSearch onSearch={(filters) => {
-                  setFilters(prev => ({ ...prev, ...filters as any }));
-                  document.getElementById('vehicles-section')?.scrollIntoView({ behavior: 'smooth' });
-                }} />
-                <p className="text-center text-sm text-white/80 mt-4">
-                  ¿Buscas a alguien en concreto?{' '}
-                  <Link href="/dealers?tab=vendedores" className="text-white font-semibold underline underline-offset-2 hover:text-blue-200">
-                    Directorio de vendedores
-                  </Link>
-                  {' · '}
-                  <Link href="/dealers?tab=concesionarios" className="text-white font-semibold underline underline-offset-2 hover:text-blue-200">
-                    Concesionarios
-                  </Link>
-                  {' · '}
-                  <Link href="/search" className="text-white font-semibold underline underline-offset-2 hover:text-blue-200">
-                    Búsqueda por nombre
-                  </Link>
-                </p>
-              </div>
+            <div className="max-w-5xl mx-auto mb-16">
+                <HeroSearch
+                  vehicles={vehicles}
+                  onSearch={(f: HeroSearchFilters) => {
+                    setFilters((prev) => ({
+                      ...prev,
+                      make: f.make || 'all',
+                      model: f.model || '',
+                      priceMax: f.priceMax || '',
+                      condition: f.condition || 'all',
+                      bodyType: f.bodyType ?? prev.bodyType,
+                    }));
+                  }}
+                />
             </div>
 
             {/* Stats Premium con iconos */}
@@ -1304,9 +1301,11 @@ export default function LandingPage() {
                                 );
                               })()}
 
-                              <span className="absolute top-3 left-3 rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-blue-700 shadow-sm border border-slate-100">
-                                {vehicle.condition === 'new' ? 'Nuevo' : vehicle.condition === 'certified' ? 'Certificado' : 'Seminuevo'}
-                              </span>
+                              {getPublicVehicleConditionLabel(vehicle) ? (
+                                <span className="absolute top-3 left-3 rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-blue-700 shadow-sm border border-slate-100">
+                                  {getPublicVehicleConditionLabel(vehicle)}
+                                </span>
+                              ) : null}
                             </div>
 
                             <div className="flex flex-col flex-1 p-5 sm:p-6 gap-4">
@@ -1404,9 +1403,11 @@ export default function LandingPage() {
 
                             {/* Badges on Image */}
                             <div className="absolute top-6 left-6 z-10 flex flex-col gap-2">
-                              <span className="bg-blue-600/90 backdrop-blur-md text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-600/20">
-                                {vehicle.condition === 'new' ? 'Nuevo' : 'Certificado'}
-                              </span>
+                              {getPublicVehicleConditionLabel(vehicle) ? (
+                                <span className="bg-blue-600/90 backdrop-blur-md text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-600/20">
+                                  {getPublicVehicleConditionLabel(vehicle)}
+                                </span>
+                              ) : null}
                               {vehicle.isFeatured && (
                                 <span className="bg-amber-500/90 backdrop-blur-md text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-amber-500/20">
                                   Destacado

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuth, isDealerPortalRole } from '@/lib/auth';
+import { requireTenantFeature } from '@/lib/membership-middleware';
 import { getFirestore } from '@autodealers/core';
 import * as admin from 'firebase-admin';
 
@@ -100,9 +101,15 @@ interface FinancingOption {
 export async function POST(request: NextRequest) {
   try {
     const auth = await verifyAuth(request);
-    if (!auth || (auth.role !== 'dealer' && auth.role !== 'seller')) {
+    if (!auth || (!isDealerPortalRole(auth.role) && auth.role !== 'seller')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    if (!auth.tenantId) {
+      return NextResponse.json({ error: 'Tenant ID is required' }, { status: 400 });
+    }
+    const fiGate = await requireTenantFeature(auth.tenantId, 'useFIModule');
+    if (fiGate) return fiGate;
 
     const body = await request.json();
     const { requestId, options } = body;

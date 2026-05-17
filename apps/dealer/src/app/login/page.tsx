@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase-client';
+import { canAccessDealerApp } from '@/lib/dealer-portal-roles';
+import { ForgotPasswordPanel } from '@/components/ForgotPasswordPanel';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -137,9 +139,8 @@ export default function LoginPage() {
 
       const loginData = await loginResponse.json();
 
-      // Verificar que sea dealer
-      if (loginData.user?.role !== 'dealer') {
-        throw new Error('Solo dealers pueden acceder aquí');
+      if (!canAccessDealerApp(loginData.user?.role)) {
+        throw new Error('Solo cuentas de concesionario o vendedores pueden acceder aquí');
       }
 
       // LIMPIAR TODAS LAS COOKIES DE AUTENTICACIÓN ANTES DE GUARDAR LA NUEVA
@@ -171,8 +172,10 @@ export default function LoginPage() {
       // Esperar para asegurar que la cookie se guarde y Firebase Auth se sincronice
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Usar window.location.href para hacer un hard redirect completo
-      window.location.href = '/dashboard';
+      // Vendedores van a su página de video público; staff del dealer al dashboard
+      const dest =
+        loginData.user?.role === 'seller' ? '/settings/seller-public-page' : '/dashboard';
+      window.location.href = dest;
     } catch (err: any) {
       console.error('Login error:', err);
       
@@ -351,6 +354,8 @@ export default function LoginPage() {
             )}
           </div>
         </form>
+
+        <ForgotPasswordPanel />
 
         {/* Enlace para crear usuario de prueba (solo en desarrollo) */}
         {process.env.NODE_ENV !== 'production' && (

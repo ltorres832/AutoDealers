@@ -9,6 +9,18 @@ import { getFirestore } from '@autodealers/shared';
 
 const db = getFirestore();
 
+const RELATION_KEYS = new Set(['users', 'vehicles', 'leads', 'sales']);
+
+function sanitizeTenantPatch(body: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(body)) {
+    if (RELATION_KEYS.has(k) || k === 'id') continue;
+    if (v === undefined) continue;
+    out[k] = v;
+  }
+  return out;
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -32,11 +44,9 @@ export async function GET(
       return NextResponse.json({ error: 'Tenant not found', tenantId: id }, { status: 404 });
     }
 
-    // Obtener datos adicionales del tenant desde Firestore
     const tenantDoc = await db.collection('tenants').doc(id).get();
-    const tenantData = tenantDoc.data();
+    const tenantData = tenantDoc.data() || {};
 
-    // Obtener datos relacionados
     const [users, vehicles, leads, sales] = await Promise.all([
       getUsersByTenant(id),
       getVehicles(id),
@@ -44,16 +54,21 @@ export async function GET(
       getTenantSales(id),
     ]);
 
-    return NextResponse.json({
-      tenant: {
-        ...tenant,
-        description: tenantData?.description || '',
-        users,
-        vehicles,
-        leads,
-        sales,
-      },
-    });
+    // Fusión: todo lo guardado en Firestore + objeto normalizado (fechas) para que el admin vea/edite campos completos
+    const merged = {
+      ...tenantData,
+      ...tenant,
+      id: tenant.id,
+      description: (tenantData as { description?: string }).description ?? '',
+      ownerId: (tenantData as { ownerId?: string }).ownerId,
+      phone: (tenantData as { phone?: string }).phone,
+      users,
+      vehicles,
+      leads,
+      sales,
+    };
+
+    return NextResponse.json({ tenant: merged });
   } catch (error) {
     console.error('Error fetching tenant:', error);
     return NextResponse.json(
@@ -73,9 +88,28 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
+    const body = (await request.json()) as Record<string, unknown>;
     const { id } = await params;
-    await updateTenant(id, body);
+    const patch = sanitizeTenantPatch(body);
+    if (Object.keys(patch).length === 0) {
+      return NextResponse.json({ error: 'No hay campos válidos para actualizar' }, { status: 400 });
+    }
+
+    const ref = db.collection('tenants').doc(id);
+    const snap = await ref.get();
+    if (!snap.exists) {
+      return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
+    }
+    const cur = snap.data() || {};
+
+    if (patch.branding && typeof patch.branding === 'object') {
+      patch.branding = { ...(cur.branding || {}), ...(patch.branding as object) };
+    }
+    if (patch.settings && typeof patch.settings === 'object') {
+      patch.settings = { ...(cur.settings || {}), ...(patch.settings as object) };
+    }
+
+    await updateTenant(id, patch as any);
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -87,3 +121,50 @@ export async function PATCH(
   }
 }
 
+/**
+ * Elimina el documento del tenant y los vehículos en su subcolección.
+ * Otras subcolecciones (p. ej. leads) pueden quedar huérfanas; limpiarlas en otro proceso si aplica.
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const auth = await verifyAuth(request);
+    if (!auth || auth.role !== 'admin') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { id } = await params;
+    if (!id || id === 'undefined' || id === 'null') {
+      return NextResponse.json({ error: 'Invalid tenant ID' }, { status: 400 });
+    }
+
+    const tenantRef = db.collection('tenants').doc(id);
+    const snap = await tenantRef.get();
+    if (!snap.exists) {
+      return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
+    }
+
+    const vehiclesCol = tenantRef.collection('vehicles');
+    // Borrar vehículos en lotes (límite ~500 por batch en Firestore)
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const batch = db.batch();
+      const page = await vehiclesCol.limit(400).get();
+      if (page.empty) break;
+      page.docs.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+
+    await tenantRef.delete();
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting tenant:', error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Task } from '@autodealers/crm';
 import { fetchWithAuth } from '@/lib/fetch-with-auth';
 import { useRealtimeTasks } from '@/hooks/useRealtimeTasks';
@@ -184,7 +185,12 @@ export default function TasksList({ tenantId, leadId, assignedTo }: TasksListPro
                   <div className="flex items-center gap-4 text-xs text-gray-500">
                     <span>{formatDate(task.dueDate)}</span>
                     {task.leadId && (
-                      <span className="text-blue-600">Lead relacionado</span>
+                      <Link
+                        href={`/leads/${task.leadId}`}
+                        className="text-primary-600 hover:underline font-medium"
+                      >
+                        Ver ficha del lead
+                      </Link>
                     )}
                     {task.recurrence !== 'none' && (
                       <span className="text-purple-600">{task.recurrence}</span>

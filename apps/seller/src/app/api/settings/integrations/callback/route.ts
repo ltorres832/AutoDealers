@@ -1,8 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getFirestore } from '@autodealers/core';
+import { getFirestore, decodeSocialOAuthState } from '@autodealers/core';
 import * as admin from 'firebase-admin';
 
 const db = getFirestore();
+
+function readPageAccessToken(page: { access_token?: string }): string | undefined {
+  const t = page.access_token;
+  return typeof t === 'string' && t.trim() ? t.trim() : undefined;
+}
+
+function sanitizePagesForStorage(
+  raw: Array<{ id?: string; name?: string; instagram_business_account?: unknown }>
+): Array<Record<string, unknown>> {
+  return raw.map((p) => {
+    const row: Record<string, unknown> = {
+      id: String(p.id ?? ''),
+      name: String(p.name ?? ''),
+    };
+    if (p.instagram_business_account != null) {
+      row.instagram_business_account = p.instagram_business_account;
+    }
+    return row;
+  });
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -25,8 +45,22 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const [type, tenantId] = state.split('_');
-    
+    let type: string;
+    let tenantId: string;
+    let leadOwnerUserId: string | undefined;
+    try {
+      const parsed = decodeSocialOAuthState(state);
+      type = parsed.type;
+      tenantId = parsed.tenantId;
+      if (typeof parsed.leadOwnerUserId === 'string' && parsed.leadOwnerUserId.trim()) {
+        leadOwnerUserId = parsed.leadOwnerUserId.trim();
+      }
+    } catch {
+      return NextResponse.redirect(
+        new URL('/settings/integrations?error=invalid_state', request.url)
+      );
+    }
+
     if (!type || !tenantId) {
       return NextResponse.redirect(
         new URL('/settings/integrations?error=invalid_state', request.url)
@@ -92,48 +126,82 @@ export async function GET(request: NextRequest) {
     const tokenData = await tokenResponse.json();
     const accessToken = tokenData.access_token;
 
-    // Obtener información de las páginas/perfiles del usuario
-    let pageId, pageName, instagramId, pages: any[] = [];
-    
+    let primaryAdAccountId: string | undefined;
+    if (type === 'facebook') {
+      try {
+        const ar = await fetch(
+          `https://graph.facebook.com/v18.0/me/adaccounts?fields=id,account_id,name&limit=1&access_token=${encodeURIComponent(accessToken)}`
+        );
+        if (ar.ok) {
+          const aj = await ar.json();
+          const first = aj.data?.[0];
+          if (first?.id) primaryAdAccountId = String(first.id);
+        }
+      } catch (e) {
+        console.warn('[oauth] me/adaccounts', e);
+      }
+    }
+
+    let pageId: string | undefined;
+    let pageName: string | undefined;
+    let pageAccessToken: string | undefined;
+    let instagramId: string | undefined;
+    let pagesStored: Array<Record<string, unknown>> = [];
+
     if (type === 'facebook') {
       const pagesResponse = await fetch(
         `https://graph.facebook.com/v18.0/me/accounts?access_token=${accessToken}&fields=id,name,access_token`
       );
-      if (pagesResponse.ok) {
-        const pagesData = await pagesResponse.json();
-        if (pagesData.data && pagesData.data.length > 0) {
-          pages = pagesData.data;
-          // Si solo hay una página, usarla automáticamente
-          // Si hay múltiples, guardar todas y usar la primera por defecto
-          const firstPage = pagesData.data[0];
-          pageId = firstPage.id;
-          pageName = firstPage.name;
-        }
+      if (!pagesResponse.ok) {
+        return NextResponse.redirect(
+          new URL('/settings/integrations?error=no_facebook_page', request.url)
+        );
       }
+      const pagesData = await pagesResponse.json();
+      const rawList = (pagesData.data || []) as Array<{
+        id?: string;
+        name?: string;
+        access_token?: string;
+      }>;
+      if (rawList.length === 0) {
+        return NextResponse.redirect(
+          new URL('/settings/integrations?error=no_facebook_page', request.url)
+        );
+      }
+      const firstPage = rawList[0];
+      pageId = String(firstPage.id ?? '');
+      pageName = String(firstPage.name ?? '');
+      pageAccessToken = readPageAccessToken(firstPage);
+      if (!pageAccessToken) {
+        return NextResponse.redirect(
+          new URL('/settings/integrations?error=no_facebook_page_token', request.url)
+        );
+      }
+      pagesStored = sanitizePagesForStorage(rawList);
     } else if (type === 'instagram') {
       const pagesResponse = await fetch(
         `https://graph.facebook.com/v18.0/me/accounts?access_token=${accessToken}&fields=id,name,access_token,instagram_business_account{id,username}`
       );
       if (pagesResponse.ok) {
         const pagesData = await pagesResponse.json();
-        if (pagesData.data && pagesData.data.length > 0) {
-          // Buscar página con Instagram Business Account conectado
-          const pageWithInstagram = pagesData.data.find(
-            (page: any) => page.instagram_business_account
-          );
-          
-          if (pageWithInstagram) {
-            pageId = pageWithInstagram.id;
-            pageName = pageWithInstagram.name;
-            instagramId = pageWithInstagram.instagram_business_account.id;
-            pages = [pageWithInstagram];
-          } else {
-            // Si no hay Instagram conectado, guardar la primera página
-            const firstPage = pagesData.data[0];
-            pageId = firstPage.id;
-            pageName = firstPage.name;
-            pages = [firstPage];
+        const rawList = (pagesData.data || []) as Array<{
+          id?: string;
+          name?: string;
+          access_token?: string;
+          instagram_business_account?: { id?: string };
+        }>;
+        if (rawList.length > 0) {
+          const pageWithInstagram = rawList.find((page) => page.instagram_business_account);
+          const selected = pageWithInstagram ?? rawList[0];
+          pageId = String(selected.id ?? '');
+          pageName = String(selected.name ?? '');
+          pageAccessToken = readPageAccessToken(selected);
+          if (pageWithInstagram?.instagram_business_account?.id != null) {
+            instagramId = String(pageWithInstagram.instagram_business_account.id);
           }
+          pagesStored = sanitizePagesForStorage(
+            pageWithInstagram ? [pageWithInstagram] : rawList
+          );
         }
       }
     }
@@ -146,16 +214,33 @@ export async function GET(request: NextRequest) {
       .get();
 
     let integrationRef;
+    const ownerFields =
+      leadOwnerUserId != null && leadOwnerUserId !== ''
+        ? { leadOwnerUserId }
+        : {};
     if (!existingSnapshot.empty) {
       integrationRef = existingSnapshot.docs[0].ref;
+      const prevOwner = existingSnapshot.docs[0].data()?.leadOwnerUserId;
+      const resolvedOwner =
+        leadOwnerUserId ||
+        (typeof prevOwner === 'string' && prevOwner.trim() ? prevOwner.trim() : undefined);
+      const prevCreds =
+        (existingSnapshot.docs[0].data()?.credentials as Record<string, unknown>) || {};
+      const nextAdAccountId =
+        primaryAdAccountId ||
+        (prevCreds.adAccountId != null ? String(prevCreds.adAccountId) : undefined);
       await integrationRef.update({
         status: 'active',
+        ...(resolvedOwner ? { leadOwnerUserId: resolvedOwner } : {}),
         credentials: {
+          ...prevCreds,
           accessToken,
+          pageAccessToken,
           pageId,
           pageName,
           instagramId,
-          pages: pages,
+          pages: pagesStored,
+          ...(nextAdAccountId ? { adAccountId: nextAdAccountId } : {}),
         },
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
@@ -164,12 +249,15 @@ export async function GET(request: NextRequest) {
       await integrationRef.set({
         type,
         status: 'active',
+        ...ownerFields,
         credentials: {
           accessToken,
+          pageAccessToken,
           pageId,
           pageName,
           instagramId,
-          pages: pages,
+          pages: pagesStored,
+          ...(primaryAdAccountId ? { adAccountId: primaryAdAccountId } : {}),
         },
         settings: {},
         createdAt: admin.firestore.FieldValue.serverTimestamp(),

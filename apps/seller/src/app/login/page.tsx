@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { ForgotPasswordPanel } from '@/components/ForgotPasswordPanel';
 import { auth } from '@/lib/firebase-client';
 import { cleanupInvalidTokens } from '@/lib/cleanup-invalid-tokens';
 
@@ -216,6 +217,8 @@ export default function LoginPage() {
             </button>
           </div>
         </form>
+
+        <ForgotPasswordPanel />
 
         {/* Enlace para crear usuario de prueba (solo en desarrollo) */}
         {process.env.NODE_ENV !== 'production' && (

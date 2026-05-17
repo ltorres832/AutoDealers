@@ -33,6 +33,8 @@ export async function POST(request: NextRequest) {
       tablilla,
       insurance,
       accessories,
+      warranty,
+      servicePackage,
       other,
       total,
       currency,
@@ -42,13 +44,43 @@ export async function POST(request: NextRequest) {
       insuranceCommission,
       accessoriesCommissionRate,
       accessoriesCommission,
+      warrantyCommission,
+      servicePackageCommission,
       totalCommission,
       paymentMethod,
+      financingDetails,
       notes,
       buyer,
+      tradeInValue,
+      tradeInDetails,
       enableReminders,
       selectedReminders,
     } = body;
+
+    function normalizeTradeInPayload(raw: unknown): Record<string, unknown> | undefined {
+      if (!raw || typeof raw !== 'object') return undefined;
+      const r = raw as Record<string, unknown>;
+      const out: Record<string, unknown> = { ...r };
+      if (typeof out.year === 'string' && out.year.trim()) {
+        const y = parseInt(String(out.year), 10);
+        out.year = Number.isFinite(y) ? y : undefined;
+      }
+      if (typeof out.mileage === 'string' && out.mileage.trim()) {
+        const m = parseInt(String(out.mileage), 10);
+        out.mileage = Number.isFinite(m) ? m : undefined;
+      }
+      if ('value' in out && out.value != null && out.value !== '') {
+        const v = parseFloat(String(out.value));
+        if (Number.isFinite(v)) out.estimatedValue = v;
+        delete out.value;
+      }
+      if (typeof out.payoffBalance === 'string' && out.payoffBalance.trim()) {
+        const p = parseFloat(String(out.payoffBalance));
+        out.payoffBalance = Number.isFinite(p) ? p : undefined;
+      }
+      if (out.titleStatus === '') delete out.titleStatus;
+      return out;
+    }
 
     if (!vehicleId || !salePrice || !vehiclePrice || !total) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -80,6 +112,8 @@ export async function POST(request: NextRequest) {
       tablilla: tablilla ? parseFloat(tablilla) : 0,
       insurance: insurance ? parseFloat(insurance) : 0,
       accessories: accessories ? parseFloat(accessories) : 0,
+      warranty: warranty != null ? parseFloat(warranty) : undefined,
+      servicePackage: servicePackage != null ? parseFloat(servicePackage) : undefined,
       other: other ? parseFloat(other) : 0,
       total: parseFloat(total),
       currency: currency || 'USD',
@@ -90,10 +124,18 @@ export async function POST(request: NextRequest) {
       accessoriesCommissionRate: accessoriesCommissionRate || undefined,
       accessoriesCommission: accessoriesCommission || 0,
       totalCommission: totalCommission || 0,
+      warrantyCommission: warrantyCommission != null ? parseFloat(warrantyCommission) : undefined,
+      servicePackageCommission:
+        servicePackageCommission != null ? parseFloat(servicePackageCommission) : undefined,
       paymentMethod: paymentMethod || 'cash',
+      financingDetails: financingDetails && typeof financingDetails === 'object' ? financingDetails : undefined,
       status: 'completed',
       documents: [],
       notes: notes || '',
+      tradeInValue: tradeInValue != null ? parseFloat(String(tradeInValue)) : undefined,
+      tradeInDetails: normalizeTradeInPayload(tradeInDetails) as
+        | import('@autodealers/crm').Sale['tradeInDetails']
+        | undefined,
       // Información del comprador
       buyer: buyer ? {
         fullName: buyer.fullName,

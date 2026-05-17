@@ -76,7 +76,7 @@ export default function StripeProductsPage() {
   return (
     <div className="p-8">
       <div className="mb-6">
-        <BackButton href="/admin/stripe" label="Volver al Dashboard Stripe" />
+        <BackButton label="Volver" />
       </div>
       <h1 className="text-3xl font-bold mb-6">Productos y Planes de Stripe</h1>
 

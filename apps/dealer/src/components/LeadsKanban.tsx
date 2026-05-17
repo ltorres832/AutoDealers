@@ -1,15 +1,23 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Lead, LeadStatus } from '@autodealers/crm';
+import { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
+import { Lead, LeadStatus, computeLeadSlaSeverity, formatHoursSinceTouch, DEFAULT_CRM_SLA, type CrmSlaConfig } from '@autodealers/crm';
+import type { CrmPipelineSettings } from '@autodealers/core';
 import { useRealtimeLeads } from '@/hooks/useRealtimeLeads';
 import { fetchWithAuth } from '@/lib/fetch-with-auth';
+import { LeadKanbanFootnote } from '@/components/LeadProfileSections';
+import { LeadAssignmentModal } from '@/components/LeadAssignmentModal';
 
 interface LeadsKanbanProps {
   tenantId: string;
+  /** Roles concesionario (gerente/admin) pueden reasignar y cargar SLA guardado */
+  canReassign?: boolean;
 }
 
-const STATUS_COLUMNS: { status: LeadStatus; label: string; color: string }[] = [
+type KanbanColumn = { status: LeadStatus; label: string; color: string };
+
+const FALLBACK_COLUMNS: KanbanColumn[] = [
   { status: 'new', label: 'Nuevos', color: 'bg-blue-50 border-blue-200' },
   { status: 'contacted', label: 'Contactados', color: 'bg-yellow-50 border-yellow-200' },
   { status: 'qualified', label: 'Calificados', color: 'bg-green-50 border-green-200' },
@@ -21,18 +29,77 @@ const STATUS_COLUMNS: { status: LeadStatus; label: string; color: string }[] = [
   { status: 'lost', label: 'Perdidos', color: 'bg-red-50 border-red-200' },
 ];
 
-export default function LeadsKanban({ tenantId }: LeadsKanbanProps) {
+const COLOR_KEY_TO_TAILWIND: Record<string, string> = {
+  blue: 'bg-blue-50 border-blue-200',
+  yellow: 'bg-yellow-50 border-yellow-200',
+  green: 'bg-green-50 border-green-200',
+  purple: 'bg-purple-50 border-purple-200',
+  indigo: 'bg-indigo-50 border-indigo-200',
+  pink: 'bg-pink-50 border-pink-200',
+  orange: 'bg-orange-50 border-orange-200',
+  gray: 'bg-gray-50 border-gray-200',
+  red: 'bg-red-50 border-red-200',
+};
+
+function pipelineToColumns(settings: CrmPipelineSettings | null): KanbanColumn[] {
+  if (!settings?.enabled || !settings.stages?.length) {
+    return FALLBACK_COLUMNS;
+  }
+  return [...settings.stages]
+    .sort((a, b) => a.order - b.order)
+    .map((s) => ({
+      status: s.status as LeadStatus,
+      label: s.label,
+      color: COLOR_KEY_TO_TAILWIND[s.color] || COLOR_KEY_TO_TAILWIND.gray,
+    }));
+}
+
+export default function LeadsKanban({ tenantId, canReassign = false }: LeadsKanbanProps) {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [draggedLead, setDraggedLead] = useState<Lead | null>(null);
-  const [user, setUser] = useState<any>(null);
+  const [columns, setColumns] = useState<KanbanColumn[]>(FALLBACK_COLUMNS);
+  const [sla, setSla] = useState<CrmSlaConfig>(DEFAULT_CRM_SLA);
+  const [reassignLead, setReassignLead] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
-    fetch('/api/user')
-      .then(res => res.json())
-      .then(data => setUser(data.user))
-      .catch(err => console.error('Error fetching user:', err));
+    let cancelled = false;
+    fetchWithAuth('/api/settings/crm-pipeline')
+      .then(async (res) => {
+        if (!res.ok) return null;
+        return res.json() as Promise<CrmPipelineSettings>;
+      })
+      .then((data) => {
+        if (cancelled || !data) return;
+        setColumns(pipelineToColumns(data));
+      })
+      .catch(() => {
+        if (!cancelled) setColumns(FALLBACK_COLUMNS);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  useEffect(() => {
+    if (!canReassign) return;
+    void fetchWithAuth('/api/settings/crm-sla', {}).then(async (res) => {
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.config) setSla(data.config as CrmSlaConfig);
+    });
+  }, [canReassign]);
+
+  const slaCounts = useMemo(() => {
+    let warning = 0;
+    let critical = 0;
+    for (const lead of leads) {
+      const sev = computeLeadSlaSeverity(lead, sla);
+      if (sev === 'warning') warning++;
+      if (sev === 'critical') critical++;
+    }
+    return { warning, critical, total: warning + critical };
+  }, [leads, sla]);
 
   const { leads: realtimeLeads, loading: leadsLoading } = useRealtimeLeads({
     tenantId,
@@ -68,11 +135,15 @@ export default function LeadsKanban({ tenantId }: LeadsKanbanProps) {
       );
 
       // Actualizar en backend
-      await fetchWithAuth(`/api/leads/${draggedLead.id}`, {
+      const res = await fetchWithAuth(`/api/leads/${draggedLead.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error || res.statusText);
+      }
 
       setDraggedLead(null);
     } catch (error) {
@@ -85,11 +156,6 @@ export default function LeadsKanban({ tenantId }: LeadsKanbanProps) {
 
   const getLeadsByStatus = (status: LeadStatus) => {
     return leads.filter(lead => lead.status === status);
-  };
-
-  const getStatusColor = (status: LeadStatus) => {
-    const column = STATUS_COLUMNS.find(col => col.status === status);
-    return column?.color || 'bg-gray-50 border-gray-200';
   };
 
   const getPriorityColor = (priority?: string) => {
@@ -113,6 +179,25 @@ export default function LeadsKanban({ tenantId }: LeadsKanbanProps) {
     return 'text-red-600';
   };
 
+  function slaCardRing(lead: Lead) {
+    const sev = computeLeadSlaSeverity(lead, sla);
+    if (!sla.enabled || sev === 'ok') return '';
+    if (sev === 'critical') return 'ring-2 ring-red-500 bg-red-50/40';
+    return 'ring-2 ring-amber-400 bg-amber-50/40';
+  }
+
+  function slaBadge(lead: Lead) {
+    const sev = computeLeadSlaSeverity(lead, sla);
+    if (!sla.enabled || sev === 'ok') return null;
+    const label = sev === 'critical' ? 'SLA crítico' : 'SLA';
+    const cls = sev === 'critical' ? 'bg-red-600 text-white' : 'bg-amber-500 text-white';
+    return (
+      <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${cls}`}>
+        {label} · {formatHoursSinceTouch(lead)}
+      </span>
+    );
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center p-8">
@@ -123,8 +208,28 @@ export default function LeadsKanban({ tenantId }: LeadsKanbanProps) {
 
   return (
     <div className="overflow-x-auto pb-4">
+      {sla.enabled && slaCounts.total > 0 && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <strong>SLA:</strong>{' '}
+          {slaCounts.critical > 0 && (
+            <span>
+              {slaCounts.critical} en <span className="font-semibold text-red-700">crítico</span>
+              {slaCounts.warning > 0 ? ' · ' : ''}
+            </span>
+          )}
+          {slaCounts.warning > 0 && (
+            <span>
+              {slaCounts.warning} en <span className="font-semibold">advertencia</span>
+            </span>
+          )}
+          .{' '}
+          <Link href="/settings/crm-sla" className="font-medium text-primary-700 underline">
+            Umbrales
+          </Link>
+        </div>
+      )}
       <div className="flex gap-4 min-w-max">
-        {STATUS_COLUMNS.map((column) => {
+        {columns.map((column) => {
           const columnLeads = getLeadsByStatus(column.status);
           
           return (
@@ -149,15 +254,18 @@ export default function LeadsKanban({ tenantId }: LeadsKanbanProps) {
                     key={lead.id}
                     draggable
                     onDragStart={() => handleDragStart(lead)}
-                    className="bg-white rounded-lg shadow-sm p-4 cursor-move hover:shadow-md transition-shadow"
+                    className={`rounded-lg p-4 shadow-sm transition-shadow cursor-move hover:shadow-md bg-white ${slaCardRing(lead)}`}
                   >
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-medium text-gray-900">{lead.contact.name}</h4>
-                      {lead.score && (
-                        <span className={`text-xs font-semibold ${getScoreColor(lead.score.combined)}`}>
-                          {lead.score.combined}
-                        </span>
-                      )}
+                    <div className="flex justify-between items-start gap-2 mb-2">
+                      <h4 className="min-w-0 font-medium text-gray-900">{lead.contact.name}</h4>
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        {slaBadge(lead)}
+                        {lead.score && (
+                          <span className={`text-xs font-semibold ${getScoreColor(lead.score.combined)}`}>
+                            {lead.score.combined}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-2 mb-2">
@@ -187,10 +295,36 @@ export default function LeadsKanban({ tenantId }: LeadsKanbanProps) {
                       <span>{new Date(lead.updatedAt).toLocaleDateString()}</span>
                     </div>
 
+                    <LeadKanbanFootnote lead={lead} />
+                    <Link
+                      href={`/leads/${lead.id}`}
+                      className="mt-2 inline-block text-xs font-medium text-primary-600 hover:underline"
+                      onMouseDown={(e) => e.stopPropagation()}
+                    >
+                      Ver ficha completa del lead →
+                    </Link>
+
                     {lead.assignedTo && (
                       <div className="mt-2 text-xs text-gray-500">
                         Asignado a: {lead.assignedTo}
                       </div>
+                    )}
+
+                    {canReassign && (
+                      <button
+                        type="button"
+                        className="mt-2 w-full rounded border border-primary-200 px-2 py-1 text-xs font-medium text-primary-800 hover:bg-primary-50"
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setReassignLead({
+                            id: lead.id,
+                            name: lead.contact.name || 'Cliente',
+                          });
+                        }}
+                      >
+                        Reasignar
+                      </button>
                     )}
                   </div>
                 ))}
@@ -205,6 +339,15 @@ export default function LeadsKanban({ tenantId }: LeadsKanbanProps) {
           );
         })}
       </div>
+
+      {reassignLead && (
+        <LeadAssignmentModal
+          leadId={reassignLead.id}
+          leadName={reassignLead.name}
+          onClose={() => setReassignLead(null)}
+          onSuccess={() => setReassignLead(null)}
+        />
+      )}
     </div>
   );
 }

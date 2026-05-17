@@ -15,6 +15,8 @@ interface FIRequest {
   submittedAt?: Date;
   createdAt?: Date | string;
   createdBy: string;
+  expeditionStage?: string;
+  customerFileId?: string;
 }
 
 export function useRealtimeFIRequests(tenantId: string, createdBy?: string) {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuth, isDealerPortalRole } from '@/lib/auth';
 import { getFirestore } from '@autodealers/core';
 import { getLeads } from '@autodealers/crm';
 import { getTenantSales } from '@autodealers/crm';
@@ -19,7 +19,7 @@ export async function GET(
 ) {
   try {
     const auth = await verifyAuth(request);
-    if (!auth || !auth.tenantId || auth.role !== 'dealer') {
+    if (!auth || !auth.tenantId || !isDealerPortalRole(auth.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -88,6 +88,8 @@ export async function GET(
         status: sellerData.status || 'active',
         tenantId: sellerData.tenantId,
         dealerId: sellerData.dealerId,
+        publicPromoVideoUrl:
+          typeof sellerData.publicPromoVideoUrl === 'string' ? sellerData.publicPromoVideoUrl : '',
         createdAt: sellerData?.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
       },
       stats: {
@@ -131,7 +133,7 @@ export async function PATCH(
 ) {
   try {
     const auth = await verifyAuth(request);
-    if (!auth || !auth.tenantId || auth.role !== 'dealer') {
+    if (!auth || !auth.tenantId || !isDealerPortalRole(auth.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -157,6 +159,10 @@ export async function PATCH(
 
     if (body.name !== undefined) updates.name = body.name;
     if (body.status !== undefined) updates.status = body.status;
+    if (body.publicPromoVideoUrl !== undefined) {
+      const v = body.publicPromoVideoUrl;
+      updates.publicPromoVideoUrl = typeof v === 'string' ? v.trim() : '';
+    }
 
     await db.collection('users').doc(sellerId).update(updates);
 

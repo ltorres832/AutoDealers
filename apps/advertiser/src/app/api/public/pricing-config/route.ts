@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirestore } from '@autodealers/shared';
-import * as admin from 'firebase-admin';
 
 const db = getFirestore();
 
 // Endpoint público para obtener configuración de precios (sin autenticación requerida)
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     // Obtener configuración de precios
     const configDoc = await db.collection('admin_config').doc('pricing').get();

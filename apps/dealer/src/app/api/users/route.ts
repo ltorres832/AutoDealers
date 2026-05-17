@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuth, isDealerPortalRole } from '@/lib/auth';
 import { getFirestore, getAuth } from '@autodealers/shared';
 import { createNotification } from '@autodealers/core';
 import * as admin from 'firebase-admin';
@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   try {
     const authData = await verifyAuth(request);
-    if (!authData || !authData.tenantId || authData.role !== 'dealer') {
+    if (!authData || !authData.tenantId || !isDealerPortalRole(authData.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const authData = await verifyAuth(request);
-    if (!authData || !authData.tenantId || authData.role !== 'dealer') {
+    if (!authData || !authData.tenantId || !isDealerPortalRole(authData.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

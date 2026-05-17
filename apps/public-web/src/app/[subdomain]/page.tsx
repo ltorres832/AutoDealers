@@ -13,6 +13,7 @@ import SponsoredContent from '../../components/SponsoredContent';
 import BetweenContentBanner from '../../components/BetweenContentBanner';
 import PublicPromoVideo from '../../components/PublicPromoVideo';
 import { SocialMediaLinks } from '@/components/SocialMediaLinks';
+import { getPublicVehicleConditionLabel } from '@/lib/vehicle-condition-label';
 
 interface Vehicle {
   id: string;
@@ -964,16 +965,25 @@ export default function TenantPublicPage() {
                             referrerPolicy="no-referrer"
                             onError={handleImageError}
                           />
-                          <div className="absolute top-2 left-2">
-                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${vehicle.condition === 'new'
-                              ? 'bg-green-500 text-white'
-                              : vehicle.condition === 'certified'
-                                ? 'bg-blue-500 text-white'
-                                : 'bg-gray-700 text-white'
-                              }`}>
-                              {vehicle.condition === 'new' ? 'Nuevo' : vehicle.condition === 'certified' ? 'Certificado' : 'Usado'}
-                            </span>
-                          </div>
+                          {(() => {
+                            const label = getPublicVehicleConditionLabel(vehicle);
+                            if (!label) return null;
+                            return (
+                              <div className="absolute top-2 left-2">
+                                <span
+                                  className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                    label === 'Nuevo'
+                                      ? 'bg-green-500 text-white'
+                                      : label === 'Certificado'
+                                        ? 'bg-blue-500 text-white'
+                                        : 'bg-gray-700 text-white'
+                                  }`}
+                                >
+                                  {label}
+                                </span>
+                              </div>
+                            );
+                          })()}
                           {(vehicle.photos?.length || vehicle.images?.length || 0) > 1 && (
                             <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs font-medium">
                               +{(vehicle.photos?.length || vehicle.images?.length || 1) - 1} fotos

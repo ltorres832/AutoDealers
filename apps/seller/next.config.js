@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const path = require('path');
+
 const nextConfig = {
   reactStrictMode: true,
   turbopack: {},
@@ -10,27 +12,25 @@ const nextConfig = {
     unoptimized: true,
   },
   transpilePackages: ['@autodealers/core', '@autodealers/crm', '@autodealers/messaging', '@autodealers/ai', '@autodealers/shared'],
-  webpack: (config, { isServer }) => {
-    const webpack = require('webpack');
+  webpack: (config, { isServer, webpack }) => {
+    const sharedSrc = path.join(__dirname, '../../packages/shared/src');
 
-    // Habilitar WebAssembly
-    config.experiments = {
-      ...config.experiments,
-      asyncWebAssembly: true,
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@autodealers/shared/client': path.join(sharedSrc, 'client.ts'),
+      '@autodealers/shared/firebase-server': path.join(sharedSrc, 'firebase-server.ts'),
     };
 
-    // Ignorar módulos node:* en el cliente
-    if (!isServer) {
+    if (isServer) {
+      config.resolve.alias['@autodealers/shared'] = path.join(sharedSrc, 'index.ts');
+    } else {
+      config.resolve.alias['@autodealers/shared$'] = path.join(sharedSrc, 'client.ts');
       config.plugins = config.plugins || [];
       config.plugins.push(
         new webpack.IgnorePlugin({
-          resourceRegExp: /^node:/,
+          resourceRegExp: /^node:|firebase-admin|@google-cloud\/firestore|@google-cloud\/storage/,
         })
       );
-    }
-
-    // Excluir módulos de Node.js del bundle del cliente
-    if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
         fs: false,
@@ -47,8 +47,14 @@ const nextConfig = {
         events: false,
         process: false,
         util: false,
+        'firebase-admin': false,
       };
     }
+
+    config.experiments = {
+      ...config.experiments,
+      asyncWebAssembly: true,
+    };
 
     return config;
   },

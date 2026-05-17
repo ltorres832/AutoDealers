@@ -14,19 +14,22 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const role = searchParams.get('role'); // 'dealer' o 'seller'
 
-    let query = db.collection('users') as any;
-    
+    let query: any = db.collection('users');
+
     if (role) {
       query = query.where('role', '==', role);
     }
 
-    const usersSnapshot = await query.where('status', '==', 'active').get();
+    const usersSnapshot = await query.get();
 
     const users = [];
     const tenantCache: Record<string, any> = {};
 
     for (const doc of usersSnapshot.docs) {
       const data = doc.data();
+      if ((data.status ?? 'active') !== 'active') {
+        continue;
+      }
       const tenantId = data.tenantId;
 
       // Obtener información del tenant (con cache)

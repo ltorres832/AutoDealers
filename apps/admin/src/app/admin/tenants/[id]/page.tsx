@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import BackButton from '@/components/BackButton';
 
 interface TenantDetails {
   id: string;
@@ -10,6 +11,8 @@ interface TenantDetails {
   type: string;
   subdomain?: string;
   status: string;
+  ownerId?: string;
+  phone?: string;
   branding: any;
   settings: any;
   membershipId?: string;
@@ -73,9 +76,9 @@ export default function TenantDetailPage() {
   if (!tenant) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <Link href="/admin/tenants" className="text-primary-600 hover:underline mb-4">
-          ← Volver a Tenants
-        </Link>
+        <div className="mb-4">
+          <BackButton label="Volver" />
+        </div>
         <div className="bg-white rounded-lg shadow p-6">
           <h1 className="text-2xl font-bold text-red-600 mb-4">Tenant no encontrado</h1>
           <p className="text-gray-600 mb-2">
@@ -101,20 +104,36 @@ export default function TenantDetailPage() {
     );
   }
 
+  const sellerIdForCreate =
+    tenant.ownerId || tenant.users?.find((u: { role?: string }) => u.role === 'seller')?.id;
+  const createVehicleHref =
+    tenant.type === 'dealer'
+      ? `/admin/vehicles/create?dealerId=${encodeURIComponent(tenant.id)}`
+      : sellerIdForCreate
+        ? `/admin/vehicles/create?sellerId=${encodeURIComponent(sellerIdForCreate)}`
+        : '/admin/vehicles/create';
+
   return (
     <div className="container mx-auto px-4 py-8">
-      <Link href="/admin/tenants" className="text-primary-600 hover:underline mb-4">
-        ← Volver a Tenants
-      </Link>
+      <div className="mb-4">
+        <BackButton label="Volver" />
+      </div>
 
       <div className="bg-white rounded-lg shadow p-6 mb-6">
         <div className="flex justify-between items-start">
           <div>
             <h1 className="text-3xl font-bold">{tenant.name}</h1>
             <p className="text-gray-600 capitalize">{tenant.type}</p>
-            {tenant.subdomain && (
-              <p className="text-sm text-gray-500 mt-1">
-                {tenant.subdomain}.autodealers.com
+            {tenant.ownerId && (
+              <p className="text-sm mt-2">
+                Titular (ownerId):{' '}
+                <code className="bg-gray-100 px-1 rounded text-xs">{tenant.ownerId}</code>{' '}
+                <Link
+                  href={`/admin/users/${tenant.ownerId}/edit`}
+                  className="text-primary-600 hover:underline ml-2"
+                >
+                  Editar usuario titular
+                </Link>
               </p>
             )}
           </div>
@@ -128,6 +147,44 @@ export default function TenantDetailPage() {
             {tenant.status}
           </span>
         </div>
+      </div>
+
+      <div className="bg-slate-50 border border-slate-200 rounded-lg p-5 mb-6">
+        <h2 className="text-lg font-semibold text-slate-900 mb-2">Soporte: inventario y ficha</h2>
+        <p className="text-sm text-slate-600 mb-4">
+          Crear vehículos con fotos y videos, editar datos y media, y revisar el inventario filtrado por este tenant.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <Link
+            href={createVehicleHref}
+            className="inline-flex items-center px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700"
+          >
+            Crear vehículo para este tenant
+          </Link>
+          <Link
+            href={`/admin/all-vehicles?tenantId=${encodeURIComponent(tenant.id)}`}
+            className="inline-flex items-center px-4 py-2 rounded-lg border border-slate-300 bg-white text-sm font-medium text-slate-800 hover:bg-slate-50"
+          >
+            Ver y editar inventario
+          </Link>
+          <Link
+            href={`/admin/tenants/${tenant.id}/edit`}
+            className="inline-flex items-center px-4 py-2 rounded-lg border border-slate-300 bg-white text-sm font-medium text-slate-800 hover:bg-slate-50"
+          >
+            Editar datos del tenant
+          </Link>
+          <Link
+            href="/admin/users"
+            className="inline-flex items-center px-4 py-2 rounded-lg border border-slate-300 bg-white text-sm font-medium text-slate-800 hover:bg-slate-50"
+          >
+            Gestionar usuarios
+          </Link>
+        </div>
+        {tenant.type === 'seller' && !sellerIdForCreate && (
+            <p className="text-xs text-amber-800 mt-3">
+              No hay vendedor detectado: en crear vehículo elige el seller manualmente si aplica.
+            </p>
+          )}
       </div>
 
       {/* Tabs */}
@@ -197,9 +254,12 @@ export default function TenantDetailPage() {
                   <td className="px-6 py-4">{user.email}</td>
                   <td className="px-6 py-4 capitalize">{user.role}</td>
                   <td className="px-6 py-4">
-                    <button className="text-primary-600 hover:text-primary-700 text-sm">
-                      Editar
-                    </button>
+                    <Link
+                      href={`/admin/users?search=${encodeURIComponent(user.email || '')}`}
+                      className="text-primary-600 hover:text-primary-700 text-sm"
+                    >
+                      Abrir en usuarios
+                    </Link>
                   </td>
                 </tr>
               ))}
@@ -238,9 +298,12 @@ export default function TenantDetailPage() {
                   </td>
                   <td className="px-6 py-4 capitalize">{vehicle.status}</td>
                   <td className="px-6 py-4">
-                    <button className="text-primary-600 hover:text-primary-700 text-sm">
+                    <Link
+                      href={`/admin/vehicles/${tenant.id}/${vehicle.id}/edit`}
+                      className="text-primary-600 hover:text-primary-700 text-sm font-medium"
+                    >
                       Editar
-                    </button>
+                    </Link>
                   </td>
                 </tr>
               ))}

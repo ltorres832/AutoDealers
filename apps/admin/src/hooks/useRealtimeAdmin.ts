@@ -53,7 +53,22 @@ export function useRealtimeAdminStats() {
       
       if (response.ok) {
         const data = await response.json();
-        setStats(data.stats || stats);
+        const s = data.stats;
+        if (s && typeof s === 'object') {
+          setStats((prev) => ({
+            ...prev,
+            totalUsers: Number(s.totalUsers) || 0,
+            totalTenants: Number(s.totalTenants) || 0,
+            totalVehicles: Number(s.totalVehicles) || 0,
+            totalLeads: Number(s.totalLeads) || 0,
+            totalSales: Number(s.totalSales) || 0,
+            totalRevenue: Number(s.totalRevenue) || 0,
+            activeSubscriptions: Number(s.activeSubscriptions) || 0,
+            monthlyRevenue: Number(s.monthlyRevenue) || 0,
+            pastDueSubscriptions: Number(s.pastDueSubscriptions) || 0,
+            suspendedSubscriptions: Number(s.suspendedSubscriptions) || 0,
+          }));
+        }
       }
     } catch (error) {
       console.error('Error obteniendo stats:', error);

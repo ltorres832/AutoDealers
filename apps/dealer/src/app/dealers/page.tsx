@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { membershipAllowsMultiDealerNetwork } from '@autodealers/billing/membership-network';
+import { DEALER_ACTIVE_TENANT_KEY } from '@/lib/dealer-tenant-storage';
 
 interface Dealer {
   id: string;
@@ -17,10 +19,19 @@ export default function DealersManagementPage() {
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [membershipInfo, setMembershipInfo] = useState<any>(null);
+  const [hasSedeActiva, setHasSedeActiva] = useState(false);
 
   useEffect(() => {
     fetchMembershipInfo();
     fetchDealers();
+  }, []);
+
+  useEffect(() => {
+    try {
+      setHasSedeActiva(!!sessionStorage.getItem(DEALER_ACTIVE_TENANT_KEY));
+    } catch {
+      setHasSedeActiva(false);
+    }
   }, []);
 
   async function fetchMembershipInfo() {
@@ -50,8 +61,10 @@ export default function DealersManagementPage() {
     }
   }
 
-  const canAddDealers = membershipInfo?.features?.multipleDealers || false;
-  const maxDealers = membershipInfo?.features?.maxDealers || 1;
+  const canAddDealers = membershipAllowsMultiDealerNetwork(membershipInfo?.features);
+  const rawMax = membershipInfo?.features?.maxDealers;
+  const maxDealers =
+    rawMax === null || rawMax === undefined ? -1 : Number(rawMax);
 
   if (loading) {
     return (
@@ -73,6 +86,23 @@ export default function DealersManagementPage() {
             }
           </p>
         </div>
+        <div className="flex flex-wrap gap-2 items-center">
+          {hasSedeActiva && (
+              <button
+                type="button"
+                onClick={() => {
+                  try {
+                    sessionStorage.removeItem(DEALER_ACTIVE_TENANT_KEY);
+                  } catch {
+                    /* ignore */
+                  }
+                  window.location.href = '/dashboard';
+                }}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Volver a mi sede principal
+              </button>
+            )}
         {canAddDealers && (maxDealers === -1 || dealers.length < maxDealers) && (
           <button
             onClick={() => setShowAddModal(true)}
@@ -81,6 +111,7 @@ export default function DealersManagementPage() {
             + Agregar Dealer
           </button>
         )}
+        </div>
       </div>
 
       {!canAddDealers && (
@@ -117,10 +148,10 @@ export default function DealersManagementPage() {
 
             <div className="flex gap-2">
               <Link
-                href={`/dealers/${dealer.id}/dashboard`}
+                href={`/dealers/${dealer.id}/context`}
                 className="flex-1 px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 text-center text-sm"
               >
-                Ver Dashboard
+                Trabajar en esta sede
               </Link>
               <button
                 className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 text-sm"

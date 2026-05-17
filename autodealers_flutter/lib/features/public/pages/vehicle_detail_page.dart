@@ -339,8 +339,10 @@ class _VehicleDetailContentState extends State<_VehicleDetailContent> {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        if (v.mileage != null)
-                          _chip('${NumberFormat('#,###').format(v.mileage)} km', Colors.grey.shade100),
+                        _chip(
+                          'Millaje: ${NumberFormat('#,###').format(v.mileage ?? 0)} millas',
+                          Colors.grey.shade100,
+                        ),
                         _chip(_conditionLabel(v.condition), Colors.grey.shade100),
                         if (v.specifications.transmission != null)
                           _chip(

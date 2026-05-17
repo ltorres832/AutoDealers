@@ -1,14 +1,20 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Lead, LeadStatus } from '@autodealers/crm';
+import type { CrmPipelineSettings } from '@autodealers/core';
 import { useRealtimeLeads } from '@/hooks/useRealtimeLeads';
+import { fetchWithAuth } from '@/lib/fetch-with-auth';
+import { LeadKanbanFootnote } from '@/components/LeadProfileSections';
 
 interface LeadsKanbanProps {
   tenantId: string;
 }
 
-const STATUS_COLUMNS: { status: LeadStatus; label: string; color: string }[] = [
+type KanbanColumn = { status: LeadStatus; label: string; color: string };
+
+const FALLBACK_COLUMNS: KanbanColumn[] = [
   { status: 'new', label: 'Nuevos', color: 'bg-blue-50 border-blue-200' },
   { status: 'contacted', label: 'Contactados', color: 'bg-yellow-50 border-yellow-200' },
   { status: 'qualified', label: 'Calificados', color: 'bg-green-50 border-green-200' },
@@ -20,17 +26,54 @@ const STATUS_COLUMNS: { status: LeadStatus; label: string; color: string }[] = [
   { status: 'lost', label: 'Perdidos', color: 'bg-red-50 border-red-200' },
 ];
 
+const COLOR_KEY_TO_TAILWIND: Record<string, string> = {
+  blue: 'bg-blue-50 border-blue-200',
+  yellow: 'bg-yellow-50 border-yellow-200',
+  green: 'bg-green-50 border-green-200',
+  purple: 'bg-purple-50 border-purple-200',
+  indigo: 'bg-indigo-50 border-indigo-200',
+  pink: 'bg-pink-50 border-pink-200',
+  orange: 'bg-orange-50 border-orange-200',
+  gray: 'bg-gray-50 border-gray-200',
+  red: 'bg-red-50 border-red-200',
+};
+
+function pipelineToColumns(settings: CrmPipelineSettings | null): KanbanColumn[] {
+  if (!settings?.enabled || !settings.stages?.length) {
+    return FALLBACK_COLUMNS;
+  }
+  return [...settings.stages]
+    .sort((a, b) => a.order - b.order)
+    .map((s) => ({
+      status: s.status as LeadStatus,
+      label: s.label,
+      color: COLOR_KEY_TO_TAILWIND[s.color] || COLOR_KEY_TO_TAILWIND.gray,
+    }));
+}
+
 export default function LeadsKanban({ tenantId }: LeadsKanbanProps) {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [draggedLead, setDraggedLead] = useState<Lead | null>(null);
-  const [user, setUser] = useState<any>(null);
+  const [columns, setColumns] = useState<KanbanColumn[]>(FALLBACK_COLUMNS);
 
   useEffect(() => {
-    fetch('/api/user')
-      .then(res => res.json())
-      .then(data => setUser(data.user))
-      .catch(err => console.error('Error fetching user:', err));
+    let cancelled = false;
+    fetchWithAuth('/api/settings/crm-pipeline')
+      .then(async (res) => {
+        if (!res.ok) return null;
+        return res.json() as Promise<CrmPipelineSettings>;
+      })
+      .then((data) => {
+        if (cancelled || !data) return;
+        setColumns(pipelineToColumns(data));
+      })
+      .catch(() => {
+        if (!cancelled) setColumns(FALLBACK_COLUMNS);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const { leads: realtimeLeads, loading: leadsLoading } = useRealtimeLeads({
@@ -38,7 +81,7 @@ export default function LeadsKanban({ tenantId }: LeadsKanbanProps) {
   });
 
   useEffect(() => {
-    setLeads(realtimeLeads as any);
+    setLeads(realtimeLeads as unknown as Lead[]);
     setLoading(leadsLoading);
   }, [realtimeLeads, leadsLoading]);
 
@@ -66,30 +109,27 @@ export default function LeadsKanban({ tenantId }: LeadsKanbanProps) {
         )
       );
 
-      // Actualizar en backend
-      await fetch(`/api/leads/${draggedLead.id}`, {
+      const res = await fetchWithAuth(`/api/leads/${draggedLead.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ status: newStatus }),
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error || res.statusText);
+      }
 
       setDraggedLead(null);
     } catch (error) {
       console.error('Error updating lead status:', error);
       // Revertir cambio optimista
-      setLeads(realtimeLeads as any);
+      setLeads(realtimeLeads as unknown as Lead[]);
       alert('Error al actualizar el estado del lead');
     }
   };
 
   const getLeadsByStatus = (status: LeadStatus) => {
     return leads.filter(lead => lead.status === status);
-  };
-
-  const getStatusColor = (status: LeadStatus) => {
-    const column = STATUS_COLUMNS.find(col => col.status === status);
-    return column?.color || 'bg-gray-50 border-gray-200';
   };
 
   const getPriorityColor = (priority?: string) => {
@@ -124,7 +164,7 @@ export default function LeadsKanban({ tenantId }: LeadsKanbanProps) {
   return (
     <div className="overflow-x-auto pb-4">
       <div className="flex gap-4 min-w-max">
-        {STATUS_COLUMNS.map((column) => {
+        {columns.map((column) => {
           const columnLeads = getLeadsByStatus(column.status);
           
           return (
@@ -186,6 +226,15 @@ export default function LeadsKanban({ tenantId }: LeadsKanbanProps) {
                       <span>{lead.source}</span>
                       <span>{new Date(lead.updatedAt).toLocaleDateString()}</span>
                     </div>
+
+                    <LeadKanbanFootnote lead={lead} />
+                    <Link
+                      href={`/leads/${lead.id}`}
+                      className="mt-2 inline-block text-xs font-medium text-primary-600 hover:underline"
+                      onMouseDown={(e) => e.stopPropagation()}
+                    >
+                      Ver ficha completa del lead →
+                    </Link>
 
                     {lead.assignedTo && (
                       <div className="mt-2 text-xs text-gray-500">

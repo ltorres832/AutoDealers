@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
+import { requireTenantFeature } from '@/lib/membership-middleware';
 import { getFirestore } from '@autodealers/core';
 
 const db = getFirestore();
@@ -48,6 +49,9 @@ export async function GET(request: NextRequest) {
     if (!allowedRoles.includes(user.role as string)) {
       return NextResponse.json({ error: 'Solo dealers pueden acceder' }, { status: 403 });
     }
+
+    const fiGate = await requireTenantFeature(user.tenantId, 'useFIModule');
+    if (fiGate) return fiGate;
 
     const clients = await getFIClientsDirect(user.tenantId!);
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { isDealerPortalRole } from '@/lib/dealer-portal-roles';
 import { fetchWithAuth } from '@/lib/fetch-with-auth';
 
 interface Announcement {
@@ -94,7 +95,7 @@ export default function AnnouncementsPage() {
             const usersData = await usersResponse.json();
             if (usersData.users) {
               usersData.users.forEach((user: any) => {
-                if (user.role !== 'dealer' && !allUsers.find(u => u.id === user.id)) {
+                if (!isDealerPortalRole(user.role) && !allUsers.find(u => u.id === user.id)) {
                   allUsers.push({
                     id: user.id,
                     name: user.name || user.email,

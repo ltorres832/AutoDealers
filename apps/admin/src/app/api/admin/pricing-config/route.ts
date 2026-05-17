@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
+import { clearPricingConfigCache } from '@autodealers/core';
 import { getFirestore } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
 
@@ -310,6 +311,8 @@ export async function POST(request: NextRequest) {
       ...config,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
+
+    clearPricingConfigCache();
 
     return NextResponse.json({ success: true, message: 'Configuración actualizada exitosamente' });
   } catch (error: any) {

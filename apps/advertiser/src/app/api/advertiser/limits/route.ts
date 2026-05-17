@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getAdvertiserPlanLimits, getMonthlyImpressionsUsage, canCreateBanner } from '@autodealers/core';
+import { getAdvertiserPlanLimits, getMonthlyImpressionsUsage } from '@autodealers/core';
 import { getAdvertiserContent } from '@autodealers/core';
 
 export async function GET(request: NextRequest) {

@@ -5,6 +5,8 @@ import Link from 'next/link';
 
 interface ProfileData {
   name: string;
+  /** Cargo o rol (ej. Asesor de ventas) — visible en tu página pública. */
+  title?: string;
   email: string;
   phone?: string;
   photo?: string;
@@ -31,6 +33,7 @@ interface ProfileData {
 export default function ProfileSettingsPage() {
   const [profileData, setProfileData] = useState<ProfileData>({
     name: '',
+    title: '',
     email: '',
     phone: '',
     photo: '',
@@ -319,6 +322,17 @@ export default function ProfileSettingsPage() {
                 onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
                 className="w-full border rounded px-3 py-2"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Cargo / título público</label>
+              <input
+                type="text"
+                value={profileData.title || ''}
+                onChange={(e) => setProfileData({ ...profileData, title: e.target.value })}
+                className="w-full border rounded px-3 py-2"
+                placeholder="Ej. Asesor de ventas, Vendedor certificado"
+              />
+              <p className="text-xs text-gray-500 mt-1">Aparece bajo tu nombre en la vista previa y en /seller/…</p>
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-medium mb-2">Biografía (Opcional)</label>

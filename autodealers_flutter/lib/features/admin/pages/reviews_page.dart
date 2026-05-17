@@ -1,7 +1,6 @@
 // Página de Gestión de Reseñas (Admin)
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:go_router/go_router.dart';
 import '../../../core/presentation/providers/reviews_provider.dart';
 
 class AdminReviewsPage extends StatelessWidget {

@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { fetchWithAuth } from '@/lib/fetch-with-auth';
 
 interface Seller {
   id: string;
@@ -33,7 +35,7 @@ export function LeadAssignmentModal({
 
   async function fetchSellers() {
     try {
-      const response = await fetch('/api/sellers');
+      const response = await fetchWithAuth('/api/sellers', {});
       const data = await response.json();
       setSellers(data.sellers || []);
     } catch (error) {
@@ -49,7 +51,7 @@ export function LeadAssignmentModal({
 
     setLoading(true);
     try {
-      const response = await fetch(`/api/leads/${leadId}/reassign`, {
+      const response = await fetchWithAuth(`/api/leads/${leadId}/reassign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sellerId: selectedSeller }),
@@ -80,6 +82,9 @@ export function LeadAssignmentModal({
           <p className="text-sm text-gray-600 mb-2">
             <strong>Lead:</strong> {leadName}
           </p>
+          <Link href={`/leads/${leadId}`} className="text-sm text-primary-600 hover:underline">
+            Abrir ficha del lead en CRM →
+          </Link>
           {currentSeller && (
             <p className="text-sm text-gray-600">
               <strong>Asignado actualmente a:</strong> {currentSeller}

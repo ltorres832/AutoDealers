@@ -52,7 +52,7 @@ class _DealerAppointmentsPageState extends State<DealerAppointmentsPage> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _statusFilter.isEmpty ? null : _statusFilter,
+                    initialValue: _statusFilter.isEmpty ? null : _statusFilter,
                     decoration: const InputDecoration(
                       labelText: 'Estado',
                       border: OutlineInputBorder(),

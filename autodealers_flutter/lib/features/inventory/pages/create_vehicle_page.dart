@@ -50,12 +50,10 @@ class _CreateVehiclePageState extends State<CreateVehiclePage> {
   Future<void> _pickImages() async {
     final picker = ImagePicker();
     final pickedFiles = await picker.pickMultiImage();
-    if (pickedFiles != null) {
-      setState(() {
-        _selectedImages = pickedFiles.map((file) => File(file.path)).toList();
-      });
+    setState(() {
+      _selectedImages = pickedFiles.map((file) => File(file.path)).toList();
+    });
     }
-  }
 
   Future<void> _handleCreate() async {
     if (!_formKey.currentState!.validate()) return;
@@ -252,7 +250,7 @@ class _CreateVehiclePageState extends State<CreateVehiclePage> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<VehicleCondition>(
-                value: _condition,
+                initialValue: _condition,
                 decoration: const InputDecoration(
                   labelText: 'Condición *',
                   border: OutlineInputBorder(),
@@ -273,7 +271,7 @@ class _CreateVehiclePageState extends State<CreateVehiclePage> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<VehicleBodyType>(
-                value: _bodyType,
+                initialValue: _bodyType,
                 decoration: const InputDecoration(
                   labelText: 'Tipo de Vehículo',
                   border: OutlineInputBorder(),
@@ -297,7 +295,7 @@ class _CreateVehiclePageState extends State<CreateVehiclePage> {
               TextFormField(
                 controller: _mileageController,
                 decoration: const InputDecoration(
-                  labelText: 'Kilometraje',
+                  labelText: 'Millaje (millas)',
                   border: OutlineInputBorder(),
                 ),
                 keyboardType: TextInputType.number,

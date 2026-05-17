@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import StarRating from '@/components/StarRating';
 
 interface User {
@@ -30,6 +31,17 @@ export default function AdminUsersPage() {
     status: '',
     search: '',
   });
+  const hydratedSearchFromUrl = useRef(false);
+
+  useEffect(() => {
+    if (hydratedSearchFromUrl.current || typeof window === 'undefined') return;
+    const q = new URLSearchParams(window.location.search);
+    const s = q.get('search');
+    if (s) {
+      setFilters((f) => ({ ...f, search: s }));
+      hydratedSearchFromUrl.current = true;
+    }
+  }, []);
 
   useEffect(() => {
     fetchUsers();
@@ -86,6 +98,9 @@ export default function AdminUsersPage() {
           <h1 className="text-3xl font-bold">Gestión de Usuarios</h1>
           <p className="text-gray-600 mt-2">
             Control total sobre todos los usuarios de la plataforma
+          </p>
+          <p className="text-sm text-gray-500 mt-2 max-w-3xl">
+            Los <strong>vendedores</strong> están aquí con rol <strong>Seller</strong>. Los que trabajan para un concesionario comparten el <strong>tenantId del dealer</strong>; los independientes tienen su propio tenant (ver también Tenants → filtro vendedor).
           </p>
         </div>
         <button
@@ -189,7 +204,17 @@ export default function AdminUsersPage() {
                         : 'bg-green-100 text-green-700'
                     }`}
                   >
-                    {user.role === 'admin' ? 'Admin' : user.role === 'dealer' ? 'Dealer' : 'Seller'}
+                    {user.role === 'admin'
+                      ? 'Admin'
+                      : user.role === 'dealer'
+                        ? 'Dealer'
+                        : user.role === 'seller'
+                          ? 'Seller'
+                          : user.role === 'manager'
+                            ? 'Gerente'
+                            : user.role === 'dealer_admin'
+                              ? 'Admin dealer'
+                              : user.role}
                   </span>
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-600">
@@ -247,9 +272,12 @@ export default function AdminUsersPage() {
                         🎁 Mes Gratis
                       </button>
                     )}
-                    <button className="text-primary-600 hover:text-primary-700 text-sm">
+                    <Link
+                      href={`/admin/users/${user.id}/edit`}
+                      className="text-primary-600 hover:text-primary-700 text-sm"
+                    >
                       Editar
-                    </button>
+                    </Link>
                   </div>
                 </td>
               </tr>
@@ -402,12 +430,21 @@ function CreateUserModal({
   const [formData, setFormData] = useState({
     email: '',
     password: '',
+    passwordConfirm: '',
     name: '',
     role: 'seller' as 'admin' | 'dealer' | 'seller' | 'manager' | 'dealer_admin',
     tenantId: '',
+    phone: '',
+    whatsapp: '',
   });
   const [tenants, setTenants] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [postWarnings, setPostWarnings] = useState<string[]>([]);
+  const [useManualDealerId, setUseManualDealerId] = useState(false);
+  const [manualDealerId, setManualDealerId] = useState('');
+
+  const selectedTenant = tenants.find((t) => t.id === formData.tenantId);
 
   useEffect(() => {
     fetchTenants();
@@ -421,24 +458,56 @@ function CreateUserModal({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setSubmitError(null);
+    setPostWarnings([]);
+    if (formData.password !== formData.passwordConfirm) {
+      setSubmitError('Las contraseñas no coinciden.');
+      return;
+    }
+    if (formData.role !== 'admin' && !formData.tenantId.trim()) {
+      setSubmitError('Selecciona el tenant para este rol.');
+      return;
+    }
+    if (formData.role !== 'admin' && !formData.phone.trim()) {
+      setSubmitError('El teléfono es obligatorio para dealer, vendedor y personal del concesionario.');
+      return;
+    }
     setLoading(true);
 
     try {
       const response = await fetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          passwordConfirm: formData.passwordConfirm,
+          name: formData.name,
+          role: formData.role,
+          tenantId: formData.role === 'admin' ? '' : formData.tenantId,
+          phone: formData.role === 'admin' ? formData.phone.trim() || undefined : formData.phone.trim(),
+          whatsapp: formData.whatsapp.trim() || undefined,
+          ...(useManualDealerId && manualDealerId.trim()
+            ? { dealerId: manualDealerId.trim() }
+            : {}),
+        }),
       });
 
       if (response.ok) {
+        const data = await response.json().catch(() => ({}));
+        if (Array.isArray(data.warnings) && data.warnings.length > 0) {
+          setPostWarnings(data.warnings);
+          return;
+        }
         onClose();
         onSuccess();
       } else {
-        alert('Error al crear usuario');
+        const err = await response.json().catch(() => ({}));
+        setSubmitError(typeof err.error === 'string' ? err.error : 'Error al crear usuario');
       }
     } catch (error) {
       console.error('Error:', error);
-      alert('Error al crear usuario');
+      setSubmitError('Error de red al crear usuario. Intenta de nuevo.');
     } finally {
       setLoading(false);
     }
@@ -446,11 +515,36 @@ function CreateUserModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-md w-full">
+      <div className="bg-white rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-xl">
         <div className="p-6 border-b">
-          <h2 className="text-2xl font-bold">Crear Usuario</h2>
+          <h2 className="text-2xl font-bold">Crear usuario</h2>
+          <p className="text-sm text-gray-600 mt-2">
+            Cuenta Firebase completa (email y contraseña). Para vendedores de un dealer, elige el tenant del
+            concesionario.
+          </p>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {submitError && (
+            <div className="rounded-lg bg-red-50 border border-red-200 text-red-800 px-4 py-3 text-sm">{submitError}</div>
+          )}
+          {postWarnings.length > 0 && (
+            <div className="rounded-lg bg-amber-50 border border-amber-200 text-amber-900 px-4 py-3 text-sm space-y-3">
+              {postWarnings.map((w, i) => (
+                <p key={i}>{w}</p>
+              ))}
+              <button
+                type="button"
+                className="w-full px-3 py-2 rounded bg-amber-800 text-white text-sm font-medium hover:bg-amber-900"
+                onClick={() => {
+                  setPostWarnings([]);
+                  onClose();
+                  onSuccess();
+                }}
+              >
+                Entendido, cerrar
+              </button>
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium mb-2">Nombre</label>
             <input
@@ -472,11 +566,24 @@ function CreateUserModal({
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Contraseña</label>
+            <label className="block text-sm font-medium mb-2">Contraseña *</label>
             <input
               type="password"
+              autoComplete="new-password"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              className="w-full border rounded px-3 py-2"
+              required
+              minLength={6}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Confirmar contraseña *</label>
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={formData.passwordConfirm}
+              onChange={(e) => setFormData({ ...formData, passwordConfirm: e.target.value })}
               className="w-full border rounded px-3 py-2"
               required
               minLength={6}
@@ -486,7 +593,14 @@ function CreateUserModal({
             <label className="block text-sm font-medium mb-2">Rol</label>
             <select
               value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
+              onChange={(e) => {
+                const next = e.target.value as typeof formData.role;
+                setFormData({ ...formData, role: next, tenantId: next === 'admin' ? '' : formData.tenantId });
+                if (next !== 'seller') {
+                  setUseManualDealerId(false);
+                  setManualDealerId('');
+                }
+              }}
               className="w-full border rounded px-3 py-2"
             >
               <option value="admin">Admin</option>
@@ -496,21 +610,124 @@ function CreateUserModal({
               <option value="seller">Seller</option>
             </select>
           </div>
-          {(formData.role === 'dealer' || formData.role === 'seller') && (
+          {(formData.role === 'manager' || formData.role === 'dealer_admin') && (
+            <p className="text-xs text-gray-600 -mt-2">
+              Elige un tenant tipo <strong>Dealer</strong> (concesionario) al que pertenece esta persona.
+            </p>
+          )}
+          {formData.role !== 'admin' && (
             <div>
-              <label className="block text-sm font-medium mb-2">Tenant/Dealer</label>
+              <label className="block text-sm font-medium mb-2">Tenant *</label>
               <select
                 value={formData.tenantId}
                 onChange={(e) => setFormData({ ...formData, tenantId: e.target.value })}
                 className="w-full border rounded px-3 py-2"
+                required
               >
                 <option value="">Seleccionar tenant</option>
-                {tenants.map((tenant) => (
+                {(formData.role === 'manager' || formData.role === 'dealer_admin'
+                  ? tenants.filter((t) => t.type === 'dealer')
+                  : tenants
+                ).map((tenant) => (
                   <option key={tenant.id} value={tenant.id}>
-                    {tenant.name}
+                    {tenant.name} ({tenant.type === 'dealer' ? 'Dealer' : 'Tenant vendedor'})
                   </option>
                 ))}
               </select>
+              {formData.role === 'seller' && (
+                <>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Para un vendedor de concesionario, elige el tenant <strong>Dealer</strong>. Para cuenta independiente tipo registro público, elige un tenant <strong>seller</strong> (o créalo en Tenants antes).
+                  </p>
+                  {selectedTenant?.type === 'dealer' && formData.tenantId && (
+                    <p className="text-xs text-green-700 mt-2 bg-green-50 border border-green-100 rounded px-2 py-1.5">
+                      Vinculación automática: se guardará <code className="text-[11px]">dealerId</code> al tenant del
+                      concesionario, se copiará la <strong>membresía</strong> del tenant y se creará el registro en{' '}
+                      <code className="text-[11px]">sub_users</code> del dealer (como al dar de alta desde el panel).
+                    </p>
+                  )}
+                  {selectedTenant?.type === 'seller' && formData.tenantId && (
+                    <p className="text-xs text-blue-700 mt-2 bg-blue-50 border border-blue-100 rounded px-2 py-1.5">
+                      Vendedor independiente: sin <code className="text-[11px]">dealerId</code> de concesionario; se
+                      usa la membresía del tenant vendedor si existe.
+                    </p>
+                  )}
+                  <label className="flex items-start gap-2 mt-3 text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="mt-1"
+                      checked={useManualDealerId}
+                      onChange={(e) => {
+                        setUseManualDealerId(e.target.checked);
+                        if (!e.target.checked) setManualDealerId('');
+                      }}
+                    />
+                    <span>
+                      Avanzado: definir <code className="text-xs">dealerId</code> manualmente (sobrescribe el
+                      automático)
+                    </span>
+                  </label>
+                  {useManualDealerId && (
+                    <input
+                      type="text"
+                      value={manualDealerId}
+                      onChange={(e) => setManualDealerId(e.target.value)}
+                      placeholder="ID del tenant del dealer o convención acordada"
+                      className="w-full border rounded px-3 py-2 text-sm mt-1"
+                    />
+                  )}
+                </>
+              )}
+            </div>
+          )}
+          {formData.role !== 'admin' && (
+            <div className="space-y-3 border-t pt-4">
+              <p className="text-sm font-semibold text-gray-800">Contacto del usuario</p>
+              <div>
+                <label className="block text-sm font-medium mb-2">Teléfono *</label>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="+1 787 000 0000"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">WhatsApp (opcional)</label>
+                <input
+                  type="tel"
+                  value={formData.whatsapp}
+                  onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="Si vacío, se usa el teléfono"
+                />
+              </div>
+            </div>
+          )}
+          {formData.role === 'admin' && (
+            <div className="space-y-3 border-t pt-4">
+              <p className="text-sm font-semibold text-gray-800">Contacto (opcional)</p>
+              <div>
+                <label className="block text-sm font-medium mb-2">Teléfono</label>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="Opcional"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">WhatsApp (opcional)</label>
+                <input
+                  type="tel"
+                  value={formData.whatsapp}
+                  onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
             </div>
           )}
           <div className="flex gap-2 justify-end pt-4">
@@ -523,8 +740,8 @@ function CreateUserModal({
             </button>
             <button
               type="submit"
-              disabled={loading}
-              className="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700"
+              disabled={loading || postWarnings.length > 0}
+              className="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-50"
             >
               {loading ? 'Creando...' : 'Crear'}
             </button>

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/presentation/providers/campaigns_provider.dart';
-import '../../../core/presentation/providers/auth_provider.dart';
 import '../widgets/seller_drawer.dart';
 
 class SellerCampaignsPage extends StatelessWidget {

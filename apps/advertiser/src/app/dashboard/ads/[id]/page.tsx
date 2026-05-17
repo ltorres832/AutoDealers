@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import DashboardLayout from '../../../../components/DashboardLayout';
 
 interface Ad {
@@ -25,7 +25,6 @@ interface Ad {
 }
 
 export default function AdDetailPage() {
-  const router = useRouter();
   const params = useParams();
   const [ad, setAd] = useState<Ad | null>(null);
   const [loading, setLoading] = useState(true);

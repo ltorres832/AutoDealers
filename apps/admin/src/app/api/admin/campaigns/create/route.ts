@@ -27,7 +27,10 @@ export async function POST(request: NextRequest) {
       videoUrl,
       hashtags,
       publishNow = false,
+      metaDistribution: metaRaw,
     } = body;
+
+    const metaDistribution = metaRaw === 'paid_ads' ? 'paid_ads' : 'organic';
 
     if (!tenantId || !name || !type) {
       return NextResponse.json(
@@ -58,6 +61,7 @@ export async function POST(request: NextRequest) {
       videoUrl,
       hashtags: hashtags || [],
       status: 'draft',
+      metaDistribution,
       createdBy: auth.userId,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -72,8 +76,9 @@ export async function POST(request: NextRequest) {
     await campaignRef.set(campaignData);
 
     // Si se solicita publicación inmediata y hay plataformas seleccionadas
+    // Publicación inmediata = solo posts orgánicos en el feed (Graph). Ads de pago no se crean aquí.
     let publishResults: any[] = [];
-    if (publishNow && platforms && platforms.length > 0) {
+    if (publishNow && metaDistribution === 'organic' && platforms && platforms.length > 0) {
       // Verificar credenciales del tenant
       const integrationsSnapshot = await db
         .collection('tenants')

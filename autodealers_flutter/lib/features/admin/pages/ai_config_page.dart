@@ -76,7 +76,7 @@ class _AdminAIConfigPageState extends State<AdminAIConfigPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 DropdownButtonFormField<String>(
-                  value: _selectedProvider,
+                  initialValue: _selectedProvider,
                   decoration: const InputDecoration(
                     labelText: 'Proveedor',
                     border: OutlineInputBorder(),

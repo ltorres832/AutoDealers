@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
-import { updateLead, getLeadById } from '@autodealers/crm';
+import { verifyAuth, isDealerPortalRole } from '@/lib/auth';
+import { updateLead, getLeadById, parseLeadPatchBody } from '@autodealers/crm';
+import { getCrmPipelineSettings } from '@autodealers/core';
 
 export async function PATCH(
   request: NextRequest,
@@ -25,15 +26,28 @@ export async function PATCH(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    await updateLead(auth.tenantId, leadId, body);
+    const pipeline = await getCrmPipelineSettings();
+    const allowedStatuses = new Set(pipeline.stages.map((s) => s.status));
+
+    const parsed = parseLeadPatchBody(body, lead, {
+      allowedStatuses,
+      allowAssignedTo: isDealerPortalRole(auth.role),
+    });
+    if (!parsed.ok) {
+      return NextResponse.json({ error: parsed.message }, { status: parsed.statusCode });
+    }
+
+    if (Object.keys(parsed.updates).length === 0) {
+      return NextResponse.json({ success: true });
+    }
+
+    await updateLead(auth.tenantId, leadId, parsed.updates);
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error updating lead:', error);
-    return NextResponse.json(
-      { error: error.message || 'Error updating lead' },
-      { status: 500 }
-    );
+    const message = error instanceof Error ? error.message : 'Error updating lead';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -60,12 +74,10 @@ export async function GET(
     }
 
     return NextResponse.json({ lead });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching lead:', error);
-    return NextResponse.json(
-      { error: error.message || 'Error fetching lead' },
-      { status: 500 }
-    );
+    const message = error instanceof Error ? error.message : 'Error fetching lead';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 

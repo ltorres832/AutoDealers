@@ -9,6 +9,8 @@ interface WebsiteSettings {
     subtitle: string;
     ctaText: string;
     backgroundImage?: string;
+    /** YouTube, Vimeo o URL HTTPS a .mp4/.webm — se muestra antes del inventario en la web pública */
+    promoVideoUrl?: string;
   };
   sections: {
     about: {
@@ -49,6 +51,7 @@ export default function WebsiteSettingsPage() {
       title: 'Encuentra el vehículo perfecto para ti',
       subtitle: 'Tenemos la mejor selección de vehículos',
       ctaText: 'Ver Inventario',
+      promoVideoUrl: '',
     },
     sections: {
       about: {
@@ -110,7 +113,11 @@ export default function WebsiteSettingsPage() {
       if (websiteRes.ok) {
         const data = await websiteRes.json();
         if (data.settings) {
-          setSettings({ ...settings, ...data.settings });
+          setSettings((prev) => ({
+            ...prev,
+            ...data.settings,
+            hero: { ...prev.hero, ...(data.settings.hero || {}) },
+          }));
         }
       }
 
@@ -360,6 +367,26 @@ export default function WebsiteSettingsPage() {
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   El botón llevará a los visitantes directamente al inventario
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Video promocional (opcional)</label>
+                <input
+                  type="url"
+                  value={settings.hero.promoVideoUrl || ''}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      hero: { ...settings.hero, promoVideoUrl: e.target.value },
+                    })
+                  }
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="https://www.youtube.com/watch?v=… o https://…/video.mp4"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Enlace de YouTube, Vimeo o archivo de video en HTTPS (.mp4, .webm). Aparece justo antes del inventario
+                  en tu página pública.
                 </p>
               </div>
             </div>
@@ -721,6 +748,75 @@ function WebsitePreview({
             )}
           </div>
         </section>
+
+        {settings.hero.promoVideoUrl ? (
+          <section className="bg-gray-50 py-8 px-6 border-y border-gray-200">
+            <p className="text-center text-sm text-gray-600 mb-3">Vista previa del video (antes del inventario)</p>
+            <div className="max-w-3xl mx-auto aspect-video rounded-lg overflow-hidden bg-black shadow">
+              {(() => {
+                const raw = (settings.hero.promoVideoUrl || '').trim();
+                if (!raw) return null;
+                let u: URL;
+                try {
+                  u = new URL(raw.includes('://') ? raw : `https://${raw}`);
+                } catch {
+                  return <p className="text-white text-center p-8 text-sm">URL no válida</p>;
+                }
+                const host = u.hostname.replace(/^www\./, '');
+                if (host === 'youtu.be') {
+                  const id = u.pathname.replace(/^\//, '').split('/')[0];
+                  if (!id) return null;
+                  return (
+                    <iframe
+                      title="Preview video"
+                      src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}`}
+                      className="w-full h-full border-0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  );
+                }
+                if (
+                  host === 'youtube.com' ||
+                  host === 'm.youtube.com' ||
+                  host === 'youtube-nocookie.com'
+                ) {
+                  const v = u.searchParams.get('v');
+                  const shorts = u.pathname.match(/^\/shorts\/([\w-]+)/);
+                  const embed = u.pathname.match(/^\/embed\/([\w-]+)/);
+                  const id = v || shorts?.[1] || embed?.[1];
+                  if (!id) return <p className="text-white text-center p-8 text-sm">No se detectó el ID del video de YouTube</p>;
+                  return (
+                    <iframe
+                      title="Preview video"
+                      src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}`}
+                      className="w-full h-full border-0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  );
+                }
+                if (host === 'vimeo.com' || host === 'player.vimeo.com') {
+                  const m = u.pathname.match(/\/(?:video\/)?(\d+)/);
+                  const id = m?.[1];
+                  if (!id) return null;
+                  return (
+                    <iframe
+                      title="Preview video"
+                      src={`https://player.vimeo.com/video/${encodeURIComponent(id)}`}
+                      className="w-full h-full border-0"
+                      allowFullScreen
+                    />
+                  );
+                }
+                if (u.protocol === 'https:' && /\.(mp4|webm|ogg)(\?|$)/i.test(u.pathname)) {
+                  return <video className="w-full h-full object-contain" controls src={u.toString()} />;
+                }
+                return <p className="text-white text-center p-8 text-sm">Formato no reconocido en vista previa</p>;
+              })()}
+            </div>
+          </section>
+        ) : null}
 
         {/* Seller Profile Section */}
         {sellerInfo && (

@@ -15,6 +15,7 @@ export type NotificationType =
   | 'lead_assigned'
   | 'message_received'
   | 'appointment_created'
+  | 'appointment_confirmed'
   | 'appointment_reminder'
   | 'sale_completed'
   | 'reminder_due'
@@ -346,6 +347,32 @@ export async function markNotificationAsRead(
 }
 
 /**
+ * Canales de notificación para un usuario (respeta `settings.notifications` y teléfono).
+ * Usado al notificar vendedores asignados (email / SMS / WhatsApp según preferencias).
+ */
+export async function getNotificationChannelsForUser(userId: string): Promise<NotificationChannel[]> {
+  const userDoc = await getDb().collection('users').doc(userId).get();
+  const userData = userDoc.data();
+  if (!userData) {
+    return ['system'];
+  }
+  const userNotificationSettings = userData?.settings?.notifications || {};
+  const channels: NotificationChannel[] = ['system'];
+  if (userNotificationSettings.email !== false) {
+    channels.push('email');
+  }
+  if (userData.phone) {
+    if (userNotificationSettings.sms !== false) {
+      channels.push('sms');
+    }
+    if (userNotificationSettings.whatsapp !== false) {
+      channels.push('whatsapp');
+    }
+  }
+  return channels;
+}
+
+/**
  * Marca todas las notificaciones como leídas
  */
 export async function markAllNotificationsAsRead(
@@ -381,15 +408,16 @@ export async function notifyManagersAndAdmins(
     title: string;
     message: string;
     metadata?: Record<string, any>;
-  }
+  },
+  options?: { excludeUserIds?: string[] }
 ): Promise<void> {
   try {
     const db = getDb();
 
-    // Buscar todos los usuarios manager y dealer_admin del tenant
+    // Gerentes, admins y titulares dealer del tenant (evitar que solo managers reciban todo)
     const managersSnapshot = await getDb().collection('users')
       .where('tenantId', '==', tenantId)
-      .where('role', 'in', ['manager', 'dealer_admin'])
+      .where('role', 'in', ['manager', 'dealer_admin', 'dealer', 'master_dealer'])
       .where('status', '==', 'active')
       .get();
 
@@ -401,6 +429,10 @@ export async function notifyManagersAndAdmins(
     const notificationPromises = managersSnapshot.docs.map(async (doc) => {
       const userData = doc.data();
       const userId = doc.id;
+
+      if (options?.excludeUserIds?.includes(userId)) {
+        return;
+      }
 
       // Verificar configuración de notificaciones del usuario
       const businessNotifications = userData?.settings?.businessNotifications || {};
@@ -416,6 +448,7 @@ export async function notifyManagersAndAdmins(
           shouldNotify = businessNotifications.newMessages !== false;
           break;
         case 'appointment_created':
+        case 'appointment_confirmed':
         case 'appointment_reminder':
           shouldNotify = businessNotifications.newAppointments !== false;
           break;

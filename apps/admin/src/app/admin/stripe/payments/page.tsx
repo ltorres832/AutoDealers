@@ -74,7 +74,7 @@ export default function StripePaymentsPage() {
   return (
     <div className="p-8">
       <div className="mb-6">
-        <BackButton href="/admin/stripe" label="Volver al Dashboard Stripe" />
+        <BackButton label="Volver" />
       </div>
       <h1 className="text-3xl font-bold mb-6">Pagos y Transacciones</h1>
 

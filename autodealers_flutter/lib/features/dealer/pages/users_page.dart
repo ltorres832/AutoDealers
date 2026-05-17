@@ -57,7 +57,7 @@ class _DealerUsersPageState extends State<DealerUsersPage> {
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: _roleFilter.isEmpty ? null : _roleFilter,
+                        initialValue: _roleFilter.isEmpty ? null : _roleFilter,
                         decoration: const InputDecoration(
                           labelText: 'Rol',
                           border: OutlineInputBorder(),
@@ -72,7 +72,7 @@ class _DealerUsersPageState extends State<DealerUsersPage> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: _statusFilter.isEmpty ? null : _statusFilter,
+                        initialValue: _statusFilter.isEmpty ? null : _statusFilter,
                         decoration: const InputDecoration(
                           labelText: 'Estado',
                           border: OutlineInputBorder(),

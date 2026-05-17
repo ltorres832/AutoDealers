@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { MembershipFeatures } from '@autodealers/billing';
+import type { MembershipFeatures } from '@autodealers/billing/types';
+import { fetchWithAuth } from '@/lib/fetch-with-auth';
 
 export default function EditMembershipPage() {
   const router = useRouter();
@@ -20,6 +21,7 @@ export default function EditMembershipPage() {
     maxInventory: undefined,
     maxCampaigns: undefined,
     maxPromotions: undefined,
+    maxLeadsPerMonth: undefined,
     maxAppointmentsPerMonth: undefined,
     maxStorageGB: undefined,
     maxApiCallsPerMonth: undefined,
@@ -77,6 +79,12 @@ export default function EditMembershipPage() {
     emailSignatureBasic: false,
     emailSignatureAdvanced: false,
     emailAliases: false,
+    customerDocumentRequestsEnabled: true,
+    maxCustomerDocumentRequestsPerMonth: undefined,
+    multiDealerEnabled: false,
+    maxDealers: undefined as number | null | undefined,
+    requiresAdminApproval: false,
+    multipleDealers: false,
   });
 
   useEffect(() => {
@@ -116,7 +124,7 @@ export default function EditMembershipPage() {
         headers['Authorization'] = `Bearer ${token}`;
       }
       
-      const response = await fetch(`/api/admin/memberships/${membershipId}`, {
+      const response = await fetchWithAuth(`/api/admin/memberships/${membershipId}`, {
         headers,
         credentials: 'include',
       });
@@ -180,7 +188,7 @@ export default function EditMembershipPage() {
         'Authorization': `Bearer ${token}`,
       };
       
-      const response = await fetch(`/api/admin/memberships/${membershipId}`, {
+      const response = await fetchWithAuth(`/api/admin/memberships/${membershipId}`, {
         method: 'PUT',
         headers,
         credentials: 'include',
@@ -354,6 +362,30 @@ export default function EditMembershipPage() {
             />
           </div>
           <div>
+            <label className="block text-sm font-medium mb-2">Máx. leads nuevos / mes</label>
+            <input
+              type="number"
+              min={0}
+              value={features.maxLeadsPerMonth ?? ''}
+              onChange={(e) => {
+                const raw = e.target.value.trim();
+                if (raw === '') {
+                  updateFeature('maxLeadsPerMonth', undefined);
+                  return;
+                }
+                const n = parseInt(raw, 10);
+                if (!Number.isNaN(n) && n >= 0) {
+                  updateFeature('maxLeadsPerMonth', n);
+                }
+              }}
+              placeholder="Ilimitado (vacío)"
+              className="w-full border rounded px-3 py-2"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Aplica al crear leads desde dealer o vendedor. Vacío = sin tope mensual.
+            </p>
+          </div>
+          <div>
             <label className="block text-sm font-medium mb-2">Máx. Citas/Mes</label>
             <input
               type="number"
@@ -383,6 +415,25 @@ export default function EditMembershipPage() {
               className="w-full border rounded px-3 py-2"
             />
           </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Solicitudes de documento al cliente / mes</label>
+            <input
+              type="number"
+              value={features.maxCustomerDocumentRequestsPerMonth ?? ''}
+              onChange={(e) =>
+                updateFeature(
+                  'maxCustomerDocumentRequestsPerMonth',
+                  e.target.value ? parseInt(e.target.value, 10) : undefined
+                )
+              }
+              placeholder="Sin tope mensual"
+              className="w-full border rounded px-3 py-2"
+              min={0}
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Expediente CRM: cada solicitud cuenta al crear un requerimiento vía API. Vacío = ilimitado.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -391,6 +442,11 @@ export default function EditMembershipPage() {
         {/* Dominios y Branding */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-xl font-bold mb-4">🌐 Dominios y Branding</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Subdominio: URL pública del concesionario. Dominio propio: marca con DNS propio. Las APIs deben validar con{' '}
+            <code className="text-xs bg-gray-100 px-1 rounded">useSubdomain</code> y{' '}
+            <code className="text-xs bg-gray-100 px-1 rounded">useCustomDomain</code> según el flujo.
+          </p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <FeatureToggle
               label="Subdominio Personalizado"
@@ -581,8 +637,73 @@ export default function EditMembershipPage() {
               value={features.automationWorkflows}
               onChange={(v) => updateFeature('automationWorkflows', v)}
             />
+            <FeatureToggle
+              label="Solicitar documentos al cliente (expediente / portal)"
+              value={features.customerDocumentRequestsEnabled !== false}
+              onChange={(v) => updateFeature('customerDocumentRequestsEnabled', v)}
+            />
           </div>
         </div>
+
+        {membership?.type === 'dealer' && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 className="text-xl font-bold mb-4">Red multi-concesionario</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Define cuántas sedes (tenant/concesionario) puede gestionar la cuenta maestra: la sede principal cuenta como 1;
+              cada dealer asociado suma 1. Vacío en &quot;Máx. concesionarios&quot; = ilimitado. El alta de nuevos dealers
+              en la app dealer valida contra este tope (API <code className="text-xs bg-gray-100 px-1 rounded">/api/dealers/associate</code>).
+            </p>
+            <div className="space-y-4">
+              <FeatureToggle
+                label="Plan multi-concesionario (varias sedes)"
+                value={features.multiDealerEnabled === true}
+                onChange={(v) => updateFeature('multiDealerEnabled', v)}
+              />
+              {features.multiDealerEnabled && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Máx. concesionarios en la red</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={
+                        features.maxDealers === null || features.maxDealers === undefined
+                          ? ''
+                          : features.maxDealers
+                      }
+                      onChange={(e) => {
+                        const raw = e.target.value.trim();
+                        if (raw === '') {
+                          updateFeature('maxDealers', null);
+                          return;
+                        }
+                        const n = parseInt(raw, 10);
+                        if (!Number.isNaN(n) && n >= 1) {
+                          updateFeature('maxDealers', n);
+                        }
+                      }}
+                      placeholder="Ilimitado (vacío)"
+                      className="w-full border rounded px-3 py-2"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Número entero ≥ 1, o vacío para sin tope. Ej.: 2 = sede principal + 1 asociada.
+                    </p>
+                  </div>
+                  <FeatureToggle
+                    label="Alta multi-dealer requiere aprobación administrativa"
+                    value={features.requiresAdminApproval === true}
+                    onChange={(v) => updateFeature('requiresAdminApproval', v)}
+                  />
+                  <FeatureToggle
+                    label="Compat. legado: multipleDealers (alias antiguo)"
+                    value={features.multipleDealers === true}
+                    onChange={(v) => updateFeature('multipleDealers', v)}
+                  />
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Contenido y Multimedia */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -705,6 +826,10 @@ export default function EditMembershipPage() {
         {/* Email Corporativo */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-xl font-bold mb-4">📧 Email Corporativo</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Activa el correo corporativo para ofrecer buzones profesionales, cupos por plan, firmas y alias. Los
+            concesionarios con este plan podrán usar esas opciones según los límites que configures abajo.
+          </p>
           <div className="space-y-4">
             <FeatureToggle
               label="Email Corporativo Habilitado"

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import DashboardSidebar from './DashboardSidebar';
 
 interface Advertiser {
@@ -13,12 +13,18 @@ interface Advertiser {
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [advertiser, setAdvertiser] = useState<Advertiser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
     fetchAdvertiser();
   }, []);
+
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [pathname]);
 
   async function fetchAdvertiser() {
     try {
@@ -81,33 +87,46 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <DashboardSidebar />
-      <div className="flex-1 flex flex-col">
-        <header className="bg-white shadow-sm border-b border-gray-200">
-          <div className="px-6 py-4 flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
+    <div className="flex min-h-[100dvh] bg-gray-50">
+      <button
+        type="button"
+        aria-label="Abrir menú"
+        className={`fixed left-3 top-3 z-[60] flex h-11 w-11 items-center justify-center rounded-lg border border-gray-200 bg-white shadow-md md:hidden ${
+          mobileNavOpen ? 'hidden' : ''
+        }`}
+        onClick={() => setMobileNavOpen(true)}
+      >
+        <svg className="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+      <DashboardSidebar mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <header className="border-b border-gray-200 bg-white shadow-sm">
+          <div className="flex flex-col gap-3 px-4 py-4 pl-14 sm:flex-row sm:items-center sm:justify-between sm:px-6 md:pl-6">
+            <div className="min-w-0">
+              <h1 className="truncate text-lg font-bold text-gray-900 sm:text-2xl">
                 {advertiser?.companyName || 'Dashboard'}
               </h1>
-              <p className="text-sm text-gray-600">
+              <p className="text-xs text-gray-600 sm:text-sm">
                 {advertiser?.plan ? `Plan ${advertiser.plan}` : 'Sin plan - Selecciona un plan para crear anuncios'}
               </p>
             </div>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-600">{advertiser?.email}</span>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+              <span className="max-w-[200px] truncate text-xs text-gray-600 sm:max-w-xs sm:text-sm">
+                {advertiser?.email}
+              </span>
               <button
+                type="button"
                 onClick={handleLogout}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
+                className="min-h-[44px] rounded-lg px-4 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
               >
                 Cerrar Sesión
               </button>
             </div>
           </div>
         </header>
-        <main className="flex-1 p-6">
-          {children}
-        </main>
+        <main className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-4 sm:p-6">{children}</main>
       </div>
     </div>
   );

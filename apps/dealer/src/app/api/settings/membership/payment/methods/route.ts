@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuth, isDealerPortalRole, billingTenantId } from '@/lib/auth';
 import { getStripeInstance } from '@autodealers/core';
 import { getSubscriptionByTenantId } from '@autodealers/billing';
 
@@ -8,12 +8,13 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   try {
     const auth = await verifyAuth(request);
-    if (!auth || !auth.tenantId || auth.role !== 'dealer') {
+    if (!auth || !auth.tenantId || !isDealerPortalRole(auth.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const stripe = await getStripeInstance();
-    const subscription = await getSubscriptionByTenantId(auth.tenantId);
+    const billTid = billingTenantId(auth) ?? auth.tenantId;
+    const subscription = await getSubscriptionByTenantId(billTid!);
 
     if (!subscription?.stripeCustomerId) {
       return NextResponse.json({ paymentMethods: [] });
@@ -56,7 +57,7 @@ export async function GET(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const auth = await verifyAuth(request);
-    if (!auth || !auth.tenantId || auth.role !== 'dealer') {
+    if (!auth || !auth.tenantId || !isDealerPortalRole(auth.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

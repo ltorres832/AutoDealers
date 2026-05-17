@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuth, isDealerPortalRole } from '@/lib/auth';
 import { getLeads } from '@autodealers/crm';
 import { getVehicles } from '@autodealers/inventory';
 import { getTenantSales } from '@autodealers/crm';
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Verificar que sea dealer
-    if (auth.role !== 'dealer') {
+    if (!isDealerPortalRole(auth.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -221,7 +221,7 @@ export async function GET(request: NextRequest) {
       .slice(0, 5)
       .map((lead) => ({
         id: lead.id,
-        name: lead.contact.name,
+        name: lead.contact?.name || (lead as { name?: string }).name || 'Cliente',
         source: lead.source,
         status: lead.status,
         createdAt: lead.createdAt.toISOString(),

@@ -2,7 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getFirestore } from '@autodealers/core';
+import { canExecuteFeature, getFirestore, recordFeatureUsage } from '@autodealers/core';
 import * as admin from 'firebase-admin';
 
 export const dynamic = 'force-dynamic';
@@ -21,6 +21,15 @@ export async function POST(
     if (!auth || !auth.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const gate = await canExecuteFeature(auth.tenantId, 'requestCustomerDocuments');
+    if (!gate.allowed) {
+      return NextResponse.json(
+        { error: gate.reason || 'No permitido por membresía' },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const { name, type, description, required } = body;
 
@@ -65,6 +74,10 @@ export async function POST(
       requestedDocuments,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     } as any);
+
+    await recordFeatureUsage(auth.tenantId, 'requestCustomerDocuments', {
+      customerFileId: id,
+    });
 
     return NextResponse.json({
       document: {

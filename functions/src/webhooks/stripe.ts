@@ -2,9 +2,10 @@
 
 import { onRequest } from 'firebase-functions/v2/https';
 import { getFirestore } from 'firebase-admin/firestore';
-import { getStorage } from 'firebase-admin/storage';
 import * as admin from 'firebase-admin';
 import Stripe from 'stripe';
+import { publicWebhookHttpsOptions } from './public-http';
+import { getStripeWebhookSecret } from '@autodealers/core';
 
 const db = getFirestore();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
@@ -12,26 +13,45 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
 });
 
 /**
- * Webhook principal de Stripe
+ * Webhook principal de Stripe.
+ * Debe usar el cuerpo en bruto (rawBody); si se pasa JSON parseado, la firma de Stripe falla.
  */
-export const stripeWebhook = onRequest(
-  {
-    cors: true,
-    maxInstances: 10,
-  },
-  async (req, res) => {
-    const sig = req.headers['stripe-signature'];
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
+export const stripeWebhook = onRequest(publicWebhookHttpsOptions, async (req, res) => {
+    const sigHeader = req.headers['stripe-signature'];
+    const sig = Array.isArray(sigHeader) ? sigHeader[0] : sigHeader;
+    let webhookSecret = (process.env.STRIPE_WEBHOOK_SECRET || '').trim();
+    if (!webhookSecret) {
+      try {
+        webhookSecret = (await getStripeWebhookSecret()) || '';
+      } catch {
+        /* Firestore no disponible en arranque */
+      }
+    }
+
+    if (!webhookSecret?.trim()) {
+      res.status(500).json({
+        error: 'Stripe webhook secret not configured',
+        hint: 'Set STRIPE_WEBHOOK_SECRET on Functions or stripeWebhookSecret in Firestore',
+      });
+      return;
+    }
 
     if (!sig) {
       res.status(400).json({ error: 'No signature' });
       return;
     }
 
+    const rawBody = (req as { rawBody?: Buffer }).rawBody;
+    if (!rawBody || !Buffer.isBuffer(rawBody)) {
+      console.error('Stripe webhook: missing rawBody (Cloud Functions must preserve raw body)');
+      res.status(400).json({ error: 'Invalid request body' });
+      return;
+    }
+
     let event: Stripe.Event;
 
     try {
-      event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+      event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
     } catch (err: any) {
       console.error('Webhook signature verification failed:', err);
       res.status(400).json({ error: `Webhook Error: ${err.message}` });
@@ -69,12 +89,13 @@ export const stripeWebhook = onRequest(
       }
 
       res.json({ received: true });
+      return;
     } catch (error: any) {
       console.error('Error processing webhook:', error);
       res.status(500).json({ error: 'Webhook processing failed' });
+      return;
     }
-  }
-);
+});
 
 /**
  * Maneja un pago exitoso
@@ -318,12 +339,35 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   const subscriptionDoc = subscriptionSnapshot.docs[0];
   const subscriptionId_local = subscriptionDoc.id;
 
-  // Mapear estado de Stripe
-  let status: 'active' | 'past_due' | 'cancelled' | 'suspended' = 'active';
-  if (subscription.status === 'past_due' || subscription.status === 'unpaid') {
-    status = 'past_due';
-  } else if (subscription.status === 'canceled' || subscription.status === 'incomplete_expired') {
-    status = 'cancelled';
+  // Alinear con estados en Firestore / @autodealers/billing
+  let status = 'active';
+  switch (subscription.status) {
+    case 'trialing':
+      status = 'trialing';
+      break;
+    case 'active':
+      status = 'active';
+      break;
+    case 'past_due':
+      status = 'past_due';
+      break;
+    case 'unpaid':
+      status = 'unpaid';
+      break;
+    case 'canceled':
+      status = 'cancelled';
+      break;
+    case 'incomplete_expired':
+      status = 'incomplete_expired';
+      break;
+    case 'incomplete':
+      status = 'incomplete';
+      break;
+    case 'paused':
+      status = 'suspended';
+      break;
+    default:
+      status = 'active';
   }
 
   await db.collection('subscriptions').doc(subscriptionId_local).update({
@@ -331,6 +375,10 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
     currentPeriodStart: admin.firestore.Timestamp.fromDate(new Date(subscription.current_period_start * 1000)),
     currentPeriodEnd: admin.firestore.Timestamp.fromDate(new Date(subscription.current_period_end * 1000)),
     cancelAtPeriodEnd: subscription.cancel_at_period_end || false,
+    ...(typeof subscription.metadata?.membershipId === 'string' &&
+    subscription.metadata.membershipId.trim() !== ''
+      ? { membershipId: subscription.metadata.membershipId.trim() }
+      : {}),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 }

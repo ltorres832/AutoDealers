@@ -47,7 +47,7 @@ class NotificationsRepository {
             ...data,
             'createdAt': data['createdAt']?.toDate(),
             'readAt': data['readAt']?.toDate(),
-          } as Map<String, dynamic>;
+          };
         })
         .toList());
   }

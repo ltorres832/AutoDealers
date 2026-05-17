@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/services/firestore_service.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/models/vehicle.dart';
-import '../../../core/models/user_role.dart';
 
 /// Servicio para gestión de Inventario
 class InventoryService {

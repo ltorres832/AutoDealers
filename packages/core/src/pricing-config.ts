@@ -120,7 +120,8 @@ const defaultConfig: PricingConfig = {
 
 let cachedConfig: PricingConfig | null = null;
 let cacheTimestamp: number = 0;
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
+/** TTL corto: la config la edita el admin en Firestore y debe verse rápido en todas las instancias (sin redeploy). */
+const CACHE_DURATION = 15 * 1000; // 15 segundos
 
 /**
  * Obtiene la configuración de precios desde Firestore

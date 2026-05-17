@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { membershipAllowsMultiDealerNetwork } from '@autodealers/billing/membership-network';
 
 interface MembershipFeatures {
   maxSellers?: number | null;
@@ -170,8 +171,8 @@ export default function MembershipCard({ membership, isPopular = false }: Member
   // Campañas siempre ilimitadas para todos (beneficio real)
   features.push({ label: 'Campañas Ilimitadas en Redes Sociales', icon: '📢', included: true });
 
-  // Multi Dealer
-  if (membership.features.multiDealerEnabled) {
+  // Multi Dealer (incluye flag legacy multipleDealers)
+  if (membershipAllowsMultiDealerNetwork(membership.features as unknown as Record<string, unknown>)) {
     features.push({ label: 'Multi Dealer', icon: '🏢', included: true });
     
     if (membership.features.maxDealers !== undefined && membership.features.maxDealers !== null) {
@@ -268,13 +269,13 @@ export default function MembershipCard({ membership, isPopular = false }: Member
           <h4 className="text-sm font-semibold text-gray-700 mb-3">📊 Límites:</h4>
           <div className="grid grid-cols-2 gap-2">
             {limits.map((limit, i) => (
-              <div key={i} className="flex items-center gap-2 text-sm">
-                <span className="text-lg">{limit.icon}</span>
-                <div>
-                  <span className="font-semibold text-gray-900">
-                    {limit.unlimited ? '∞' : limit.value}
-                  </span>
-                  <span className="text-gray-600 text-xs ml-1">{limit.label}</span>
+              <div key={i} className="flex items-start gap-2 text-sm">
+                <span className="text-lg shrink-0">{limit.icon}</span>
+                <div className="min-w-0">
+                  <div className="text-gray-600 text-xs leading-tight">{limit.label}</div>
+                  <div className="font-semibold text-gray-900 mt-0.5">
+                    {limit.unlimited ? 'Ilimitado' : limit.value}
+                  </div>
                 </div>
               </div>
             ))}

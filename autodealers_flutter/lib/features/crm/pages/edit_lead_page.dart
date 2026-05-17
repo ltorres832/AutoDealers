@@ -183,7 +183,7 @@ class _EditLeadPageState extends State<EditLeadPage> {
               const SizedBox(height: 16),
               // Estado
               DropdownButtonFormField<LeadStatus>(
-                value: _status,
+                initialValue: _status,
                 decoration: const InputDecoration(
                   labelText: 'Estado *',
                   border: OutlineInputBorder(),
@@ -205,7 +205,7 @@ class _EditLeadPageState extends State<EditLeadPage> {
               const SizedBox(height: 16),
               // Fuente
               DropdownButtonFormField<LeadSource>(
-                value: _source,
+                initialValue: _source,
                 decoration: const InputDecoration(
                   labelText: 'Fuente *',
                   border: OutlineInputBorder(),

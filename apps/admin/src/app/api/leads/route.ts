@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { getLeads, createLead } from '@autodealers/crm';
+import { getLeads, createLead, type LeadSource, type LeadStatus } from '@autodealers/crm';
+import { canPerformAction } from '@autodealers/core';
 import { verifyAuth } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
@@ -16,9 +17,9 @@ export async function GET(request: NextRequest) {
     const source = searchParams.get('source');
 
     const leads = await getLeads(auth.tenantId, {
-      status: status as any,
+      status: (status as LeadStatus) || undefined,
       assignedTo: assignedTo || undefined,
-      source: source as any,
+      source: (source as LeadSource) || undefined,
     });
 
     return NextResponse.json({ leads });
@@ -45,6 +46,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
+      );
+    }
+
+    const quota = await canPerformAction(auth.tenantId, 'addLead');
+    if (!quota.allowed) {
+      return NextResponse.json(
+        { error: quota.reason || 'Límite de leads del plan alcanzado' },
+        { status: 403 }
       );
     }
 

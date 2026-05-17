@@ -39,11 +39,13 @@ export default function AppointmentsPage() {
     async function fetchLeadNames() {
       if (!auth?.tenantId) return;
       try {
-        const { getLeads } = await import('@autodealers/crm');
-        const leads = await getLeads(auth.tenantId);
+        const res = await fetch('/api/leads');
+        if (!res.ok) return;
+        const data = await res.json();
+        const leads = data.leads || [];
         const namesMap: Record<string, string> = {};
-        leads.forEach(lead => {
-          namesMap[lead.id] = lead.contact.name || 'Sin nombre';
+        leads.forEach((lead: { id: string; contact?: { name?: string } }) => {
+          namesMap[lead.id] = lead.contact?.name || 'Sin nombre';
         });
         setLeadNames(namesMap);
       } catch (error) {
@@ -90,28 +92,9 @@ export default function AppointmentsPage() {
         // Revertir el cambio si falla
         eventInfo.revert();
         alert('Error al actualizar la cita');
-      } else {
-        // Crear notificación de cambio
-        if (auth?.tenantId) {
-          try {
-            const { createNotification } = await import('@autodealers/core');
-            await createNotification({
-              tenantId: auth.tenantId,
-              userId: appointment.assignedTo,
-              type: 'appointment_created',
-              title: 'Cita reprogramada',
-              message: `La cita ha sido reprogramada para ${newStart.toLocaleString()}`,
-              channels: ['system'],
-              metadata: {
-                appointmentId: appointment.id,
-                route: `/appointments`,
-              },
-            });
-          } catch (notifError) {
-            console.warn('No se pudo crear notificación:', notifError);
-          }
-        }
       }
+      // Notificaciones: no importar @autodealers/core en el cliente (Firebase Admin).
+      // Si hace falta aviso al usuario asignado, debe hacerlo la API PATCH /api/appointments/[id].
     } catch (error) {
       eventInfo.revert();
       console.error('Error:', error);

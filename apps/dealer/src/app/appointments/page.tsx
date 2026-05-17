@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { useRealtimeAppointments } from '@/hooks/useRealtimeAppointments';
 import { useAuth } from '@/hooks/useAuth';
+import { fetchWithAuth } from '@/lib/fetch-with-auth';
 
 interface Appointment {
   id: string;
@@ -25,6 +27,8 @@ export default function AppointmentsPage() {
     tenantId: user?.tenantId,
   });
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [confirming, setConfirming] = useState(false);
 
   // Convertir appointments de tiempo real al formato esperado
   const appointments: Appointment[] = realtimeAppointments.map((apt: any) => ({
@@ -79,6 +83,10 @@ export default function AppointmentsPage() {
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
           initialView="timeGridWeek"
           events={calendarEvents}
+          eventClick={(info) => {
+            const apt = appointments.find((a) => a.id === info.event.id);
+            setSelectedAppointment(apt || null);
+          }}
           headerToolbar={{
             left: 'prev,next today',
             center: 'title',
@@ -88,6 +96,63 @@ export default function AppointmentsPage() {
           locale="es"
         />
       </div>
+
+      {selectedAppointment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 space-y-4">
+            <h2 className="text-xl font-semibold">Detalle de cita</h2>
+            <p className="text-sm text-gray-600">
+              Tipo: <strong>{selectedAppointment.type}</strong>
+              <br />
+              Estado: <strong>{selectedAppointment.status}</strong>
+              <br />
+              Lead:{' '}
+              <Link
+                href={`/leads/${selectedAppointment.leadId}`}
+                className="font-semibold text-primary-600 hover:underline"
+              >
+                Ver ficha del lead
+              </Link>
+              <span className="text-gray-400 font-normal"> · </span>
+              <span className="font-mono text-xs text-gray-500">{selectedAppointment.leadId}</span>
+            </p>
+            {selectedAppointment.status === 'scheduled' && (
+              <button
+                type="button"
+                disabled={confirming}
+                className="w-full bg-emerald-600 text-white py-2 rounded hover:bg-emerald-700 disabled:opacity-50"
+                onClick={async () => {
+                  setConfirming(true);
+                  try {
+                    const res = await fetchWithAuth(
+                      `/api/appointments/${selectedAppointment.id}/confirm`,
+                      { method: 'POST' }
+                    );
+                    if (!res.ok) {
+                      const j = await res.json().catch(() => ({}));
+                      throw new Error(j.error || 'No se pudo confirmar');
+                    }
+                    setSelectedAppointment(null);
+                  } catch (e) {
+                    alert(e instanceof Error ? e.message : 'Error');
+                  } finally {
+                    setConfirming(false);
+                  }
+                }}
+              >
+                {confirming ? 'Confirmando…' : 'Confirmar cita (notifica al cliente)'}
+              </button>
+            )}
+            <button
+              type="button"
+              className="w-full border border-gray-300 py-2 rounded hover:bg-gray-50"
+              onClick={() => setSelectedAppointment(null)}
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
 
       {showCreateModal && (
         <CreateAppointmentModal

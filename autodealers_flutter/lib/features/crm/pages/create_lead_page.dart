@@ -141,7 +141,7 @@ class _CreateLeadPageState extends State<CreateLeadPage> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<LeadSource>(
-                value: _selectedSource,
+                initialValue: _selectedSource,
                 decoration: const InputDecoration(
                   labelText: 'Fuente *',
                   border: OutlineInputBorder(),
@@ -162,7 +162,7 @@ class _CreateLeadPageState extends State<CreateLeadPage> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _preferredChannel,
+                initialValue: _preferredChannel,
                 decoration: const InputDecoration(
                   labelText: 'Canal Preferido',
                   border: OutlineInputBorder(),

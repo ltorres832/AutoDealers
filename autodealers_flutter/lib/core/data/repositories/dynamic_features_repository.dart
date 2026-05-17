@@ -25,7 +25,7 @@ class DynamicFeaturesRepository {
         .snapshots()
         .map((doc) {
       if (!doc.exists) return <String, bool>{};
-      final data = doc.data() as Map<String, dynamic>?;
+      final data = doc.data();
       return Map<String, bool>.from(data?['features'] ?? {});
     });
   }

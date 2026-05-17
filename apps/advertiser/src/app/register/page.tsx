@@ -1,17 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-
-interface Plan {
-  id: string;
-  name: string;
-  price: number;
-  features: string[];
-  popular?: boolean;
-  stripePriceId?: string;
-}
 
 export default function AdvertiserRegisterPage() {
   const router = useRouter();
@@ -30,7 +21,7 @@ export default function AdvertiserRegisterPage() {
   const [error, setError] = useState('');
 
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
 

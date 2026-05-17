@@ -54,20 +54,20 @@ class InternalChatRepository {
       return receivedQuery.snapshots().map((receivedSnapshot) {
         final allMessages = [
           ...sentSnapshot.docs.map((doc) {
-            final data = doc.data() as Map<String, dynamic>;
+            final data = doc.data();
             return {
               'id': doc.id,
               ...data,
               'createdAt': data['createdAt']?.toDate(),
-            } as Map<String, dynamic>;
+            };
           }),
           ...receivedSnapshot.docs.map((doc) {
-            final data = doc.data() as Map<String, dynamic>;
+            final data = doc.data();
             return {
               'id': doc.id,
               ...data,
               'createdAt': data['createdAt']?.toDate(),
-            } as Map<String, dynamic>;
+            };
           }),
         ];
 

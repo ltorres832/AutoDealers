@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuth, isDealerPortalRole } from '@/lib/auth';
 import { getFirestore } from '@autodealers/core';
 import { getAvailableCredits } from '@autodealers/core';
 
@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   try {
     const auth = await verifyAuth(request);
     
-    if (!auth || auth.role !== 'dealer') {
+    if (!auth || !isDealerPortalRole(auth.role)) {
       return NextResponse.json(
         { error: 'No autorizado' },
         { status: 401 }

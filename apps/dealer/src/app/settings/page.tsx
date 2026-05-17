@@ -14,6 +14,36 @@ export default function SettingsPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Link
+          href="/settings/crm-lead-routing"
+          className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+        >
+          <div className="flex items-center space-x-4">
+            <div className="h-12 w-12 rounded-lg bg-primary-100 flex items-center justify-center">
+              <span className="text-2xl">🎯</span>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">CRM — Asignación de leads</h3>
+              <p className="text-sm text-gray-600">Round-robin y pool de vendedores (tipo CRM concesionario)</p>
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          href="/settings/crm-sla"
+          className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+        >
+          <div className="flex items-center space-x-4">
+            <div className="h-12 w-12 rounded-lg bg-primary-100 flex items-center justify-center">
+              <span className="text-2xl">⏱️</span>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">CRM — SLA de seguimiento</h3>
+              <p className="text-sm text-gray-600">Alertas por tiempo sin contacto y umbrales por etapa</p>
+            </div>
+          </div>
+        </Link>
+
+        <Link
           href="/settings/profile"
           className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
         >
@@ -97,8 +127,83 @@ export default function SettingsPage() {
               <span className="text-2xl">📬</span>
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Emails Corporativos</h3>
-              <p className="text-sm text-gray-600">Gestiona emails de tu equipo</p>
+              <h3 className="text-lg font-semibold text-gray-900">Emails corporativos</h3>
+              <p className="text-sm text-gray-600">Correos del equipo</p>
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          href="/settings/website"
+          className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+        >
+          <div className="flex items-center space-x-4">
+            <div className="h-12 w-12 rounded-lg bg-primary-100 flex items-center justify-center">
+              <span className="text-2xl">🌐</span>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Sitio web del dealer</h3>
+              <p className="text-sm text-gray-600">Subdominio y presencia pública</p>
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          href="/settings/branding"
+          className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+        >
+          <div className="flex items-center space-x-4">
+            <div className="h-12 w-12 rounded-lg bg-primary-100 flex items-center justify-center">
+              <span className="text-2xl">🖼️</span>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Marca e imagen</h3>
+              <p className="text-sm text-gray-600">Logos y colores del concesionario</p>
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          href="/settings/templates"
+          className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+        >
+          <div className="flex items-center space-x-4">
+            <div className="h-12 w-12 rounded-lg bg-primary-100 flex items-center justify-center">
+              <span className="text-2xl">📄</span>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Plantillas</h3>
+              <p className="text-sm text-gray-600">Mensajes y comunicación</p>
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          href="/settings/policies"
+          className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+        >
+          <div className="flex items-center space-x-4">
+            <div className="h-12 w-12 rounded-lg bg-primary-100 flex items-center justify-center">
+              <span className="text-2xl">📜</span>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Políticas</h3>
+              <p className="text-sm text-gray-600">Términos y cumplimiento</p>
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          href="/settings/document-branding"
+          className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+        >
+          <div className="flex items-center space-x-4">
+            <div className="h-12 w-12 rounded-lg bg-primary-100 flex items-center justify-center">
+              <span className="text-2xl">✒️</span>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Marca en documentos PDF</h3>
+              <p className="text-sm text-gray-600">Contratos y PDFs</p>
             </div>
           </div>
         </Link>

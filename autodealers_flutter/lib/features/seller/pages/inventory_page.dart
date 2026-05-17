@@ -105,27 +105,60 @@ class _SellerInventoryPageState extends State<SellerInventoryPage> {
                     final vehicle = filteredVehicles[index];
                     return Card(
                       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      child: ListTile(
-                        leading: vehicle.photos.isNotEmpty
-                            ? Image.network(
-                                vehicle.photos.first,
-                                width: 60,
-                                height: 60,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return const Icon(Icons.directions_car, size: 60);
-                                },
-                              )
-                            : const Icon(Icons.directions_car, size: 60),
-                        title: Text('${vehicle.year} ${vehicle.make} ${vehicle.model}'),
-                        subtitle: Text(
-                          '${vehicle.currency} ${vehicle.price.toStringAsFixed(2)}',
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: vehicle.photos.isNotEmpty
+                                  ? Image.network(
+                                      vehicle.photos.first,
+                                      width: 60,
+                                      height: 60,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return const Icon(Icons.directions_car, size: 60);
+                                      },
+                                    )
+                                  : const Icon(Icons.directions_car, size: 60),
+                              title: Text('${vehicle.year} ${vehicle.make} ${vehicle.model}'),
+                              subtitle: Text(
+                                '${vehicle.currency} ${vehicle.price.toStringAsFixed(2)}',
+                              ),
+                              trailing: const Icon(Icons.chevron_right),
+                              onTap: () {
+                                inventoryProvider.selectVehicle(vehicle);
+                                context.push('/seller/inventory/${vehicle.id}');
+                              },
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: () => context.push(
+                                      '/appointments/create?vehicleId=${Uri.encodeComponent(vehicle.id)}&type=consultation',
+                                    ),
+                                    icon: const Icon(Icons.event, size: 18),
+                                    label: const Text('Cita'),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: () => context.push(
+                                      '/appointments/create?vehicleId=${Uri.encodeComponent(vehicle.id)}&type=test_drive',
+                                    ),
+                                    icon: const Icon(Icons.directions_car, size: 18),
+                                    label: const Text('Prueba'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () {
-                          inventoryProvider.selectVehicle(vehicle);
-                          context.push('/seller/inventory/${vehicle.id}');
-                        },
                       ),
                     );
                   },

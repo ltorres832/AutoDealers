@@ -108,16 +108,16 @@ class InventoryRepository {
 
       // Filtrar por precio y año en memoria (ya que Firestore no soporta múltiples rangos)
       if (minYear != null) {
-        vehicles = vehicles.where((v) => v.year >= minYear!).toList();
+        vehicles = vehicles.where((v) => v.year >= minYear).toList();
       }
       if (maxYear != null) {
-        vehicles = vehicles.where((v) => v.year <= maxYear!).toList();
+        vehicles = vehicles.where((v) => v.year <= maxYear).toList();
       }
       if (minPrice != null) {
-        vehicles = vehicles.where((v) => v.price >= minPrice!).toList();
+        vehicles = vehicles.where((v) => v.price >= minPrice).toList();
       }
       if (maxPrice != null) {
-        vehicles = vehicles.where((v) => v.price <= maxPrice!).toList();
+        vehicles = vehicles.where((v) => v.price <= maxPrice).toList();
       }
 
       return vehicles;

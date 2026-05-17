@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuth, billingTenantId } from '@/lib/auth';
 import { getFirestore } from '@autodealers/core';
 import { getSubscriptionByTenantId } from '@autodealers/billing';
 
@@ -25,13 +25,14 @@ export async function GET(request: NextRequest) {
     const tenantDoc = await db.collection('tenants').doc(auth.tenantId).get();
     const tenantData = tenantDoc.exists ? tenantDoc.data() : null;
 
-    // Obtener suscripción
-    const subscription = await getSubscriptionByTenantId(auth.tenantId);
+    const billTid = billingTenantId(auth) ?? auth.tenantId;
+    // Obtener suscripción (facturación en tenant principal)
+    const subscription = await getSubscriptionByTenantId(billTid!);
 
-    // Buscar todas las suscripciones del tenant
+    // Buscar todas las suscripciones del tenant de facturación
     const allSubscriptions = await db
       .collection('subscriptions')
-      .where('tenantId', '==', auth.tenantId)
+      .where('tenantId', '==', billTid)
       .get();
 
     // Obtener membresía si existe

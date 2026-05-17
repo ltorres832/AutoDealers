@@ -2,6 +2,94 @@
 
 import { getFirestore } from '@autodealers/shared';
 
+const GRAPH_RETRIES = 3;
+const GRAPH_BASE_DELAY_MS = 1200;
+
+/** Descarga de URL pública (p. ej. Firebase Storage) hacia el servidor antes de subir a Graph. */
+const REMOTE_IMAGE_RETRIES = 3;
+const REMOTE_IMAGE_BASE_DELAY_MS = 1000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function remoteImageFetchRetryable(status: number): boolean {
+  return (
+    status === 429 ||
+    status === 408 ||
+    status === 500 ||
+    status === 502 ||
+    status === 503 ||
+    status === 504
+  );
+}
+
+/**
+ * Descarga bytes de una URL de imagen con reintentos (red intermitente, 5xx del CDN, 429).
+ */
+async function fetchRemoteImageBlobWithRetry(imageUrl: string): Promise<Blob> {
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt < REMOTE_IMAGE_RETRIES; attempt++) {
+    try {
+      const res = await fetch(imageUrl, { redirect: 'follow' });
+      if (res.ok) {
+        return await res.blob();
+      }
+      const msg = `No se pudo descargar la imagen (${res.status} ${res.statusText || ''})`.trim();
+      lastError = new Error(msg);
+      if (!remoteImageFetchRetryable(res.status) || attempt === REMOTE_IMAGE_RETRIES - 1) {
+        throw lastError;
+      }
+    } catch (e) {
+      if (e instanceof Error && e.message.startsWith('No se pudo descargar')) {
+        throw e;
+      }
+      lastError = e instanceof Error ? e : new Error('Error de red al descargar la imagen');
+      if (attempt === REMOTE_IMAGE_RETRIES - 1) {
+        throw lastError;
+      }
+    }
+    await sleep(REMOTE_IMAGE_BASE_DELAY_MS * Math.pow(2, attempt));
+  }
+  throw lastError ?? new Error('Error al descargar la imagen');
+}
+
+function graphResponseRetryable(status: number, body: { error?: { code?: number } }): boolean {
+  if (status === 429 || status === 500 || status === 502 || status === 503 || status === 408) return true;
+  const c = body?.error?.code;
+  if (typeof c === 'number' && (c === 4 || c === 17 || c === 32 || c === 613 || c === 80001 || c === 80003)) return true;
+  return false;
+}
+
+async function fetchGraphWithRetry(url: string, init: RequestInit): Promise<Response> {
+  let last: Response | null = null;
+  for (let attempt = 0; attempt < GRAPH_RETRIES; attempt++) {
+    let res: Response;
+    try {
+      res = await fetch(url, init);
+    } catch {
+      if (attempt === GRAPH_RETRIES - 1) {
+        throw new Error('Error de red al contactar Graph API');
+      }
+      await sleep(GRAPH_BASE_DELAY_MS * (attempt + 1));
+      continue;
+    }
+    last = res;
+    if (res.ok) return res;
+    let body: { error?: { code?: number; message?: string } } = {};
+    try {
+      body = (await res.clone().json()) as { error?: { code?: number; message?: string } };
+    } catch {
+      /* ignore */
+    }
+    if (!graphResponseRetryable(res.status, body) || attempt === GRAPH_RETRIES - 1) {
+      return res;
+    }
+    await sleep(GRAPH_BASE_DELAY_MS * Math.pow(2, attempt));
+  }
+  return last!;
+}
+
 export interface PostContent {
   text: string;
   imageUrl?: string;
@@ -48,12 +136,19 @@ export class SocialPublisherService {
       const integrationData = integrationSnapshot.docs[0].data();
       const credentials = integrationData.credentials;
 
-      if (!credentials?.accessToken) {
+      const accessToken =
+        typeof credentials?.pageAccessToken === 'string' && credentials.pageAccessToken.trim()
+          ? credentials.pageAccessToken.trim()
+          : typeof credentials?.accessToken === 'string' && credentials.accessToken.trim()
+            ? credentials.accessToken.trim()
+            : '';
+
+      if (!accessToken) {
         return null;
       }
 
       return {
-        accessToken: credentials.accessToken,
+        accessToken,
         pageId: credentials.pageId,
         instagramId: credentials.instagramId,
         pageName: credentials.pageName,
@@ -108,7 +203,7 @@ export class SocialPublisherService {
       }
 
       // Publicar en la página
-      const response = await fetch(
+      const response = await fetchGraphWithRetry(
         `https://graph.facebook.com/v18.0/${integration.pageId}/feed`,
         {
           method: 'POST',
@@ -185,7 +280,7 @@ export class SocialPublisherService {
       );
 
       // Publicar en Instagram
-      const response = await fetch(
+      const response = await fetchGraphWithRetry(
         `https://graph.facebook.com/v18.0/${integration.instagramId}/media_publish`,
         {
           method: 'POST',
@@ -229,9 +324,7 @@ export class SocialPublisherService {
     pageId: string,
     imageUrl: string
   ): Promise<string> {
-    // Descargar la imagen
-    const imageResponse = await fetch(imageUrl);
-    const imageBlob = await imageResponse.blob();
+    const imageBlob = await fetchRemoteImageBlobWithRetry(imageUrl);
 
     // Crear form data
     const formData = new FormData();
@@ -239,7 +332,7 @@ export class SocialPublisherService {
     formData.append('published', 'false');
 
     // Subir a Facebook
-    const uploadResponse = await fetch(
+    const uploadResponse = await fetchGraphWithRetry(
       `https://graph.facebook.com/v18.0/${pageId}/photos`,
       {
         method: 'POST',
@@ -268,7 +361,7 @@ export class SocialPublisherService {
     imageUrl: string,
     caption: string
   ): Promise<string> {
-    const response = await fetch(
+    const response = await fetchGraphWithRetry(
       `https://graph.facebook.com/v18.0/${instagramId}/media`,
       {
         method: 'POST',

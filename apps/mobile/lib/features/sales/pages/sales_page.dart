@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import '../services/sales_service.dart';
 import '../../../core/models/sale.dart';
 import 'package:intl/intl.dart';

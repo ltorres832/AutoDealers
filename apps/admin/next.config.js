@@ -32,15 +32,24 @@ const nextConfig = {
     },
   },
 
-  // Headers para mejorar el rendimiento
+  // Headers: el logo en /brand no debe ir con caché “immutable” (si no, nunca se actualiza en el navegador).
   async headers() {
     return [
       {
-        source: '/:all*(svg|jpg|png|woff|woff2)',
+        source: '/brand/:path*',
         headers: [
           {
             key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
+            value: 'public, max-age=0, must-revalidate',
+          },
+        ],
+      },
+      {
+        source: '/:all*(svg|jpg|jpeg|png|webp|woff|woff2)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=3600, stale-while-revalidate=86400',
           },
         ],
       },

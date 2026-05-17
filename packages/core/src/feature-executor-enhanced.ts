@@ -138,6 +138,7 @@ function isStandardAction(action: string): boolean {
     'requestSupport', 'requestTraining', 'customizeBranding', 'useMobileApp',
     'useOfflineMode', 'requestBackup', 'useComplianceTools',
     'viewAdvancedAnalytics', 'runABTest', 'useSEOTools', 'createCustomIntegration',
+    'publishFreePromotion', 'useCorporateEmail', 'requestCustomerDocuments', 'useFIModule',
   ];
 
   return standardActions.includes(action as FeatureAction);

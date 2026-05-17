@@ -508,7 +508,7 @@ class _MultiDealerRegisterPageState extends State<MultiDealerRegisterPage> {
                             const SelectableText('No hay planes Multi-Dealer disponibles. Contacta al administrador.')
                           else
                             DropdownButtonFormField<String>(
-                              value: _selectedMembershipId,
+                              initialValue: _selectedMembershipId,
                               decoration: const InputDecoration(
                                 labelText: 'Plan Multi-Dealer *',
                                 border: OutlineInputBorder(),

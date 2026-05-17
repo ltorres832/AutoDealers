@@ -11,6 +11,8 @@ const db = getFirestore();
 interface CredentialsConfig {
   stripeSecretKey?: string;
   stripeWebhookSecret?: string;
+  /** Opcional: signing secret del endpoint de Stripe que apunta a la app Advertiser */
+  stripeAdvertiserWebhookSecret?: string;
   stripePublishableKey?: string;
   openaiApiKey?: string;
   metaAppId?: string;

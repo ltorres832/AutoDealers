@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getFirestore } from '@autodealers/core';
+import { getFirestore, encodeSocialOAuthState } from '@autodealers/core';
 import * as admin from 'firebase-admin';
 
 const db = getFirestore();
@@ -137,6 +137,14 @@ export async function POST(request: NextRequest) {
     if (action === 'connect') {
       // Para integraciones manuales (WhatsApp), guardar las credenciales
       if (type === 'whatsapp' && credentials) {
+        const cred = credentials as Record<string, unknown>;
+        const phoneNumberId = String(
+          cred.phoneNumberId ?? cred.phone_number_id ?? ''
+        ).trim();
+        const accessToken = String(
+          cred.accessToken ?? cred.longLivedUserToken ?? ''
+        ).trim();
+
         const existingSnapshot = await db
           .collection('tenants')
           .doc(auth.tenantId)
@@ -145,11 +153,18 @@ export async function POST(request: NextRequest) {
           .get();
 
         let integrationRef;
+        const whatsappFlat: Record<string, unknown> = {
+          leadOwnerUserId: auth.userId,
+        };
+        if (phoneNumberId) whatsappFlat.phoneNumberId = phoneNumberId;
+        if (accessToken) whatsappFlat.accessToken = accessToken;
+
         if (!existingSnapshot.empty) {
           integrationRef = existingSnapshot.docs[0].ref;
           await integrationRef.update({
             status: 'active',
             credentials: credentials,
+            ...whatsappFlat,
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           });
         } else {
@@ -158,6 +173,7 @@ export async function POST(request: NextRequest) {
             type: 'whatsapp',
             status: 'active',
             credentials: credentials,
+            ...whatsappFlat,
             settings: {},
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -223,10 +239,15 @@ export async function POST(request: NextRequest) {
 
           const redirectUri = `${baseUrl}/api/settings/integrations/callback`;
           const scope = type === 'facebook' 
-            ? 'pages_manage_posts,pages_read_engagement,pages_messaging,instagram_basic,instagram_content_publish' 
-            : 'instagram_basic,instagram_content_publish,instagram_manage_messages';
+            ? 'pages_show_list,pages_manage_posts,pages_read_engagement,pages_messaging,instagram_basic,instagram_content_publish,ads_read,ads_management' 
+            : 'instagram_basic,instagram_content_publish,instagram_manage_messages,pages_show_list';
           
-          const authUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&response_type=code&state=${type}_${auth.tenantId}`;
+          const statePayload = encodeSocialOAuthState({
+            type,
+            tenantId: auth.tenantId,
+            leadOwnerUserId: auth.userId,
+          });
+          const authUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&response_type=code&state=${encodeURIComponent(statePayload)}`;
           
           console.log('Generando URL de OAuth:', { type, appId, redirectUri, scope });
           

@@ -1,6 +1,7 @@
 // Endpoint de debug para verificar solicitudes F&I en Firestore (Dealer)
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
+import { requireTenantFeature } from '@/lib/membership-middleware';
 import { getFirestore } from '@autodealers/core';
 import * as admin from 'firebase-admin';
 
@@ -10,6 +11,9 @@ export async function GET(request: NextRequest) {
     if (!user || !user.tenantId) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
+
+    const fiGate = await requireTenantFeature(user.tenantId, 'useFIModule');
+    if (fiGate) return fiGate;
 
     const db = getFirestore();
     

@@ -7,6 +7,8 @@ import ContractUploadManager from '@/components/ContractUploadManager';
 import ContractSigningModal from '@/components/ContractSigningModal';
 import ContractTemplateSelector from '@/components/ContractTemplateSelector';
 import CustomerFileManager from '@/components/CustomerFileManager';
+import VehicleListingDispositionModal from '@/components/VehicleListingDispositionModal';
+import type { VehicleListingAction } from '@autodealers/inventory/client';
 
 interface Vehicle {
   id: string;
@@ -100,6 +102,13 @@ interface FormData {
     mileage: string;
     condition: 'excellent' | 'good' | 'fair' | 'poor';
     value: string;
+    vin?: string;
+    color?: string;
+    payoffBalance?: string;
+    lienholder?: string;
+    titleStatus?: 'clean' | 'salvage' | 'rebuilt' | 'unknown' | '';
+    accidentHistory?: string;
+    notes?: string;
   };
 }
 
@@ -115,6 +124,8 @@ export default function AdvancedMarkAsSoldModal({
   onSuccess,
 }: AdvancedMarkAsSoldModalProps) {
   const [currentStep, setCurrentStep] = useState(1);
+  const [listingMode, setListingMode] = useState<'dispose' | 'sold_options' | null>(null);
+  const [listingBusy, setListingBusy] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     leadId: '',
     buyerFullName: '',
@@ -441,6 +452,49 @@ export default function AdvancedMarkAsSoldModal({
     setCurrentStep(prev => Math.max(prev - 1, 1));
   };
 
+  const vehicleLabel = `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
+
+  async function applyListingDisposition(
+    action: VehicleListingAction | 'keep_active',
+    showPublicSoldBadge?: boolean
+  ) {
+    setListingBusy(true);
+    try {
+      const res = await fetch(`/api/vehicles/${vehicle.id}/listing`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, showPublicSoldBadge }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert((err as { error?: string }).error || 'No se pudo actualizar el anuncio');
+        return false;
+      }
+      return true;
+    } catch {
+      alert('Error al actualizar el anuncio del vehículo');
+      return false;
+    } finally {
+      setListingBusy(false);
+    }
+  }
+
+  async function handleListingConfirm(
+    action: VehicleListingAction | 'keep_active',
+    showPublicSoldBadge?: boolean
+  ) {
+    if (listingMode === 'dispose' && action === 'sold') {
+      setListingMode('sold_options');
+      return;
+    }
+    const ok = await applyListingDisposition(action, showPublicSoldBadge);
+    if (!ok) return;
+    setListingMode(null);
+    onSuccess();
+    onClose();
+  }
+
   const handleSubmit = async () => {
     if (!validateStep(currentStep)) {
       return;
@@ -505,10 +559,8 @@ export default function AdvancedMarkAsSoldModal({
       });
 
       if (response.ok) {
-        // Limpiar borrador
         localStorage.removeItem(`sale_draft_${vehicle.id}`);
-        alert('Vehículo marcado como vendido exitosamente');
-        onSuccess();
+        setListingMode('dispose');
       } else {
         const error = await response.json();
         alert(error.error || 'Error al marcar como vendido');
@@ -898,7 +950,22 @@ export default function AdvancedMarkAsSoldModal({
             type="checkbox"
             id="hasTradeIn"
             checked={formData.hasTradeIn}
-            onChange={(e) => setFormData(prev => ({ ...prev, hasTradeIn: e.target.checked }))}
+            onChange={(e) =>
+              setFormData((prev) => ({
+                ...prev,
+                hasTradeIn: e.target.checked,
+                tradeInDetails: e.target.checked
+                  ? prev.tradeInDetails || {
+                      make: '',
+                      model: '',
+                      year: '',
+                      mileage: '',
+                      condition: 'good',
+                      value: '',
+                    }
+                  : undefined,
+              }))
+            }
             className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
           />
           <label htmlFor="hasTradeIn" className="ml-2 text-sm font-medium text-gray-700">
@@ -981,6 +1048,97 @@ export default function AdvancedMarkAsSoldModal({
                 onChange={(e) => setFormData(prev => ({
                   ...prev,
                   tradeInDetails: { ...prev.tradeInDetails, value: e.target.value } as any,
+                }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">VIN</label>
+              <input
+                type="text"
+                value={formData.tradeInDetails?.vin || ''}
+                onChange={(e) => setFormData(prev => ({
+                  ...prev,
+                  tradeInDetails: { ...prev.tradeInDetails, vin: e.target.value } as any,
+                }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
+              <input
+                type="text"
+                value={formData.tradeInDetails?.color || ''}
+                onChange={(e) => setFormData(prev => ({
+                  ...prev,
+                  tradeInDetails: { ...prev.tradeInDetails, color: e.target.value } as any,
+                }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Saldo a liquidar (payoff)</label>
+              <input
+                type="number"
+                step="0.01"
+                value={formData.tradeInDetails?.payoffBalance || ''}
+                onChange={(e) => setFormData(prev => ({
+                  ...prev,
+                  tradeInDetails: { ...prev.tradeInDetails, payoffBalance: e.target.value } as any,
+                }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Acreedor (lienholder)</label>
+              <input
+                type="text"
+                value={formData.tradeInDetails?.lienholder || ''}
+                onChange={(e) => setFormData(prev => ({
+                  ...prev,
+                  tradeInDetails: { ...prev.tradeInDetails, lienholder: e.target.value } as any,
+                }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Título</label>
+              <select
+                value={formData.tradeInDetails?.titleStatus || ''}
+                onChange={(e) => setFormData(prev => ({
+                  ...prev,
+                  tradeInDetails: { ...prev.tradeInDetails, titleStatus: e.target.value as any } as any,
+                }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">—</option>
+                <option value="clean">Limpio</option>
+                <option value="salvage">Salvage</option>
+                <option value="rebuilt">Reconstruido</option>
+                <option value="unknown">Desconocido</option>
+              </select>
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Historial de accidentes</label>
+              <input
+                type="text"
+                value={formData.tradeInDetails?.accidentHistory || ''}
+                onChange={(e) => setFormData(prev => ({
+                  ...prev,
+                  tradeInDetails: { ...prev.tradeInDetails, accidentHistory: e.target.value } as any,
+                }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Ej. sin reportes / detallar"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Notas trade-in</label>
+              <textarea
+                rows={2}
+                value={formData.tradeInDetails?.notes || ''}
+                onChange={(e) => setFormData(prev => ({
+                  ...prev,
+                  tradeInDetails: { ...prev.tradeInDetails, notes: e.target.value } as any,
                 }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
@@ -1615,8 +1773,17 @@ export default function AdvancedMarkAsSoldModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-white rounded-lg max-w-5xl w-full max-h-[95vh] overflow-y-auto my-8">
+    <>
+    <div
+      className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto ${
+        listingMode ? 'pointer-events-none' : ''
+      }`}
+    >
+      <div
+        className={`bg-white rounded-lg max-w-5xl w-full max-h-[95vh] overflow-y-auto my-8 ${
+          listingMode ? 'opacity-40' : ''
+        }`}
+      >
         <div className="sticky top-0 bg-white border-b p-6 z-10">
           <div className="flex justify-between items-start mb-4">
             <div>
@@ -1626,8 +1793,10 @@ export default function AdvancedMarkAsSoldModal({
               </p>
             </div>
             <button
+              type="button"
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 text-2xl"
+              disabled={Boolean(listingMode) || loading}
+              className="text-gray-400 hover:text-gray-600 text-2xl disabled:opacity-30"
             >
               ×
             </button>
@@ -1661,7 +1830,7 @@ export default function AdvancedMarkAsSoldModal({
                 type="button"
                 onClick={onClose}
                 className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-                disabled={loading}
+                disabled={loading || Boolean(listingMode)}
               >
                 Cancelar
               </button>
@@ -1688,6 +1857,22 @@ export default function AdvancedMarkAsSoldModal({
         </form>
       </div>
     </div>
+
+    {listingMode ? (
+      <VehicleListingDispositionModal
+        vehicleLabel={vehicleLabel}
+        mode={listingMode}
+        variant="after_sale"
+        onClose={() => void handleListingConfirm('sold', false)}
+        onConfirm={(action, showPublic) => void handleListingConfirm(action, showPublic)}
+      />
+    ) : null}
+    {listingBusy ? (
+      <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 pointer-events-none">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-white" />
+      </div>
+    ) : null}
+    </>
   );
 }
 

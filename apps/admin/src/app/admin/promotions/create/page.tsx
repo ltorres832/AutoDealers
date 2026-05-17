@@ -176,7 +176,7 @@ export default function CreatePromotionPage() {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="mb-6">
-        <BackButton href="/admin/all-promotions" label="Volver a Promociones" />
+        <BackButton label="Volver" />
       </div>
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Crear Promoción</h1>

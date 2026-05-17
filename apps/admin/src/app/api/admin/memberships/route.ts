@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { createMembership, getMemberships, updateMembership, getMembershipById } from '@autodealers/billing';
 import { getFirestore } from '@autodealers/core';
+import { assertUniqueMembershipPrice } from '@/lib/membership-features-admin';
 
 const db = getFirestore();
 
@@ -166,6 +167,24 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { name, type, price, currency, billingCycle, features, isActive, createStripeProduct } = body;
+
+    const priceDup = await assertUniqueMembershipPrice({
+      db,
+      type,
+      currency,
+      billingCycle,
+      price: Number(price),
+    });
+    if (priceDup.ok === false) {
+      return NextResponse.json(
+        {
+          error:
+            'Ya existe un plan con el mismo precio para este tipo, moneda y ciclo. Cada membresía debe tener un precio distinto.',
+          duplicateId: priceDup.duplicateId,
+        },
+        { status: 409 }
+      );
+    }
 
     let stripePriceId = body.stripePriceId || '';
 

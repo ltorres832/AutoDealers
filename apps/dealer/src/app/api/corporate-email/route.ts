@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
+import { requireTenantFeature } from '@/lib/membership-middleware';
 import {
   createCorporateEmail,
   getCorporateEmails,
@@ -12,6 +13,9 @@ export async function GET(request: NextRequest) {
     if (!auth || !auth.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const emailGateGet = await requireTenantFeature(auth.tenantId, 'useCorporateEmail');
+    if (emailGateGet) return emailGateGet;
 
     const searchParams = request.nextUrl.searchParams;
     const userId = searchParams.get('userId');
@@ -57,7 +61,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verificar permisos básicos (el dealer puede crear emails para sus usuarios)
+    const emailGate = await requireTenantFeature(auth.tenantId, 'useCorporateEmail');
+    if (emailGate) return emailGate;
 
     // Crear email corporativo (creado por dealer)
     const email = await createCorporateEmail(

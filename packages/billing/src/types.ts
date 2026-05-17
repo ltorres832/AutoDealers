@@ -19,6 +19,7 @@ export interface MembershipFeatures {
   maxInventory?: number; // null = ilimitado
   maxCampaigns?: number; // null = ilimitado
   maxPromotions?: number; // null = ilimitado
+  maxLeadsPerMonth?: number; // null = ilimitado
   maxAppointmentsPerMonth?: number; // null = ilimitado
   maxStorageGB?: number; // Almacenamiento en GB
   maxApiCallsPerMonth?: number; // Llamadas a API
@@ -78,9 +79,18 @@ export interface MembershipFeatures {
   emailSignatureBasic: boolean; // Firma básica de email
   emailSignatureAdvanced: boolean; // Firma avanzada de email (HTML, imágenes)
   emailAliases: boolean; // Si permite crear alias (ej: ventas@ para juan@)
+  /**
+   * Expediente CRM: solicitar documentos al cliente (portal / lista de requeridos).
+   * Si es `false`, se bloquea crear nuevas solicitudes. Omitido o `true` = permitido (retrocompatibilidad).
+   */
+  customerDocumentRequestsEnabled?: boolean;
+  /** Máximo de solicitudes de documento al mes (expediente CRM); null/omitido = sin tope mensual */
+  maxCustomerDocumentRequestsPerMonth?: number | null;
   // Membresías Multi Dealer
   multiDealerEnabled?: boolean; // Si permite múltiples dealers (requiere aprobación admin)
-  maxDealers?: number; // Límite de dealers (1, 2, 3 o null = ilimitado para Multi Dealer 3)
+  /** @deprecated usar multiDealerEnabled; mantener solo por datos históricos */
+  multipleDealers?: boolean;
+  maxDealers?: number | null; // Concesionarios en la red (principal + asociados); null/omitido = ilimitado
   requiresAdminApproval?: boolean; // Si requiere aprobación de admin (para multi_dealer)
 }
 

@@ -162,10 +162,23 @@ export function initializeFirebase(): any {
       const admin = getAdmin();
       const appOptions: any = { storageBucket, projectId };
 
-      if (projectId && clientEmail && privateKey) {
+      const isCloudRun = !!(process.env.K_SERVICE || process.env.K_REVISION);
+
+      if (isCloudRun) {
+        try {
+          appOptions.credential = admin.credential.applicationDefault();
+          console.log('✅ Firebase Admin: ADC (Cloud Run / App Hosting)');
+        } catch (e: any) {
+          console.warn('⚠️ ADC Cloud Run falló:', e?.message);
+        }
+      }
+
+      if (!appOptions.credential && projectId && clientEmail && privateKey) {
         appOptions.credential = admin.credential.cert({ projectId, clientEmail, privateKey });
         console.log('✅ Firebase Admin: Inicializado con certificado explícito');
-      } else {
+      }
+
+      if (!appOptions.credential) {
         const effectiveProjectId = projectId || process.env.GOOGLE_CLOUD_PROJECT || 'autodealers-7f62e';
         console.log('ℹ️ Firebase Admin: Usando Application Default Credentials (ADC)');
         appOptions.projectId = effectiveProjectId;

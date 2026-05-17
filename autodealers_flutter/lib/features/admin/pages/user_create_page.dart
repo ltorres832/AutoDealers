@@ -92,7 +92,7 @@ class _AdminUserCreatePageState extends State<AdminUserCreatePage> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              value: _role,
+              initialValue: _role,
               decoration: const InputDecoration(labelText: 'Rol'),
               items: const [
                 DropdownMenuItem(value: 'admin', child: Text('Admin')),
@@ -106,7 +106,7 @@ class _AdminUserCreatePageState extends State<AdminUserCreatePage> {
               builder: (context, adminProvider, _) {
                 final tenants = adminProvider.tenants;
                 return DropdownButtonFormField<String>(
-                  value: _tenantId,
+                  initialValue: _tenantId,
                   decoration: const InputDecoration(labelText: 'Tenant (opcional)'),
                   items: [
                     const DropdownMenuItem(value: null, child: Text('— Ninguno —')),

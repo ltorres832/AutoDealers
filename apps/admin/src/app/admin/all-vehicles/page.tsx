@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 
 interface Vehicle {
@@ -34,6 +34,17 @@ export default function AdminAllVehiclesPage() {
     status: '',
     search: '',
   });
+  const hydratedTenantFromUrl = useRef(false);
+
+  useEffect(() => {
+    if (hydratedTenantFromUrl.current || typeof window === 'undefined') return;
+    const q = new URLSearchParams(window.location.search);
+    const t = q.get('tenantId');
+    if (t) {
+      setFilters((f) => ({ ...f, tenantId: t }));
+      hydratedTenantFromUrl.current = true;
+    }
+  }, []);
 
   useEffect(() => {
     fetchVehicles();
@@ -450,12 +461,20 @@ export default function AdminAllVehiclesPage() {
                   {new Date(vehicle.createdAt).toLocaleDateString()}
                 </td>
                 <td className="px-6 py-4">
-                  <a
-                    href={`/admin/tenants/${vehicle.tenantId}`}
-                    className="text-primary-600 hover:text-primary-700 text-sm"
-                  >
-                    Ver Tenant
-                  </a>
+                  <div className="flex flex-col gap-1">
+                    <Link
+                      href={`/admin/vehicles/${vehicle.tenantId}/${vehicle.id}/edit`}
+                      className="text-primary-600 hover:text-primary-700 text-sm font-medium"
+                    >
+                      Editar
+                    </Link>
+                    <Link
+                      href={`/admin/tenants/${vehicle.tenantId}`}
+                      className="text-gray-600 hover:text-gray-800 text-sm"
+                    >
+                      Ver tenant
+                    </Link>
+                  </div>
                 </td>
               </tr>
               ))}

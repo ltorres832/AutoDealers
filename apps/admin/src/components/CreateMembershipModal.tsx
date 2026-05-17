@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { fetchWithAuth } from '@/lib/fetch-with-auth';
 
 interface CreateMembershipModalProps {
   onClose: () => void;
@@ -100,6 +101,10 @@ export default function CreateMembershipModal({ onClose, onSuccess }: CreateMemb
       emailSignatureBasic: false,
       emailSignatureAdvanced: false,
       emailAliases: false,
+      multiDealerEnabled: false,
+      maxDealers: '',
+      requiresAdminApproval: false,
+      multipleDealers: false,
     },
   });
   const [showAllFeatures, setShowAllFeatures] = useState(false);
@@ -111,7 +116,7 @@ export default function CreateMembershipModal({ onClose, onSuccess }: CreateMemb
 
   async function fetchDynamicFeatures() {
     try {
-      const response = await fetch('/api/admin/dynamic-features');
+      const response = await fetchWithAuth('/api/admin/dynamic-features');
       const data = await response.json();
       setDynamicFeatures(data.features || []);
       
@@ -145,7 +150,7 @@ export default function CreateMembershipModal({ onClose, onSuccess }: CreateMemb
     setLoading(true);
 
     try {
-      const response = await fetch('/api/admin/memberships', {
+      const response = await fetchWithAuth('/api/admin/memberships', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -217,6 +222,21 @@ export default function CreateMembershipModal({ onClose, onSuccess }: CreateMemb
             emailSignatureBasic: formData.features.emailSignatureBasic,
             emailSignatureAdvanced: formData.features.emailSignatureAdvanced,
             emailAliases: formData.features.emailAliases,
+            multiDealerEnabled: formData.type === 'dealer' ? formData.features.multiDealerEnabled : false,
+            maxDealers:
+              formData.type === 'dealer' && formData.features.multiDealerEnabled
+                ? formData.features.maxDealers === ''
+                  ? null
+                  : parseInt(String(formData.features.maxDealers), 10) || null
+                : undefined,
+            requiresAdminApproval:
+              formData.type === 'dealer' && formData.features.multiDealerEnabled
+                ? formData.features.requiresAdminApproval
+                : false,
+            multipleDealers:
+              formData.type === 'dealer' && formData.features.multiDealerEnabled
+                ? formData.features.multipleDealers
+                : false,
             // Features dinámicas - se agregan automáticamente
             ...dynamicFeatures.reduce((acc, feature) => {
               const value = (formData.features as any)[feature.key];
@@ -619,6 +639,65 @@ export default function CreateMembershipModal({ onClose, onSuccess }: CreateMemb
               </div>
             </div>
           </div>
+
+          {formData.type === 'dealer' && (
+            <div className="border rounded-lg p-4 bg-slate-50">
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">Red multi-concesionario</h3>
+              <p className="text-xs text-gray-600 mb-3">
+                No es un tipo aparte: sigue siendo un plan <strong>Dealer</strong> con permisos extra. Así aparece en registro multi-dealer y en precios públicos cuando corresponde.
+              </p>
+              <FeatureCheckbox
+                label="Plan multi-concesionario (varias sedes / red)"
+                checked={formData.features.multiDealerEnabled}
+                onChange={(v) =>
+                  setFormData({
+                    ...formData,
+                    features: { ...formData.features, multiDealerEnabled: v },
+                  })
+                }
+              />
+              {formData.features.multiDealerEnabled && (
+                <div className="mt-3 space-y-3 pl-1">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Máx. concesionarios en la red (vacío = ilimitado)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={formData.features.maxDealers}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          features: { ...formData.features, maxDealers: e.target.value },
+                        })
+                      }
+                      className="w-full border rounded px-2 py-1 text-sm"
+                      placeholder="Ilimitado"
+                    />
+                  </div>
+                  <FeatureCheckbox
+                    label="Alta multi-dealer requiere aprobación administrativa"
+                    checked={formData.features.requiresAdminApproval}
+                    onChange={(v) =>
+                      setFormData({
+                        ...formData,
+                        features: { ...formData.features, requiresAdminApproval: v },
+                      })
+                    }
+                  />
+                  <FeatureCheckbox
+                    label="Compat. legado: multipleDealers"
+                    checked={formData.features.multipleDealers}
+                    onChange={(v) =>
+                      setFormData({
+                        ...formData,
+                        features: { ...formData.features, multipleDealers: v },
+                      })
+                    }
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Features Dinámicas */}
           {dynamicFeatures.length > 0 && (

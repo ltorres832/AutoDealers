@@ -41,7 +41,7 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 DropdownButtonFormField<String?>(
-                  value: _selectedTenantId,
+                  initialValue: _selectedTenantId,
                   decoration: const InputDecoration(
                     labelText: 'Tenant (opcional)',
                     border: OutlineInputBorder(),
@@ -58,7 +58,7 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: _reportType,
+                  initialValue: _reportType,
                   decoration: const InputDecoration(
                     labelText: 'Tipo de Reporte',
                     border: OutlineInputBorder(),

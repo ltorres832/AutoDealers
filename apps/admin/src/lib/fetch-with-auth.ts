@@ -26,6 +26,7 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
 
   return fetch(url, {
     ...options,
+    credentials: options.credentials ?? 'include',
     headers,
   });
 }

@@ -1,8 +1,10 @@
-﻿export const dynamic = 'force-dynamic';
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getFirestore, getStorage } from '@autodealers/core';
+import { getFirestore } from '@autodealers/core';
 import * as admin from 'firebase-admin';
+import { parsePlatformBrandingFirestoreData } from '@autodealers/shared/platform-branding-client';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,24 +15,30 @@ export async function GET(request: NextRequest) {
 
     const db = getFirestore();
     const brandingDoc = await db.collection('admin_settings').doc('branding').get();
-    
+
     if (brandingDoc.exists) {
-      const data = brandingDoc.data();
+      const raw = brandingDoc.data() as Record<string, unknown> | undefined;
+      const p = parsePlatformBrandingFirestoreData(raw, raw?.updatedAt);
       return NextResponse.json({
-        logo: data?.logo || null,
-        companyName: data?.companyName || 'AutoDealers',
-        adminName: data?.adminName || 'Administrador',
-        adminPhoto: data?.adminPhoto || null,
+        logo: p.logo,
+        favicon: p.favicon,
+        companyName: p.companyName,
+        adminName: p.adminName,
+        adminPhoto: p.adminPhoto || null,
+        logoVersion: p.logoVersion,
       });
     }
 
+    const p = parsePlatformBrandingFirestoreData(undefined, undefined);
     return NextResponse.json({
-      logo: null,
-      companyName: 'AutoDealers',
-      adminName: 'Administrador',
-      adminPhoto: null,
+      logo: p.logo,
+      favicon: p.favicon,
+      companyName: p.companyName,
+      adminName: p.adminName,
+      adminPhoto: p.adminPhoto || null,
+      logoVersion: p.logoVersion,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching branding:', error);
     return NextResponse.json(
       { error: 'Error al cargar configuración de marca' },
@@ -47,20 +55,24 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { logo, companyName, adminName, adminPhoto } = body;
+    const { logo, favicon, companyName, adminName, adminPhoto } = body;
 
     const db = getFirestore();
-    await db.collection('admin_settings').doc('branding').set({
-      logo: logo || null,
-      companyName: companyName || 'AutoDealers',
-      adminName: adminName || 'Administrador',
-      adminPhoto: adminPhoto || null,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedBy: auth.userId,
-    }, { merge: true });
+    await db.collection('admin_settings').doc('branding').set(
+      {
+        logo: logo || null,
+        favicon: favicon || null,
+        companyName: companyName || 'AutoDealers',
+        adminName: adminName || 'Administrador',
+        adminPhoto: adminPhoto || null,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedBy: auth.userId,
+      },
+      { merge: true }
+    );
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error updating branding:', error);
     return NextResponse.json(
       { error: 'Error al actualizar configuración de marca' },

@@ -1071,7 +1071,7 @@ function PreQualificationsSection() {
         {preQualifications.map((pq) => (
           <Link
             key={pq.id}
-            href={`/leads/${pq.leadId || '#'}`}
+            href={pq.leadId ? `/leads/${pq.leadId}` : '/leads'}
             className="block p-4 border rounded hover:bg-gray-50"
           >
             <div className="flex items-center justify-between">

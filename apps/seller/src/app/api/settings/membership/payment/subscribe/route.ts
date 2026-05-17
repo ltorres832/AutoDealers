@@ -101,11 +101,20 @@ export async function POST(request: NextRequest) {
     let stripeSubscriptionId: string;
     
     if (subscription?.stripeSubscriptionId) {
-      // Actualizar suscripción existente
+      // Stripe exige el id del *subscription item* (si_...), no el de la suscripción (sub_...).
+      const existingStripeSub = await stripe.subscriptions.retrieve(subscription.stripeSubscriptionId);
+      const primaryItem = existingStripeSub.items.data[0];
+      if (!primaryItem?.id) {
+        return NextResponse.json(
+          { error: 'La suscripción en Stripe no tiene ítems de línea; contacta soporte.' },
+          { status: 400 }
+        );
+      }
       const stripeSubscription = await stripe.subscriptions.update(
         subscription.stripeSubscriptionId,
         {
-          items: [{ id: subscription.stripeSubscriptionId, price: membership.stripePriceId }],
+          items: [{ id: primaryItem.id, price: membership.stripePriceId }],
+          proration_behavior: 'create_prorations',
           default_payment_method: paymentMethodId,
           metadata: {
             tenantId: auth.tenantId,

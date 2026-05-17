@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuth, isDealerPortalRole } from '@/lib/auth';
+import { requireTenantFeature } from '@/lib/membership-middleware';
 import { getFirestore } from '@autodealers/core';
 import * as admin from 'firebase-admin';
 
@@ -237,9 +238,12 @@ async function getFIMetricsDirect(
 export async function GET(request: NextRequest) {
   try {
     const auth = await verifyAuth(request);
-    if (!auth || auth.role !== 'dealer') {
+    if (!auth || !isDealerPortalRole(auth.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const fiGate = await requireTenantFeature(auth.tenantId!, 'useFIModule');
+    if (fiGate) return fiGate;
 
     const { searchParams } = new URL(request.url);
     const startDateStr = searchParams.get('startDate');

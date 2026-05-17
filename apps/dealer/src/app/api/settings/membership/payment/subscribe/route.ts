@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuth, isDealerPortalRole, billingTenantId } from '@/lib/auth';
 import { getStripeInstance, getFirestore } from '@autodealers/core';
 import { getSubscriptionByTenantId } from '@autodealers/billing';
 import { getMembershipById } from '@autodealers/billing';
@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   try {
     const auth = await verifyAuth(request);
-    if (!auth || !auth.tenantId || auth.role !== 'dealer') {
+    if (!auth || !auth.tenantId || !isDealerPortalRole(auth.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -46,7 +46,8 @@ export async function POST(request: NextRequest) {
 
     // Obtener o crear cliente de Stripe
     let customerId: string;
-    const subscription = await getSubscriptionByTenantId(auth.tenantId);
+    const billTid = billingTenantId(auth) ?? auth.tenantId;
+    const subscription = await getSubscriptionByTenantId(billTid!);
     
     if (subscription?.stripeCustomerId) {
       customerId = subscription.stripeCustomerId;
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
         email: userData?.email,
         name: userData?.name || userData?.email,
         metadata: {
-          tenantId: auth.tenantId,
+          tenantId: billTid,
           userId: auth.userId,
         },
       });
@@ -100,14 +101,23 @@ export async function POST(request: NextRequest) {
     let stripeSubscriptionId: string;
     
     if (subscription?.stripeSubscriptionId) {
-      // Actualizar suscripción existente
+      // Stripe exige el id del *subscription item* (si_...), no el de la suscripción (sub_...).
+      const existingStripeSub = await stripe.subscriptions.retrieve(subscription.stripeSubscriptionId);
+      const primaryItem = existingStripeSub.items.data[0];
+      if (!primaryItem?.id) {
+        return NextResponse.json(
+          { error: 'La suscripción en Stripe no tiene ítems de línea; contacta soporte.' },
+          { status: 400 }
+        );
+      }
       const stripeSubscription = await stripe.subscriptions.update(
         subscription.stripeSubscriptionId,
         {
-          items: [{ id: subscription.stripeSubscriptionId, price: membership.stripePriceId }],
+          items: [{ id: primaryItem.id, price: membership.stripePriceId }],
+          proration_behavior: 'create_prorations',
           default_payment_method: paymentMethodId,
           metadata: {
-            tenantId: auth.tenantId,
+            tenantId: billTid!,
             userId: auth.userId,
             membershipId: membershipId,
           },
@@ -127,7 +137,7 @@ export async function POST(request: NextRequest) {
         expand: ['latest_invoice.payment_intent'],
         ...(taxRateId && { default_tax_rates: [taxRateId] }),
         metadata: {
-          tenantId: auth.tenantId,
+          tenantId: billTid,
           userId: auth.userId,
           membershipId: membershipId,
         },
@@ -154,7 +164,7 @@ export async function POST(request: NextRequest) {
       const subscriptionRef = db.collection('subscriptions').doc();
       await subscriptionRef.set({
         id: subscriptionRef.id,
-        tenantId: auth.tenantId,
+        tenantId: billTid,
         userId: auth.userId,
         membershipId: membershipId,
         stripeSubscriptionId: stripeSubscriptionId,

@@ -114,8 +114,7 @@ class VehicleDetailPage extends StatelessWidget {
                           _InfoRow(label: 'Marca', value: vehicle.make),
                           _InfoRow(label: 'Modelo', value: vehicle.model),
                           _InfoRow(label: 'Condición', value: vehicle.condition.name),
-                          if (vehicle.mileage != null)
-                            _InfoRow(label: 'Kilometraje', value: '${vehicle.mileage} km'),
+                          _InfoRow(label: 'Millaje', value: '${vehicle.mileage ?? 0} millas'),
                           if (vehicle.vin != null)
                             _InfoRow(label: 'VIN', value: vehicle.vin!),
                         ],
@@ -189,6 +188,32 @@ class VehicleDetailPage extends StatelessWidget {
                       ),
                     ),
                   const SizedBox(height: 16),
+                  if (vehicle.status == VehicleStatus.available) ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => context.push(
+                              '/appointments/create?vehicleId=${Uri.encodeComponent(vehicle.id)}&type=consultation',
+                            ),
+                            icon: const Icon(Icons.event),
+                            label: const Text('Crear cita (cliente)'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => context.push(
+                              '/appointments/create?vehicleId=${Uri.encodeComponent(vehicle.id)}&type=test_drive',
+                            ),
+                            icon: const Icon(Icons.directions_car),
+                            label: const Text('Prueba de manejo'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   // Acciones
                   Row(
                     children: [

@@ -22,6 +22,8 @@ export interface AdCampaign {
   status: 'draft' | 'active' | 'paused' | 'completed' | 'cancelled';
   adSetId?: string; // ID del ad set en Meta
   adId?: string; // ID del ad en Meta
+  /** Campos extra que el vendedor/dealer quiere recibir en el lead (etiqueta + clave sugerida para el formulario en Meta) */
+  leadCaptureCustomFields?: Array<{ key: string; label: string }>;
   createdAt: Date;
   startedAt?: Date;
   endedAt?: Date;

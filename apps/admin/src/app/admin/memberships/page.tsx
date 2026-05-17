@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { fetchWithAuth } from '@/lib/fetch-with-auth';
 import CreateMembershipModal from '@/components/CreateMembershipModal';
 import ErrorModal from '@/components/ErrorModal';
 import MembershipCard from '@/components/MembershipCard';
@@ -74,6 +75,8 @@ interface Membership {
     emailSignatureBasic?: boolean;
     emailSignatureAdvanced?: boolean;
     emailAliases?: boolean;
+    multiDealerEnabled?: boolean;
+    multipleDealers?: boolean;
   };
   isActive: boolean;
   tenantCount?: number;
@@ -192,7 +195,7 @@ export default function AdminMembershipsPage() {
     }
 
     try {
-      const response = await fetch(`/api/admin/memberships/${membershipId}`, {
+      const response = await fetchWithAuth(`/api/admin/memberships/${membershipId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isActive: !currentStatus }),
@@ -364,6 +367,11 @@ export default function AdminMembershipsPage() {
           <p className="text-gray-600 mt-2">
             Control total sobre todas las membresías y planes
           </p>
+          <p className="text-sm text-gray-500 mt-2 max-w-3xl">
+            Los planes <strong>multi-concesionario</strong> no son un tipo aparte: son planes{' '}
+            <strong>Dealer</strong> con la opción <code className="text-xs bg-gray-100 px-1 rounded">multiDealerEnabled</code>{' '}
+            (se listan aquí como dealer; en la tarjeta verás “Multi Dealer” si aplica).
+          </p>
         </div>
         <div className="flex gap-3">
           <button
@@ -399,6 +407,16 @@ export default function AdminMembershipsPage() {
           <p className="text-blue-700">Membresías cargadas: <strong>{memberships.length}</strong></p>
           <p className="text-blue-700">Dealers: <strong>{memberships.filter(m => m.type === 'dealer').length}</strong></p>
           <p className="text-blue-700">Sellers: <strong>{memberships.filter(m => m.type === 'seller').length}</strong></p>
+          <p className="text-blue-700">
+            Dealer con red multi-concesionario:{' '}
+            <strong>
+              {memberships.filter(
+                (m) =>
+                  m.type === 'dealer' &&
+                  (m.features?.multiDealerEnabled === true || m.features?.multipleDealers === true)
+              ).length}
+            </strong>
+          </p>
           <p className="text-blue-700">Activas: <strong>{memberships.filter(m => m.isActive).length}</strong></p>
           {loading && <p className="text-blue-700">⏳ Cargando...</p>}
         </div>

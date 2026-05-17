@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
+import { requireTenantFeature } from '@/lib/membership-middleware';
 import { getFirestore } from '@autodealers/core';
 import * as admin from 'firebase-admin';
 
@@ -83,6 +84,9 @@ export async function POST(request: NextRequest) {
     if (!auth || !auth.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const fiGate = await requireTenantFeature(auth.tenantId, 'useFIModule');
+    if (fiGate) return fiGate;
 
     const body = await request.json();
     const { requestId, vehiclePrice, downPayment, monthlyPayment } = body;

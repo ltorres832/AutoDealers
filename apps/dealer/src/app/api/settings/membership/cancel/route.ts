@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuth, isDealerPortalRole, billingTenantId } from '@/lib/auth';
 import { getSubscriptionByTenantId } from '@autodealers/billing';
 import { getStripeInstance } from '@autodealers/core';
 import { getFirestore } from '@autodealers/core';
@@ -10,15 +10,16 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   try {
     const auth = await verifyAuth(request);
-    if (!auth || !auth.tenantId || auth.role !== 'dealer') {
+    if (!auth || !auth.tenantId || !isDealerPortalRole(auth.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();
     const { immediately = false, reactivate = false } = body;
 
-    // Obtener suscripción actual
-    const subscription = await getSubscriptionByTenantId(auth.tenantId);
+    const billTid = billingTenantId(auth) ?? auth.tenantId;
+    // Obtener suscripción actual (siempre del tenant de facturación)
+    const subscription = await getSubscriptionByTenantId(billTid!);
     
     if (!subscription) {
       return NextResponse.json({ 

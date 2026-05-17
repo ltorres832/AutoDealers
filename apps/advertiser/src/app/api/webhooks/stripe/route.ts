@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { getFirestore, getStripeInstance, getStripeWebhookSecretValue } from '@autodealers/core';
+import {
+  getFirestore,
+  getStripeInstance,
+  getStripeAdvertiserWebhookSecretValue,
+} from '@autodealers/core';
 import * as admin from 'firebase-admin';
 
 const db = getFirestore();
@@ -20,7 +24,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const stripe = await getStripeInstance();
-    const webhookSecret = await getStripeWebhookSecretValue();
+    const webhookSecret = await getStripeAdvertiserWebhookSecretValue();
     event = stripe.webhooks.constructEvent(
       body,
       signature,

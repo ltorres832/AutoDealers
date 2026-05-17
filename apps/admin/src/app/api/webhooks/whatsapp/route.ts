@@ -3,9 +3,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { WhatsAppService } from '@autodealers/messaging';
 import { UnifiedMessagingService } from '@autodealers/messaging';
-import { createLead, findLeadByPhone, findLeadByPhoneInTenant, updateLead, addInteraction } from '@autodealers/crm';
-import { getTenantByWhatsAppNumber } from '@autodealers/core';
-import { createNotification } from '@autodealers/core';
+import { createLead, findLeadByPhone, findLeadByPhoneInTenant, updateLead, addInteraction, assignLead } from '@autodealers/crm';
+import { getTenantByWhatsAppNumber, createNotification, resolveMetaWebhookVerifyToken } from '@autodealers/core';
 
 export async function GET(request: NextRequest) {
   // Verificación de webhook de WhatsApp
@@ -13,11 +12,7 @@ export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get('hub.verify_token');
   const challenge = request.nextUrl.searchParams.get('hub.challenge');
 
-  // Obtener verify token desde Firestore
-  // TODO: Implementar getMetaVerifyToken en @autodealers/core
-  // const { getMetaVerifyToken } = await import('@autodealers/core');
-  // const verifyToken = await getMetaVerifyToken();
-  const verifyToken = process.env.FACEBOOK_VERIFY_TOKEN || 'default_verify_token';
+  const verifyToken = await resolveMetaWebhookVerifyToken();
 
   if (mode === 'subscribe' && token === verifyToken) {
     return new NextResponse(challenge || '', {
@@ -30,10 +25,25 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const url = request.nextUrl;
+    const qMode = url.searchParams.get('hub.mode');
+    const qToken = url.searchParams.get('hub.verify_token');
+    const qChallenge = url.searchParams.get('hub.challenge');
+    if (qMode === 'subscribe' && qToken != null && qChallenge != null) {
+      const verifyToken = await resolveMetaWebhookVerifyToken();
+      if (qToken === verifyToken) {
+        return new NextResponse(qChallenge, {
+          headers: { 'Content-Type': 'text/plain' },
+        });
+      }
+      return NextResponse.json({ error: 'Invalid token' }, { status: 403 });
+    }
+
     const body = await request.json();
 
     // Obtener tenantId del número de WhatsApp
     const { getWhatsAppPhoneNumberId: getGlobalWhatsAppPhoneNumberId, getFirestore } = await import('@autodealers/core');
+    const db = getFirestore();
     const globalPhoneNumberId = await (getGlobalWhatsAppPhoneNumberId as any)();
     const phoneNumberId = body.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id || 
                           globalPhoneNumberId;
@@ -41,7 +51,6 @@ export async function POST(request: NextRequest) {
 
     // Si aún no hay tenantId, usar el primero activo (fallback temporal)
     if (!tenantId) {
-      const db = getFirestore();
       const tenantsSnapshot = await db
         .collection('tenants')
         .where('status', '==', 'active')
@@ -54,6 +63,28 @@ export async function POST(request: NextRequest) {
       } else {
         console.error('❌ No hay tenants activos disponibles');
         return NextResponse.json({ received: true, error: 'No tenant found' });
+      }
+    }
+
+    let leadOwnerUserId: string | undefined;
+    if (tenantId && phoneNumberId) {
+      const intSnap = await db
+        .collection('tenants')
+        .doc(tenantId)
+        .collection('integrations')
+        .where('type', '==', 'whatsapp')
+        .get();
+      for (const doc of intSnap.docs) {
+        const data = doc.data();
+        const c = data.credentials || {};
+        const pid = String(data.phoneNumberId || c.phoneNumberId || c.phone_number_id || '');
+        if (pid === String(phoneNumberId)) {
+          const lo = data.leadOwnerUserId;
+          if (typeof lo === 'string' && lo.trim()) {
+            leadOwnerUserId = lo.trim();
+          }
+          break;
+        }
       }
     }
 
@@ -109,6 +140,10 @@ export async function POST(request: NextRequest) {
         updatedAt: new Date(),
       } as any);
 
+      if (leadOwnerUserId && !lead.assignedTo) {
+        await assignLead(tenantId, lead.id, leadOwnerUserId);
+      }
+
       (messagePayload as any).leadId = lead.id;
     } else {
       // Nuevo lead - crear
@@ -117,10 +152,17 @@ export async function POST(request: NextRequest) {
         'whatsapp',
         {
           name: messagePayload.metadata?.contactName || 'Cliente WhatsApp',
+          email: '',
           phone: messagePayload.from,
           preferredChannel: 'whatsapp',
+          city: '',
         },
-        `Mensaje inicial: ${messagePayload.content}`
+        `Mensaje inicial: ${messagePayload.content}`,
+        {
+          assignedTo: leadOwnerUserId,
+          populateStandardContactFields: true,
+          vehicleInterest: '',
+        }
       );
 
       (messagePayload as any).leadId = lead.id;
@@ -128,7 +170,7 @@ export async function POST(request: NextRequest) {
       // Crear notificación para el tenant
       await createNotification({
         tenantId,
-        userId: '', // Notificar a todos los usuarios del tenant
+        userId: leadOwnerUserId || '',
         type: 'lead_created' as any,
         title: 'Nuevo Lead de WhatsApp',
         message: `${messagePayload.metadata?.contactName || 'Cliente'} envió un mensaje`,

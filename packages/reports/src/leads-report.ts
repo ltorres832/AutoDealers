@@ -1,6 +1,7 @@
 // Reporte de leads
 
 import { getLeads } from '@autodealers/crm';
+import { getFirestore } from '@autodealers/shared';
 import { LeadsReport, ReportFilters } from './types';
 
 /**
@@ -45,7 +46,6 @@ export async function generateLeadsReport(
 
   // Filtrar por dealer si se especifica (necesitamos obtener los leads de los sellers del dealer)
   if (filters?.scope === 'dealer' && filters?.dealerId) {
-    const { getFirestore } = await import('@autodealers/core');
     const db = getFirestore();
     
     // Si el dealerId es diferente al tenantId, obtener sellers del dealer

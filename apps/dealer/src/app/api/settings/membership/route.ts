@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuth, billingTenantId } from '@/lib/auth';
 import { getSubscriptionByTenantId } from '@autodealers/billing';
 import { getMembershipById } from '@autodealers/billing';
 
@@ -21,7 +21,8 @@ export async function GET(request: NextRequest) {
     const userMembershipId = user?.membershipId;
     
     // Obtener suscripción
-    const subscription = await getSubscriptionByTenantId(auth.tenantId);
+    const billTid = billingTenantId(auth) ?? auth.tenantId;
+    const subscription = await getSubscriptionByTenantId(billTid!);
     const subscriptionMembershipId = subscription?.membershipId;
     
     // Usar membershipId de suscripción O del usuario (priorizar suscripción)
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
     
     console.log('🔍 [MEMBERSHIP API] Verificando membresía:', {
       userId: auth.userId,
-      tenantId: auth.tenantId,
+      tenantId: billTid,
       userMembershipId,
       subscriptionMembershipId,
       membershipIdToUse: membershipId,

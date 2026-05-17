@@ -3,16 +3,21 @@
 // Página expandida y mejorada para ver detalles de una solicitud F&I
 // Incluye calculadora, scoring, co-signers, comparación de opciones, etc.
 
-import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useState, useEffect, useRef } from 'react';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import FICalculator from '@/components/FICalculator';
 import FIApprovalScore from '@/components/FIApprovalScore';
+import { useAuth } from '@/hooks/useAuth';
+import { useRealtimeFIRequest } from '@/hooks/useRealtimeFIRequest';
+import { expeditionStageLabel } from '@autodealers/crm';
 
 interface FIRequest {
   id: string;
   clientId: string;
   status: string;
+  customerFileId?: string;
+  expeditionStage?: string;
   employment: any;
   creditInfo: any;
   personalInfo: any;
@@ -41,43 +46,78 @@ interface FIClient {
 }
 
 export default function FIRequestDetailPage() {
-  const router = useRouter();
   const params = useParams();
   const requestId = params.id as string;
 
-  const [request, setRequest] = useState<FIRequest | null>(null);
-  const [client, setClient] = useState<FIClient | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'calculator' | 'score' | 'cosigner' | 'options' | 'history'>('overview');
-  const [showCosignerForm, setShowCosignerForm] = useState(false);
-
+  const [customerFileIdFromUrl, setCustomerFileIdFromUrl] = useState('');
   useEffect(() => {
-    fetchRequest();
+    if (typeof window === 'undefined') return;
+    const q = new URLSearchParams(window.location.search).get('customerFileId')?.trim() || '';
+    setCustomerFileIdFromUrl(q);
   }, [requestId]);
 
-  const fetchRequest = async () => {
-    try {
-      const response = await fetch(`/api/fi/requests`, { credentials: 'include' });
-      if (response.ok) {
-        const data = await response.json();
-        const foundRequest = data.requests.find((r: FIRequest) => r.id === requestId);
-        if (foundRequest) {
-          setRequest(foundRequest);
-          // Obtener cliente
-          const clientsResponse = await fetch('/api/fi/clients', { credentials: 'include' });
-          if (clientsResponse.ok) {
-            const clientsData = await clientsResponse.json();
-            const foundClient = clientsData.clients.find((c: FIClient) => c.id === foundRequest.clientId);
-            setClient(foundClient || null);
-          }
+  const { user, loading: authLoading } = useAuth();
+  const { request: liveRequest, loading: rtLoading, error: rtError } = useRealtimeFIRequest(
+    user?.tenantId,
+    requestId
+  );
+
+  const request = liveRequest as FIRequest | null;
+  const [client, setClient] = useState<FIClient | null>(null);
+  const [activeTab, setActiveTab] = useState<'overview' | 'calculator' | 'score' | 'cosigner' | 'options' | 'history'>('overview');
+  const [showCosignerForm, setShowCosignerForm] = useState(false);
+  const linkAttemptRef = useRef(false);
+
+  useEffect(() => {
+    if (!customerFileIdFromUrl || !request?.id || request.customerFileId) return;
+    if (linkAttemptRef.current) return;
+    linkAttemptRef.current = true;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/fi/link-customer-file', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            customerFileId: customerFileIdFromUrl,
+            fiRequestId: request.id,
+          }),
+        });
+        if (!res.ok && !cancelled) {
+          linkAttemptRef.current = false;
+          const err = await res.json().catch(() => ({}));
+          console.warn('No se pudo vincular expediente:', err?.error || res.status);
         }
+      } catch (e) {
+        linkAttemptRef.current = false;
+        console.warn('link-customer-file:', e);
       }
-    } catch (error) {
-      console.error('Error fetching request:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [customerFileIdFromUrl, request?.id, request?.customerFileId]);
+
+  useEffect(() => {
+    if (!request?.clientId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const clientsResponse = await fetch('/api/fi/clients', { credentials: 'include' });
+        if (clientsResponse.ok && !cancelled) {
+          const clientsData = await clientsResponse.json();
+          const foundClient = clientsData.clients.find((c: FIClient) => c.id === request.clientId);
+          setClient(foundClient || null);
+        }
+      } catch (error) {
+        console.error('Error fetching client:', error);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [request?.clientId]);
 
   const handleSubmit = async () => {
     if (!request || request.status !== 'draft') return;
@@ -91,7 +131,7 @@ export default function FIRequestDetailPage() {
       });
 
       if (response.ok) {
-        fetchRequest();
+        // El listener en tiempo real actualiza el estado
       } else {
         const error = await response.json();
         alert(error.error || 'Error al enviar solicitud');
@@ -121,10 +161,27 @@ export default function FIRequestDetailPage() {
     );
   };
 
+  const loading = authLoading || rtLoading;
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-gray-500">Cargando...</div>
+      </div>
+    );
+  }
+
+  if (rtError) {
+    return (
+      <div className="text-center py-12 px-4 max-w-lg mx-auto">
+        <p className="text-red-600 font-medium mb-2">Error al sincronizar con Firestore</p>
+        <p className="text-gray-600 text-sm mb-4">{rtError.message}</p>
+        <p className="text-gray-500 text-sm mb-4">
+          Comprueba tu sesión, las reglas de seguridad y que el módulo F&I esté activo.
+        </p>
+        <Link href="/fi" className="text-blue-600 hover:text-blue-700">
+          Volver a F&I
+        </Link>
       </div>
     );
   }
@@ -160,8 +217,22 @@ export default function FIRequestDetailPage() {
             Cliente: {client?.name || 'N/A'} • {client?.phone}
           </p>
         </div>
-        <div className="flex items-center space-x-4">
+        <div className="flex flex-wrap items-center gap-2 justify-end">
           {getStatusBadge(request.status)}
+          <span
+            className="px-3 py-1 rounded-full text-sm bg-indigo-100 text-indigo-800 border border-indigo-200"
+            title="Etapa del expediente vinculada al caso de cliente"
+          >
+            Expedición: {expeditionStageLabel(request.expeditionStage)}
+          </span>
+          {request.customerFileId && (
+            <Link
+              href="/customer-files"
+              className="text-sm text-blue-600 hover:text-blue-800 underline"
+            >
+              Ver caso de cliente
+            </Link>
+          )}
           {request.status === 'draft' && (
             <button
               onClick={handleSubmit}

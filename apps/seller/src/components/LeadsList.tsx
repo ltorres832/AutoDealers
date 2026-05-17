@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import type { Lead } from '@autodealers/crm';
+import { LeadRowExtras } from '@/components/LeadProfileSections';
 import { useRealtimeLeads } from '@/hooks/useRealtimeLeads';
 
 export default function LeadsList() {
@@ -52,7 +54,7 @@ export default function LeadsList() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <input
             type="text"
-            placeholder="Buscar por nombre, teléfono..."
+            placeholder="Buscar: nombre, teléfono, email, interés, trade-in, stock…"
             value={filters.search}
             onChange={(e) => setFilters({ ...filters, search: e.target.value })}
             className="border rounded px-3 py-2"
@@ -103,6 +105,7 @@ export default function LeadsList() {
               href={`/leads/${lead.id}`}
               className="block p-4 hover:bg-gray-50 transition"
             >
+              <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4 flex-1">
                   <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center">
@@ -153,6 +156,8 @@ export default function LeadsList() {
                     </p>
                   </div>
                 </div>
+              </div>
+              <LeadRowExtras lead={lead as unknown as Lead} />
               </div>
             </Link>
           ))

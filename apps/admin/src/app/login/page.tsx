@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { ForgotPasswordPanel } from '@/components/ForgotPasswordPanel';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -157,6 +158,8 @@ export default function LoginPage() {
             )}
           </button>
         </form>
+
+        <ForgotPasswordPanel />
 
         <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
           <p className="text-xs text-gray-600 mb-2 font-medium">💡 Credenciales de prueba:</p>

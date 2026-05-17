@@ -43,7 +43,7 @@ function CreateAdPageContent() {
     // Las fechas se calculan automáticamente según la duración
     startDate: '',
   });
-  const { config: pricingConfig, loading: pricingLoading } = usePricingConfig();
+  const { config: pricingConfig, loading: _pricingLoading } = usePricingConfig();
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
@@ -145,7 +145,11 @@ function CreateAdPageContent() {
       return;
     }
     try {
-      kind === 'image' ? setUploadingImage(true) : setUploadingVideo(true);
+      if (kind === 'image') {
+        setUploadingImage(true);
+      } else {
+        setUploadingVideo(true);
+      }
       const form = new FormData();
       form.append('file', file);
       form.append('kind', kind);
@@ -186,7 +190,11 @@ function CreateAdPageContent() {
     } catch (err: any) {
       setError(err.message || 'Error al subir archivo');
     } finally {
-      kind === 'image' ? setUploadingImage(false) : setUploadingVideo(false);
+      if (kind === 'image') {
+        setUploadingImage(false);
+      } else {
+        setUploadingVideo(false);
+      }
     }
   }
 

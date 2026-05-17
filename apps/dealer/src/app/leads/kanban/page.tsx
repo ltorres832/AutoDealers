@@ -3,22 +3,35 @@
 import { useState, useEffect } from 'react';
 import LeadsKanban from '@/components/LeadsKanban';
 import Link from 'next/link';
+import { fetchWithAuth } from '@/lib/fetch-with-auth';
+import { isDealerPortalRole } from '@/lib/dealer-portal-roles';
 
 export default function LeadsKanbanPage() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<{ tenantId?: string; role?: string } | null>(null);
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
 
   useEffect(() => {
-    fetch('/api/user')
-      .then(res => res.json())
-      .then(data => setUser(data.user))
-      .catch(err => console.error('Error fetching user:', err));
+    void fetchWithAuth('/api/user', {})
+      .then((res) => res.json())
+      .then((data) => setUser(data.user))
+      .catch((err) => console.error('Error fetching user:', err));
   }, []);
 
   if (!user) {
     return (
       <div className="flex justify-center p-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
+
+  if (!user.tenantId) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <p className="text-gray-600">No hay concesionario asociado a tu cuenta. Contacta al administrador.</p>
+        <Link href="/leads" className="mt-4 inline-block text-primary-600 underline">
+          Volver a leads
+        </Link>
       </div>
     );
   }
@@ -46,7 +59,10 @@ export default function LeadsKanbanPage() {
         </div>
       </div>
 
-      <LeadsKanban tenantId={user.tenantId} />
+      <LeadsKanban
+        tenantId={user.tenantId}
+        canReassign={Boolean(user.role && isDealerPortalRole(user.role))}
+      />
     </div>
   );
 }

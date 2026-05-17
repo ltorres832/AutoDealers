@@ -238,19 +238,23 @@ export async function createSale(
       }
 
       // Crear Customer File
-      await createCustomerFile(
-        saleData.tenantId,
-        docRef.id,
-        customerId,
-        saleData.buyer,
-        saleData.vehicleId,
-        saleData.sellerId,
-        sellerData ? {
-          id: saleData.sellerId,
-          name: sellerData.name || sellerData.email,
-          email: sellerData.email,
-        } : undefined
-      );
+      if (customerId) {
+        await createCustomerFile(
+          saleData.tenantId,
+          docRef.id,
+          customerId,
+          saleData.buyer,
+          saleData.vehicleId,
+          saleData.sellerId,
+          sellerData
+            ? {
+                id: saleData.sellerId,
+                name: sellerData.name || sellerData.email,
+                email: sellerData.email,
+              }
+            : undefined
+        );
+      }
     } catch (e) {
       console.error('Error creating customer file:', e);
     }

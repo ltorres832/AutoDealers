@@ -1,5 +1,9 @@
 # ✅ Instrucciones para Crear Usuarios de Prueba
 
+## Dominios autorizados (login en App Hosting)
+
+Si el login falla con `auth/requests-from-referer-...-are-blocked`, añade en Firebase **Authentication → Settings → Authorized domains** todos los hosts de las apps (public, admin, dealer, seller, advertiser). Lista completa y pasos: [docs/FIREBASE_AUTH_DOMINIOS_AUTORIZADOS.md](./docs/FIREBASE_AUTH_DOMINIOS_AUTORIZADOS.md). Lista en consola: `node scripts/print-firebase-auth-domains.mjs`.
+
 ## 🚀 Método Rápido: Firebase Console
 
 ### Paso 1: Crear Usuarios en Authentication

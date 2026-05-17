@@ -37,7 +37,7 @@ export interface Tenant {
   subdomain?: string;
   domain?: string;
   membershipId?: string;
-  status?: 'active' | 'suspended' | 'cancelled' | 'pending';
+  status?: 'active' | 'inactive' | 'suspended' | 'cancelled' | 'pending';
   approvedByAdmin?: boolean; // Si el dealer/vendedor ha sido aprobado por admin (requerido para master_dealer y membresías especiales)
   fiManagerId?: string; // ID del usuario designado como Gerente F&I (solo para dealers)
   fiManagerPhone?: string; // Teléfono del gerente F&I para notificaciones SMS

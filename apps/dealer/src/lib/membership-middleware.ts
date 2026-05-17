@@ -5,6 +5,31 @@ import { verifyAuth } from './auth';
 import { canExecuteFeature, FeatureAction } from '@autodealers/core';
 
 /**
+ * Comprueba membresía por tenantId (sin re-leer el request). Devuelve NextResponse 403 si no aplica, o null si OK.
+ * Patrón: `const g = await requireTenantFeature(tenantId, 'useFIModule'); if (g) return g;`
+ */
+export async function requireTenantFeature(
+  tenantId: string,
+  action: FeatureAction
+): Promise<NextResponse | null> {
+  const featureCheck = await canExecuteFeature(tenantId, action);
+  if (!featureCheck.allowed) {
+    return NextResponse.json(
+      {
+        error: 'Feature not available',
+        reason: featureCheck.reason,
+        limit: featureCheck.limit,
+        current: featureCheck.current,
+        remaining: featureCheck.remaining,
+        upgradeRequired: true,
+      },
+      { status: 403 }
+    );
+  }
+  return null;
+}
+
+/**
  * Middleware para validar que el tenant puede ejecutar una acción
  */
 export async function validateMembershipFeature(

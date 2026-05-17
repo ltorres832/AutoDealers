@@ -23,6 +23,13 @@ export default function CreateFIRequestPage() {
   const params = useParams();
   const clientId = params.clientId as string;
 
+  const [customerFileIdFromUrl, setCustomerFileIdFromUrl] = useState('');
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const q = new URLSearchParams(window.location.search).get('customerFileId')?.trim() || '';
+    setCustomerFileIdFromUrl(q);
+  }, [clientId]);
+
   const [client, setClient] = useState<FIClient | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -96,6 +103,7 @@ export default function CreateFIRequestPage() {
           },
           sellerNotes: formData.sellerNotes || undefined,
           submit: submitToFI,
+          ...(customerFileIdFromUrl ? { customerFileId: customerFileIdFromUrl } : {}),
         }),
       });
 

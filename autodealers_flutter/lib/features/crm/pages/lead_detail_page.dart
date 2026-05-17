@@ -30,7 +30,7 @@ class LeadDetailPage extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<InteractionType>(
-                    value: selectedType,
+                    initialValue: selectedType,
                     decoration: const InputDecoration(labelText: 'Tipo'),
                     items: InteractionType.values
                         .map((e) => DropdownMenuItem(value: e, child: Text(_interactionTypeLabel(e))))

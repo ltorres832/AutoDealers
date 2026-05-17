@@ -56,7 +56,7 @@ class _SellerReportsPageState extends State<SellerReportsPage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             DropdownButtonFormField<String>(
-              value: _reportType,
+              initialValue: _reportType,
               decoration: const InputDecoration(
                 labelText: 'Tipo de Reporte',
                 border: OutlineInputBorder(),

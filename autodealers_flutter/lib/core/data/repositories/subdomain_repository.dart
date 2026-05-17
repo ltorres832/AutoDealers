@@ -1,5 +1,4 @@
 // Repositorio de Subdominios - Data Layer
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import '../../config/firebase_config.dart';
 

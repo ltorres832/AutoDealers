@@ -1,19 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuthIncludingSeller } from '@/lib/auth';
+import { isDealerPortalRole, isSellerRole } from '@/lib/dealer-portal-roles';
 import { getUserById } from '@autodealers/core';
 
 export async function GET(request: NextRequest) {
   try {
-    const auth = await verifyAuth(request);
+    const auth = await verifyAuthIncludingSeller(request);
     if (!auth || !auth.userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verificar que sea dealer
-    if (auth.role !== 'dealer') {
-      console.error(`❌ [DEALER API] Usuario ${auth.userId} intentó acceder con rol ${auth.role}`);
+    if (!isDealerPortalRole(auth.role) && !isSellerRole(auth.role)) {
       return NextResponse.json(
-        { error: 'Solo dealers pueden acceder aquí', role: auth.role },
+        { error: 'Rol no permitido en este portal', role: auth.role },
         { status: 403 }
       );
     }
@@ -23,11 +22,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Verificar nuevamente el rol del usuario en Firestore
-    if (user.role !== 'dealer') {
-      console.error(`❌ [DEALER API] Usuario ${user.id} tiene rol ${user.role} en Firestore`);
+    if (!isDealerPortalRole(user.role) && !isSellerRole(user.role)) {
       return NextResponse.json(
-        { error: 'Solo dealers pueden acceder aquí', role: user.role },
+        { error: 'Rol no permitido en este portal', role: user.role },
         { status: 403 }
       );
     }

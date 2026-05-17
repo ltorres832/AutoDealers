@@ -106,7 +106,7 @@ void main() async {
       );
     } catch (e) {
       // Si SelectionArea/SelectableText fallan (p. ej. web), mostrar al menos el error copiable
-      final fallbackMsg = details.exception?.toString() ?? 'Error desconocido';
+      final fallbackMsg = details.exception.toString() ?? 'Error desconocido';
       return Material(
         color: Colors.white,
         child: SafeArea(

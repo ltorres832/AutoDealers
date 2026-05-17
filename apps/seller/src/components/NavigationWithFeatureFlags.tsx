@@ -14,11 +14,13 @@ interface NavItem {
 interface NavigationWithFeatureFlagsProps {
   items: NavItem[];
   sidebarCollapsed: boolean;
+  onNavigate?: () => void;
 }
 
 export default function NavigationWithFeatureFlags({
   items,
   sidebarCollapsed,
+  onNavigate,
 }: NavigationWithFeatureFlagsProps) {
   const pathname = usePathname();
   const [enabledFeatures, setEnabledFeatures] = useState<Record<string, boolean>>({});
@@ -32,7 +34,7 @@ export default function NavigationWithFeatureFlags({
         if (item.featureKey) {
           try {
             const response = await fetch(
-              `/api/feature-flags/check?dashboard=seller&featureKey=${item.featureKey}`,
+              `/api/feature-flags/check?dashboard=seller&featureKey=${encodeURIComponent(item.featureKey)}`,
               { credentials: 'include' }
             );
             if (response.ok) {
@@ -66,6 +68,7 @@ export default function NavigationWithFeatureFlags({
           <Link
             key={item.href}
             href={item.href}
+            onClick={() => onNavigate?.()}
             className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-start'} px-4 py-3 rounded-lg transition-all ${
               isActive
                 ? 'bg-primary-50 text-primary-700 font-medium shadow-sm'

@@ -1,14 +1,14 @@
 // API Route: Gestión de Aliases (Dealer)
 
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuth, isDealerPortalRole } from '@/lib/auth';
 import { getEmailAliases, createEmailAlias, getEmailAliasUsage } from '@autodealers/crm';
 import { getTenantById } from '@autodealers/core';
 
 export async function GET(request: NextRequest) {
   try {
     const user = await verifyAuth(request);
-    if (!user || user.role !== 'dealer' || !user.tenantId) {
+    if (!user || !isDealerPortalRole(user.role) || !user.tenantId) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const user = await verifyAuth(request);
-    if (!user || user.role !== 'dealer' || !user.tenantId) {
+    if (!user || !isDealerPortalRole(user.role) || !user.tenantId) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 

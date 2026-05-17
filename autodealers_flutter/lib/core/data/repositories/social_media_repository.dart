@@ -44,7 +44,7 @@ class SocialMediaRepository {
             'createdAt': data['createdAt']?.toDate(),
             'publishedAt': data['publishedAt']?.toDate(),
             'scheduledAt': data['scheduledAt']?.toDate(),
-          } as Map<String, dynamic>;
+          };
         })
         .toList());
   }

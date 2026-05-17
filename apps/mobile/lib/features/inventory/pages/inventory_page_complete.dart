@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import '../services/inventory_service.dart';
 import '../../../core/models/vehicle.dart';
 import 'package:intl/intl.dart';

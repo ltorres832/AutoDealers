@@ -1,5 +1,4 @@
 // Provider de Upload - Presentation Layer
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import '../../data/repositories/upload_repository.dart';
 

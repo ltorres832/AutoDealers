@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuthIncludingSeller } from '@/lib/auth';
+import { isSellerRole } from '@/lib/dealer-portal-roles';
 import { uploadVehicleImage } from '@autodealers/inventory';
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await verifyAuth(request);
+    const auth = await verifyAuthIncludingSeller(request);
     if (!auth || !auth.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -12,7 +13,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const type = formData.get('type') as string;
-    const folder = formData.get('folder') as string;
+    let folder = formData.get('folder') as string;
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
@@ -32,6 +33,19 @@ export async function POST(request: NextRequest) {
         { error: 'El archivo debe ser una imagen o un video' },
         { status: 400 }
       );
+    }
+
+    if (isSellerRole(auth.role)) {
+      if (!isVideo) {
+        return NextResponse.json(
+          { error: 'Los vendedores solo pueden subir video para su página pública' },
+          { status: 403 }
+        );
+      }
+      if (type === 'vehicle') {
+        return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
+      }
+      folder = `seller-public/${auth.userId}`;
     }
 
     // Validar tamaño (máximo 100MB para videos, 10MB para imágenes)

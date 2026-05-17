@@ -48,4 +48,3 @@ class InstagramMessagingService {
     }
 }
 exports.InstagramMessagingService = InstagramMessagingService;
-//# sourceMappingURL=instagram.js.map

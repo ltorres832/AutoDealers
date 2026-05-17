@@ -3,11 +3,13 @@ import { verifyAuth } from '@/lib/auth';
 import { createErrorResponse, createSuccessResponse } from '@/lib/api-error-handler';
 import { getFirestore } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
+import { createLead, normalizeLeadSource } from '@autodealers/crm';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * POST - Admin crea un lead y lo asigna a dealer o seller
+ * POST - Admin crea un lead y lo asigna a dealer o seller.
+ * Persistencia unificada: `tenants/{tenantId}/leads` (mismo CRM que dealer/seller).
  */
 export async function POST(request: NextRequest) {
   try {
@@ -18,7 +20,6 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const {
-      // Información del lead
       name,
       email,
       phone,
@@ -26,14 +27,11 @@ export async function POST(request: NextRequest) {
       notes,
       vehicleInterest,
       budget,
-      
-      // Asignación
-      assignmentType, // 'dealer' o 'seller'
+      assignmentType,
       dealerId,
       sellerId,
     } = body;
 
-    // Validaciones
     if (!name || !phone) {
       return createErrorResponse('Nombre y teléfono son requeridos', 400);
     }
@@ -52,22 +50,19 @@ export async function POST(request: NextRequest) {
 
     const db = getFirestore();
 
-    // Obtener información del dealer/seller para validar
     let tenantId: string;
     let assignedTo: string | undefined;
     let assignedToName: string;
 
     if (assignmentType === 'dealer') {
-      // Buscar el tenant (dealer)
       const tenantDoc = await db.collection('tenants').doc(dealerId).get();
       if (!tenantDoc.exists) {
         return createErrorResponse('Dealer no encontrado', 404);
       }
       tenantId = dealerId;
-      assignedTo = undefined; // El dealer lo asignará después
+      assignedTo = undefined;
       assignedToName = tenantDoc.data()?.name || 'Dealer';
     } else {
-      // Buscar el vendedor
       const sellerDoc = await db.collection('users').doc(sellerId).get();
       if (!sellerDoc.exists) {
         return createErrorResponse('Vendedor no encontrado', 404);
@@ -82,49 +77,48 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Crear el lead
-    const leadRef = db.collection('leads').doc();
-    const leadData = {
-      name,
-      email: email || null,
-      phone,
-      source: source || 'admin_manual',
-      status: 'new',
-      notes: notes || '',
-      vehicleInterest: vehicleInterest || null,
-      budget: budget || null,
+    const leadSource = normalizeLeadSource(source, 'admin_manual');
+
+    const lead = await createLead(
       tenantId,
-      assignedTo: assignedTo || null,
-      createdBy: auth.userId,
-      createdByAdmin: true,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      lastContactDate: null,
-      nextFollowUpDate: null,
-    };
+      leadSource,
+      {
+        name,
+        email: email || undefined,
+        phone,
+        preferredChannel: 'phone',
+      },
+      typeof notes === 'string' ? notes : '',
+      {
+        assignedTo: assignedTo || null,
+        createdBy: auth.userId,
+        createdByAdmin: true,
+        vehicleInterest: vehicleInterest ?? null,
+        budget: budget != null && budget !== '' ? budget : undefined,
+        lastContactDate: null,
+        nextFollowUpDate: null,
+      }
+    );
 
-    await leadRef.set(leadData);
-
-    // Crear notificación
     const notificationRef = db.collection('notifications').doc();
     await notificationRef.set({
       type: 'lead_created' as any,
       title: 'Nuevo Lead Asignado',
-      message: assignmentType === 'dealer'
-        ? `El admin te asignó un nuevo lead: ${name}`
-        : `El admin te asignó un nuevo lead: ${name}`,
-      userId: assignedTo || null, // Si es para dealer, será null
+      message:
+        assignmentType === 'dealer'
+          ? `El admin te asignó un nuevo lead: ${name}`
+          : `El admin te asignó un nuevo lead: ${name}`,
+      userId: assignedTo || null,
       tenantId,
       isRead: false,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       data: {
-        leadId: leadRef.id,
+        leadId: lead.id,
         leadName: name,
         assignedBy: 'admin',
       },
     });
 
-    // Si se asignó a dealer, crear notificación para todos los admins del dealer
     if (assignmentType === 'dealer') {
       const dealerAdmins = await db
         .collection('users')
@@ -132,33 +126,42 @@ export async function POST(request: NextRequest) {
         .where('role', '==', 'dealer')
         .get();
 
-      const notificationPromises = dealerAdmins.docs.map((doc) =>
-        db.collection('notifications').add({
-          type: 'lead_created' as any,
-          title: 'Nuevo Lead Asignado',
-          message: `El admin asignó un nuevo lead a tu concesionario: ${name}`,
-          userId: doc.id,
-          tenantId,
-          isRead: false,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          data: {
-            leadId: leadRef.id,
-            leadName: name,
-            assignedBy: 'admin',
-          },
-        })
+      await Promise.all(
+        dealerAdmins.docs.map((doc) =>
+          db.collection('notifications').add({
+            type: 'lead_created' as any,
+            title: 'Nuevo Lead Asignado',
+            message: `El admin asignó un nuevo lead a tu concesionario: ${name}`,
+            userId: doc.id,
+            tenantId,
+            isRead: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            data: {
+              leadId: lead.id,
+              leadName: name,
+              assignedBy: 'admin',
+            },
+          })
+        )
       );
-
-      await Promise.all(notificationPromises);
     }
 
     return createSuccessResponse(
       {
         lead: {
-          id: leadRef.id,
-          ...leadData,
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          id: lead.id,
+          tenantId: lead.tenantId,
+          source: lead.source,
+          status: lead.status,
+          contact: lead.contact,
+          notes: lead.notes,
+          assignedTo: lead.assignedTo ?? null,
+          vehicleInterest: lead.vehicleInterest ?? null,
+          budget: lead.budget ?? null,
+          createdBy: lead.createdBy,
+          createdByAdmin: lead.createdByAdmin,
+          createdAt: lead.createdAt.toISOString(),
+          updatedAt: lead.updatedAt.toISOString(),
         },
         message: `Lead asignado a ${assignedToName} exitosamente`,
       },
@@ -169,5 +172,3 @@ export async function POST(request: NextRequest) {
     return createErrorResponse(error.message || 'Error al crear lead', 500);
   }
 }
-
-
