@@ -8,6 +8,20 @@ const nextConfig = {
   },
   output: 'standalone', // NECESARIO para que Firebase App Hosting sirva los assets correctamente
   outputFileTracingRoot: path.join(__dirname, '../../'),
+  // require('firebase-admin') es dinámico en @autodealers/shared; forzar inclusión en el trace standalone
+  outputFileTracingIncludes: {
+    '/**': [
+      '../../node_modules/firebase-admin/**',
+      '../../node_modules/google-auth-library/**',
+      '../../node_modules/gcp-metadata/**',
+      '../../node_modules/google-gax/**',
+      '../../node_modules/@google-cloud/**',
+      '../../node_modules/@grpc/**',
+      '../../node_modules/teeny-request/**',
+      '../../node_modules/proto3-json-serializer/**',
+      '../../node_modules/google-logging-utils/**',
+    ],
+  },
   serverExternalPackages: [
     'firebase-admin',
     'google-auth-library',
@@ -30,13 +44,45 @@ const nextConfig = {
     '@autodealers/messaging',
     '@autodealers/ai',
   ],
-  webpack: (config, { isServer }) => {
-    // Configuración básica para monorepo - Mejor usar dependencias estándar
+  /** Evita que /brand/* quede “pegado” meses en CDN/navegador al cambiar logo */
+  async headers() {
+    return [
+      {
+        source: '/brand/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' },
+        ],
+      },
+      {
+        source: '/icon.png',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' },
+        ],
+      },
+    ];
+  },
+  webpack: (config, { isServer, webpack }) => {
+    const sharedSrc = path.join(__dirname, '../../packages/shared/src');
+
+    // Monorepo: alias por subpath. No mapear `@autodealers/shared` al barrel (incluye firebase-admin).
     config.resolve.alias = {
       ...config.resolve.alias,
       '@': path.join(__dirname, 'src'),
       '@autodealers/core': path.join(__dirname, '../../packages/core/src'),
-      '@autodealers/shared': path.join(__dirname, '../../packages/shared/src'),
+      '@autodealers/shared/client': path.join(sharedSrc, 'client.ts'),
+      '@autodealers/shared/firebase-server': path.join(sharedSrc, 'firebase-server.ts'),
+      '@autodealers/shared/firebase-web-client-config': path.join(
+        sharedSrc,
+        'firebase-web-client-config.ts'
+      ),
+      '@autodealers/shared/platform-branding-client': path.join(
+        sharedSrc,
+        'platform-branding-client.ts'
+      ),
+      '@autodealers/shared/components/StripePaymentForm': path.join(
+        sharedSrc,
+        'components/StripePaymentForm.tsx'
+      ),
       '@autodealers/crm': path.join(__dirname, '../../packages/crm/src'),
       '@autodealers/inventory': path.join(__dirname, '../../packages/inventory/src'),
       '@autodealers/billing': path.join(__dirname, '../../packages/billing/src'),
@@ -44,14 +90,21 @@ const nextConfig = {
       '@autodealers/ai': path.join(__dirname, '../../packages/ai/src'),
     };
 
-    // serverExternalPackages ya maneja la mayoría de los casos en Next.js moderno.
-    // Solo agregamos fallbacks para el lado del cliente si es necesario.
-    if (!isServer) {
+    if (isServer) {
+      config.resolve.alias['@autodealers/shared'] = path.join(sharedSrc, 'index.ts');
+    } else {
+      config.resolve.alias['@autodealers/shared$'] = path.join(sharedSrc, 'client.ts');
+      config.plugins.push(
+        new webpack.IgnorePlugin({
+          resourceRegExp: /firebase-admin|@google-cloud\/firestore|@google-cloud\/storage/,
+        })
+      );
       config.resolve.fallback = {
         ...config.resolve.fallback,
         fs: false,
         net: false,
         tls: false,
+        http2: false,
         child_process: false,
         'firebase-admin': false,
         'google-auth-library': false,

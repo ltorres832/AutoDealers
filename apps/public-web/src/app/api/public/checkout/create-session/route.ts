@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getPublicSiteOrigin } from '@/lib/public-site-origin';
 import { getStripeInstance } from '@autodealers/core';
 import { getMembershipById } from '@autodealers/billing';
 import { getFirestore } from '@autodealers/core';
@@ -114,6 +115,8 @@ export async function POST(request: NextRequest) {
       console.warn('Error obteniendo tax rate, continuando sin tax:', taxError);
     }
 
+    const siteOrigin = getPublicSiteOrigin(request);
+
     // Crear sesión de checkout con suscripción recurrente (facturación cada 30 días)
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
@@ -126,8 +129,8 @@ export async function POST(request: NextRequest) {
         },
       ],
       mode: 'subscription', // Modo suscripción para facturación recurrente automática
-      success_url: `${request.nextUrl.origin}/register/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${request.nextUrl.origin}/register/membership?type=${accountType}&userId=${userId}&registered=true`,
+      success_url: `${siteOrigin}/register/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${siteOrigin}/register/membership?type=${accountType}&userId=${userId}&registered=true`,
       metadata: {
         userId,
         tenantId,

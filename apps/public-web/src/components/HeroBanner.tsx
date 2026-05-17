@@ -2,6 +2,7 @@
 
 import { useRealtimeSponsoredContent } from '../hooks/useRealtimeSponsoredContent';
 import { useState, useEffect, useRef } from 'react';
+import { getAdvertiserLoginForCreateUrl } from '@/config/advertiser-links';
 
 export default function HeroBanner() {
   const { content, loading } = useRealtimeSponsoredContent('hero', 5);
@@ -57,8 +58,8 @@ export default function HeroBanner() {
   if (loading || content.length === 0) {
     return (
       <div className="relative w-full h-64 md:h-80 lg:h-96 rounded-xl overflow-hidden mb-8 shadow-2xl border-2 border-blue-500/30 bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600">
-        <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-black/20 to-transparent flex items-center">
-          <div className="px-6 md:px-12 text-white max-w-4xl">
+        <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-black/20 to-transparent flex items-center z-10">
+          <div className="px-6 md:px-12 text-white max-w-4xl relative z-10">
             <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-5 py-2 rounded-full text-xs font-bold mb-4 border border-white/30">
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
@@ -76,10 +77,10 @@ export default function HeroBanner() {
               Publica tu anuncio en la posición más visible de nuestra plataforma y aumenta tu visibilidad exponencialmente
             </p>
             <a
-              href="/advertise"
+              href={getAdvertiserLoginForCreateUrl()}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-3 bg-gradient-to-r from-white to-blue-50 text-blue-700 px-8 py-4 rounded-xl font-bold text-lg hover:from-blue-50 hover:to-white transition-all shadow-2xl hover:shadow-white/50 hover:scale-105 transform"
+              className="relative z-20 inline-flex items-center gap-3 bg-gradient-to-r from-white to-blue-50 text-blue-700 px-8 py-4 rounded-xl font-bold text-lg hover:from-blue-50 hover:to-white transition-all shadow-2xl hover:shadow-white/50 hover:scale-105 transform pointer-events-auto"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -88,9 +89,9 @@ export default function HeroBanner() {
             </a>
           </div>
         </div>
-        {/* Elementos decorativos */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-yellow-400/20 rounded-full blur-2xl"></div>
+        {/* Elementos decorativos (no capturan clics encima del CTA) */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none z-0" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-yellow-400/20 rounded-full blur-2xl pointer-events-none z-0" />
       </div>
     );
   }

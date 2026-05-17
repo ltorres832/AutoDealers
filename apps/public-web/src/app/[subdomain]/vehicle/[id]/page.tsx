@@ -3,16 +3,21 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import PublicBackButton from '../../../../components/PublicBackButton';
 import { PublicSiteNavbarBrand } from '../../../../components/PublicSiteNavbarBrand';
 import StarRating from '../../../../components/StarRating';
 import ChatWidget from '../../../../components/ChatWidget';
 import { getVehiclePhotos, handleImageError } from '../../../../lib/vehicle-image';
+import { getCatalogClickContext } from '@/lib/catalog-vehicle-click';
 
 interface Vehicle {
   id: string;
   tenantId: string;
   tenantName?: string;
   sellerId?: string | null;
+  sellerName?: string;
+  sellerPhoto?: string;
+  sellerTitle?: string;
   sellerRating?: number;
   sellerRatingCount?: number;
   make: string;
@@ -143,6 +148,42 @@ export default function VehicleDetailPage() {
   });
   const [interestSubmitting, setInterestSubmitting] = useState(false);
   const [interestFeedback, setInterestFeedback] = useState<string | null>(null);
+  const [publicSiteChat, setPublicSiteChat] = useState<{
+    welcomeMessage?: string;
+    enabled?: boolean;
+  } | null>(null);
+
+  const sellerDisplayName =
+    vehicle?.sellerName?.trim() ||
+    (vehicle?.tenantName && vehicle?.sellerId ? vehicle.tenantName : '') ||
+    '';
+
+  useEffect(() => {
+    if (!tenantId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch(`/api/tenant/${tenantId}`, { cache: 'no-store' });
+        if (!r.ok) return;
+        const d = await r.json();
+        const chat = d.tenant?.websiteSettings?.chat;
+        if (cancelled) return;
+        if (chat && typeof chat === 'object') {
+          setPublicSiteChat({
+            welcomeMessage: typeof chat.welcomeMessage === 'string' ? chat.welcomeMessage : undefined,
+            enabled: chat.enabled !== false,
+          });
+        } else {
+          setPublicSiteChat({ enabled: true });
+        }
+      } catch {
+        if (!cancelled) setPublicSiteChat({ enabled: true });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantId]);
 
   useEffect(() => {
     if (tenantId && vehicleId) {
@@ -155,7 +196,15 @@ export default function VehicleDetailPage() {
     catalogViewSent.current = true;
     void fetch(
       `/api/public/vehicles/${vehicle.id}/view?tenantId=${encodeURIComponent(vehicle.tenantId)}`,
-      { method: 'POST' }
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId: vehicle.tenantId,
+          surface: 'vehicle_detail',
+          ...getCatalogClickContext(),
+        }),
+      }
     ).catch(() => {});
   }, [vehicle?.id, vehicle?.tenantId]);
 
@@ -259,6 +308,8 @@ export default function VehicleDetailPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             tenantId: vehicle.tenantId,
+            surface: 'contact_form',
+            ...getCatalogClickContext(),
             contact: {
               name,
               phone,
@@ -275,7 +326,9 @@ export default function VehicleDetailPage() {
       }
       if (j.leadCreated) {
         setInterestFeedback(
-          'Listo: el vendedor verá tu interés en su CRM (como prospecto desde el catálogo) y podrá contactarte.'
+          sellerDisplayName
+            ? `Listo: ${sellerDisplayName} verá tu interés en su CRM y podrá contactarte.`
+            : 'Listo: el vendedor verá tu interés en su CRM y podrá contactarte.'
         );
         setInterestForm({ name: '', phone: '', email: '', message: '' });
       } else {
@@ -341,15 +394,15 @@ export default function VehicleDetailPage() {
           <div className="text-7xl mb-6 animate-bounce">🚗</div>
           <h1 className="text-3xl font-bold text-gray-900 mb-3">Vehículo no encontrado</h1>
           <p className="text-gray-600 mb-8 text-lg">{error || 'El vehículo que buscas no está disponible'}</p>
-          <Link
-            href="/"
+          <PublicBackButton
+            fallbackHref={`/${tenantId}`}
             className="inline-flex items-center gap-2 bg-blue-600 text-white px-8 py-4 rounded-xl hover:bg-blue-700 font-semibold text-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
-            Volver al Inicio
-          </Link>
+            ← Volver
+          </PublicBackButton>
         </div>
       </div>
     );
@@ -360,17 +413,23 @@ export default function VehicleDetailPage() {
       {/* Header mejorado */}
       <nav className="bg-white/80 backdrop-blur-md shadow-md border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <PublicSiteNavbarBrand href="/" className="group" />
-            <Link
-              href="/"
-              className="flex items-center gap-2 text-gray-700 hover:text-gray-900 transition font-medium group"
-            >
-              <svg className="w-5 h-5 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-              Volver al Inicio
-            </Link>
+            <div className="flex items-center gap-3 shrink-0">
+              <PublicBackButton
+                fallbackHref={`/${tenantId}`}
+                className="flex items-center gap-2 text-gray-700 hover:text-gray-900 transition font-medium"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Volver
+              </PublicBackButton>
+              <span className="text-gray-300 hidden sm:inline">|</span>
+              <Link href="/" className="text-sm text-gray-500 hover:text-gray-800 hidden sm:inline">
+                Inicio
+              </Link>
+            </div>
           </div>
         </div>
       </nav>
@@ -385,12 +444,12 @@ export default function VehicleDetailPage() {
                 const photos = getVehiclePhotos(vehicle);
                 return photos.length > 0 && photos[currentPhotoIndex] ? (
                 <div className="relative group">
-                  <div className="aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-200 relative overflow-hidden">
+                  <div className="aspect-[4/3] bg-white relative overflow-hidden border border-gray-100">
                     <img
                       key={`photo-${currentPhotoIndex}-${vehicle.id}-${photos[currentPhotoIndex]?.substring(0, 20)}`}
                       src={photos[currentPhotoIndex]}
                       alt={`${vehicle.year} ${vehicle.make} ${vehicle.model} - Foto ${currentPhotoIndex + 1}`}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-contain object-center"
                       loading="eager"
                       referrerPolicy="no-referrer"
                       onError={handleImageError}
@@ -449,7 +508,7 @@ export default function VehicleDetailPage() {
                   )}
                 </div>
               ) : (
-                <div className="aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                <div className="aspect-[4/3] bg-white border border-gray-100 flex items-center justify-center">
                   <div className="text-gray-400 text-8xl">🚗</div>
                 </div>
               );
@@ -457,7 +516,7 @@ export default function VehicleDetailPage() {
 
               {/* Miniaturas mejoradas */}
               {getVehiclePhotos(vehicle).length > 1 && (
-                <div className="p-4 bg-gray-50 grid grid-cols-6 gap-3 border-t border-gray-100">
+                <div className="p-4 bg-white grid grid-cols-6 gap-3 border-t border-gray-100">
                   {getVehiclePhotos(vehicle).map((photo, index) => (
                     <button
                       key={index}
@@ -474,7 +533,7 @@ export default function VehicleDetailPage() {
                       <img
                         src={photo}
                         alt={`Miniatura ${index + 1}`}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-contain object-center bg-white"
                         loading="lazy"
                         referrerPolicy="no-referrer"
                         onError={handleImageError}
@@ -743,6 +802,19 @@ export default function VehicleDetailPage() {
                     </span>
                   )}
                 </div>
+
+                {sellerDisplayName ? (
+                  <p className="text-base font-medium text-blue-800 mb-2">
+                    Vendedor:{' '}
+                    {vehicle.sellerId ? (
+                      <Link href={`/seller/${vehicle.sellerId}`} className="underline hover:text-blue-600">
+                        {sellerDisplayName}
+                      </Link>
+                    ) : (
+                      sellerDisplayName
+                    )}
+                  </p>
+                ) : null}
                 
                 {((vehicle as any).stockNumber || vehicle.specifications?.stockNumber) && (
                   <p className="text-xs text-gray-500 mb-3">
@@ -809,8 +881,14 @@ export default function VehicleDetailPage() {
 
                 <div className="mb-6 p-4 bg-slate-50 border border-slate-200 rounded-xl">
                   <h3 className="font-semibold text-slate-900 mb-1">¿Te interesa este vehículo?</h3>
+                  <p className="text-xs text-slate-600 mb-2">
+                    Las visitas al catálogo pueden registrarse de forma anónima (página de origen, campaña UTM, tipo de
+                    dispositivo) para que el vendedor vea de dónde viene el tráfico. Los datos personales solo se envían
+                    si los escribes aquí y pulsas enviar.
+                  </p>
                   <p className="text-xs text-slate-600 mb-3">
-                    Si dejas tu nombre y teléfono, el vendedor recibirá un lead en su CRM con el vehículo vinculado
+                    Si dejas tu nombre y teléfono
+                    {sellerDisplayName ? `, ${sellerDisplayName} recibirá` : ', el vendedor recibirá'} un lead en su CRM con el vehículo vinculado
                     (estado inicial &quot;Perdido&quot; = prospecto frío desde el catálogo; puede reabrirlo y llamarte).
                   </p>
                   <form onSubmit={submitCatalogInterest} className="space-y-2">
@@ -865,20 +943,26 @@ export default function VehicleDetailPage() {
                 </div>
 
                 {/* Información del vendedor */}
-                {vehicle.tenantName && vehicle.sellerId && (
+                {sellerDisplayName && vehicle.sellerId && (
                   <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
                     <Link
                       href={`/seller/${vehicle.sellerId}`}
                       className="group flex items-center gap-3 mb-3"
                     >
                       <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md group-hover:shadow-lg transition-shadow">
-                        {vehicle.tenantName.charAt(0).toUpperCase()}
+                        {sellerDisplayName.charAt(0).toUpperCase()}
                       </div>
                       <div className="flex-1">
                         <div className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
-                          {vehicle.tenantName}
+                          {sellerDisplayName}
                         </div>
-                        <div className="text-sm text-gray-600">Ver perfil completo</div>
+                        {vehicle.sellerTitle ? (
+                          <div className="text-sm text-gray-600">{vehicle.sellerTitle}</div>
+                        ) : null}
+                        {vehicle.tenantName && vehicle.tenantName !== sellerDisplayName ? (
+                          <div className="text-xs text-gray-500 mt-0.5">{vehicle.tenantName}</div>
+                        ) : null}
+                        <div className="text-sm text-blue-600 mt-1">Ver perfil completo</div>
                       </div>
                       <svg className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -899,12 +983,12 @@ export default function VehicleDetailPage() {
 
                 {/* Grid de información rápida */}
                 <div className="grid grid-cols-2 gap-3 mb-6">
-                  {vehicle.mileage && (
-                    <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-4 rounded-xl border border-gray-200">
-                      <div className="text-xs text-gray-600 font-medium mb-1">Kilometraje</div>
-                      <div className="text-lg font-bold text-gray-900">{vehicle.mileage.toLocaleString()} km</div>
+                  <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-4 rounded-xl border border-gray-200">
+                    <div className="text-xs text-gray-600 font-medium mb-1">Millaje</div>
+                    <div className="text-lg font-bold text-gray-900">
+                      {(vehicle.mileage ?? 0).toLocaleString()} millas
                     </div>
-                  )}
+                  </div>
                   {vehicle.condition && (
                     <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-4 rounded-xl border border-gray-200">
                       <div className="text-xs text-gray-600 font-medium mb-1">Condición</div>
@@ -987,7 +1071,7 @@ export default function VehicleDetailPage() {
                           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                           </svg>
-                          Chatear con {vehicle.tenantName}
+                          Chatear con {sellerDisplayName || vehicle.tenantName}
                         </button>
                       )}
                   <a
@@ -1045,8 +1129,13 @@ export default function VehicleDetailPage() {
       `}</style>
 
       {/* Chat Widget */}
-      {vehicle.tenantId && vehicle.tenantName && (
-        <ChatWidget tenantId={vehicle.tenantId} tenantName={vehicle.tenantName} />
+      {vehicle.tenantId && (sellerDisplayName || vehicle.tenantName) && (
+        <ChatWidget
+          tenantId={vehicle.tenantId}
+          tenantName={sellerDisplayName || vehicle.tenantName || 'Vendedor'}
+          welcomeMessage={publicSiteChat?.welcomeMessage}
+          enabled={publicSiteChat ? publicSiteChat.enabled !== false : true}
+        />
       )}
     </div>
   );

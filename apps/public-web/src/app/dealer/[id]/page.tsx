@@ -408,11 +408,11 @@ export default function DealerPublicPage() {
                   className="bg-white rounded-lg shadow hover:shadow-lg transition overflow-hidden"
                 >
                   {getFirstPhoto(vehicle) && (
-                    <div className="relative h-48 bg-gray-200">
+                    <div className="relative h-48 bg-white border-b border-gray-100">
                       <img
                         src={getFirstPhoto(vehicle)!}
                         alt={`${vehicle.make} ${vehicle.model}`}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-contain object-center"
                         loading="lazy"
                         referrerPolicy="no-referrer"
                         onError={handleImageError}
@@ -426,11 +426,9 @@ export default function DealerPublicPage() {
                     <p className="text-2xl font-bold text-purple-600 mb-2">
                       {vehicle.currency} {vehicle.price.toLocaleString()}
                     </p>
-                    {vehicle.mileage && (
-                      <p className="text-sm text-gray-600 mb-2">
-                        {vehicle.mileage.toLocaleString()} km
-                      </p>
-                    )}
+                    <p className="text-sm text-gray-600 mb-2">
+                      Millaje: {(vehicle.mileage ?? 0).toLocaleString()} millas
+                    </p>
                     <div className="flex gap-2">
                       {dealer.email && (
                         <button

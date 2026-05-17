@@ -3,7 +3,8 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { checkMultiDealerAccess } from '@autodealers/core';
 import { getMemberships } from '@autodealers/billing';
-import { getFirestore } from '@autodealers/shared';
+import { getFirestore } from '@autodealers/shared/firebase-server';
+import { isMultiDealerPlan } from '@/lib/membership-flags';
 
 /**
  * API pública para obtener membresías disponibles
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
     const filteredMemberships: any[] = [];
 
     for (const membership of memberships) {
-      const isMultiDealer = membership.features?.multiDealerEnabled === true;
+      const isMultiDealer = isMultiDealerPlan(membership.features);
 
       if (!isMultiDealer) {
         // Membresías normales: siempre visibles
@@ -98,7 +99,7 @@ export async function GET(request: NextRequest) {
       // Filtrar Multi Dealer igual que arriba
       const filtered: any[] = [];
       for (const membership of fallbackMemberships as any[]) {
-        const isMultiDealer = membership.features?.multiDealerEnabled === true;
+        const isMultiDealer = isMultiDealerPlan(membership.features);
         if (!isMultiDealer) {
           filtered.push(membership);
         } else if (showMultiDealer) {

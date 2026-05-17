@@ -1,5 +1,4 @@
 'use client';
-export const dynamic = 'force-dynamic';
 
 import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -25,7 +24,7 @@ function RegisterPageContent() {
     taxId: '',
     address: '',
     city: '',
-    country: 'República Dominicana',
+    country: 'Puerto Rico',
     website: '',
   });
   const [loading, setLoading] = useState(false);
@@ -101,6 +100,7 @@ function RegisterPageContent() {
           ...formData,
           accountType: accountType,
           referralCode: referralCodeFromUrl || undefined,
+          acceptPlatformTerms: true,
         }),
       });
 
@@ -116,7 +116,13 @@ function RegisterPageContent() {
           id: data.userId,
           email: data.userEmail || formData.email,
           name: data.userName || formData.name,
+          accountType,
         }));
+        try {
+          localStorage.setItem('registration_account_type', accountType);
+        } catch {
+          /* ignore */
+        }
       }
 
       router.push(`/register/membership?type=${accountType}&userId=${data.userId || ''}&registered=true`);
@@ -304,7 +310,7 @@ function RegisterPageContent() {
                       value={formData.taxId}
                       onChange={(e) => setFormData({ ...formData, taxId: e.target.value })}
                       className="w-full bg-slate-50/50 border-2 border-transparent focus:border-blue-600/20 rounded-[1.5rem] px-8 py-5 focus:ring-4 focus:ring-blue-600/5 focus:bg-white text-slate-900 font-bold transition-all placeholder:text-slate-300 outline-none"
-                      placeholder="Ej: 131-XXXXX-X"
+                      placeholder="Ej: EIN 12-3456789"
                       required
                     />
                   </div>
@@ -329,7 +335,7 @@ function RegisterPageContent() {
                       value={formData.city}
                       onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                       className="w-full bg-slate-50/50 border-2 border-transparent focus:border-blue-600/20 rounded-[1.5rem] px-8 py-5 focus:ring-4 focus:ring-blue-600/5 focus:bg-white text-slate-900 font-bold transition-all outline-none"
-                      placeholder="Ej: Santo Domingo"
+                      placeholder="Ej: San Juan"
                       required
                     />
                   </div>
@@ -367,7 +373,7 @@ function RegisterPageContent() {
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="w-full bg-slate-50/50 border-2 border-transparent focus:border-blue-600/20 rounded-[1.5rem] px-8 py-5 focus:ring-4 focus:ring-blue-600/5 focus:bg-white text-slate-900 font-bold transition-all placeholder:text-slate-300 outline-none"
-                placeholder={accountType === 'dealer' ? 'Ej: Sede Central Santo Domingo' : 'Ej: Juan Pérez'}
+                placeholder={accountType === 'dealer' ? 'Ej: Sede Central San Juan' : 'Ej: Juan Pérez'}
                 required
               />
             </div>
@@ -461,10 +467,15 @@ function RegisterPageContent() {
                 />
               </div>
               <label htmlFor="terms" className="text-[11px] font-bold text-slate-500 leading-relaxed cursor-pointer select-none">
-                Al crear una cuenta, acepto los{' '}
-                <Link href="/terms" className="text-blue-600 hover:text-blue-700 underline underline-offset-4">Términos de Servicio</Link>, la{' '}
-                <Link href="/privacy" className="text-blue-600 hover:text-blue-700 underline underline-offset-4">Política de Privacidad</Link> y el{' '}
-                <Link href="/cookies" className="text-blue-600 hover:text-blue-700 underline underline-offset-4">Uso de Cookies</Link>.
+                Al crear una cuenta, declaro haber leído y acepto los{' '}
+                <Link href="/terminos" className="text-blue-600 hover:text-blue-700 underline underline-offset-4">
+                  Términos y Condiciones
+                </Link>{' '}
+                y la{' '}
+                <Link href="/privacidad" className="text-blue-600 hover:text-blue-700 underline underline-offset-4">
+                  Política de Privacidad
+                </Link>{' '}
+                de la plataforma AutoDealers.
               </label>
             </div>
           </div>

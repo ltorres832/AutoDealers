@@ -1,52 +1,68 @@
-// Cliente de autenticación para el frontend
-import { signInWithEmailAndPassword, signOut as firebaseSignOut } from 'firebase/auth';
+// Cliente de autenticación: Identity Toolkit REST (mismo endpoint que el SDK, sin capas que fallen en hosted.app).
+import type { User } from 'firebase/auth';
+import { signOut as firebaseSignOut } from 'firebase/auth';
+import { firebaseConfig } from './firebase-config';
 
-// Lazy import de auth para evitar inicialización automática
-function getAuth() {
+function getAuthInstance() {
   const { auth } = require('./firebase-config');
   return auth;
 }
 
 /**
- * Inicia sesión con email y contraseña usando Firebase Auth
+ * Login con email/contraseña vía REST (evita auth/network-request-failed del SDK en algunos entornos).
  */
 export async function signIn(email: string, password: string) {
-  try {
-    const authInstance = getAuth();
-    if (!authInstance) {
-      throw new Error('Firebase Auth no está disponible');
-    }
-    const userCredential = await signInWithEmailAndPassword(authInstance, email, password);
-    const idToken = await userCredential.user.getIdToken();
-    
-    // Guardar token en cookie (esto se hace desde el servidor)
-    // Por ahora, el token se manejará desde el servidor
-    
-    return {
-      user: userCredential.user,
-      token: idToken,
-    };
-  } catch (error: any) {
-    throw new Error(error.message || 'Error al iniciar sesión');
+  const apiKey = firebaseConfig.apiKey;
+  if (!apiKey) {
+    throw new Error('Firebase API key no configurada');
   }
+
+  const res = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${encodeURIComponent(apiKey)}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, returnSecureToken: true }),
+    }
+  );
+
+  const data = (await res.json().catch(() => ({}))) as {
+    idToken?: string;
+    localId?: string;
+    email?: string;
+    error?: { message?: string };
+  };
+
+  if (!res.ok) {
+    const msg = String(data.error?.message || '');
+    if (msg.includes('INVALID_PASSWORD') || msg.includes('EMAIL_NOT_FOUND')) {
+      throw new Error('Firebase: Error (auth/invalid-credential).');
+    }
+    if (/API_KEY|API key|INVALID_KEY|invalid.?api.?key/i.test(msg)) {
+      throw new Error('Firebase: Error (auth/invalid-api-key).');
+    }
+    throw new Error(msg ? `Firebase: ${msg}` : 'Error al iniciar sesión');
+  }
+
+  const idToken = data.idToken!;
+  const uid = data.localId!;
+
+  const user = {
+    uid,
+    email: data.email || email,
+    getIdToken: async () => idToken,
+  } as User;
+
+  return { user, token: idToken };
 }
 
-/**
- * Cierra sesión
- */
 export async function signOut() {
   try {
-    const authInstance = getAuth();
-    if (!authInstance) {
-      return; // Si no hay auth, no hay nada que cerrar
-    }
+    const authInstance = getAuthInstance();
+    if (!authInstance) return;
     await firebaseSignOut(authInstance);
-  } catch (error: any) {
-    throw new Error(error.message || 'Error al cerrar sesión');
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Error al cerrar sesión';
+    throw new Error(message);
   }
 }
-
-
-
-
-

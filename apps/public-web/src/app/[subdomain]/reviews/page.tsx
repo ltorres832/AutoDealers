@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import PublicBackButton from '@/components/PublicBackButton';
 
 interface Review {
   id: string;
@@ -81,9 +82,17 @@ export default function PublicReviewsPage() {
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <Link href={`/${subdomain}`} className="text-primary-600 hover:text-primary-700 mb-2 inline-block">
-                ← Volver al inicio
-              </Link>
+              <div className="mb-2 flex flex-wrap items-center gap-3">
+                <PublicBackButton
+                  className="text-primary-600 hover:text-primary-700 font-medium"
+                >
+                  ← Volver
+                </PublicBackButton>
+                <span className="text-gray-300">|</span>
+                <Link href={`/${subdomain}`} className="text-sm text-gray-500 hover:text-primary-600">
+                  Inicio
+                </Link>
+              </div>
               <h1 className="text-3xl font-bold text-gray-900">Reseñas de Clientes</h1>
             </div>
           </div>

@@ -11,6 +11,8 @@ import HeroBanner from '../../components/HeroBanner';
 import SidebarBanner from '../../components/SidebarBanner';
 import SponsoredContent from '../../components/SponsoredContent';
 import BetweenContentBanner from '../../components/BetweenContentBanner';
+import PublicPromoVideo from '../../components/PublicPromoVideo';
+import { SocialMediaLinks } from '@/components/SocialMediaLinks';
 
 interface Vehicle {
   id: string;
@@ -74,6 +76,8 @@ interface Tenant {
       title?: string;
       subtitle?: string;
       ctaText?: string;
+      /** YouTube, Vimeo o URL HTTPS a .mp4/.webm */
+      promoVideoUrl?: string;
     };
     sections?: {
       about?: {
@@ -99,6 +103,10 @@ interface Tenant {
         title?: string;
         showMap?: boolean;
       };
+    };
+    chat?: {
+      enabled?: boolean;
+      welcomeMessage?: string;
     };
   };
 }
@@ -599,10 +607,10 @@ export default function TenantPublicPage() {
         </div>
 
         <div className="container mx-auto px-4 text-center relative z-10">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4 animate-fade-in">
+          <h2 className="text-4xl md:text-5xl font-bold mb-4 animate-fade-in max-w-4xl mx-auto break-words whitespace-normal px-2">
             {tenant.websiteSettings?.hero?.title || 'Encuentra el vehículo perfecto para ti'}
           </h2>
-          <p className="text-xl mb-8 text-white/90">
+          <p className="text-xl mb-8 text-white/90 max-w-3xl mx-auto break-words whitespace-normal px-2">
             {tenant.websiteSettings?.hero?.subtitle || `Tenemos ${vehicles.length} vehículos disponibles para ti`}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -843,6 +851,12 @@ export default function TenantPublicPage() {
         <BetweenContentBanner />
       </div>
 
+      <PublicPromoVideo
+        url={tenant.websiteSettings?.hero?.promoVideoUrl}
+        title={`Video — ${tenant.name}`}
+        className="container mx-auto px-4 pt-10 pb-2"
+      />
+
       {/* Vehicles Grid - Updated to 4 columns */}
       <section id="inventory" className="container mx-auto px-4 py-12">
         <div className="mb-8 flex flex-col lg:flex-row gap-8">
@@ -941,11 +955,11 @@ export default function TenantPublicPage() {
                       onClick={() => setSelectedVehicle(vehicle)}
                     >
                       {getFirstPhoto(vehicle) ? (
-                        <div className="relative h-64 bg-gray-200 overflow-hidden">
+                        <div className="relative h-64 bg-white overflow-hidden">
                           <img
                             src={getFirstPhoto(vehicle)!}
                             alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            className="w-full h-full object-contain object-center group-hover:scale-[1.02] transition-transform duration-300"
                             loading="lazy"
                             referrerPolicy="no-referrer"
                             onError={handleImageError}
@@ -967,7 +981,7 @@ export default function TenantPublicPage() {
                           )}
                         </div>
                       ) : (
-                        <div className="relative h-64 bg-gray-200 flex items-center justify-center">
+                        <div className="relative h-64 bg-white border border-gray-100 flex items-center justify-center">
                           <div className="text-gray-400">
                             <svg className="w-24 h-24 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -983,12 +997,10 @@ export default function TenantPublicPage() {
                           {vehicle.currency} {vehicle.price.toLocaleString()}
                         </p>
                         <div className="flex flex-wrap gap-2 mb-4 text-sm text-gray-600">
-                          {vehicle.mileage && (
-                            <span className="flex items-center gap-1">
-                              <span>📏</span>
-                              {vehicle.mileage.toLocaleString()} km
-                            </span>
-                          )}
+                          <span className="flex items-center gap-1">
+                            <span className="text-gray-500 font-medium">Millaje:</span>
+                            <span>{(vehicle.mileage ?? 0).toLocaleString()} millas</span>
+                          </span>
                           {vehicle.specifications?.transmission && (
                             <span className="flex items-center gap-1">
                               <span>⚙️</span>
@@ -1106,52 +1118,7 @@ export default function TenantPublicPage() {
                 {tenant.socialMedia && Object.keys(tenant.socialMedia).length > 0 && (
                   <div className="mt-6 pt-6 border-t">
                     <p className="text-sm text-gray-600 mb-3">Síguenos en:</p>
-                    <div className="flex gap-3">
-                      {tenant.socialMedia.facebook && (
-                        <a
-                          href={tenant.socialMedia.facebook}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-700 text-2xl"
-                          title="Facebook"
-                        >
-                          📘
-                        </a>
-                      )}
-                      {tenant.socialMedia.instagram && (
-                        <a
-                          href={tenant.socialMedia.instagram}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-pink-600 hover:text-pink-700 text-2xl"
-                          title="Instagram"
-                        >
-                          📷
-                        </a>
-                      )}
-                      {tenant.socialMedia.tiktok && (
-                        <a
-                          href={tenant.socialMedia.tiktok}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-black hover:text-gray-700 text-2xl"
-                          title="TikTok"
-                        >
-                          🎵
-                        </a>
-                      )}
-                      {tenant.socialMedia.linkedin && (
-                        <a
-                          href={tenant.socialMedia.linkedin}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-700 hover:text-blue-800 text-2xl"
-                          title="LinkedIn"
-                        >
-                          💼
-                        </a>
-                      )}
-                    </div>
+                    <SocialMediaLinks socialMedia={tenant.socialMedia} />
                   </div>
                 )}
               </div>
@@ -1172,8 +1139,9 @@ export default function TenantPublicPage() {
                     </a>
                   )}
                   <button
+                    type="button"
                     onClick={() => setShowContactForm(true)}
-                    className="w-full bg-primary-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-700"
+                    className="w-full bg-primary-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-700 cursor-pointer"
                   >
                     Abrir Formulario de Contacto
                   </button>
@@ -1357,8 +1325,22 @@ export default function TenantPublicPage() {
         />
       )}
 
+      {selectedVehicle && subdomain && (
+        <VehicleDetailModal
+          vehicle={selectedVehicle}
+          subdomain={subdomain}
+          catalogTenantId={tenant.id}
+          onClose={() => setSelectedVehicle(null)}
+        />
+      )}
+
       {/* Chat Widget - "Necesitas ayuda" */}
-      <ChatWidget tenantId={tenant.id} tenantName={tenant.name} />
+      <ChatWidget
+        tenantId={tenant.id}
+        tenantName={tenant.name}
+        welcomeMessage={tenant.websiteSettings?.chat?.welcomeMessage}
+        enabled={tenant.websiteSettings?.chat?.enabled !== false}
+      />
     </div>
   );
 }

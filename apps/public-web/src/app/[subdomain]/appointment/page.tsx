@@ -3,6 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import PublicBackButton from '@/components/PublicBackButton';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '@/lib/firebase-config';
+
+/** Debe coincidir con `PUBLIC_LEAD_APPOINTMENT_TRACKING_COLLECTION` en @autodealers/crm */
+const PUBLIC_LEAD_APPOINTMENT_TRACKING_COLLECTION = 'publicLeadAppointmentTracking';
 
 interface Seller {
   id: string;
@@ -27,18 +33,22 @@ export default function AppointmentPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const subdomain = params.subdomain as string;
-  const vehicleIdFromUrl = searchParams.get('vehicle');
-  
+  const vehicleIdFromUrl = searchParams.get('vehicle') || searchParams.get('vehicleId') || '';
+  const intentFromUrl =
+    searchParams.get('intent') === 'test_drive_request' ? 'test_drive_request' : 'appointment';
+
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
     email: '',
-    type: 'consultation',
+    type: intentFromUrl === 'test_drive_request' ? 'test_drive' : 'consultation',
     preferredDate: '',
     preferredTime: '',
-    vehicleId: vehicleIdFromUrl || '',
+    vehicleId: vehicleIdFromUrl,
     sellerId: '',
     notes: '',
+    schedulingIntent: intentFromUrl as 'appointment' | 'test_drive_request',
+    driverLicense: '',
   });
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [sellers, setSellers] = useState<Seller[]>([]);
@@ -46,11 +56,42 @@ export default function AppointmentPage() {
   const [loading, setLoading] = useState(false);
   const [loadingAvailability, setLoadingAvailability] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [tracking, setTracking] = useState<{
+    leadId: string;
+    token: string;
+    subdomain: string;
+    tenantId?: string;
+    hasAppointment: boolean;
+  } | null>(null);
+  const [clientNotification, setClientNotification] = useState<{
+    headline?: string;
+    body?: string;
+    confirmedByName?: string;
+  } | null>(null);
 
   useEffect(() => {
     fetchVehicles();
     fetchSellers();
   }, [subdomain]);
+
+  const searchParamsKey = searchParams.toString();
+
+  useEffect(() => {
+    const v = searchParams.get('vehicle') || searchParams.get('vehicleId') || '';
+    const intent =
+      searchParams.get('intent') === 'test_drive_request' ? 'test_drive_request' : 'appointment';
+    setFormData((prev) => ({
+      ...prev,
+      vehicleId: v || prev.vehicleId,
+      schedulingIntent: intent,
+      type:
+        intent === 'test_drive_request'
+          ? 'test_drive'
+          : prev.type === 'test_drive'
+            ? 'consultation'
+            : prev.type,
+    }));
+  }, [searchParamsKey]);
 
   useEffect(() => {
     if (formData.sellerId && formData.preferredDate) {
@@ -109,11 +150,29 @@ export default function AppointmentPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           subdomain,
-          ...formData,
+          name: formData.name,
+          phone: formData.phone,
+          email: formData.email,
+          type: formData.type,
+          preferredDate: formData.preferredDate,
+          preferredTime: formData.preferredTime,
+          vehicleId: formData.vehicleId,
+          sellerId: formData.sellerId,
+          notes: formData.notes,
+          intent: formData.schedulingIntent,
+          driverLicense: formData.driverLicense.trim() || undefined,
         }),
       });
 
       if (response.ok) {
+        const data = await response.json();
+        setTracking({
+          leadId: data.leadId,
+          token: data.trackingToken,
+          subdomain: data.subdomain || subdomain,
+          tenantId: data.tenantId,
+          hasAppointment: Boolean(data.appointmentId),
+        });
         setSubmitted(true);
       } else {
         const error = await response.json();
@@ -127,24 +186,77 @@ export default function AppointmentPage() {
     }
   }
 
+  useEffect(() => {
+    if (!submitted || !tracking?.token) return;
+    if (!db) {
+      console.warn('Firestore no disponible; no hay escucha en tiempo real.');
+      return;
+    }
+
+    const ref = doc(db, PUBLIC_LEAD_APPOINTMENT_TRACKING_COLLECTION, tracking.token);
+    const unsub = onSnapshot(
+      ref,
+      (snap) => {
+        const data = snap.data();
+        const n = data?.clientAppointmentNotification;
+        if (n && typeof n === 'object') {
+          setClientNotification({
+            headline: typeof n.headline === 'string' ? n.headline : undefined,
+            body: typeof n.body === 'string' ? n.body : undefined,
+            confirmedByName: typeof n.confirmedByName === 'string' ? n.confirmedByName : undefined,
+          });
+        }
+      },
+      (err) => console.error('publicLeadAppointmentTracking listener:', err)
+    );
+    return () => unsub();
+  }, [submitted, tracking?.token]);
+
   if (submitted) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-10 px-4">
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-lg w-full text-center">
           <div className="text-6xl mb-4">✅</div>
-          <h1 className="text-2xl font-bold mb-2">¡Cita Solicitada!</h1>
+          <h1 className="text-2xl font-bold mb-2">
+            {tracking?.hasAppointment ? '¡Cita solicitada!' : '¡Solicitud recibida!'}
+          </h1>
           <p className="text-gray-600 mb-4">
-            Hemos recibido tu solicitud de cita. Te contactaremos pronto para confirmar.
+            {tracking?.hasAppointment
+              ? 'Hemos recibido tu solicitud. El vendedor recibirá un aviso al instante; cuando confirme, verás aquí el mensaje con su nombre.'
+              : 'Registramos tu solicitud de prueba de manejo como lead. Un asesor te contactará para coordinar. Si confirman una cita más adelante, podrás ver avisos aquí también.'}
           </p>
-          <p className="text-sm text-gray-500 mb-6">
-            Recibirás una notificación por email y WhatsApp.
-          </p>
-          <Link
-            href={`/${subdomain}`}
-            className="text-primary-600 hover:text-primary-700 font-medium"
-          >
-            Volver al inicio →
-          </Link>
+          {clientNotification && (
+            <div className="mb-6 rounded-lg border border-green-200 bg-green-50 p-4 text-left">
+              <p className="text-sm font-semibold text-green-900">{clientNotification.headline}</p>
+              <p className="text-sm text-green-800 mt-1">{clientNotification.body}</p>
+              {clientNotification.confirmedByName && (
+                <p className="text-xs text-green-700 mt-2">Confirmado por: {clientNotification.confirmedByName}</p>
+              )}
+            </div>
+          )}
+          {!clientNotification && tracking?.hasAppointment && (
+            <p className="text-sm text-gray-500 mb-6">
+              Esta página usa actualización en tiempo real; cuando el vendedor confirme, verás el mensaje aquí sin
+              recargar.
+            </p>
+          )}
+          {!clientNotification && !tracking?.hasAppointment && (
+            <p className="text-sm text-gray-500 mb-6">
+              Guarda esta página si quieres volver más tarde; cuando haya novedades sobre tu solicitud o una cita
+              confirmada, podrás verlas aquí.
+            </p>
+          )}
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <PublicBackButton
+              className="text-primary-600 hover:text-primary-700 font-medium"
+            >
+              Volver
+            </PublicBackButton>
+            <span className="text-gray-300">|</span>
+            <Link href={`/${subdomain}`} className="text-sm text-gray-500 hover:text-primary-600">
+              Inicio
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -154,22 +266,66 @@ export default function AppointmentPage() {
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="container mx-auto px-4 max-w-4xl">
         <div className="mb-6">
-          <Link
-            href={`/${subdomain}`}
-            className="text-primary-600 hover:text-primary-700 mb-4 inline-block"
-          >
-            ← Volver al inicio
-          </Link>
+          <div className="mb-4 flex flex-wrap items-center gap-3">
+            <PublicBackButton
+              className="text-primary-600 hover:text-primary-700 font-medium"
+            >
+              ← Volver
+            </PublicBackButton>
+            <span className="text-gray-300">|</span>
+            <Link href={`/${subdomain}`} className="text-sm text-gray-500 hover:text-primary-600">
+              Inicio
+            </Link>
+          </div>
           <h1 className="text-3xl font-bold mb-2">
-            Solicitar Cita o Prueba de Manejo
+            {formData.schedulingIntent === 'test_drive_request'
+              ? 'Solicitar prueba de manejo'
+              : 'Agendar cita'}
           </h1>
           <p className="text-gray-600">
-            Completa el formulario y selecciona el vendedor con quien deseas agendar
+            Completa el formulario y elige un asesor. Puedes cambiar entre cita general y solicitud de prueba de manejo.
           </p>
         </div>
 
         <div className="bg-white rounded-lg shadow-lg p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="flex flex-wrap gap-2 rounded-lg border border-gray-200 p-2 bg-gray-50">
+              <button
+                type="button"
+                onClick={() =>
+                  setFormData((p) => ({
+                    ...p,
+                    schedulingIntent: 'appointment',
+                    type: p.type === 'test_drive' && p.schedulingIntent === 'test_drive_request' ? 'consultation' : p.type,
+                  }))
+                }
+                className={`flex-1 min-w-[140px] rounded-md px-4 py-2 text-sm font-medium transition ${
+                  formData.schedulingIntent === 'appointment'
+                    ? 'bg-primary-600 text-white shadow'
+                    : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-100'
+                }`}
+              >
+                📅 Agendar cita
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setFormData((p) => ({
+                    ...p,
+                    schedulingIntent: 'test_drive_request',
+                    type: 'test_drive',
+                  }))
+                }
+                className={`flex-1 min-w-[140px] rounded-md px-4 py-2 text-sm font-medium transition ${
+                  formData.schedulingIntent === 'test_drive_request'
+                    ? 'bg-indigo-600 text-white shadow'
+                    : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-100'
+                }`}
+              >
+                🚗 Prueba de manejo
+              </button>
+            </div>
+
             {/* Información Personal */}
             <div>
               <h2 className="text-xl font-bold mb-4">Información Personal</h2>
@@ -255,22 +411,40 @@ export default function AppointmentPage() {
               </div>
             )}
 
-            {/* Tipo de Cita */}
-            <div>
-              <h2 className="text-xl font-bold mb-4">Tipo de Cita</h2>
-              <select
-                value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                className="w-full border rounded px-4 py-2"
-                required
-              >
-                <option value="consultation">Consulta General</option>
-                <option value="test_drive">Prueba de Manejo</option>
-                <option value="delivery">Entrega de Vehículo</option>
-                <option value="service">Servicio</option>
-                <option value="financing">Financiamiento</option>
-              </select>
-            </div>
+            {/* Tipo de Cita (solo flujo “cita”) */}
+            {formData.schedulingIntent === 'appointment' && (
+              <div>
+                <h2 className="text-xl font-bold mb-4">Tipo de cita</h2>
+                <select
+                  value={formData.type}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                  className="w-full border rounded px-4 py-2"
+                  required
+                >
+                  <option value="consultation">Consulta general</option>
+                  <option value="test_drive">Prueba de manejo</option>
+                  <option value="delivery">Entrega de vehículo</option>
+                </select>
+              </div>
+            )}
+
+            {formData.schedulingIntent === 'test_drive_request' && (
+              <div>
+                <h2 className="text-xl font-bold mb-4">Prueba de manejo</h2>
+                <p className="text-sm text-gray-600 mb-3">
+                  Se registrará como solicitud vinculada al vehículo. Si indicas fecha y hora preferidas y hay
+                  disponibilidad, también se agendará la cita en el calendario del asesor.
+                </p>
+                <label className="block text-sm font-medium mb-2">Licencia de conducir (opcional)</label>
+                <input
+                  type="text"
+                  value={formData.driverLicense}
+                  onChange={(e) => setFormData({ ...formData, driverLicense: e.target.value })}
+                  className="w-full border rounded px-4 py-2"
+                  placeholder="Número o referencia"
+                />
+              </div>
+            )}
 
             {/* Vehículo de Interés */}
             <div>
@@ -281,20 +455,31 @@ export default function AppointmentPage() {
                 className="w-full border rounded px-4 py-2"
               >
                 <option value="">Seleccionar vehículo</option>
-                {vehicles.map((vehicle) => (
-                  <option key={vehicle.id} value={vehicle.id}>
-                    {vehicle.year} {vehicle.make} {vehicle.model} - {vehicle.currency} {vehicle.price.toLocaleString()}
-                  </option>
-                ))}
+                {vehicles.map((vehicle) => {
+                  const stk = (vehicle as { stockNumber?: string }).stockNumber;
+                  return (
+                    <option key={vehicle.id} value={vehicle.id}>
+                      {stk ? `[${stk}] ` : ''}
+                      {vehicle.year} {vehicle.make} {vehicle.model} — {vehicle.currency}{' '}
+                      {vehicle.price.toLocaleString()}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
             {/* Fecha y Hora */}
             <div>
-              <h2 className="text-xl font-bold mb-4">Fecha y Hora</h2>
+              <h2 className="text-xl font-bold mb-4">
+                {formData.schedulingIntent === 'test_drive_request'
+                  ? 'Preferencia de fecha y hora (opcional)'
+                  : 'Fecha y hora'}
+              </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Fecha Preferida *</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Fecha {formData.schedulingIntent === 'appointment' ? 'preferida *' : 'preferida'}
+                  </label>
                   <input
                     type="date"
                     value={formData.preferredDate}
@@ -303,11 +488,13 @@ export default function AppointmentPage() {
                     }}
                     className="w-full border rounded px-4 py-2"
                     min={new Date().toISOString().split('T')[0]}
-                    required
+                    required={formData.schedulingIntent === 'appointment'}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Hora Preferida *</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Hora {formData.schedulingIntent === 'appointment' ? 'preferida *' : 'preferida'}
+                  </label>
                   {loadingAvailability ? (
                     <div className="w-full border rounded px-4 py-2 bg-gray-100">
                       Cargando horarios disponibles...
@@ -317,7 +504,7 @@ export default function AppointmentPage() {
                       value={formData.preferredTime}
                       onChange={(e) => setFormData({ ...formData, preferredTime: e.target.value })}
                       className="w-full border rounded px-4 py-2"
-                      required
+                      required={formData.schedulingIntent === 'appointment'}
                     >
                       <option value="">Seleccionar hora</option>
                       {availableSlots.map((slot) => (
@@ -336,7 +523,7 @@ export default function AppointmentPage() {
                       value={formData.preferredTime}
                       onChange={(e) => setFormData({ ...formData, preferredTime: e.target.value })}
                       className="w-full border rounded px-4 py-2"
-                      required
+                      required={formData.schedulingIntent === 'appointment'}
                     />
                   )}
                 </div>
@@ -362,10 +549,26 @@ export default function AppointmentPage() {
 
             <button
               type="submit"
-              disabled={loading || (!!formData.sellerId && !formData.preferredTime)}
-              className="w-full bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={
+                loading ||
+                !formData.sellerId ||
+                (formData.schedulingIntent === 'appointment' &&
+                  (!formData.preferredDate || !formData.preferredTime)) ||
+                (formData.schedulingIntent === 'test_drive_request' &&
+                  ((!!formData.preferredDate && !formData.preferredTime) ||
+                    (!formData.preferredDate && !!formData.preferredTime)))
+              }
+              className={`w-full px-6 py-3 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed text-white ${
+                formData.schedulingIntent === 'test_drive_request'
+                  ? 'bg-indigo-600 hover:bg-indigo-700'
+                  : 'bg-primary-600 hover:bg-primary-700'
+              }`}
             >
-              {loading ? 'Enviando...' : 'Solicitar Cita'}
+              {loading
+                ? 'Enviando...'
+                : formData.schedulingIntent === 'test_drive_request'
+                  ? 'Enviar solicitud de prueba'
+                  : 'Solicitar cita'}
             </button>
           </form>
         </div>

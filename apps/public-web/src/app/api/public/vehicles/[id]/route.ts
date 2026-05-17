@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getVehicleById } from '@autodealers/inventory';
 import { getFirestore } from '@autodealers/core';
 import { normalizeVehiclePayload } from '@/lib/vehicle-photos-normalize';
+import { isVehicleVisibleOnPublicListing } from '@/lib/public-catalog-visibility';
+import { enrichPublicVehicleDetail } from '@/lib/enrich-public-vehicle';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,9 +28,13 @@ export async function GET(
         const tId = tenantDoc.id;
         try {
           const vehicle = await getVehicleById(tId, id);
-          if (vehicle && vehicle.publishedOnPublicPage !== false) {
+          if (vehicle && isVehicleVisibleOnPublicListing(vehicle as Record<string, unknown>)) {
+            const enriched = await enrichPublicVehicleDetail(
+              { ...vehicle } as Record<string, unknown>,
+              tId
+            );
             return NextResponse.json({
-              vehicle: normalizeVehiclePayload({ ...vehicle } as Record<string, unknown>),
+              vehicle: normalizeVehiclePayload(enriched),
             });
           }
         } catch (error) {
@@ -53,17 +59,24 @@ export async function GET(
       hasDescription: !!vehicle?.description
     });
     
-    if (!vehicle || vehicle.publishedOnPublicPage === false) {
-      console.log(`❌ Vehículo no encontrado o no publicado: ${tenantId}/${id}`);
+    if (!vehicle || !isVehicleVisibleOnPublicListing(vehicle as Record<string, unknown>)) {
+      console.log(`❌ Vehículo no encontrado o no listable públicamente: ${tenantId}/${id}`);
       return NextResponse.json(
         { error: 'Vehículo no encontrado' },
         { status: 404 }
       );
     }
 
-    console.log(`✅ Devolviendo vehículo: ${vehicle.make} ${vehicle.model}, ${vehicle.photos?.length || 0} fotos`);
+    const enriched = await enrichPublicVehicleDetail(
+      { ...vehicle } as Record<string, unknown>,
+      tenantId
+    );
+
+    console.log(
+      `✅ Devolviendo vehículo: ${vehicle.make} ${vehicle.model}, vendedor=${enriched.sellerName || '—'}`
+    );
     return NextResponse.json({
-      vehicle: normalizeVehiclePayload({ ...vehicle } as Record<string, unknown>),
+      vehicle: normalizeVehiclePayload(enriched),
     });
   } catch (error: any) {
     console.error('Error fetching vehicle:', error);

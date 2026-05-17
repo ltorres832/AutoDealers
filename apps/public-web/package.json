@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3000",
+    "dev": "next dev --webpack -p 3000",
     "build": "next build --webpack",
     "postbuild": "node scripts/postbuild-standalone.js",
     "build:firebase": "next build && echo '✅ Build completado. Listo para firebase deploy --only hosting:public-site'",
@@ -23,7 +23,8 @@
     "firebase-admin": "^12.7.0",
     "next": "^16.1.6",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "sharp": "^0.33.5"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

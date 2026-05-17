@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getFirestore } from '@autodealers/core';
 import { normalizeMisplacedFirebaseAppHostingUrl } from '@/lib/normalize-app-hosting-url';
 import { normalizeVehiclesArray } from '@/lib/vehicle-photos-normalize';
+import { isSellerVisibleOnPublicListing } from '@/lib/public-catalog-visibility';
+import {
+  filterVehiclesForSellerPublicCatalog,
+  vehicleBelongsToSeller,
+} from '@/lib/seller-public-catalog';
 
 // Exportar configuración de runtime
 export const runtime = 'nodejs';
@@ -62,7 +67,7 @@ export async function GET(
     }
 
     const sellerData = sellerDoc.data();
-    if (sellerData?.role !== 'seller' || sellerData?.status !== 'active') {
+    if (sellerData?.role !== 'seller' || !isSellerVisibleOnPublicListing(sellerData as Record<string, unknown>)) {
       return NextResponse.json({ error: 'Vendedor no encontrado' }, { status: 404 });
     }
 
@@ -86,27 +91,37 @@ export async function GET(
 
     const tenantData = tenantDoc.exists ? tenantDoc.data() : null;
 
-    console.log(`📦 Fetching vehicles from tenant ${tenantId}...`);
+    const tenantIds = new Set<string>([tenantId]);
+    if (typeof sellerData.dealerId === 'string' && sellerData.dealerId.trim()) {
+      tenantIds.add(sellerData.dealerId.trim());
+    }
+    if (Array.isArray(sellerData.associatedDealers)) {
+      for (const d of sellerData.associatedDealers) {
+        if (typeof d === 'string' && d.trim()) tenantIds.add(d.trim());
+      }
+    }
 
-    // Obtener vehículos con timeout y límite
-    let allVehiclesSnapshot: any;
+    console.log(`📦 Fetching vehicles from tenants: ${[...tenantIds].join(', ')}...`);
+
+    const vehicleDocs: Array<{ id: string; data: () => Record<string, unknown> }> = [];
     try {
-      allVehiclesSnapshot = await withTimeout(
-        db
-          .collection('tenants')
-          .doc(tenantId)
-          .collection('vehicles')
-          .limit(100) // Reducir límite para respuesta más rápida
-          .get(),
-        15000 // 15 segundos timeout
-      );
-
-      console.log(`🔍 Total vehicles in tenant ${tenantId}: ${allVehiclesSnapshot.size}`);
+      for (const tid of tenantIds) {
+        const snap = await withTimeout(
+          db.collection('tenants').doc(tid).collection('vehicles').limit(120).get(),
+          15000
+        );
+        for (const doc of snap.docs) {
+          if (!vehicleDocs.some((x) => x.id === doc.id)) {
+            vehicleDocs.push(doc);
+          }
+        }
+      }
+      console.log(`🔍 Total vehicles loaded: ${vehicleDocs.length}`);
     } catch (vehiclesError: any) {
       console.error('❌ Error fetching vehicles:', vehiclesError);
-      // Continuar sin vehículos si hay error
-      allVehiclesSnapshot = { docs: [], size: 0 } as any;
     }
+
+    const allVehiclesSnapshot = { docs: vehicleDocs, size: vehicleDocs.length };
 
     console.log(`👤 Looking for vehicles with sellerId=${sellerId}`);
 
@@ -142,88 +157,42 @@ export async function GET(
 
     console.log(`📊 Total vehicles mapped: ${allVehicles.length} of ${allVehiclesSnapshot.size}`);
 
-    // PRIMERO: Buscar vehículos que pertenecen específicamente a este seller
-    let vehicles = allVehicles.filter((vehicle: any) => {
-      if (!vehicle) return false;
+    const tenantPrimarySellerId =
+      tenantData?.sellerInfo &&
+      typeof tenantData.sellerInfo === 'object' &&
+      typeof (tenantData.sellerInfo as { id?: unknown }).id === 'string'
+        ? String((tenantData.sellerInfo as { id: string }).id).trim()
+        : '';
 
-      // Verificar si el vehículo pertenece al seller
-      const hasSellerId = vehicle.sellerId === sellerId;
-      const hasAssignedTo = vehicle.assignedTo === sellerId;
-      const belongsToSeller = hasSellerId || hasAssignedTo;
+    const vehicles = filterVehiclesForSellerPublicCatalog(
+      allVehicles.filter((v): v is Record<string, unknown> => v != null),
+      sellerId,
+      { tenantPrimarySellerId: tenantPrimarySellerId || sellerId }
+    );
 
-      // Verificar si está excluido
-      const isExcluded = vehicle.status === 'sold' ||
-        vehicle.status === 'deleted' ||
-        vehicle.status === 'inactive' ||
-        vehicle.deleted === true;
+    console.log(
+      `✅ Found ${vehicles.length} vehicles for seller ${sellerId} (sin filtro publishedOnPublicPage; huérfanos si sellerInfo del tenant coincide)`
+    );
 
-      return belongsToSeller && !isExcluded;
-    });
-
-    console.log(`✅ Found ${vehicles.length} vehicles with sellerId=${sellerId} or assignedTo=${sellerId}`);
-
-    // Log detallado de vehículos encontrados
     if (vehicles.length > 0) {
-      console.log(`📋 Vehicles found:`, vehicles.map((v: any) => ({
-        id: v.id,
-        make: v.make,
-        model: v.model,
-        year: v.year,
-        sellerId: v.sellerId,
-        assignedTo: v.assignedTo,
-        status: v.status,
-      })));
+      console.log(
+        `📋 Vehicles found:`,
+        vehicles.slice(0, 5).map((v) => ({
+          id: v.id,
+          make: v.make,
+          model: v.model,
+          sellerId: v.sellerId,
+          status: v.status,
+          publishedOnPublicPage: v.publishedOnPublicPage,
+        }))
+      );
     } else {
-      // Si no hay vehículos con sellerId específico, verificar si hay vehículos con sellerId en el tenant
-      const vehiclesWithAnySellerId = allVehicles.filter((v: any) => v.sellerId);
-
-      if (vehiclesWithAnySellerId.length > 0) {
-        // Hay vehículos con sellerId pero ninguno de este seller - NO mostrar todos
-        console.log(`⚠️ Hay ${vehiclesWithAnySellerId.length} vehículos con sellerId en el tenant, pero ninguno pertenece a este seller`);
-        vehicles = []; // No mostrar vehículos si hay sellerId pero ninguno es de este seller
-      } else {
-        // No hay ningún vehículo con sellerId - mostrar todos los disponibles del tenant
-        console.log(`📦 No hay vehículos con sellerId asignado, showing all available vehicles from tenant`);
-
-        // Filtrar vehículos excluidos con logging detallado
-        const excludedVehicles: any[] = [];
-        vehicles = allVehicles.filter((vehicle: any) => {
-          if (!vehicle) {
-            excludedVehicles.push({ id: 'null', reason: 'vehicle is null' });
-            return false;
-          }
-
-          const isSold = vehicle.status === 'sold';
-          const isDeleted = vehicle.status === 'deleted';
-          const isInactive = vehicle.status === 'inactive';
-          const hasDeletedFlag = vehicle.deleted === true;
-
-          const isExcluded = isSold || isDeleted || isInactive || hasDeletedFlag;
-
-          if (isExcluded) {
-            excludedVehicles.push({
-              id: vehicle.id,
-              make: vehicle.make,
-              model: vehicle.model,
-              status: vehicle.status,
-              deleted: vehicle.deleted,
-              reasons: {
-                isSold,
-                isDeleted,
-                isInactive,
-                hasDeletedFlag,
-              },
-            });
-          }
-
-          return !isExcluded;
-        });
-
-        console.log(`📦 Showing ${vehicles.length} total available vehicles from tenant`);
-        if (excludedVehicles.length > 0) {
-          console.log(`🚫 Excluded ${excludedVehicles.length} vehicles:`, excludedVehicles);
-        }
-      }
+      const withSeller = allVehicles.filter((v: Record<string, unknown>) =>
+        vehicleBelongsToSeller(v, sellerId)
+      );
+      console.log(
+        `⚠️ Sin vehículos listables. Total cargados: ${allVehicles.length}, atribuibles al vendedor (cualquier estado): ${withSeller.length}, tenantPrimarySellerId=${tenantPrimarySellerId || '—'}`
+      );
     }
 
     // Log de muestra
@@ -264,7 +233,12 @@ export async function GET(
         ),
         tenantId: tenantId,
         tenantName: tenantData?.name || 'Dealer',
+        publicPromoVideoUrl:
+          typeof sellerData.publicPromoVideoUrl === 'string'
+            ? sellerData.publicPromoVideoUrl.trim()
+            : '',
       },
+      websiteSettings: tenantData?.websiteSettings ?? null,
       vehicles: vehiclesOut,
     };
 
@@ -274,7 +248,7 @@ export async function GET(
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+        'Cache-Control': 'private, no-store, must-revalidate',
       },
     });
 

@@ -1,14 +1,58 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+/** Rutas raíz de la app (no bajo /[tenant]/). Sin esto, `tenant.dominio/register` → 404. */
+function isPlatformRootPath(pathname: string): boolean {
+  if (pathname.startsWith('/register')) return true;
+  if (pathname.startsWith('/registro')) return true;
+  if (pathname.startsWith('/login')) return true;
+  if (pathname.startsWith('/search')) return true;
+  if (pathname.startsWith('/compare')) return true;
+  if (pathname.startsWith('/dealers')) return true;
+  if (pathname.startsWith('/dealer/')) return true;
+  if (pathname.startsWith('/seller/')) return true;
+  if (pathname.startsWith('/contacto')) return true;
+  if (pathname.startsWith('/faq')) return true;
+  if (pathname.startsWith('/terminos')) return true;
+  if (pathname.startsWith('/privacidad')) return true;
+  if (pathname.startsWith('/precios')) return true;
+  if (pathname.startsWith('/caracteristicas')) return true;
+  if (pathname.startsWith('/sobre-nosotros')) return true;
+  if (pathname.startsWith('/advertise')) return true;
+  if (pathname.startsWith('/ads-preview')) return true;
+  if (pathname.startsWith('/publicar-gratis')) return true;
+  if (pathname.startsWith('/anuncio/')) return true;
+  if (pathname.startsWith('/setup-firebase')) return true;
+  if (pathname.startsWith('/category/')) return true;
+  if (pathname.startsWith('/contracts/')) return true;
+  if (pathname.startsWith('/fi/')) return true;
+  if (pathname.startsWith('/upload-documents/')) return true;
+  if (pathname.startsWith('/review/')) return true;
+  if (pathname.startsWith('/survey/')) return true;
+  if (pathname.startsWith('/policies')) return true;
+  if (pathname.startsWith('/dashboard/')) return true;
+  if (pathname.startsWith('/partners/')) return true;
+  return false;
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Ignorar archivos estáticos y rutas de Next.js
+  // Evitar que el comodín de matcher o enlaces rotos dejen el primer segmento como "*"
+  const firstSeg = pathname.split('/').filter(Boolean)[0];
+  if (firstSeg === '*' || firstSeg === '%2A' || firstSeg === '%2a') {
+    const url = request.nextUrl.clone();
+    url.pathname = '/';
+    return NextResponse.redirect(url);
+  }
+
+  // Ignorar archivos estáticos y rutas de Next.js (incl. /brand para que no se reescriba como ruta de tenant)
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api') ||
     pathname.startsWith('/static') ||
+    pathname.startsWith('/brand') ||
+    pathname === '/favicon.ico' ||
     pathname.includes('.') // Archivos con extensión (imágenes, CSS, JS, etc.)
   ) {
     return NextResponse.next();
@@ -85,6 +129,10 @@ export function middleware(request: NextRequest) {
 
   // Si hay subdominio y no es 'www' ni 'admin' ni 'app' ni 'seller' ni 'advertiser', redirigir a la página del tenant
   if (subdomain && subdomain !== 'www' && subdomain !== 'admin' && subdomain !== 'app' && subdomain !== 'seller' && subdomain !== 'advertiser') {
+    if (isPlatformRootPath(pathname)) {
+      return NextResponse.next();
+    }
+
     const url = request.nextUrl.clone();
 
     // Si ya está en la ruta del subdominio, no hacer nada
@@ -106,7 +154,7 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|brand).*)',
   ],
 };
 

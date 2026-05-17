@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRef } from 'react';
 import { getFirstPhoto, handleImageError } from '@/lib/vehicle-image';
+import { pingCatalogVehicleClick } from '@/lib/catalog-vehicle-click';
 
 interface Vehicle {
   id: string;
@@ -53,7 +54,7 @@ export default function FeaturedVehicles({ vehicles }: FeaturedVehiclesProps) {
   return (
     <section className="py-24 bg-slate-900 relative overflow-hidden">
       {/* Premium Dark Background decorative elements */}
-      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay"></div>
+      <div className="absolute inset-0 bg-[url('/noise.svg')] opacity-20 mix-blend-overlay"></div>
       <div className="absolute top-0 right-0 w-1/2 h-full bg-blue-600/10 blur-[120px] rounded-full transform translate-x-1/2 -translate-y-1/2 pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-1/2 h-full bg-purple-600/10 blur-[120px] rounded-full transform -translate-x-1/2 translate-y-1/2 pointer-events-none" />
 
@@ -93,7 +94,7 @@ export default function FeaturedVehicles({ vehicles }: FeaturedVehiclesProps) {
         {featured.length > 0 ? (
           <div
             ref={scrollContainerRef}
-            className="flex gap-6 overflow-x-auto pb-12 snap-x snap-mandatory scrollbar-hide pt-4 pl-1"
+            className="flex gap-8 overflow-x-auto pb-12 snap-x snap-mandatory scrollbar-hide pt-4 pl-1"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
             {featured.map((vehicle) => {
@@ -103,8 +104,13 @@ export default function FeaturedVehicles({ vehicles }: FeaturedVehiclesProps) {
               return (
                 <div
                   key={vehicle.id}
-                  className="flex-shrink-0 w-80 md:w-96 bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:shadow-[0_20px_40px_rgba(0,0,0,0.3)] transition-all duration-500 transform hover:-translate-y-2 snap-start flex flex-col overflow-hidden border-2 border-transparent hover:border-blue-500/50 group cursor-pointer"
+                  className="relative flex-shrink-0 w-[min(100%,22rem)] md:w-[24rem] bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 snap-start flex flex-col overflow-hidden border border-slate-200 hover:border-blue-300 group cursor-pointer"
                   onClick={() => {
+                    pingCatalogVehicleClick({
+                      vehicleId: vehicle.id,
+                      tenantId: vehicle.tenantId,
+                      surface: 'featured_carousel',
+                    });
                     window.location.href = `/${vehicle.tenantId}/vehicle/${vehicle.id}`;
                   }}
                 >
@@ -116,9 +122,7 @@ export default function FeaturedVehicles({ vehicles }: FeaturedVehiclesProps) {
                     </div>
                   )}
 
-                  {/* Imagen */}
-                  <div className="relative h-64 bg-slate-100 overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent z-10"></div>
+                  <div className="relative w-full aspect-[4/3] bg-slate-50 p-4 border-b border-slate-100">
                     {(() => {
                       const firstPhoto = getFirstPhoto(vehicle);
                       if (firstPhoto) {
@@ -126,7 +130,7 @@ export default function FeaturedVehicles({ vehicles }: FeaturedVehiclesProps) {
                           <img
                             src={firstPhoto}
                             alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-in-out"
+                            className="w-full h-full object-contain object-center group-hover:scale-[1.03] transition-transform duration-700 ease-in-out"
                             loading="lazy"
                             referrerPolicy="no-referrer"
                             onError={handleImageError}
@@ -134,30 +138,27 @@ export default function FeaturedVehicles({ vehicles }: FeaturedVehiclesProps) {
                         );
                       }
                       return (
-                        <div className="h-full w-full flex items-center justify-center bg-slate-100 text-slate-300">
+                        <div className="h-full w-full flex items-center justify-center bg-white text-slate-300">
                           <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2m-12 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0zm10 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0z" /></svg>
                         </div>
                       );
                     })()}
 
-                    {/* Precio Badge inside Image */}
-                    <div className="absolute bottom-4 left-4 z-20">
-                      <span className="bg-white/95 backdrop-blur-md text-slate-900 px-4 py-2 rounded-xl font-extrabold shadow-lg border border-white/50 text-xl tracking-tight">
-                        {vehicle.currency} {vehicle.price.toLocaleString()}
-                      </span>
-                    </div>
                   </div>
 
                   {/* Información */}
-                  <div className="p-6 flex-grow flex flex-col bg-white">
-                    <div className="mb-4">
-                      <h3 className="text-xl font-extrabold text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-1 mb-2">
+                  <div className="p-5 flex-grow flex flex-col bg-white gap-3">
+                    <div>
+                      <p className="text-xl font-bold text-slate-900 tabular-nums">
+                        {vehicle.currency} {vehicle.price.toLocaleString()}
+                      </p>
+                      <h3 className="mt-1.5 text-base font-semibold text-slate-800 group-hover:text-blue-600 transition-colors line-clamp-2">
                         {vehicle.year} {vehicle.make} {vehicle.model}
                       </h3>
-                      <div className="flex items-center flex-wrap gap-2 text-sm text-slate-500 font-medium">
+                      <div className="flex items-center flex-wrap gap-2 text-sm text-slate-500 mt-2">
                         <span className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-100">
                           <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                          {vehicle.mileage ? `${vehicle.mileage.toLocaleString()} mi` : '0 mi'}
+                          Millaje: {(vehicle.mileage ?? 0).toLocaleString()} millas
                         </span>
                         <span className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-100">
                           <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" /></svg>

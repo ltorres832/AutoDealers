@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirestore } from '@autodealers/core';
 import { normalizeVehiclesArray } from '@/lib/vehicle-photos-normalize';
+import { isVehicleVisibleOnPublicListing } from '@/lib/public-catalog-visibility';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -67,13 +68,7 @@ export async function GET(
         id: doc.id,
         ...doc.data(),
       }))
-      .filter((vehicle: any) => {
-        const isExcluded = vehicle.status === 'sold' ||
-          vehicle.status === 'deleted' ||
-          vehicle.status === 'inactive' ||
-          vehicle.deleted === true;
-        return !isExcluded;
-      });
+      .filter((vehicle: any) => isVehicleVisibleOnPublicListing(vehicle));
 
     console.log(`✅ Returning ${vehicles.length} vehicles from dealer (after filtering excluded statuses)`);
 

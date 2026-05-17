@@ -5,6 +5,8 @@ import { useState, useEffect, Suspense } from 'react';
 import { getFirstPhoto, handleImageError } from '@/lib/vehicle-image';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { pingCatalogVehicleClick } from '@/lib/catalog-vehicle-click';
+import PublicBackButton from '@/components/PublicBackButton';
 
 interface Vehicle {
   id: string;
@@ -118,12 +120,12 @@ function ComparePageContent() {
           <div className="text-6xl mb-4">🚗</div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">No se encontraron vehículos</h2>
           <p className="text-gray-600 mb-6">Los vehículos seleccionados no están disponibles</p>
-          <Link
-            href="/"
+          <PublicBackButton
+            fallbackHref="/"
             className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-medium"
           >
-            Volver al Inicio
-          </Link>
+            ← Volver
+          </PublicBackButton>
         </div>
       </div>
     );
@@ -134,7 +136,7 @@ function ComparePageContent() {
     { label: 'Marca', key: 'make' },
     { label: 'Modelo', key: 'model' },
     { label: 'Precio', key: 'price' },
-    { label: 'Millas', key: 'mileage' },
+    { label: 'Millaje', key: 'mileage' },
     { label: 'Condición', key: 'condition' },
     { label: 'Transmisión', key: 'specifications.transmission' },
     { label: 'Combustible', key: 'specifications.fuelType' },
@@ -156,7 +158,7 @@ function ComparePageContent() {
       return `${vehicle.currency} ${vehicle.price.toLocaleString()}`;
     }
     if (fieldKey === 'mileage') {
-      return vehicle.mileage ? `${vehicle.mileage.toLocaleString()} km` : 'N/A';
+      return `${(vehicle.mileage ?? 0).toLocaleString()} millas`;
     }
     if (fieldKey === 'stockNumber') {
       return vehicle.stockNumber || vehicle.specifications?.stockNumber || 'N/A';
@@ -177,12 +179,15 @@ function ComparePageContent() {
       <nav className="bg-white shadow-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
-            <Link href="/" className="text-blue-600 hover:underline flex items-center gap-2">
+            <PublicBackButton
+              fallbackHref="/"
+              className="text-blue-600 hover:underline flex items-center gap-2"
+            >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
-              Volver al Inicio
-            </Link>
+              Volver
+            </PublicBackButton>
             <h1 className="text-2xl font-bold text-gray-900">Comparar Vehículos</h1>
             <div className="w-24"></div>
           </div>
@@ -197,11 +202,11 @@ function ComparePageContent() {
             {vehicles.map((vehicle, index) => (
               <div key={vehicle.id} className="bg-white rounded-xl shadow-lg overflow-hidden">
                 {getFirstPhoto(vehicle) ? (
-                  <div className="relative h-48 bg-gray-200">
+                  <div className="relative h-48 bg-white border-b border-gray-100">
                     <img
                       src={getFirstPhoto(vehicle)!}
                       alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-contain object-center"
                       loading="lazy"
                       referrerPolicy="no-referrer"
                       onError={handleImageError}
@@ -217,7 +222,7 @@ function ComparePageContent() {
                     </button>
                   </div>
                 ) : (
-                  <div className="h-48 bg-gray-200 flex items-center justify-center relative">
+                  <div className="h-48 bg-white flex items-center justify-center relative border-b border-gray-100">
                     <span className="text-6xl">🚗</span>
                     <button
                       onClick={() => removeVehicle(vehicle.id)}
@@ -243,6 +248,13 @@ function ComparePageContent() {
                   <Link
                     href={`/${vehicle.tenantId}/vehicle/${vehicle.id}`}
                     className="block w-full bg-blue-600 text-white text-center py-2 rounded-lg hover:bg-blue-700 transition font-medium"
+                    onClick={() =>
+                      pingCatalogVehicleClick({
+                        vehicleId: vehicle.id,
+                        tenantId: vehicle.tenantId,
+                        surface: 'compare',
+                      })
+                    }
                   >
                     Ver Detalles
                   </Link>

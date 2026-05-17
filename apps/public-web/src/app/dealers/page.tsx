@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import PublicBackButton from '@/components/PublicBackButton';
 import StarRating from '../../components/StarRating';
 
 interface Seller {
@@ -29,6 +31,24 @@ interface Dealer {
 }
 
 export default function DealersPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex justify-center items-center min-h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+        </div>
+      }
+    >
+      <DealersPageContent />
+    </Suspense>
+  );
+}
+
+function DealersPageContent() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [sellers, setSellers] = useState<Seller[]>([]);
   const [dealers, setDealers] = useState<Dealer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,6 +56,23 @@ export default function DealersPage() {
   const [sortBy, setSortBy] = useState<'rating' | 'vehicles' | 'name'>('rating');
   const [searchQuery, setSearchQuery] = useState('');
   const [itemsPerPage, setItemsPerPage] = useState(12); // Mostrar 12 inicialmente
+
+  const applyTab = useCallback(
+    (next: 'all' | 'dealers' | 'sellers') => {
+      setActiveTab(next);
+      setItemsPerPage(12);
+      const q = next === 'sellers' ? 'vendedores' : next === 'dealers' ? 'concesionarios' : 'todos';
+      router.replace(`${pathname}?tab=${q}`, { scroll: false });
+    },
+    [pathname, router]
+  );
+
+  useEffect(() => {
+    const tab = (searchParams.get('tab') || '').toLowerCase();
+    if (tab === 'vendedores' || tab === 'sellers') setActiveTab('sellers');
+    else if (tab === 'concesionarios' || tab === 'dealers') setActiveTab('dealers');
+    else if (tab === 'todos' || tab === 'all') setActiveTab('all');
+  }, [searchParams]);
 
   useEffect(() => {
     fetchAllDealersAndSellers();
@@ -137,12 +174,16 @@ export default function DealersPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <nav className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <Link href="/" className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-2">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex flex-wrap items-center gap-3">
+          <PublicBackButton className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-2 font-medium">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
-            Volver al inicio
+            Volver
+          </PublicBackButton>
+          <span className="text-gray-300">|</span>
+          <Link href="/" className="text-sm text-gray-500 hover:text-blue-600">
+            Inicio
           </Link>
         </div>
       </nav>
@@ -165,7 +206,7 @@ export default function DealersPage() {
             <div className="relative">
               <input
                 type="text"
-                placeholder="Buscar por nombre, ubicación..."
+                placeholder="Buscar concesionario o vendedor por nombre, ubicación o concesionario asociado…"
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
@@ -201,10 +242,7 @@ export default function DealersPage() {
             {/* Tabs */}
             <div className="flex gap-2 border-b border-gray-200 w-full md:w-auto">
               <button
-                onClick={() => {
-                  setActiveTab('all');
-                  setItemsPerPage(12);
-                }}
+                onClick={() => applyTab('all')}
                 className={`px-6 py-3 font-medium transition-colors ${
                   activeTab === 'all'
                     ? 'border-b-2 border-blue-600 text-blue-600'
@@ -214,10 +252,7 @@ export default function DealersPage() {
                 Todos ({filteredDealers.length + filteredSellers.length})
               </button>
               <button
-                onClick={() => {
-                  setActiveTab('dealers');
-                  setItemsPerPage(12);
-                }}
+                onClick={() => applyTab('dealers')}
                 className={`px-6 py-3 font-medium transition-colors ${
                   activeTab === 'dealers'
                     ? 'border-b-2 border-blue-600 text-blue-600'
@@ -227,10 +262,7 @@ export default function DealersPage() {
                 Dealers ({filteredDealers.length})
               </button>
               <button
-                onClick={() => {
-                  setActiveTab('sellers');
-                  setItemsPerPage(12);
-                }}
+                onClick={() => applyTab('sellers')}
                 className={`px-6 py-3 font-medium transition-colors ${
                   activeTab === 'sellers'
                     ? 'border-b-2 border-blue-600 text-blue-600'

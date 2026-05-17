@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getFirestore } from '../../../../lib/firebase-admin';
 import { getVehicles } from '@autodealers/inventory';
 import { normalizeVehiclesArray } from '@/lib/vehicle-photos-normalize';
+import {
+  filterVehiclesForSellerPublicCatalog,
+  isVisibleOnSellerPublicCatalog,
+} from '@/lib/seller-public-catalog';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,6 +20,13 @@ export async function GET(
     if (!subdomain) {
       return NextResponse.json(
         { error: 'Subdomain is required' },
+        { status: 400 }
+      );
+    }
+
+    if (subdomain === '*' || subdomain === '%2A' || subdomain === '%2a') {
+      return NextResponse.json(
+        { error: 'Invalid subdomain' },
         { status: 400 }
       );
     }
@@ -47,10 +58,25 @@ export async function GET(
     const tenantData = tenantDoc.data();
     const tenantId = tenantDoc.id;
 
-    // Obtener vehículos del tenant (solo disponibles)
-    const vehicles = await getVehicles(tenantId, {
-      status: 'available',
-    });
+    // Todos los vehículos del tenant (sin filtrar solo status=available; muchos docs legacy no tienen ese campo)
+    const vehiclesRaw = await getVehicles(tenantId);
+
+    const sellerScopedId =
+      tenantData.sellerInfo &&
+      typeof tenantData.sellerInfo === 'object' &&
+      typeof (tenantData.sellerInfo as { id?: unknown }).id === 'string'
+        ? String((tenantData.sellerInfo as { id: string }).id).trim()
+        : '';
+
+    let plainVehicles = (vehiclesRaw || []).map((v) => ({ ...(v as object) } as Record<string, unknown>));
+
+    if (sellerScopedId) {
+      plainVehicles = filterVehiclesForSellerPublicCatalog(plainVehicles, sellerScopedId, {
+        tenantPrimarySellerId: sellerScopedId,
+      });
+    } else {
+      plainVehicles = plainVehicles.filter(isVisibleOnSellerPublicCatalog);
+    }
 
     // Formatear tenant data
     const tenant = {
@@ -72,12 +98,19 @@ export async function GET(
       websiteSettings: tenantData.websiteSettings,
     };
 
-    return NextResponse.json({
-      tenant,
-      vehicles: normalizeVehiclesArray(
-        (vehicles || []).map((v) => ({ ...v } as Record<string, unknown>))
-      ),
-    });
+    return NextResponse.json(
+      {
+        tenant,
+        vehicles: normalizeVehiclesArray(plainVehicles),
+      },
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'private, no-store, must-revalidate',
+        },
+      }
+    );
   } catch (error: any) {
     console.error('Error fetching tenant data:', error);
     return NextResponse.json(

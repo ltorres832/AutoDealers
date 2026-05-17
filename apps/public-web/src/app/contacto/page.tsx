@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import PublicBackButton from '@/components/PublicBackButton';
 
 export default function ContactoPage() {
   const [formData, setFormData] = useState({
@@ -48,12 +49,16 @@ export default function ContactoPage() {
       </nav>
 
       <div className="max-w-4xl mx-auto px-4 py-16">
-        <div className="mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 font-medium">
+        <div className="mb-8 flex flex-wrap items-center gap-3 gap-y-2">
+          <PublicBackButton className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 font-medium">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
-            Volver al inicio
+            Volver
+          </PublicBackButton>
+          <span className="text-gray-300 hidden sm:inline">|</span>
+          <Link href="/" className="text-sm text-gray-500 hover:text-purple-600">
+            Inicio
           </Link>
         </div>
 

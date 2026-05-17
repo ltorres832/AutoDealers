@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import PublicBackButton from '@/components/PublicBackButton';
 import StarRating from '../../../components/StarRating';
 
 function SubmitReviewPageContent() {
@@ -84,12 +85,17 @@ function SubmitReviewPageContent() {
           <p className="text-gray-600 mb-6">
             Gracias por tu reseña. Será revisada y publicada pronto.
           </p>
-          <Link
-            href="/"
-            className="inline-block bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-indigo-700 font-semibold transition-all"
-          >
-            Volver al Inicio
-          </Link>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <PublicBackButton className="inline-block bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-indigo-700 font-semibold transition-all">
+              Volver
+            </PublicBackButton>
+            <Link
+              href="/"
+              className="text-sm text-gray-600 hover:text-gray-900 underline"
+            >
+              Ir al inicio
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -100,9 +106,15 @@ function SubmitReviewPageContent() {
       <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-xl shadow-lg p-8">
           <div className="mb-6">
-            <Link href="/" className="text-blue-600 hover:text-blue-700 mb-4 inline-block">
-              ← Volver al inicio
-            </Link>
+            <div className="mb-4 flex flex-wrap items-center gap-3">
+              <PublicBackButton className="text-blue-600 hover:text-blue-700 font-medium">
+                ← Volver
+              </PublicBackButton>
+              <span className="text-gray-300">|</span>
+              <Link href="/" className="text-sm text-gray-500 hover:text-blue-700">
+                Inicio
+              </Link>
+            </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Deja tu Reseña</h1>
             <p className="text-gray-600">
               Comparte tu experiencia y ayuda a otros clientes a tomar decisiones informadas

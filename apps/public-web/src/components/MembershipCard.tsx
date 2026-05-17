@@ -1,5 +1,7 @@
 'use client';
 
+import { buildMembershipDisplayLines } from '@/lib/membership-display';
+
 interface Membership {
   id: string;
   name: string;
@@ -43,56 +45,11 @@ export default function MembershipCard({
     }).format(price);
   };
 
-  const formatLimit = (limit: number | null | undefined) => {
-    if (limit === null || limit === undefined) return 'Ilimitado';
-    return limit.toLocaleString('es-ES');
-  };
-
-  const getFeatureList = () => {
-    const features: string[] = [];
-    const f = membership.features;
-
-    // Límites
-    if (f.maxSellers !== null && f.maxSellers !== undefined) {
-      features.push(`${formatLimit(f.maxSellers)} vendedores`);
-    }
-    if (f.maxInventory !== null && f.maxInventory !== undefined) {
-      features.push(`${formatLimit(f.maxInventory)} vehículos`);
-    }
-    if (f.maxLeadsPerMonth !== null && f.maxLeadsPerMonth !== undefined) {
-      features.push(`${formatLimit(f.maxLeadsPerMonth)} leads/mes`);
-    }
-    if (f.maxAppointmentsPerMonth !== null && f.maxAppointmentsPerMonth !== undefined) {
-      features.push(`${formatLimit(f.maxAppointmentsPerMonth)} citas/mes`);
-    }
-    if (f.maxStorageGB !== null && f.maxStorageGB !== undefined) {
-      features.push(`${formatLimit(f.maxStorageGB)} GB almacenamiento`);
-    }
-
-    // Features booleanas (solo las que están en true)
-    if (f.customSubdomain) features.push('Subdominio personalizado');
-    if (f.customDomain) features.push('Dominio personalizado');
-    if (f.aiEnabled) features.push('IA habilitada');
-    if (f.aiContentGeneration) features.push('Generación de contenido con IA');
-    if (f.socialMediaEnabled) features.push('Redes sociales integradas');
-    if (f.advancedReports) features.push('Reportes avanzados');
-    if (f.customReports) features.push('Reportes personalizados');
-    if (f.exportData) features.push('Exportar datos');
-    if (f.apiAccess) features.push('Acceso API');
-    if (f.webhooks) features.push('Webhooks');
-    if (f.whiteLabel) features.push('White label');
-    if (f.prioritySupport) features.push('Soporte prioritario');
-    if (f.dedicatedManager) features.push('Gerente dedicado');
-    if (f.mobileApp) features.push('App móvil');
-    if (f.liveChat) features.push('Chat en vivo');
-    if (f.appointmentScheduling) features.push('Sistema de citas');
-    if (f.videoUploads) features.push('Subida de videos');
-    if (f.paymentProcessing) features.push('Procesamiento de pagos');
-
-    return features;
-  };
-
-  const features = getFeatureList();
+  const { limits: limitLines, features: featureLines } = buildMembershipDisplayLines(
+    membership.features as Record<string, unknown>,
+    { planKind: membership.type }
+  );
+  const features = [...limitLines, ...featureLines];
   const isPopular = membership.name.toLowerCase().includes('professional') || 
                     membership.name.toLowerCase().includes('pro') ||
                     membership.name.toLowerCase().includes('intermedio');

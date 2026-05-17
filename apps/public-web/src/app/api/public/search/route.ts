@@ -177,11 +177,12 @@ export async function GET(request: NextRequest) {
           const availableVehicles = vehiclesSnapshot.docs
             .map((doc: any) => doc.data())
             .filter((vehicle: any) => {
-              const isExcluded = vehicle.status === 'sold' ||
-                vehicle.status === 'deleted' ||
-                vehicle.status === 'inactive' ||
-                vehicle.deleted === true;
-              return !isExcluded;
+              const st = String(vehicle.status ?? '').toLowerCase();
+              if (vehicle.deleted === true || st === 'deleted' || st === 'hidden' || st === 'inactive') {
+                return false;
+              }
+              if (st === 'sold') return vehicle.showPublicSoldBadge === true;
+              return true;
             });
 
           const visibleSellers = sellersSnapshot.docs.filter((doc) =>
@@ -314,11 +315,7 @@ export async function GET(request: NextRequest) {
         const sellerVehicles = tenantVehicles.filter((vehicle: any) => {
           const belongsToSeller = vehicle.sellerId === seller.id ||
             (vehicle.assignedTo === seller.id && !vehicle.sellerId);
-          const isExcluded = vehicle.status === 'sold' ||
-            vehicle.status === 'deleted' ||
-            vehicle.status === 'inactive' ||
-            vehicle.deleted === true;
-          return belongsToSeller && !isExcluded;
+          return belongsToSeller && isVehicleVisibleOnPublicListing(vehicle);
         });
 
         const vehiclesWithAnySellerId = tenantVehicles.filter((v: any) => v.sellerId);
@@ -329,10 +326,9 @@ export async function GET(request: NextRequest) {
         } else if (vehiclesWithAnySellerId.length > 0) {
           publishedVehiclesCount = 0;
         } else {
-          publishedVehiclesCount = tenantVehicles.filter((v: any) => {
-            const isExcluded = v.status === 'sold' || v.status === 'deleted' || v.status === 'inactive' || v.deleted === true;
-            return !isExcluded;
-          }).length;
+          publishedVehiclesCount = tenantVehicles.filter((v: any) =>
+            isVehicleVisibleOnPublicListing(v)
+          ).length;
         }
 
         return {

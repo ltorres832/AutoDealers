@@ -32,7 +32,15 @@ export async function POST(request: NextRequest) {
       city,
       country,
       website,
+      acceptPlatformTerms,
     } = body;
+
+    if (acceptPlatformTerms !== true) {
+      return NextResponse.json(
+        { error: 'Debes aceptar los términos y condiciones de la plataforma' },
+        { status: 400 }
+      );
+    }
 
     // Validaciones básicas
     if (!name || !email || !password || !accountType) {
@@ -89,6 +97,10 @@ export async function POST(request: NextRequest) {
       undefined, // dealerId
       undefined  // membershipId - se asignará después
     );
+
+    await db.collection('users').doc(user.id).update({
+      platformTermsAcceptedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
 
     // Actualizar tenant con ownerId
     await tenantRef.update({

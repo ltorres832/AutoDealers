@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import PublicBackButton from '@/components/PublicBackButton';
 import StarRating from '../../components/StarRating';
 
 interface Seller {
@@ -72,9 +73,13 @@ export default function SearchPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <nav className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <Link href="/" className="text-purple-600 hover:underline">
-            ← Volver al inicio
+        <div className="max-w-7xl mx-auto px-4 py-4 flex flex-wrap items-center gap-3">
+          <PublicBackButton className="text-purple-600 hover:underline font-medium">
+            ← Volver
+          </PublicBackButton>
+          <span className="text-gray-300">|</span>
+          <Link href="/" className="text-sm text-gray-500 hover:text-purple-600">
+            Inicio
           </Link>
         </div>
       </nav>

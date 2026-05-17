@@ -32,7 +32,15 @@ export async function POST(request: NextRequest) {
       additionalInfo,
       membershipId,
       referralCode,
+      acceptPlatformTerms,
     } = body;
+
+    if (acceptPlatformTerms !== true) {
+      return NextResponse.json(
+        { error: 'Debes aceptar los términos y condiciones de la plataforma' },
+        { status: 400 }
+      );
+    }
 
     // Validaciones básicas
     if (!name || !email || !password || !phone) {
@@ -106,6 +114,7 @@ export async function POST(request: NextRequest) {
       membershipType: 'dealer',
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       referralCode: referralCode || null,
+      platformTermsAcceptedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
     // Crear documento de solicitud Multi Dealer

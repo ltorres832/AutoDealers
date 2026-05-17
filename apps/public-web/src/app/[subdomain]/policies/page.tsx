@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import PublicBackButton from '@/components/PublicBackButton';
 
 type PolicyType = 'privacy' | 'terms' | 'cookies' | 'returns' | 'warranty';
 
@@ -104,12 +105,19 @@ export default function PoliciesPage() {
               </Link>
               <p className="text-white/80 mt-1">Tu concesionario de confianza</p>
             </div>
-            <Link
-              href={`/${subdomain}`}
-              className="bg-white/20 text-white px-6 py-3 rounded-lg font-medium hover:bg-white/30"
-            >
-              Volver al inicio
-            </Link>
+            <div className="flex flex-wrap items-center gap-2 justify-end">
+              <PublicBackButton
+                className="bg-white/20 text-white px-6 py-3 rounded-lg font-medium hover:bg-white/30"
+              >
+                Volver
+              </PublicBackButton>
+              <Link
+                href={`/${subdomain}`}
+                className="text-sm text-white/90 hover:text-white underline underline-offset-2 hidden sm:inline"
+              >
+                Inicio
+              </Link>
+            </div>
           </div>
         </div>
       </header>

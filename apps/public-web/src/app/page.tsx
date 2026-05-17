@@ -29,6 +29,7 @@ import {
 } from '../components/PublicSiteNavbarBrand';
 import { SITE_INFO as DEFAULT_SITE_INFO, getSiteInfo } from '../config/site-info';
 import { getFirstPhoto, handleImageError } from '../lib/vehicle-image';
+import { pingCatalogVehicleClick } from '../lib/catalog-vehicle-click';
 
 /** logo.clearbit.com ya no sirve logos públicos; Simple Icons (jsDelivr) es estable. Lexus no tiene slug en v13 → favicon. */
 const CERTIFIED_BRANDS_ICONS = 'https://cdn.jsdelivr.net/npm/simple-icons@13.21.0/icons';
@@ -535,6 +536,11 @@ export default function LandingPage() {
     if (banner.linkType === 'vehicle' && banner.linkValue) {
       const vehicle = vehicles.find(v => v.id === banner.linkValue);
       if (vehicle) {
+        pingCatalogVehicleClick({
+          vehicleId: banner.linkValue,
+          tenantId: vehicle.tenantId,
+          surface: 'banner_vehicle',
+        });
         window.location.href = `/${vehicle.tenantId}/vehicle/${banner.linkValue}`;
       }
     } else if (banner.linkType === 'dealer' || banner.linkType === 'seller') {
@@ -550,6 +556,11 @@ export default function LandingPage() {
     fetch(`/api/public/promotions/${promotion.id}/click`, { method: 'POST' }).catch(console.error);
 
     if (promotion.vehicleId) {
+      pingCatalogVehicleClick({
+        vehicleId: promotion.vehicleId,
+        tenantId: promotion.tenantId,
+        surface: 'promotion',
+      });
       window.location.href = `/${promotion.tenantId}/vehicle/${promotion.vehicleId}`;
     } else if (promotion.promotionScope === 'dealer' || promotion.promotionScope === 'seller') {
       window.location.href = `/${promotion.tenantId}`;
@@ -709,6 +720,7 @@ export default function LandingPage() {
                 )}
               </a>
               <Link href="/dealers" className="text-slate-700 hover:text-slate-900 transition font-medium text-sm">Concesionarios</Link>
+              <Link href="/dealers?tab=vendedores" className="text-slate-700 hover:text-slate-900 transition font-medium text-sm">Vendedores</Link>
               <a href="#contact" className="text-slate-700 hover:text-slate-900 transition font-medium text-sm">Contacto</a>
               <Link
                 href="/login"
@@ -783,6 +795,20 @@ export default function LandingPage() {
                   setFilters(prev => ({ ...prev, ...filters as any }));
                   document.getElementById('vehicles-section')?.scrollIntoView({ behavior: 'smooth' });
                 }} />
+                <p className="text-center text-sm text-white/80 mt-4">
+                  ¿Buscas a alguien en concreto?{' '}
+                  <Link href="/dealers?tab=vendedores" className="text-white font-semibold underline underline-offset-2 hover:text-blue-200">
+                    Directorio de vendedores
+                  </Link>
+                  {' · '}
+                  <Link href="/dealers?tab=concesionarios" className="text-white font-semibold underline underline-offset-2 hover:text-blue-200">
+                    Concesionarios
+                  </Link>
+                  {' · '}
+                  <Link href="/search" className="text-white font-semibold underline underline-offset-2 hover:text-blue-200">
+                    Búsqueda por nombre
+                  </Link>
+                </p>
               </div>
             </div>
 
@@ -1243,106 +1269,69 @@ export default function LandingPage() {
                   </div>
 
                   {viewMode === 'grid' ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-                      {filteredVehicles.map((vehicle, idx) => (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8 lg:gap-10">
+                      {filteredVehicles.map((vehicle) => (
                         <Fragment key={vehicle.id}>
 
-                          <div
-                            className="bg-white rounded-[2.5rem] shadow-[0_15px_45px_-15px_rgba(0,0,0,0.08)] hover:shadow-[0_30px_70px_-20px_rgba(0,0,0,0.15)] transition-all duration-700 overflow-hidden group cursor-pointer border border-slate-100 flex flex-col hover:-translate-y-3 relative active:scale-95"
+                          <article
+                            className="flex flex-col rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-lg hover:border-slate-300 transition-all duration-300 overflow-hidden group cursor-pointer"
                             onClick={(e) => {
                               if ((e.target as HTMLElement).closest('.compare-checkbox') || (e.target as HTMLElement).closest('button')) return;
-                              fetch(
-                                `/api/public/vehicles/${vehicle.id}/view?tenantId=${encodeURIComponent(vehicle.tenantId)}`,
-                                { method: 'POST' }
-                              ).catch(console.error);
+                              pingCatalogVehicleClick({
+                                vehicleId: vehicle.id,
+                                tenantId: vehicle.tenantId,
+                                surface: 'catalog_home_grid',
+                              });
                               window.location.href = `/${vehicle.tenantId}/vehicle/${vehicle.id}`;
                             }}
                           >
-                            {/* Price Tag Overlay */}
-                            <div className="absolute top-6 left-6 z-20 pointer-events-none">
-                              <div className="bg-white/95 backdrop-blur-md px-5 py-2.5 rounded-2xl shadow-xl border border-white/50 group-hover:bg-blue-600 group-hover:text-white transition-all duration-500">
-                                <span className="text-xl font-black tracking-tighter">
-                                  {vehicle.currency} {vehicle.price.toLocaleString()}
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Image Container — panorámico + contain para foto más completa */}
-                            <div className="relative w-full aspect-[16/10] min-h-[220px] bg-slate-100 overflow-hidden">
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent z-10 transition-opacity duration-500 opacity-40 group-hover:opacity-70 pointer-events-none"></div>
+                            <div className="relative aspect-[4/3] bg-slate-50 p-4 sm:p-5">
                               {(() => {
                                 const src = getFirstPhoto(vehicle);
                                 return src ? (
                                   <img
                                     src={src}
                                     alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
-                                    className="w-full h-full object-contain object-center scale-100 group-hover:scale-[1.02] transition-transform duration-[1.5s] ease-out"
+                                    className="w-full h-full object-contain object-center group-hover:scale-[1.02] transition-transform duration-500"
                                     loading="lazy"
                                     referrerPolicy="no-referrer"
                                     onError={handleImageError}
                                   />
                                 ) : (
-                                  <div className="h-full w-full flex items-center justify-center bg-slate-50 text-slate-200">
+                                  <div className="h-full w-full flex items-center justify-center bg-white text-slate-200">
                                     <svg className="w-20 h-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                                   </div>
                                 );
                               })()}
 
-                              {/* Stock Badge */}
-                              <div className="absolute bottom-6 right-6 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 translate-y-4 group-hover:translate-y-0">
-                                <span className="bg-white/20 backdrop-blur-md border border-white/30 text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">
-                                  #{vehicle.stockNumber || 'PREMIUM'}
-                                </span>
-                              </div>
+                              <span className="absolute top-3 left-3 rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-blue-700 shadow-sm border border-slate-100">
+                                {vehicle.condition === 'new' ? 'Nuevo' : vehicle.condition === 'certified' ? 'Certificado' : 'Seminuevo'}
+                              </span>
                             </div>
 
-                            {/* Card Content */}
-                            <div className="p-10 flex-grow flex flex-col justify-between bg-white relative">
+                            <div className="flex flex-col flex-1 p-5 sm:p-6 gap-4">
                               <div>
-                                <div className="flex items-center gap-2 mb-3">
-                                  <span className="text-blue-600 font-black text-[10px] uppercase tracking-widest">{vehicle.condition === 'new' ? 'Nuevo' : 'Seminuevo'}</span>
-                                  <div className="w-1 h-1 bg-slate-300 rounded-full"></div>
-                                  <span className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">{vehicle.make}</span>
-                                </div>
-                                <h3 className="text-2xl font-black text-slate-900 mb-6 group-hover:text-blue-600 transition-colors leading-tight">
+                                <p className="text-xl sm:text-2xl font-bold text-slate-900 tabular-nums">
+                                  {vehicle.currency} {vehicle.price.toLocaleString()}
+                                </p>
+                                <h3 className="mt-2 text-base sm:text-lg font-semibold text-slate-800 leading-snug line-clamp-2 group-hover:text-blue-600 transition-colors">
                                   {vehicle.year} {vehicle.make} {vehicle.model}
                                 </h3>
-
-                                <div className="grid grid-cols-2 gap-4 mb-8">
-                                  <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-100/50">
-                                    <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center shadow-sm text-blue-600">
-                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                                    </div>
-                                    <div>
-                                      <span className="block text-[8px] font-black text-slate-400 uppercase tracking-tighter">Millas</span>
-                                      <span className="block text-xs font-black text-slate-900">{vehicle.mileage ? vehicle.mileage.toLocaleString() : '0'}</span>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-100/50">
-                                    <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center shadow-sm text-blue-600">
-                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
-                                    </div>
-                                    <div>
-                                      <span className="block text-[8px] font-black text-slate-400 uppercase tracking-tighter">Status</span>
-                                      <span className="block text-xs font-black text-slate-900">CERTIFIED</span>
-                                    </div>
-                                  </div>
-                                </div>
+                                <p className="mt-3 text-sm text-slate-500 mb-1">
+                                  {(vehicle.mileage ?? 0).toLocaleString()} millas
+                                  {vehicle.stockNumber ? ` · Stock #${vehicle.stockNumber}` : ''}
+                                </p>
                               </div>
 
-                              <div className="flex items-center justify-between pt-8 border-t border-slate-100">
-                                <button className="flex items-center gap-3 text-slate-900 group/btn font-black text-xs tracking-widest uppercase">
-                                  <span className="relative">
-                                    Ver Detalles
-                                    <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-600 group-hover/btn:w-full transition-all duration-300"></div>
-                                  </span>
-                                  <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center group-hover/btn:bg-blue-600 transition-colors duration-300">
-                                    <svg className="w-4 h-4 transform group-hover/btn:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-                                  </div>
+                              <div className="mt-auto flex items-center gap-3 pt-4 border-t border-slate-100">
+                                <button
+                                  type="button"
+                                  className="flex-1 rounded-xl bg-slate-900 text-white text-sm font-semibold py-3 px-4 hover:bg-blue-600 transition-colors"
+                                >
+                                  Ver detalles
                                 </button>
-
-                                <div className="compare-checkbox">
-                                  <label className="relative flex items-center cursor-pointer group/check">
+                                <div className="compare-checkbox shrink-0">
+                                  <label className="flex items-center cursor-pointer" title="Comparar">
                                     <input
                                       type="checkbox"
                                       checked={selectedVehicles.includes(vehicle.id)}
@@ -1358,16 +1347,22 @@ export default function LandingPage() {
                                           setSelectedVehicles(selectedVehicles.filter(id => id !== vehicle.id));
                                         }
                                       }}
-                                      className="peer sr-only"
+                                      className="sr-only"
                                     />
-                                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border-2 transition-all shadow-sm ${selectedVehicles.includes(vehicle.id) ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-50 border-slate-100 text-slate-300 group-hover/check:border-blue-200 group-hover/check:text-blue-400'}`}>
-                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                                    </div>
+                                    <span
+                                      className={`w-11 h-11 rounded-xl flex items-center justify-center border-2 transition-colors ${
+                                        selectedVehicles.includes(vehicle.id)
+                                          ? 'bg-blue-600 border-blue-600 text-white'
+                                          : 'border-slate-200 text-slate-400 hover:border-blue-300 hover:text-blue-500'
+                                      }`}
+                                    >
+                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                                    </span>
                                   </label>
                                 </div>
                               </div>
                             </div>
-                          </div>
+                          </article>
                         </Fragment>
                       ))}
                     </div>
@@ -1379,10 +1374,11 @@ export default function LandingPage() {
                           className="bg-white rounded-[3rem] shadow-[0_15px_40px_-15px_rgba(0,0,0,0.05)] hover:shadow-[0_30px_70px_-20px_rgba(0,0,0,0.12)] transition-all duration-500 overflow-hidden group cursor-pointer border border-slate-100 flex flex-col md:flex-row h-auto md:h-72 hover:-translate-y-1.5"
                           onClick={(e) => {
                             if ((e.target as HTMLElement).closest('.compare-checkbox') || (e.target as HTMLElement).closest('button')) return;
-                            fetch(
-                                `/api/public/vehicles/${vehicle.id}/view?tenantId=${encodeURIComponent(vehicle.tenantId)}`,
-                                { method: 'POST' }
-                              ).catch(console.error);
+                            pingCatalogVehicleClick({
+                              vehicleId: vehicle.id,
+                              tenantId: vehicle.tenantId,
+                              surface: 'catalog_home_list',
+                            });
                             window.location.href = `/${vehicle.tenantId}/vehicle/${vehicle.id}`;
                           }}
                         >
@@ -1467,7 +1463,7 @@ export default function LandingPage() {
                             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                               <div className="flex items-center gap-2.5 p-2 bg-slate-50 rounded-xl border border-slate-100/50">
                                 <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                                <span className="text-xs font-bold text-slate-600">{vehicle.mileage ? vehicle.mileage.toLocaleString() : '0'} mi</span>
+                                <span className="text-xs font-bold text-slate-600">Millaje: {vehicle.mileage ? vehicle.mileage.toLocaleString() : '0'} millas</span>
                               </div>
                               <div className="flex items-center gap-2.5 p-2 bg-slate-50 rounded-xl border border-slate-100/50">
                                 <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>

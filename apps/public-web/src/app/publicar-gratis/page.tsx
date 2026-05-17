@@ -118,7 +118,7 @@ export default function PublicarGratisPage() {
     e.preventDefault();
     setError(null);
     if (!form.acceptTerms) {
-      setError('Debes aceptar que solo se mostrará tu teléfono y la información del vehículo.');
+      setError('Debes aceptar que se mostrarán tu nombre, teléfono y la información del vehículo.');
       return;
     }
     setSubmitting(true);
@@ -188,15 +188,18 @@ export default function PublicarGratisPage() {
             {cfg.successHeadline || '¡Tu anuncio está publicado!'}
           </h1>
           <p className="text-center text-slate-600 mb-2">
-            Tu anuncio gratuito estará activo durante <strong>{success.durationDays || cfg.durationDays} días</strong>.
-            Después se eliminará automáticamente.
+            Tu anuncio estará activo durante <strong>{success.durationDays || cfg.durationDays} días</strong>. Después se
+            eliminará automáticamente.
           </p>
           <p className="text-center text-slate-500 text-sm mb-4">
-            En tu anuncio público solo se muestra el <strong>teléfono</strong> y la <strong>información del vehículo</strong>.
+            En público se muestran tu <strong>nombre</strong>, <strong>teléfono</strong> y los <strong>datos del vehículo</strong>.
           </p>
-          <p className="text-center text-slate-500 text-sm mb-8">
-            Verás tu auto en la página de inicio, en la sección <strong>Vendedores particulares</strong> (anuncios de particulares). Si acabas de publicar,{' '}
-            <strong>actualiza el inicio</strong> para cargar la lista.
+          <p className="text-center text-slate-500 text-sm mb-6">
+            <Link href={`/anuncio/${success.id}`} className="text-blue-600 font-semibold hover:underline">
+              Ver tu anuncio completo
+            </Link>
+            {' · '}
+            Aparece en la sección <strong>Vendedores particulares</strong> del inicio. Si no lo ves, actualiza la página.
           </p>
 
           <div className="bg-blue-50 border border-blue-100 rounded-2xl p-6 mb-6">
@@ -321,8 +324,15 @@ export default function PublicarGratisPage() {
                   <option value="certified">Certificado</option>
                 </select>
               </Field>
-              <Field label="Kilometraje">
-                <input type="number" min={0} value={form.mileage} onChange={handleField('mileage')} className={inputClass} />
+              <Field label="Millaje (millas)">
+                <input
+                  type="number"
+                  min={0}
+                  value={form.mileage}
+                  onChange={handleField('mileage')}
+                  className={inputClass}
+                  placeholder="Ej. 45000"
+                />
               </Field>
               <Field label="Transmisión">
                 <select value={form.transmission} onChange={handleField('transmission')} className={selectClass}>
@@ -347,7 +357,7 @@ export default function PublicarGratisPage() {
                 <input value={form.bodyType} onChange={handleField('bodyType')} className={inputClass} placeholder="Sedán, SUV, Pickup..." />
               </Field>
               <Field label="Ciudad" className="md:col-span-2">
-                <input value={form.city} onChange={handleField('city')} className={inputClass} placeholder="Santo Domingo" />
+                <input value={form.city} onChange={handleField('city')} className={inputClass} placeholder="San Juan, Bayamón…" />
               </Field>
               <Field label="Descripción" className="md:col-span-2">
                 <textarea
@@ -367,9 +377,9 @@ export default function PublicarGratisPage() {
             <h2 className="font-bold text-lg text-slate-900 mb-4">Fotos (hasta 6)</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {photos.map((p, i) => (
-                <div key={p} className="relative aspect-[4/3] rounded-xl overflow-hidden border border-slate-200">
+                <div key={p} className="relative aspect-[4/3] rounded-xl overflow-hidden border border-slate-200 bg-slate-100">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={p} alt={`foto-${i + 1}`} className="w-full h-full object-cover" />
+                  <img src={p} alt={`foto-${i + 1}`} className="w-full h-full object-contain" />
                   <button
                     type="button"
                     onClick={() => removePhoto(i)}
@@ -394,15 +404,18 @@ export default function PublicarGratisPage() {
                 </label>
               )}
             </div>
-            <p className="text-xs text-slate-500 mt-2">JPG, PNG o WebP. Máximo 5 MB cada una.</p>
+            <p className="text-xs text-slate-500 mt-2">
+              JPG, PNG o WebP (hasta 12 MB cada una antes de optimizar). Se corrige la orientación y, si la imagen es muy
+              grande, se reduce hasta 1920 px por lado con buena calidad. Vista previa sin recortes.
+            </p>
           </section>
 
           {/* Contact */}
           <section>
             <h2 className="font-bold text-lg text-slate-900 mb-1">Datos de contacto</h2>
             <p className="text-xs text-slate-500 mb-4">
-              Solo tu <strong>teléfono</strong> aparecerá públicamente. El email queda privado y solo lo usaremos
-              para invitarte a registrarte como vendedor.
+              Solo tu <strong>teléfono</strong> y <strong>nombre</strong> aparecen en el anuncio público. El email queda
+              privado y solo lo usaremos para invitarte a registrarte como vendedor.
             </p>
             <div className="grid md:grid-cols-2 gap-4">
               <Field label="Tu nombre *">
@@ -438,8 +451,8 @@ export default function PublicarGratisPage() {
               className="mt-1"
             />
             <span>
-              Acepto que mi anuncio se publique gratis durante {cfg?.durationDays ?? 14} días, que solo se muestre mi
-              teléfono y los datos del auto, y que el sistema lo elimine automáticamente al vencer.
+              Acepto que mi anuncio se publique durante {cfg?.durationDays ?? 14} días, que se muestren mi nombre,
+              teléfono y datos del vehículo, y que el sistema lo elimine automáticamente al vencer.
             </span>
           </label>
 

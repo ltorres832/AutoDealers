@@ -115,12 +115,19 @@ export default function FeaturedDealers({ dealers }: FeaturedDealersProps) {
         ))}
       </div>
 
-      <div className="text-center mt-16">
+      <div className="text-center mt-16 flex flex-col sm:flex-row items-center justify-center gap-4">
         <Link
-          href="/dealers"
+          href="/dealers?tab=concesionarios"
           className="inline-flex items-center gap-2 group text-blue-600 font-extrabold text-sm uppercase tracking-widest hover:text-blue-700 transition-all px-8 py-4 bg-white border-2 border-blue-100 rounded-2xl hover:border-blue-600 hover:shadow-xl"
         >
-          Ver Todos los Concesionarios
+          Ver concesionarios
+          <svg className="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+        </Link>
+        <Link
+          href="/dealers?tab=vendedores"
+          className="inline-flex items-center gap-2 group text-slate-700 font-extrabold text-sm uppercase tracking-widest hover:text-blue-700 transition-all px-8 py-4 bg-white border-2 border-slate-200 rounded-2xl hover:border-blue-600 hover:shadow-xl"
+        >
+          Buscar vendedores
           <svg className="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
         </Link>
       </div>

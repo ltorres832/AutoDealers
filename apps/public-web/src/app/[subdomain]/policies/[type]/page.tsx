@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import PublicBackButton from '@/components/PublicBackButton';
 
 type PolicyType = 'privacy' | 'terms' | 'cookies' | 'returns' | 'warranty';
 
@@ -79,12 +80,17 @@ export default function PolicyPage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Política no encontrada</h1>
           <p className="text-gray-600 mb-4">Esta política no está disponible o ha sido deshabilitada.</p>
-          <Link
-            href={`/${subdomain}`}
-            className="text-primary-600 hover:underline"
-          >
-            Volver al inicio
-          </Link>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <PublicBackButton
+              className="text-primary-600 hover:underline font-medium"
+            >
+              Volver
+            </PublicBackButton>
+            <span className="text-gray-300">|</span>
+            <Link href={`/${subdomain}`} className="text-sm text-gray-500 hover:text-primary-600">
+              Inicio
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -110,12 +116,19 @@ export default function PolicyPage() {
               </Link>
               <p className="text-white/80 mt-1">Tu concesionario de confianza</p>
             </div>
-            <Link
-              href={`/${subdomain}`}
-              className="bg-white/20 text-white px-6 py-3 rounded-lg font-medium hover:bg-white/30"
-            >
-              Volver al inicio
-            </Link>
+            <div className="flex flex-wrap items-center gap-2 justify-end">
+              <PublicBackButton
+                className="bg-white/20 text-white px-6 py-3 rounded-lg font-medium hover:bg-white/30"
+              >
+                Volver
+              </PublicBackButton>
+              <Link
+                href={`/${subdomain}`}
+                className="text-sm text-white/90 hover:text-white underline underline-offset-2 hidden sm:inline"
+              >
+                Inicio
+              </Link>
+            </div>
           </div>
         </div>
       </header>

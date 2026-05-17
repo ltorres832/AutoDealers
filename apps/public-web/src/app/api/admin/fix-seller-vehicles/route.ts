@@ -40,7 +40,6 @@ export async function POST(request: NextRequest) {
       .collection('users')
       .where('tenantId', '==', tenantId)
       .where('role', '==', 'seller')
-      .where('status', '==', 'active')
       .get();
 
     const sellers = sellersSnapshot.docs.map((doc: any) => ({
@@ -71,6 +70,8 @@ export async function POST(request: NextRequest) {
           if (assignAllToSeller || (!vehicleData.sellerId && !vehicleData.assignedTo)) {
             await vehicleDoc.ref.update({
               sellerId: sellerId,
+              createdBy: vehicleData.createdBy || sellerId,
+              publishedOnPublicPage: vehicleData.publishedOnPublicPage !== false,
               updatedAt: getFirestoreFieldValue().serverTimestamp(),
             });
 
@@ -113,6 +114,8 @@ export async function POST(request: NextRequest) {
 
               await vehicleDoc.ref.update({
                 sellerId: assignedSellerId,
+                createdBy: vehicleData.createdBy || assignedSellerId,
+                publishedOnPublicPage: vehicleData.publishedOnPublicPage !== false,
                 updatedAt: getFirestoreFieldValue().serverTimestamp(),
               });
 

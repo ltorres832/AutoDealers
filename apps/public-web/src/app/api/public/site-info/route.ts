@@ -48,7 +48,8 @@ export async function GET() {
           navigation: [
             { label: 'Vehículos', href: '#vehicles' },
             { label: 'Promociones', href: '#promotions' },
-            { label: 'Concesionarios', href: '/dealers' },
+            { label: 'Concesionarios', href: '/dealers?tab=concesionarios' },
+            { label: 'Vendedores', href: '/dealers?tab=vendedores' },
             { label: 'Contacto', href: '#contact' },
           ],
           legal: [

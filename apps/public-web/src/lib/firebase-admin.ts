@@ -1,4 +1,7 @@
-import { initializeFirebase as sharedInitialize, getFirestore as sharedGetFirestore, getAuth as sharedGetAuth } from '@autodealers/shared';
+import {
+  getFirestore as sharedGetFirestore,
+  getAuth as sharedGetAuth,
+} from '@autodealers/shared/firebase-server';
 import * as admin from 'firebase-admin';
 
 /**

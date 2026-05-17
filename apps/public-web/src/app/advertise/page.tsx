@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import PublicBackButton from '@/components/PublicBackButton';
 
 interface Plan {
   id: string;
@@ -106,9 +107,13 @@ export default function AdvertisePage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       {/* Header */}
       <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <Link href="/" className="text-blue-600 hover:text-blue-700 font-semibold">
-            ← Volver al inicio
+        <div className="max-w-7xl mx-auto px-4 py-6 flex flex-wrap items-center gap-3">
+          <PublicBackButton className="text-blue-600 hover:text-blue-800 font-semibold hover:underline">
+            ← Volver
+          </PublicBackButton>
+          <span className="text-gray-300 hidden sm:inline">|</span>
+          <Link href="/" className="text-sm text-gray-500 hover:text-gray-800">
+            Ir al inicio
           </Link>
         </div>
       </header>

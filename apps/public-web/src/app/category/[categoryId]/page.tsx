@@ -3,7 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import PublicBackButton from '@/components/PublicBackButton';
 import { getFirstPhoto, handleImageError } from '@/lib/vehicle-image';
+import { pingCatalogVehicleClick } from '@/lib/catalog-vehicle-click';
 
 interface Vehicle {
   id: string;
@@ -113,12 +115,15 @@ export default function CategoryPage() {
       {/* Header */}
       <nav className="bg-white shadow-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4">
-          <Link href="/" className="text-blue-600 hover:underline flex items-center gap-2">
+          <PublicBackButton
+            fallbackHref="/"
+            className="text-blue-600 hover:underline flex items-center gap-2"
+          >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
-            Volver al Inicio
-          </Link>
+            Volver
+          </PublicBackButton>
         </div>
       </nav>
 
@@ -196,20 +201,27 @@ export default function CategoryPage() {
                   key={vehicle.id}
                   href={`/${vehicle.tenantId}/vehicle/${vehicle.id}`}
                   className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1 overflow-hidden group"
+                  onClick={() =>
+                    pingCatalogVehicleClick({
+                      vehicleId: vehicle.id,
+                      tenantId: vehicle.tenantId,
+                      surface: 'category',
+                    })
+                  }
                 >
                   {getFirstPhoto(vehicle) ? (
-                    <div className="relative h-48 bg-gray-200 overflow-hidden">
+                    <div className="relative h-48 bg-white overflow-hidden border-b border-gray-100">
                       <img
                         src={getFirstPhoto(vehicle)!}
                         alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        className="w-full h-full object-contain object-center group-hover:scale-[1.02] transition-transform duration-300"
                         loading="lazy"
                         referrerPolicy="no-referrer"
                         onError={handleImageError}
                       />
                     </div>
                   ) : (
-                    <div className="h-48 bg-gray-200 flex items-center justify-center">
+                    <div className="h-48 bg-white border-b border-gray-100 flex items-center justify-center">
                       <span className="text-6xl">🚗</span>
                     </div>
                   )}
@@ -220,11 +232,9 @@ export default function CategoryPage() {
                     <p className="text-2xl font-bold text-blue-600 mb-2">
                       {vehicle.currency} {vehicle.price.toLocaleString()}
                     </p>
-                    {vehicle.mileage && (
-                      <p className="text-sm text-gray-600 mb-2">
-                        {vehicle.mileage.toLocaleString()} km
-                      </p>
-                    )}
+                    <p className="text-sm text-gray-600 mb-2">
+                      Millaje: {(vehicle.mileage ?? 0).toLocaleString()} millas
+                    </p>
                     <p className="text-sm text-gray-600 line-clamp-2">
                       {vehicle.description}
                     </p>
@@ -239,20 +249,27 @@ export default function CategoryPage() {
                   key={vehicle.id}
                   href={`/${vehicle.tenantId}/vehicle/${vehicle.id}`}
                   className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all p-6 flex gap-6 group"
+                  onClick={() =>
+                    pingCatalogVehicleClick({
+                      vehicleId: vehicle.id,
+                      tenantId: vehicle.tenantId,
+                      surface: 'category',
+                    })
+                  }
                 >
                   {getFirstPhoto(vehicle) ? (
-                    <div className="relative w-64 h-48 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
+                    <div className="relative w-64 h-48 bg-white rounded-lg overflow-hidden flex-shrink-0 border border-gray-100">
                       <img
                         src={getFirstPhoto(vehicle)!}
                         alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        className="w-full h-full object-contain object-center group-hover:scale-[1.02] transition-transform duration-300"
                         loading="lazy"
                         referrerPolicy="no-referrer"
                         onError={handleImageError}
                       />
                     </div>
                   ) : (
-                    <div className="w-64 h-48 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <div className="w-64 h-48 bg-white rounded-lg flex items-center justify-center flex-shrink-0 border border-gray-100">
                       <span className="text-6xl">🚗</span>
                     </div>
                   )}
@@ -264,11 +281,9 @@ export default function CategoryPage() {
                       {vehicle.currency} {vehicle.price.toLocaleString()}
                     </p>
                     <div className="flex gap-6 mb-3">
-                      {vehicle.mileage && (
-                        <span className="text-gray-600">
-                          📏 {vehicle.mileage.toLocaleString()} km
-                        </span>
-                      )}
+                      <span className="text-gray-600">
+                        Millaje: {(vehicle.mileage ?? 0).toLocaleString()} millas
+                      </span>
                       <span className="text-gray-600 capitalize">
                         {vehicle.condition}
                       </span>

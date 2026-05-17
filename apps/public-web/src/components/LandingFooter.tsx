@@ -54,7 +54,8 @@ export default function LandingFooter() {
                         <ul className="space-y-4">
                             {[
                                 { name: 'Buscar Vehículos', href: '/search' },
-                                { name: 'Concesionarios', href: '/dealers' },
+                                { name: 'Concesionarios', href: '/dealers?tab=concesionarios' },
+                                { name: 'Vendedores', href: '/dealers?tab=vendedores' },
                                 { name: 'Vende tu Auto', href: '/vender' },
                                 { name: 'Financiamiento', href: '/finance' },
                                 { name: 'Publicidad', href: '/advertise' }

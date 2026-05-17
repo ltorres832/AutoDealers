@@ -2,6 +2,7 @@
 
 import { useRealtimeSponsoredContent } from '../hooks/useRealtimeSponsoredContent';
 import { useEffect, useRef } from 'react';
+import { getAdvertiserLoginForCreateUrl } from '@/config/advertiser-links';
 
 const PremiumPlaceholder = ({ variant }: { variant: 'blue' | 'green' }) => {
   const isBlue = variant === 'blue';
@@ -9,11 +10,11 @@ const PremiumPlaceholder = ({ variant }: { variant: 'blue' | 'green' }) => {
     <div className={`group relative overflow-hidden rounded-3xl shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:shadow-[0_20px_40px_-10px_rgba(0,0,0,0.2)] transition-all duration-500 border border-white/40 hover:-translate-y-1.5 ${isBlue ? 'bg-gradient-to-br from-blue-600 via-indigo-700 to-violet-800' : 'bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-700'
       }`}>
       {/* Immersive background elements */}
-      <div className="absolute top-0 right-0 -mr-12 -mt-12 w-48 h-48 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 transition-all duration-700 ease-in-out"></div>
-      <div className="absolute bottom-0 left-0 -ml-12 -mb-12 w-48 h-48 bg-black/10 rounded-full blur-3xl group-hover:bg-black/20 transition-all duration-700 ease-in-out"></div>
+      <div className="absolute top-0 right-0 -mr-12 -mt-12 w-48 h-48 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 transition-all duration-700 ease-in-out pointer-events-none"></div>
+      <div className="absolute bottom-0 left-0 -ml-12 -mb-12 w-48 h-48 bg-black/10 rounded-full blur-3xl group-hover:bg-black/20 transition-all duration-700 ease-in-out pointer-events-none"></div>
 
       {/* Shimmer effect */}
-      <div className="absolute inset-0 translate-x-[-100%] bg-gradient-to-r from-transparent via-white/10 to-transparent group-hover:animate-[shimmer_2s_infinite] skew-x-12"></div>
+      <div className="absolute inset-0 translate-x-[-100%] bg-gradient-to-r from-transparent via-white/10 to-transparent group-hover:animate-[shimmer_2s_infinite] skew-x-12 pointer-events-none"></div>
 
       <div className="relative z-10 p-7 flex flex-col h-full text-center items-center">
         <div className="w-16 h-16 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 flex items-center justify-center mb-5 shadow-2xl group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500">
@@ -36,10 +37,10 @@ const PremiumPlaceholder = ({ variant }: { variant: 'blue' | 'green' }) => {
         </p>
 
         <a
-          href="/advertise"
+          href={getAdvertiserLoginForCreateUrl()}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-auto block w-full bg-white/95 text-slate-900 px-5 py-3.5 rounded-xl font-bold tracking-wide hover:bg-white transition-all shadow-lg group-hover:shadow-[0_0_20px_rgba(255,255,255,0.3)] backdrop-blur-sm"
+          className="relative z-20 mt-auto block w-full bg-white/95 text-slate-900 px-5 py-3.5 rounded-xl font-bold tracking-wide hover:bg-white transition-all shadow-lg group-hover:shadow-[0_0_20px_rgba(255,255,255,0.3)] backdrop-blur-sm pointer-events-auto"
         >
           Crear Anuncio Ahora
         </a>

@@ -1,10 +1,12 @@
 'use client';
-export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import PublicBackButton from '@/components/PublicBackButton';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { StripePaymentForm } from '@autodealers/shared';
+import { StripePaymentForm } from '@autodealers/shared/client';
+import { buildMembershipDisplayLines } from '@/lib/membership-display';
+import { isMultiDealerPlan } from '@/lib/membership-flags';
 
 interface Membership {
   id: string;
@@ -22,6 +24,9 @@ function RegistroPageContent() {
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirect') || '/login';
   const referralCodeFromUrl = searchParams.get('ref'); // Código de referido desde URL
+  const multiDealerRegisterHref = referralCodeFromUrl
+    ? `/register/multi-dealer?ref=${encodeURIComponent(referralCodeFromUrl)}`
+    : '/register/multi-dealer';
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     // Paso 1: Tipo de cuenta
@@ -48,6 +53,8 @@ function RegistroPageContent() {
   const [showPayment, setShowPayment] = useState(false);
   const [selectedMembership, setSelectedMembership] = useState<Membership | null>(null);
   const [registrationData, setRegistrationData] = useState<any>(null);
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [termsError, setTermsError] = useState('');
 
   // Cargar membresías cuando cambie el tipo de cuenta o al montar
   useEffect(() => {
@@ -57,7 +64,11 @@ function RegistroPageContent() {
   async function fetchMemberships() {
     setLoadingMemberships(true);
     try {
-      const response = await fetch(`/api/public/memberships?type=${formData.accountType}`);
+      const showMulti =
+        formData.accountType === 'dealer' ? '&showMultiDealer=true' : '';
+      const response = await fetch(
+        `/api/public/memberships?type=${formData.accountType}${showMulti}`
+      );
       const data = await response.json();
       setMemberships(data.memberships || []);
     } catch (error) {
@@ -71,9 +82,15 @@ function RegistroPageContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    setTermsError('');
+
     if (step < 4) {
       setStep(step + 1);
+      return;
+    }
+
+    if (!acceptTerms) {
+      setTermsError('Debes aceptar los términos y condiciones de la plataforma.');
       return;
     }
 
@@ -103,6 +120,7 @@ function RegistroPageContent() {
           // Si hay stripePriceId, es una suscripción, sino es un pago único
           subscriptionId: selectedMembership.stripePriceId ? paymentId : undefined,
           paymentIntentId: selectedMembership.stripePriceId ? undefined : paymentId,
+          acceptPlatformTerms: true,
         }),
       });
 
@@ -137,12 +155,18 @@ function RegistroPageContent() {
       <div className="max-w-4xl w-full">
         {/* Header */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 mb-6 text-gray-600 hover:text-gray-900">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            Volver al inicio
-          </Link>
+          <div className="mb-6 flex flex-wrap items-center justify-center gap-3 gap-y-2">
+            <PublicBackButton className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              Volver
+            </PublicBackButton>
+            <span className="text-gray-300 hidden sm:inline">|</span>
+            <Link href="/" className="text-sm text-gray-500 hover:text-purple-600">
+              Inicio
+            </Link>
+          </div>
           <h1 className="text-4xl font-bold mb-2">
             Crea tu cuenta en{' '}
             <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
@@ -192,32 +216,43 @@ function RegistroPageContent() {
               <div>
                 <h2 className="text-2xl font-bold mb-6">¿Qué tipo de cuenta necesitas?</h2>
                 <div className="grid md:grid-cols-2 gap-6">
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, accountType: 'dealer' })}
-                    className={`p-8 rounded-xl border-2 transition-all text-left ${
-                      formData.accountType === 'dealer'
-                        ? 'border-blue-600 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="text-4xl mb-4">🏢</div>
-                    <h3 className="text-xl font-bold mb-2">Concesionario</h3>
-                    <p className="text-gray-600 text-sm">
-                      Para concesionarios que gestionan múltiples vendedores e inventario completo
-                    </p>
-                    <ul className="mt-4 space-y-2 text-sm text-gray-600">
-                      <li className="flex items-center gap-2">
-                        <span className="text-green-500">✓</span> Múltiples usuarios
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <span className="text-green-500">✓</span> Inventario ilimitado
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <span className="text-green-500">✓</span> Reportes avanzados
-                      </li>
-                    </ul>
-                  </button>
+                  <div className="flex flex-col gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, accountType: 'dealer' })}
+                      className={`p-8 rounded-xl border-2 transition-all text-left ${
+                        formData.accountType === 'dealer'
+                          ? 'border-blue-600 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="text-4xl mb-4">🏢</div>
+                      <h3 className="text-xl font-bold mb-2">Concesionario</h3>
+                      <p className="text-gray-600 text-sm">
+                        Para concesionarios que gestionan múltiples vendedores e inventario completo
+                      </p>
+                      <ul className="mt-4 space-y-2 text-sm text-gray-600">
+                        <li className="flex items-center gap-2">
+                          <span className="text-green-500">✓</span> Múltiples usuarios
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <span className="text-green-500">✓</span> Inventario ilimitado
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <span className="text-green-500">✓</span> Reportes avanzados
+                        </li>
+                      </ul>
+                    </button>
+                    <Link
+                      href={multiDealerRegisterHref}
+                      className="text-center text-sm text-gray-500 hover:text-blue-600 px-2 py-2 rounded-lg border border-transparent hover:border-blue-100 hover:bg-blue-50/50 transition-colors"
+                    >
+                      ¿Gestionas varios concesionarios?{' '}
+                      <span className="font-semibold text-blue-600 underline-offset-2 hover:underline">
+                        Solicitud Multi Dealer
+                      </span>
+                    </Link>
+                  </div>
 
                   <button
                     type="button"
@@ -363,6 +398,21 @@ function RegistroPageContent() {
             {step === 4 && (
               <div>
                 <h2 className="text-2xl font-bold mb-6">Elige tu plan</h2>
+                {termsError && (
+                  <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    {termsError}
+                  </div>
+                )}
+                {formData.accountType === 'dealer' && (
+                  <p className="text-sm text-gray-600 mb-6 max-w-2xl mx-auto text-center leading-relaxed">
+                    Los planes <strong>multi concesionario</strong> gestionan varios concesionarios bajo una cuenta; la
+                    alta puede requerir una{' '}
+                    <Link href={multiDealerRegisterHref} className="font-semibold text-blue-600 hover:underline">
+                      solicitud dedicada
+                    </Link>
+                    .
+                  </p>
+                )}
                 {loadingMemberships ? (
                   <div className="flex justify-center py-12">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -376,49 +426,10 @@ function RegistroPageContent() {
                   <div className="grid md:grid-cols-3 gap-6">
                     {memberships.map((membership, index) => {
                       const isPopular = index === Math.floor(memberships.length / 2);
-                      const features: string[] = [];
-                      const limits: string[] = [];
-                      
-                      // Límites (esta es la diferencia principal entre planes)
-                      if (membership.features.maxSellers !== undefined && membership.features.maxSellers !== null) {
-                        limits.push(`👥 ${membership.features.maxSellers} Vendedores`);
-                      } else if (membership.features.maxSellers === null) {
-                        limits.push('👥 Vendedores Ilimitados');
-                      }
-                      
-                      if (membership.features.maxInventory !== undefined && membership.features.maxInventory !== null) {
-                        limits.push(`🚗 ${membership.features.maxInventory} Vehículos`);
-                      } else if (membership.features.maxInventory === null) {
-                        limits.push('🚗 Inventario Ilimitado');
-                      }
-                      
-                      if (membership.features.maxCampaigns !== undefined && membership.features.maxCampaigns !== null) {
-                        limits.push(`📢 ${membership.features.maxCampaigns} Campañas`);
-                      } else if (membership.features.maxCampaigns === null) {
-                        limits.push('📢 Campañas Ilimitadas');
-                      }
-                      
-                      if (membership.features.maxLeadsPerMonth !== undefined && membership.features.maxLeadsPerMonth !== null) {
-                        limits.push(`📞 ${membership.features.maxLeadsPerMonth} Leads/mes`);
-                      } else if (membership.features.maxLeadsPerMonth === null) {
-                        limits.push('📞 Leads Ilimitados');
-                      }
-                      
-                      if (membership.features.maxStorageGB !== undefined && membership.features.maxStorageGB !== null) {
-                        limits.push(`💾 ${membership.features.maxStorageGB} GB Almacenamiento`);
-                      } else if (membership.features.maxStorageGB === null) {
-                        limits.push('💾 Almacenamiento Ilimitado');
-                      }
-                      
-                      // Features básicas (TODAS las membresías tienen estas)
-                      if (membership.features.customSubdomain) features.push('🌐 Página Web con Subdominio');
-                      if (membership.features.crmAdvanced) features.push('📊 CRM Completo');
-                      if (membership.features.socialMediaEnabled) features.push('📱 Publicaciones en Redes Sociales');
-                      if (membership.features.videoUploads) features.push('🎥 Subida de Videos');
-                      if (membership.features.liveChat) features.push('💬 Chat en Vivo');
-                      if (membership.features.appointmentScheduling) features.push('📅 Sistema de Citas');
-                      if (membership.features.customTemplates) features.push('📝 Templates Personalizados');
-                      if (membership.features.customBranding) features.push('🎨 Branding Personalizado');
+                      const { limits, features } = buildMembershipDisplayLines(
+                        membership.features as Record<string, unknown>,
+                        { planKind: formData.accountType }
+                      );
 
                       return (
                         <button
@@ -436,7 +447,14 @@ function RegistroPageContent() {
                               ⭐ MÁS POPULAR
                             </div>
                           )}
-                          <h3 className="text-xl font-bold mb-1">{membership.name}</h3>
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <h3 className="text-xl font-bold">{membership.name}</h3>
+                            {isMultiDealerPlan(membership.features) && (
+                              <span className="text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full">
+                                Multi dealer
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-gray-500 mb-4 capitalize">{membership.type === 'dealer' ? 'Para Concesionarios' : 'Para Vendedores'}</p>
                           
                           <div className="text-3xl font-bold mb-4">
@@ -483,6 +501,29 @@ function RegistroPageContent() {
                         </button>
                       );
                     })}
+                  </div>
+                )}
+
+                {step === 4 && memberships.length > 0 && (
+                  <div className="mt-6 flex items-start gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
+                    <input
+                      id="registro-terms"
+                      type="checkbox"
+                      checked={acceptTerms}
+                      onChange={(e) => setAcceptTerms(e.target.checked)}
+                      className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600"
+                    />
+                    <label htmlFor="registro-terms" className="text-sm text-gray-700 leading-relaxed cursor-pointer">
+                      Acepto los{' '}
+                      <Link href="/terminos" className="font-semibold text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">
+                        Términos y Condiciones
+                      </Link>{' '}
+                      y la{' '}
+                      <Link href="/privacidad" className="font-semibold text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">
+                        Política de Privacidad
+                      </Link>{' '}
+                      de la plataforma AutoDealers.
+                    </label>
                   </div>
                 )}
               </div>

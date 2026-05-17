@@ -10,6 +10,26 @@
       "import": "./dist/firebase-server.js",
       "require": "./dist/firebase-server.js",
       "types": "./dist/firebase-server.d.ts"
+    },
+    "./firebase-web-client-config": {
+      "import": "./dist/firebase-web-client-config.js",
+      "require": "./dist/firebase-web-client-config.js",
+      "types": "./dist/firebase-web-client-config.d.ts"
+    },
+    "./platform-branding-client": {
+      "import": "./dist/platform-branding-client.js",
+      "require": "./dist/platform-branding-client.js",
+      "types": "./dist/platform-branding-client.d.ts"
+    },
+    "./components/SocialMediaLinks": {
+      "import": "./dist/components/SocialMediaLinks.js",
+      "require": "./dist/components/SocialMediaLinks.js",
+      "types": "./dist/components/SocialMediaLinks.d.ts"
+    },
+    "./client": {
+      "import": "./dist/client.js",
+      "require": "./dist/client.js",
+      "types": "./dist/client.d.ts"
     }
   },
   "scripts": {

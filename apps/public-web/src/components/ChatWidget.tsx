@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { DEFAULT_PLATFORM_BRAND_ASSET } from '@autodealers/shared/platform-branding-client';
 
 interface ChatMessage {
   id: string;
@@ -13,23 +14,44 @@ interface ChatWidgetProps {
   tenantId: string;
   tenantName: string;
   defaultOpen?: boolean;
+  /** Texto cuando aún no hay mensajes (desde websiteSettings.chat.welcomeMessage). */
+  welcomeMessage?: string;
+  /** Si es false, no se muestra el widget. Por defecto true. */
+  enabled?: boolean;
 }
 
-export default function ChatWidget({ tenantId, tenantName, defaultOpen = false }: ChatWidgetProps) {
+export default function ChatWidget({
+  tenantId,
+  tenantName,
+  defaultOpen = false,
+  welcomeMessage,
+  enabled = true,
+}: ChatWidgetProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
+  const [loading, setLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [clientName, setClientName] = useState('');
   const [clientEmail, setClientEmail] = useState('');
   const [clientPhone, setClientPhone] = useState('');
   const [showNameForm, setShowNameForm] = useState(true);
-  const [loading, setLoading] = useState(false);
+  const [notifyBrandIcon, setNotifyBrandIcon] = useState(DEFAULT_PLATFORM_BRAND_ASSET);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const previousMessagesCountRef = useRef(0);
   const notificationPermissionRef = useRef<NotificationPermission | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    const onBranding = (e: Event) => {
+      const d = (e as CustomEvent<{ logo?: string }>).detail;
+      const u = d?.logo;
+      if (typeof u === 'string' && u.trim()) setNotifyBrandIcon(u.trim());
+    };
+    window.addEventListener('platform-branding-changed', onBranding);
+    return () => window.removeEventListener('platform-branding-changed', onBranding);
+  }, []);
 
   useEffect(() => {
     // Obtener o crear sessionId del localStorage
@@ -115,8 +137,8 @@ export default function ChatWidget({ tenantId, tenantName, defaultOpen = false }
             body: message.content.length > 100 
               ? message.content.substring(0, 100) + '...' 
               : message.content,
-            icon: '/favicon.ico',
-            badge: '/favicon.ico',
+            icon: notifyBrandIcon,
+            badge: notifyBrandIcon,
             tag: `public-chat-${tenantId}-${sessionId}`,
             requireInteraction: false,
           });
@@ -125,7 +147,7 @@ export default function ChatWidget({ tenantId, tenantName, defaultOpen = false }
     }
 
     previousMessagesCountRef.current = messages.length;
-  }, [messages, showNameForm, isOpen, tenantId, tenantName, sessionId]);
+  }, [messages, showNameForm, isOpen, tenantId, tenantName, sessionId, notifyBrandIcon]);
 
   async function fetchMessages(session: string) {
     try {
@@ -227,6 +249,10 @@ export default function ChatWidget({ tenantId, tenantName, defaultOpen = false }
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }
 
+  if (enabled === false) {
+    return null;
+  }
+
   if (!isOpen) {
     return (
       <button
@@ -311,7 +337,7 @@ export default function ChatWidget({ tenantId, tenantName, defaultOpen = false }
           <>
             {messages.length === 0 ? (
               <div className="text-center text-gray-500 py-8">
-                <p>¡Hola! ¿En qué puedo ayudarte?</p>
+                <p>{(welcomeMessage && welcomeMessage.trim()) || '¡Hola! ¿En qué puedo ayudarte?'}</p>
               </div>
             ) : (
               messages.map((message) => (

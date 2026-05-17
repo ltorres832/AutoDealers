@@ -1,6 +1,13 @@
 buildConfig:
   runtime: nodejs20
-  buildCommand: npm ci --legacy-peer-deps && cd apps/public-web && npm run build
+  # Monorepo: rootDir en firebase.json es apps/public-web; Cloud Build puede ejecutar el comando
+  # desde esa carpeta (sin package-lock) o desde la raíz del repo. Subimos a la raíz si detectamos
+  # el lockfile del workspace y construimos el paquete por nombre.
+  buildCommand: |
+    set -e
+    if [ -f ../../package-lock.json ]; then cd ../..; fi
+    npm ci --legacy-peer-deps
+    npm run build --workspace=@autodealers/public-web
   outputDir: .next/standalone
 
 # CWD en Cloud Run = raíz del repo (/workspace). El standalone está en apps/public-web/.next/standalone

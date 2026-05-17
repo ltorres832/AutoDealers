@@ -3,6 +3,8 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { buildMembershipDisplayLines } from '@/lib/membership-display';
+import { isMultiDealerPlan } from '@/lib/membership-flags';
 
 interface MultiDealerMembership {
   id: string;
@@ -10,13 +12,7 @@ interface MultiDealerMembership {
   price: number;
   currency: string;
   billingCycle: 'monthly' | 'yearly';
-  features: {
-    maxDealers?: number | null;
-    maxCorporateEmails?: number | null;
-    corporateEmailEnabled: boolean;
-    emailAliases: boolean;
-    multiDealerEnabled?: boolean;
-  };
+  features: Record<string, unknown>;
 }
 
 function MultiDealerContent() {
@@ -49,6 +45,7 @@ function MultiDealerContent() {
   });
 
   const [step, setStep] = useState(1);
+  const [loadingPlans, setLoadingPlans] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
   const [showPassword, setShowPassword] = useState(false);
@@ -59,13 +56,19 @@ function MultiDealerContent() {
   }, []);
 
   async function fetchMultiDealerMemberships() {
+    setLoadingPlans(true);
     try {
       const response = await fetch('/api/public/memberships?type=dealer&showMultiDealer=true');
       const data = await response.json();
-      const filtered = (data.memberships || []).filter((m: any) => m.features?.multiDealerEnabled === true);
+      const filtered = (data.memberships || []).filter((m: MultiDealerMembership) =>
+        isMultiDealerPlan(m.features)
+      );
       setMemberships(filtered);
     } catch (error) {
       console.error('Error fetching memberships:', error);
+      setMemberships([]);
+    } finally {
+      setLoadingPlans(false);
     }
   }
 
@@ -103,6 +106,7 @@ function MultiDealerContent() {
           ...formData,
           membershipId: selectedMembership,
           referralCode: referralCodeFromUrl || undefined,
+          acceptPlatformTerms: true,
         }),
       });
 
@@ -146,46 +150,79 @@ function MultiDealerContent() {
           {/* Step 1: Plan Selection */}
           <div className={`transition-all duration-500 ${step === 1 ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none absolute'}`}>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-              {memberships.map((membership) => (
-                <div
-                  key={membership.id}
-                  onClick={() => setSelectedMembership(membership.id)}
-                  className={`group relative bg-white rounded-[2.5rem] p-8 cursor-pointer transition-all duration-500 border-4 ${selectedMembership === membership.id
-                    ? 'border-blue-600 shadow-2xl shadow-blue-600/10 -translate-y-2'
-                    : 'border-white shadow-xl hover:border-slate-100 hover:-translate-y-1'
-                    }`}
-                >
-                  <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-4 group-hover:text-blue-600 transition-colors">
-                    {membership.name}
-                  </h3>
-                  <div className="flex items-baseline gap-1 mb-8">
-                    <span className="text-4xl font-black text-slate-900">${membership.price}</span>
-                    <span className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">
-                      /{membership.billingCycle === 'monthly' ? 'Mes' : 'Año'}
-                    </span>
-                  </div>
-                  <div className="space-y-3 mb-8">
-                    <div className="flex items-center gap-3 text-xs font-bold text-slate-600">
-                      <div className="w-5 h-5 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">🏢</div>
-                      {membership.features.maxDealers || 'Ilimitados'} Concesionarios
-                    </div>
-                    {membership.features.corporateEmailEnabled && (
-                      <div className="flex items-center gap-3 text-xs font-bold text-slate-600">
-                        <div className="w-5 h-5 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">📧</div>
-                        Emails Corporativos
+              {loadingPlans ? (
+                <div className="lg:col-span-3 flex justify-center py-16">
+                  <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : (
+                <>
+                  {memberships.map((membership) => {
+                    const { limits, features } = buildMembershipDisplayLines(membership.features, {
+                      planKind: 'dealer',
+                    });
+
+                    return (
+                      <div
+                        key={membership.id}
+                        onClick={() => setSelectedMembership(membership.id)}
+                        className={`group relative bg-white rounded-[2.5rem] p-8 cursor-pointer transition-all duration-500 border-4 ${
+                          selectedMembership === membership.id
+                            ? 'border-amber-500 shadow-2xl shadow-amber-500/10 -translate-y-2'
+                            : 'border-white shadow-xl hover:border-amber-100 hover:-translate-y-1'
+                        }`}
+                      >
+                        <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-2 group-hover:text-blue-600 transition-colors">
+                          {membership.name}
+                        </h3>
+                        <div className="flex items-baseline gap-1 mb-6">
+                          <span className="text-4xl font-black text-slate-900">${membership.price}</span>
+                          <span className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">
+                            /{membership.billingCycle === 'monthly' ? 'Mes' : 'Año'}
+                          </span>
+                        </div>
+                        {limits.length > 0 && (
+                          <ul className="space-y-1.5 mb-3 text-xs text-slate-600">
+                            {limits.slice(0, 6).map((line, i) => (
+                              <li key={i}>{line}</li>
+                            ))}
+                            {limits.length > 6 && (
+                              <li className="text-slate-400">+{limits.length - 6} límites más</li>
+                            )}
+                          </ul>
+                        )}
+                        {features.length > 0 && (
+                          <ul className="space-y-1.5 mb-6 text-xs text-slate-600 max-h-32 overflow-y-auto">
+                            {features.slice(0, 5).map((line, i) => (
+                              <li key={i}>{line}</li>
+                            ))}
+                            {features.length > 5 && (
+                              <li className="text-slate-400">+{features.length - 5} funciones…</li>
+                            )}
+                          </ul>
+                        )}
+                        <div
+                          className={`h-12 rounded-xl flex items-center justify-center font-black text-[10px] uppercase tracking-[0.2em] transition-all ${
+                            selectedMembership === membership.id ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-400'
+                          }`}
+                        >
+                          {selectedMembership === membership.id ? 'Seleccionado' : 'Elegir'}
+                        </div>
                       </div>
-                    )}
-                  </div>
-                  <div className={`h-12 rounded-xl flex items-center justify-center font-black text-[10px] uppercase tracking-[0.2em] transition-all ${selectedMembership === membership.id ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-400'
-                    }`}>
-                    {selectedMembership === membership.id ? 'Seleccionado' : 'Elegir'}
-                  </div>
-                </div>
-              ))}
-              {memberships.length === 0 && (
-                <div className="lg:col-span-3 text-center py-12 bg-white rounded-[2.5rem] border-2 border-dashed border-slate-200">
-                  <p className="text-slate-400 font-bold uppercase tracking-widest">Cargando planes de alto volumen...</p>
-                </div>
+                    );
+                  })}
+                  {memberships.length === 0 && (
+                    <div className="lg:col-span-3 text-center py-12 px-6 bg-white rounded-[2.5rem] border-2 border-dashed border-amber-200">
+                      <p className="text-slate-700 font-bold mb-2">No hay planes Multi Dealer configurados</p>
+                      <p className="text-sm text-slate-500 mb-4">
+                        En Firestore deben existir membresías con <code className="bg-slate-100 px-1 rounded">features.multiDealerEnabled: true</code>.
+                        Ejecuta el script <code className="bg-slate-100 px-1 rounded">create-default-memberships</code> o créalos desde el admin.
+                      </p>
+                      <Link href="/register?type=dealer" className="text-blue-600 font-semibold hover:underline">
+                        Registro concesionario estándar
+                      </Link>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
@@ -307,6 +344,27 @@ function MultiDealerContent() {
                   </div>
                 </div>
               </section>
+
+              <div className="flex items-start gap-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-6">
+                <input
+                  id="multi-dealer-terms"
+                  type="checkbox"
+                  checked={acceptTerms}
+                  onChange={(e) => setAcceptTerms(e.target.checked)}
+                  className="mt-1 w-5 h-5 rounded border-slate-300 text-blue-600"
+                />
+                <label htmlFor="multi-dealer-terms" className="text-sm font-medium text-slate-600 leading-relaxed cursor-pointer">
+                  Acepto los{' '}
+                  <Link href="/terminos" className="text-blue-600 underline underline-offset-2" target="_blank" rel="noopener noreferrer">
+                    Términos y Condiciones
+                  </Link>{' '}
+                  y la{' '}
+                  <Link href="/privacidad" className="text-blue-600 underline underline-offset-2" target="_blank" rel="noopener noreferrer">
+                    Política de Privacidad
+                  </Link>{' '}
+                  de la plataforma AutoDealers.
+                </label>
+              </div>
 
               <div className="flex flex-col md:flex-row gap-4 pt-10 border-t border-slate-100">
                 <button type="button" onClick={() => setStep(1)} className="px-10 h-20 rounded-[2rem] font-black text-[10px] uppercase tracking-widest text-slate-400 hover:text-slate-900 hover:bg-slate-50 transition-all">

@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getVehiclePhotos, handleImageError } from '../../lib/vehicle-image';
+import { pingCatalogVehicleClick } from '@/lib/catalog-vehicle-click';
 
 interface Vehicle {
   id: string;
@@ -11,7 +12,8 @@ interface Vehicle {
   year: number;
   price: number;
   currency: string;
-  photos: string[];
+  photos?: string[];
+  images?: string[];
   description: string;
   mileage?: number;
   condition: string;
@@ -28,11 +30,26 @@ interface Vehicle {
 interface VehicleDetailModalProps {
   vehicle: Vehicle;
   subdomain: string;
+  /** ID Firestore del tenant (señales de interés anónimas; opcional si no hay tenant cargado). */
+  catalogTenantId?: string;
   onClose: () => void;
 }
 
-export default function VehicleDetailModal({ vehicle, subdomain, onClose }: VehicleDetailModalProps) {
+export default function VehicleDetailModal({ vehicle, subdomain, catalogTenantId, onClose }: VehicleDetailModalProps) {
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+
+  useEffect(() => {
+    setCurrentPhotoIndex(0);
+  }, [vehicle.id]);
+
+  useEffect(() => {
+    if (!catalogTenantId || !vehicle?.id) return;
+    pingCatalogVehicleClick({
+      vehicleId: vehicle.id,
+      tenantId: catalogTenantId,
+      surface: 'tenant_site_modal',
+    });
+  }, [vehicle.id, catalogTenantId]);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 overflow-y-auto">
@@ -55,11 +72,11 @@ export default function VehicleDetailModal({ vehicle, subdomain, onClose }: Vehi
           {/* Photos */}
           {getVehiclePhotos(vehicle).length > 0 && (
             <div className="mb-6">
-              <div className="relative h-96 bg-gray-200 rounded-lg overflow-hidden mb-4">
+              <div className="relative h-96 bg-white rounded-lg overflow-hidden mb-4 border border-gray-100">
                 <img
                   src={getVehiclePhotos(vehicle)[currentPhotoIndex]}
                   alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain object-center"
                   referrerPolicy="no-referrer"
                   onError={handleImageError}
                 />
@@ -91,14 +108,14 @@ export default function VehicleDetailModal({ vehicle, subdomain, onClose }: Vehi
                     <button
                       key={index}
                       onClick={() => setCurrentPhotoIndex(index)}
-                      className={`relative h-20 bg-gray-200 rounded overflow-hidden border-2 ${
+                      className={`relative h-20 bg-white rounded overflow-hidden border-2 ${
                         currentPhotoIndex === index ? 'border-primary-600' : 'border-transparent'
                       }`}
                     >
                       <img
                         src={photo}
                         alt={`Vista ${index + 1}`}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-contain object-center"
                         referrerPolicy="no-referrer"
                         onError={handleImageError}
                       />
@@ -129,11 +146,9 @@ export default function VehicleDetailModal({ vehicle, subdomain, onClose }: Vehi
                   }`}>
                     {vehicle.condition === 'new' ? 'Nuevo' : vehicle.condition === 'certified' ? 'Certificado' : 'Usado'}
                   </span>
-                  {vehicle.mileage && (
-                    <span className="px-3 py-1 bg-gray-100 text-gray-800 rounded text-sm">
-                      {vehicle.mileage.toLocaleString()} km
-                    </span>
-                  )}
+                  <span className="px-3 py-1 bg-gray-100 text-gray-800 rounded text-sm">
+                    Millaje: {(vehicle.mileage ?? 0).toLocaleString()} millas
+                  </span>
                 </div>
               </div>
 
@@ -199,10 +214,16 @@ export default function VehicleDetailModal({ vehicle, subdomain, onClose }: Vehi
                 <h4 className="text-xl font-bold mb-4">Interesado en este vehículo?</h4>
                 <div className="space-y-3">
                   <Link
-                    href={`/${subdomain}/appointment?vehicleId=${vehicle.id}`}
+                    href={`/${subdomain}/appointment?vehicleId=${vehicle.id}&intent=appointment`}
                     className="w-full bg-primary-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-700 text-center block transition"
                   >
-                    📅 Agendar Cita de Prueba
+                    📅 Agendar cita
+                  </Link>
+                  <Link
+                    href={`/${subdomain}/appointment?vehicleId=${vehicle.id}&intent=test_drive_request`}
+                    className="w-full bg-indigo-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-indigo-700 text-center block transition"
+                  >
+                    🚗 Solicitar prueba de manejo
                   </Link>
                   <Link
                     href={`/${subdomain}/pre-qualify?vehicleId=${vehicle.id}`}

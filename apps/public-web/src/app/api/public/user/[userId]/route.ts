@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getFirestore } from '@autodealers/shared';
+import { getFirestore } from '@autodealers/shared/firebase-server';
 import { getUserById } from '@autodealers/core';
 
 export const dynamic = 'force-dynamic';

@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 
 const appDir = __dirname.replace(/[/\\]scripts$/, '');
+const repoRoot = path.join(appDir, '..', '..');
 const standaloneRoot = path.join(appDir, '.next', 'standalone');
 const standaloneDir = path.join(standaloneRoot, 'apps', 'public-web');
 const staticSrc = path.join(appDir, '.next', 'static');
@@ -26,6 +27,30 @@ function copyRecursive(src, dst) {
       fs.copyFileSync(srcPath, dstPath);
     }
   }
+}
+
+/**
+ * App Hosting solo despliega el standalone; require('firebase-admin') debe resolver aquí.
+ * Copia desde el node_modules del monorepo si falta o está incompleto.
+ */
+function copyNpmPackage(pkgName) {
+  const destRoot = path.join(standaloneRoot, 'node_modules');
+  const dest = path.join(destRoot, pkgName);
+  const candidates = [
+    path.join(repoRoot, 'node_modules', pkgName),
+    path.join(appDir, 'node_modules', pkgName),
+  ];
+  const src = candidates.find((p) => fs.existsSync(p));
+  if (!src) {
+    console.warn('WARN postbuild: no se encontro', pkgName, 'en', candidates.join(' | '));
+    return;
+  }
+  fs.mkdirSync(destRoot, { recursive: true });
+  if (fs.existsSync(dest)) {
+    fs.rmSync(dest, { recursive: true, force: true });
+  }
+  copyRecursive(src, dest);
+  console.log('✅ postbuild: copiado', pkgName, '-> standalone/node_modules');
 }
 
 try {
@@ -56,6 +81,8 @@ try {
     copyRecursive(publicSrc, publicDst);
     console.log('✅ Copiado public/ a standalone');
   }
+
+  copyNpmPackage('firebase-admin');
 } catch (err) {
   console.error('❌ Error en postbuild:', err.message);
   process.exit(1);

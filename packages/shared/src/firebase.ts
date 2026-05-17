@@ -175,16 +175,33 @@ export function initializeFirebase(): AdminType['app']['App'] {
 
       const appOptions: any = { storageBucket, projectId: projectId || process.env.GOOGLE_CLOUD_PROJECT || 'autodealers-7f62e' };
 
-      // App Hosting / Cloud Run: ADC disponible con firebase-app-hosting-compute@
-      const isAppHosting = !!(process.env.K_SERVICE || process.env.K_REVISION || process.env.FIREBASE_CONFIG || process.env.GCLOUD_PROJECT);
+      const isCloudRun = !!(process.env.K_SERVICE || process.env.K_REVISION);
+      const isAppHosting = !!(isCloudRun || process.env.FIREBASE_CONFIG || process.env.GCLOUD_PROJECT);
 
       const hasValidCert = projectId && clientEmail && privateKey && (privateKey.includes('BEGIN') || privateKey.length > 100);
       let credentialSet = false;
 
-      if (hasValidCert) {
+      // Cloud Run / App Hosting: usar SIEMPRE ADC primero. La cuenta de servicio del runtime
+      // tiene acceso a Firestore en el proyecto. Claves FIREBASE_* en secretos a menudo están
+      // rotadas o mal formateadas → UNAUTHENTICATED en Firestore si se prioriza el cert.
+      if (isCloudRun) {
         try {
-          const normalizedKey = privateKey.replace(/\\n/g, '\n').trim();
-          appOptions.credential = admin.credential.cert({ projectId, clientEmail, privateKey: normalizedKey });
+          appOptions.credential = admin.credential.applicationDefault();
+          console.log('✅ Firebase Admin Shared: ADC (Cloud Run / App Hosting)');
+          credentialSet = true;
+        } catch (adcError: any) {
+          console.warn('⚠️ ADC en Cloud Run falló:', adcError.message);
+        }
+      }
+
+      if (!credentialSet && hasValidCert) {
+        try {
+          const normalizedKey = privateKey!.replace(/\\n/g, '\n').trim();
+          appOptions.credential = admin.credential.cert({
+            projectId: projectId!,
+            clientEmail: clientEmail!,
+            privateKey: normalizedKey,
+          });
           console.log('✅ Firebase Admin Shared: Certificado explícito');
           credentialSet = true;
         } catch (certError: any) {

@@ -13,3 +13,4 @@ export * from './components/Button';
 export * from './components/StatsCard';
 export * from './components/PageHeader';
 export { StripePaymentForm } from './components/StripePaymentForm';
+export { SocialMediaLinks, type SocialMediaMap } from './components/SocialMediaLinks';

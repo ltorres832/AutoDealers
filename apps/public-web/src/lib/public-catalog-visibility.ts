@@ -3,6 +3,8 @@
  * Centralizado para que API /vehicles, /search y la home se comporten igual.
  */
 
+import { freeListingExpiresAtMs } from '@autodealers/core';
+
 /** Tenant incluido en catálogo multi-tenant (antes solo status===active; muchos docs no tienen el campo) */
 export function isTenantEligibleForPublicCatalog(data: Record<string, unknown>): boolean {
   const s = String(data.status ?? '')
@@ -26,16 +28,31 @@ export function isVehicleVisibleOnPublicListing(v: {
   publishedOnPublicPage?: boolean | null;
   deleted?: boolean;
   soldAt?: unknown;
+  showPublicSoldBadge?: boolean;
+  isFreePublicListing?: boolean;
+  freeListingExpiresAt?: unknown;
 }): boolean {
-  if (isPublishedFlagOff(v)) return false;
+  if (v.isFreePublicListing === true) {
+    const exp = freeListingExpiresAtMs(v.freeListingExpiresAt);
+    if (exp != null && exp < Date.now()) return false;
+  }
   if (v.deleted === true) return false;
-  if (v.soldAt != null && v.soldAt !== '') return false;
 
   const st = String(v.status ?? '')
     .toLowerCase()
     .trim()
     .replace(/\s+/g, '_');
-  if (['sold', 'deleted', 'inactive', 'reserved'].includes(st)) return false;
+
+  if (st === 'hidden' || st === 'deleted' || st === 'inactive') return false;
+
+  if (st === 'sold') {
+    return v.showPublicSoldBadge === true && !isPublishedFlagOff(v);
+  }
+
+  if (isPublishedFlagOff(v)) return false;
+  if (v.soldAt != null && v.soldAt !== '') return false;
+
+  if (['reserved'].includes(st)) return false;
   // Legacy: muchos docs sin campo status — listar si no está explícitamente vetado arriba
   if (!st) return true;
 

@@ -4,7 +4,56 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { signIn } from '../../lib/auth-client';
+import { FirebaseError } from 'firebase/app';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { auth, firebaseConfig } from '@/lib/firebase-config';
+import { ForgotPasswordPanel } from '@/components/ForgotPasswordPanel';
+
+const PROJECT_ID = 'autodealers-7f62e';
+const APP_HOSTING_REGION = 'us-central1';
+
+/** Defaults para Firebase App Hosting (`firebase.json` → apphosting.backendId). */
+function defaultAppHostingDashboard(
+  backendId: 'admin-app' | 'dealer-app' | 'seller-app' | 'advertiser-app',
+  path: string
+): string {
+  const p = path.startsWith('/') ? path : `/${path}`;
+  return `https://${backendId}--${PROJECT_ID}.${APP_HOSTING_REGION}.hosted.app${p}`;
+}
+
+/**
+ * Mapea el rol del documento `users` en Firestore al panel Next.js (una UI por app).
+ * `master_dealer`, `dealer_admin` y `manager` usan la app dealer.
+ */
+function normalizePortalRole(
+  role: string | undefined
+): 'admin' | 'dealer' | 'seller' | 'advertiser' | null {
+  const r = (role || '').trim().toLowerCase();
+  if (r === 'admin') return 'admin';
+  if (['dealer', 'master_dealer', 'dealer_admin', 'manager'].includes(r)) return 'dealer';
+  if (r === 'seller') return 'seller';
+  if (r === 'advertiser') return 'advertiser';
+  return null;
+}
+
+const LINK_FIREBASE_AUTH_SETTINGS = `https://console.firebase.google.com/project/${PROJECT_ID}/authentication/settings`;
+
+function mapAuthError(message: string): string {
+  const m = message.toLowerCase();
+  if (m.includes('network-request-failed') || m.includes('failed to fetch') || m.includes('network error')) {
+    return 'No se pudo conectar con Firebase. Prueba otra red, desactiva bloqueadores de anuncios o extensión que bloquee googleapis.com, y revisa dominios autorizados en Firebase Authentication.';
+  }
+  if (m.includes('invalid-credential') || m.includes('wrong-password') || m.includes('invalid login')) {
+    return 'Email o contraseña incorrectos';
+  }
+  if (m.includes('user-not-found') || m.includes('email not found')) {
+    return 'Email o contraseña incorrectos';
+  }
+  if (m.includes('too-many-requests')) {
+    return 'Demasiados intentos. Espera unos minutos e intenta de nuevo.';
+  }
+  return message;
+}
 
 function LoginPageContent() {
   const router = useRouter();
@@ -18,6 +67,7 @@ function LoginPageContent() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
+  const [showDomainHelp, setShowDomainHelp] = useState(false);
   const [landingConfig, setLandingConfig] = useState<any>({
     login: {
       registerDealerText: 'Regístrate como Dealer',
@@ -50,75 +100,71 @@ function LoginPageContent() {
     }
   }
 
-  // Función para redirigir según el rol (detección automática)
   function redirectByRole(role: string) {
     if (typeof window === 'undefined') return;
-    
-    // Si hay un redirect específico, usarlo primero
+
     if (redirectTo) {
       router.push(redirectTo);
       return;
     }
-    
+
+    const portal = normalizePortalRole(role);
+    if (!portal) {
+      setError('Rol de usuario no reconocido o sin panel (admin, dealer, seller, advertiser).');
+      setLoading(false);
+      return;
+    }
+
     const hostname = window.location.hostname;
     const protocol = window.location.protocol;
-    
-    // Detectar si estamos en localhost o en producción
+
     const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.includes('localhost');
-    const isFirebase = hostname.includes('.web.app') || hostname.includes('.firebaseapp.com');
-    
+    const isFirebase =
+      hostname.includes('.web.app') ||
+      hostname.includes('.firebaseapp.com') ||
+      hostname.includes('.hosted.app');
+
     let targetUrl = '';
-    
-    // En producción (Firebase), usar las URLs de los sites de Firebase Hosting
+
     if (isFirebase && !isLocalhost) {
-      // Extraer el project ID del hostname (ej: autodealers-7f62e.web.app -> autodealers-7f62e)
-      const projectId = hostname.split('.')[0];
-      
-      switch (role) {
+      switch (portal) {
         case 'admin':
-          // Usar el site de admin-panel de Firebase Hosting
-          // Site ID: autodealers-admin (según .firebaserc)
-          targetUrl = process.env.NEXT_PUBLIC_ADMIN_URL || `https://autodealers-admin.web.app/admin/dashboard`;
+          targetUrl =
+            process.env.NEXT_PUBLIC_ADMIN_URL || defaultAppHostingDashboard('admin-app', '/dashboard');
           break;
         case 'dealer':
-          // Usar el site de dealer-dashboard de Firebase Hosting
-          // Site ID: autodealers-dealer (según .firebaserc)
-          targetUrl = process.env.NEXT_PUBLIC_DEALER_URL || `https://autodealers-dealer.web.app/dashboard`;
+          targetUrl =
+            process.env.NEXT_PUBLIC_DEALER_URL || defaultAppHostingDashboard('dealer-app', '/dashboard');
           break;
         case 'seller':
-          // Usar el site de seller-dashboard de Firebase Hosting
-          // Site ID: autodealers-seller (según .firebaserc)
-          targetUrl = process.env.NEXT_PUBLIC_SELLER_URL || `https://autodealers-seller.web.app/dashboard`;
+          targetUrl =
+            process.env.NEXT_PUBLIC_SELLER_URL || defaultAppHostingDashboard('seller-app', '/dashboard');
           break;
-        default:
-          setError('Rol de usuario no reconocido');
-          setLoading(false);
-          return;
+        case 'advertiser':
+          targetUrl =
+            process.env.NEXT_PUBLIC_ADVERTISER_URL ||
+            defaultAppHostingDashboard('advertiser-app', '/dashboard');
+          break;
       }
-    } 
-    // En desarrollo local, usar los puertos locales
-    else if (isLocalhost) {
-      switch (role) {
+    } else if (isLocalhost) {
+      switch (portal) {
         case 'admin':
-          targetUrl = process.env.NEXT_PUBLIC_ADMIN_URL || `http://localhost:3001/admin/dashboard`;
+          targetUrl = process.env.NEXT_PUBLIC_ADMIN_URL || 'http://localhost:3001/dashboard';
           break;
         case 'dealer':
-          targetUrl = process.env.NEXT_PUBLIC_DEALER_URL || `http://localhost:3002/dashboard`;
+          targetUrl = process.env.NEXT_PUBLIC_DEALER_URL || 'http://localhost:3002/dashboard';
           break;
         case 'seller':
-          targetUrl = process.env.NEXT_PUBLIC_SELLER_URL || `http://localhost:3003/dashboard`;
+          targetUrl = process.env.NEXT_PUBLIC_SELLER_URL || 'http://localhost:3003/dashboard';
           break;
-        default:
-          setError('Rol de usuario no reconocido');
-          setLoading(false);
-          return;
+        case 'advertiser':
+          targetUrl = process.env.NEXT_PUBLIC_ADVERTISER_URL || 'http://localhost:3004/dashboard';
+          break;
       }
-    }
-    // En producción con dominio personalizado
-    else {
-      switch (role) {
+    } else {
+      switch (portal) {
         case 'admin':
-          targetUrl = process.env.NEXT_PUBLIC_ADMIN_URL || `${protocol}//admin.${hostname}/admin/dashboard`;
+          targetUrl = process.env.NEXT_PUBLIC_ADMIN_URL || `${protocol}//admin.${hostname}/dashboard`;
           break;
         case 'dealer':
           targetUrl = process.env.NEXT_PUBLIC_DEALER_URL || `${protocol}//app.${hostname}/dashboard`;
@@ -126,71 +172,132 @@ function LoginPageContent() {
         case 'seller':
           targetUrl = process.env.NEXT_PUBLIC_SELLER_URL || `${protocol}//seller.${hostname}/dashboard`;
           break;
-        default:
-          setError('Rol de usuario no reconocido');
-          setLoading(false);
-          return;
+        case 'advertiser':
+          targetUrl =
+            process.env.NEXT_PUBLIC_ADVERTISER_URL || `${protocol}//advertiser.${hostname}/dashboard`;
+          break;
       }
     }
-    
-    console.log(`🔄 Redirigiendo usuario con rol "${role}" a: ${targetUrl}`);
-    
-    // Redirigir al dashboard correspondiente
+
+    if (!targetUrl) {
+      setError('No se pudo determinar la URL del panel.');
+      setLoading(false);
+      return;
+    }
+
+    console.log(`🔄 Redirigiendo (Firestore role="${role}" → ${portal}): ${targetUrl}`);
+
     window.location.href = targetUrl;
+  }
+
+  async function handleLoginResponse(
+    loginResponse: Response,
+    onFailSignOut?: () => Promise<void>
+  ): Promise<boolean> {
+    const loginData = await loginResponse.json().catch(() => ({})) as {
+      error?: string;
+      message?: string;
+    };
+
+    const contentType = loginResponse.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      if (onFailSignOut) await onFailSignOut();
+      console.error('Login response is not JSON');
+      throw new Error('Error al validar usuario: respuesta inválida del servidor');
+    }
+
+    if (!loginResponse.ok) {
+      if (onFailSignOut) await onFailSignOut();
+      const msg = loginData.error || loginData.message || 'Error al iniciar sesión';
+      setError(msg);
+      setLoading(false);
+      return false;
+    }
+
+    const role = loginData.user?.role;
+    if (role) {
+      redirectByRole(role);
+    } else {
+      setError('No se pudo determinar el rol del usuario');
+      setLoading(false);
+    }
+    return true;
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+    setShowDomainHelp(false);
 
     setLoading(true);
 
     try {
-      // Autenticar directamente con el API del servidor (evita problemas de Firebase Auth del cliente)
-      const loginResponse = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-        }),
-      });
+      const email = formData.email.trim();
+      const password = formData.password;
 
-      // Verificar Content-Type antes de parsear
-      const contentType = loginResponse.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const text = await loginResponse.text();
-        console.error('Response is not JSON:', text.substring(0, 200));
-        throw new Error('Error al validar usuario: respuesta inválida del servidor');
-      }
-
-      let loginData;
-      try {
-        loginData = await loginResponse.json();
-      } catch (jsonError) {
-        console.error('Error parsing login response:', jsonError);
-        throw new Error('Error al procesar respuesta del servidor');
-      }
-
-      if (!loginResponse.ok) {
-        throw new Error(loginData.error || loginData.message || 'Error al iniciar sesión');
-      }
-
-      // El token ya está guardado en cookie por el API del servidor
-      // No necesitamos llamar a set-token separadamente
-
-      // Redirigir según el rol del usuario (detectado automáticamente)
-      const role = loginData.user?.role;
-      if (role) {
-        redirectByRole(role);
-      } else {
-        setError('No se pudo determinar el rol del usuario');
+      if (!firebaseConfig.apiKey?.trim()) {
+        setError('Falta la API key de Firebase en el entorno del cliente.');
         setLoading(false);
+        return;
+      }
+
+      if (!auth) {
+        setError('Firebase no está inicializado. Recarga la página.');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const cred = await signInWithEmailAndPassword(auth, email, password);
+        const token = await cred.user.getIdToken();
+
+        const loginResponse = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token }),
+        });
+
+        await handleLoginResponse(loginResponse, () => signOut(auth));
+      } catch (error) {
+        if (
+          error instanceof FirebaseError &&
+          error.code === 'auth/network-request-failed'
+        ) {
+          const loginResponse = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password, serverAuthFallback: true }),
+          });
+          await handleLoginResponse(loginResponse);
+          return;
+        }
+        throw error;
       }
     } catch (error) {
       console.error('Error:', error);
-      setError(error instanceof Error ? error.message : 'Error al iniciar sesión');
       setLoading(false);
+      if (error instanceof FirebaseError) {
+        switch (error.code) {
+          case 'auth/wrong-password':
+          case 'auth/user-not-found':
+          case 'auth/invalid-credential':
+          case 'auth/invalid-email':
+            setError('Email o contraseña incorrectos');
+            return;
+          case 'auth/too-many-requests':
+            setError('Demasiados intentos. Espera unos minutos e intenta de nuevo.');
+            return;
+          case 'auth/unauthorized-domain':
+            setShowDomainHelp(true);
+            setError('Este dominio no está autorizado para iniciar sesión en Firebase.');
+            return;
+          default:
+            setError(error.message || 'Error al iniciar sesión');
+            return;
+        }
+      }
+      const raw = error instanceof Error ? error.message : 'Error al iniciar sesión';
+      setError(mapAuthError(raw));
     }
   }
 
@@ -214,8 +321,37 @@ function LoginPageContent() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-              {error}
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded flex justify-between gap-3 items-start">
+              <span className="flex-1">{error}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setError('');
+                  setShowDomainHelp(false);
+                }}
+                className="text-red-600 hover:text-red-800 font-medium shrink-0"
+                aria-label="Cerrar mensaje"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {showDomainHelp && (
+            <div className="bg-amber-50 border border-amber-200 text-amber-950 rounded-lg px-4 py-3 text-sm">
+              <a
+                href={LINK_FIREBASE_AUTH_SETTINGS}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-700 underline font-medium"
+              >
+                Firebase → Authentication → Dominios autorizados
+              </a>
+              : añade el host de esta página (por ejemplo{' '}
+              <code className="bg-white/80 px-1 rounded text-xs break-all">
+                public-web-app--autodealers-7f62e.us-central1.hosted.app
+              </code>
+              ).
             </div>
           )}
 
@@ -252,6 +388,8 @@ function LoginPageContent() {
           >
             {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
           </button>
+
+          <ForgotPasswordPanel />
 
           <div className="text-center space-y-2">
             <p className="text-sm text-gray-600">

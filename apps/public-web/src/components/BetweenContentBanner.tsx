@@ -2,6 +2,7 @@
 
 import { useRealtimeSponsoredContent } from '../hooks/useRealtimeSponsoredContent';
 import { useState, useEffect, useRef } from 'react';
+import { getAdvertiserLoginForCreateUrl } from '@/config/advertiser-links';
 
 export default function BetweenContentBanner() {
   const { content, loading } = useRealtimeSponsoredContent('between_content', 5);
@@ -67,9 +68,9 @@ export default function BetweenContentBanner() {
   if (loading || content.length === 0) {
     return (
       <div className="my-12 w-full relative rounded-3xl overflow-hidden shadow-2xl bg-slate-900 border border-slate-800">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-900/80 via-indigo-900/80 to-purple-900/80 z-0"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-900/80 via-indigo-900/80 to-purple-900/80 z-0 pointer-events-none"></div>
         <div
-          className="absolute inset-0 opacity-20 z-0"
+          className="absolute inset-0 opacity-20 z-0 pointer-events-none"
           style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")` }}
         ></div>
 
@@ -86,10 +87,10 @@ export default function BetweenContentBanner() {
 
           <div className="flex-shrink-0">
             <a
-              href="/advertise"
+              href={getAdvertiserLoginForCreateUrl()}
               target="_blank"
               rel="noopener noreferrer"
-              className="group inline-flex items-center gap-3 bg-white text-indigo-900 px-8 py-4 rounded-xl font-bold hover:bg-slate-50 transition-all shadow-xl hover:shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:-translate-y-1 text-lg whitespace-nowrap"
+              className="group relative z-20 inline-flex items-center gap-3 bg-white text-indigo-900 px-8 py-4 rounded-xl font-bold hover:bg-slate-50 transition-all shadow-xl hover:shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:-translate-y-1 text-lg whitespace-nowrap pointer-events-auto"
             >
               <svg className="w-6 h-6 text-indigo-600 transition-transform group-hover:rotate-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />

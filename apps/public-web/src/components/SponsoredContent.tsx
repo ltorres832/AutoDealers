@@ -3,6 +3,7 @@
 import { useRealtimeSponsoredContent } from '../hooks/useRealtimeSponsoredContent';
 import Link from 'next/link';
 import { useEffect, useRef } from 'react';
+import { getAdvertiserLoginForCreateUrl } from '@/config/advertiser-links';
 
 export default function SponsoredContent() {
   // Traer contenido activo/aprobado (cualquier placement) para asegurar visibilidad
@@ -83,7 +84,7 @@ export default function SponsoredContent() {
     return (
       <section className="py-24 relative overflow-hidden bg-slate-900">
         {/* Deep premium background with glowing orbs */}
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay"></div>
+        <div className="absolute inset-0 bg-[url('/noise.svg')] opacity-20 mix-blend-overlay"></div>
         <div className="absolute top-1/2 left-1/4 -translate-y-1/2 w-[500px] h-[500px] bg-blue-600/30 rounded-full blur-[120px] pointer-events-none"></div>
         <div className="absolute top-1/2 right-1/4 -translate-y-1/2 w-[500px] h-[500px] bg-purple-600/30 rounded-full blur-[120px] pointer-events-none"></div>
 
@@ -103,10 +104,10 @@ export default function SponsoredContent() {
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <a
-              href="http://localhost:3004"
+              href={getAdvertiserLoginForCreateUrl()}
               target="_blank"
               rel="noopener noreferrer"
-              className="group relative inline-flex items-center gap-3 bg-white text-slate-900 px-8 py-4 rounded-2xl font-bold text-lg hover:bg-slate-50 transition-all shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:shadow-[0_0_40px_rgba(255,255,255,0.5)] hover:-translate-y-1 sm:w-auto w-full justify-center"
+              className="group relative z-20 inline-flex items-center gap-3 bg-white text-slate-900 px-8 py-4 rounded-2xl font-bold text-lg hover:bg-slate-50 transition-all shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:shadow-[0_0_40px_rgba(255,255,255,0.5)] hover:-translate-y-1 sm:w-auto w-full justify-center pointer-events-auto"
             >
               <svg className="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
