@@ -119,8 +119,14 @@ async function loadVehicleSummaries(
 export async function GET(request: NextRequest) {
   try {
     const auth = await verifyAuth(request);
-    if (!auth?.tenantId) {
+    if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (!auth.tenantId) {
+      return NextResponse.json(
+        { error: 'Tu usuario no tiene concesionario (tenant) asignado. Contacta al administrador.' },
+        { status: 403 }
+      );
     }
 
     const { searchParams } = new URL(request.url);
