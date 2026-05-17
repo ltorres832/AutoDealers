@@ -6,6 +6,7 @@ import { SocialMediaLinks, type SocialMediaMap } from '@/components/SocialMediaL
 import PublicReviewsList, { type PublicReviewItem } from '@/components/PublicReviewsList';
 import PublicPromoVideoGrid from '@/components/PublicPromoVideoGrid';
 import ChatWidget from '@/components/ChatWidget';
+import StarRating from '@/components/StarRating';
 import { getFirstPhoto, handleImageError } from '@/lib/vehicle-image';
 import { getPublicVehicleConditionLabel } from '@/lib/vehicle-condition-label';
 import { pingCatalogVehicleClick } from '@/lib/catalog-vehicle-click';
@@ -25,6 +26,9 @@ export interface SellerPublicWebsiteSeller {
   title?: string;
   tenantId: string;
   tenantName: string;
+  sellerRating?: number;
+  sellerRatingCount?: number;
+  website?: string;
   publicPromoVideoUrl?: string;
   publicPromoVideoUrls?: string[];
   socialMedia?: SocialMediaMap;
@@ -108,6 +112,23 @@ function parseAddress(profile: SellerPublicWebsiteProfile): {
     state: profile.state || '',
     zipCode: profile.zipCode || '',
   };
+}
+
+function formatWebsiteLabel(url: string): string {
+  const raw = (url || '').trim();
+  if (!raw) return '';
+  try {
+    const u = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+    return u.hostname.replace(/^www\./, '');
+  } catch {
+    return raw.replace(/^https?:\/\//i, '').replace(/\/$/, '');
+  }
+}
+
+function websiteHref(url: string): string {
+  const raw = (url || '').trim();
+  if (!raw) return '';
+  return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
 }
 
 function SellerContactFormModal({
@@ -263,6 +284,10 @@ export default function SellerPublicWebsite({
   const aboutEnabled = sections?.about?.enabled !== false;
   const aboutContent = sections?.about?.content?.trim() || bio;
   const contactEnabled = sections?.contact?.enabled !== false;
+  const websiteUrl = websiteHref(seller.website || '');
+  const websiteLabel = formatWebsiteLabel(seller.website || '');
+  const sellerRating = Number(seller.sellerRating) || 0;
+  const sellerRatingCount = Number(seller.sellerRatingCount) || 0;
 
   return (
     <div className="min-h-screen bg-white">
@@ -295,6 +320,126 @@ export default function SellerPublicWebsite({
           </div>
         </div>
       </header>
+
+      <section className="bg-gray-50 py-6 px-4 sm:px-6 border-b border-gray-100">
+        <div className="max-w-6xl mx-auto">
+          <div className="bg-white rounded-2xl shadow-md border border-gray-200 p-5 sm:p-6 flex flex-col lg:flex-row gap-6 lg:items-stretch">
+            <div className="flex-shrink-0 flex justify-center lg:justify-start">
+              {seller.photo ? (
+                <img
+                  src={seller.photo}
+                  alt={seller.name}
+                  className="w-28 h-28 sm:w-32 sm:h-32 rounded-full object-cover border-4 border-white shadow-lg"
+                  referrerPolicy="no-referrer"
+                  onError={handleImageError}
+                />
+              ) : (
+                <div
+                  className="w-28 h-28 sm:w-32 sm:h-32 rounded-full flex items-center justify-center text-4xl font-bold text-white shadow-lg"
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  {seller.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+            </div>
+
+            <div className="flex-1 min-w-0 space-y-2">
+              <h2 className="text-2xl font-bold text-gray-900">{seller.name}</h2>
+              <p className="text-gray-600">{roleLine}</p>
+
+              {contactEmail ? (
+                <p className="text-sm flex items-center gap-2 flex-wrap">
+                  <span aria-hidden>✉️</span>
+                  <a href={`mailto:${contactEmail}`} className="text-blue-600 hover:underline break-all">
+                    {contactEmail}
+                  </a>
+                </p>
+              ) : null}
+
+              {contactPhone ? (
+                <p className="text-sm flex items-center gap-2 flex-wrap">
+                  <span aria-hidden>💬</span>
+                  <a
+                    href={buildWaUrl('Hola, me gustaría más información') || `tel:${contactPhone.replace(/\s/g, '')}`}
+                    target={whatsappDigits ? '_blank' : undefined}
+                    rel={whatsappDigits ? 'noopener noreferrer' : undefined}
+                    className="text-green-600 hover:underline"
+                  >
+                    {seller.whatsapp || contactPhone}
+                  </a>
+                </p>
+              ) : null}
+
+              {websiteUrl && websiteLabel ? (
+                <p className="text-sm flex items-center gap-2 flex-wrap">
+                  <span aria-hidden>🌐</span>
+                  <a
+                    href={websiteUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline break-all"
+                  >
+                    {websiteLabel}
+                  </a>
+                </p>
+              ) : null}
+
+              {businessHours ? (
+                <div className="text-sm flex items-start gap-2 text-gray-700 pt-1">
+                  <span className="text-lg leading-none" aria-hidden>
+                    🕐
+                  </span>
+                  <div>
+                    <p className="font-medium text-gray-800">Horario de atención</p>
+                    <p className="whitespace-pre-line text-gray-600 mt-0.5">{businessHours}</p>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="pt-2">
+                {sellerRating > 0 ? (
+                  <StarRating rating={sellerRating} count={sellerRatingCount} size="sm" showCount />
+                ) : (
+                  <p className="text-xs text-gray-400">Sin calificaciones aún</p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2 w-full lg:w-44 lg:flex-shrink-0 justify-center">
+              {whatsappDigits ? (
+                <a
+                  href={buildWaUrl('Hola, estoy interesado en tus vehículos') || '#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full bg-green-500 text-white px-4 py-3 rounded-lg font-semibold hover:bg-green-600 flex items-center justify-center gap-2 text-sm"
+                >
+                  <span aria-hidden>💬</span>
+                  WhatsApp
+                </a>
+              ) : null}
+              {chatOn ? (
+                <button
+                  type="button"
+                  onClick={() => window.dispatchEvent(new CustomEvent('openChat'))}
+                  className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-pink-700 flex items-center justify-center gap-2 text-sm"
+                >
+                  <span aria-hidden>💬</span>
+                  Chatear Ahora
+                </button>
+              ) : null}
+              {contactEmail ? (
+                <a
+                  href={`mailto:${contactEmail}`}
+                  className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg font-semibold hover:bg-gray-900 flex items-center justify-center gap-2 text-sm"
+                >
+                  <span aria-hidden>✉️</span>
+                  Email
+                </a>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      </section>
 
       <section
         className="text-white py-16 sm:py-20 px-4 sm:px-6"
