@@ -1,23 +1,17 @@
-import CatalogInterestClient from './CatalogInterestClient';
+'use client';
 
-type CatalogInterestSearchParams = {
-  vehicleId?: string;
-  from?: string;
-  to?: string;
-};
+import dynamic from 'next/dynamic';
 
-export default async function CatalogInterestPage({
-  searchParams,
-}: {
-  searchParams: Promise<CatalogInterestSearchParams>;
-}) {
-  const sp = await searchParams;
+const CatalogInterestClient = dynamic(() => import('./CatalogInterestClient'), {
+  ssr: false,
+  loading: () => (
+    <div className="container mx-auto px-4 py-12 text-gray-500" role="status">
+      Cargando…
+    </div>
+  ),
+});
 
-  return (
-    <CatalogInterestClient
-      initialVehicleId={(sp.vehicleId || '').trim()}
-      initialFrom={(sp.from || '').trim()}
-      initialTo={(sp.to || '').trim()}
-    />
-  );
+/** Evita hidratacion rota en App Hosting; el cliente lee la URL y llama al API. */
+export default function CatalogInterestPage() {
+  return <CatalogInterestClient />;
 }

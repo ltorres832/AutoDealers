@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { fetchWithAuth } from '@/lib/fetch-with-auth';
 import {
   catalogSurfaceLabel,
@@ -93,18 +93,25 @@ function toYyyyMmDd(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-type CatalogInterestClientProps = {
-  initialVehicleId: string;
-  initialFrom: string;
-  initialTo: string;
-};
+function readUrlFilters(): { vehicleId: string; from: string; to: string } {
+  if (typeof window === 'undefined') {
+    return { vehicleId: '', from: '', to: '' };
+  }
+  const q = new URLSearchParams(window.location.search);
+  return {
+    vehicleId: (q.get('vehicleId') || '').trim(),
+    from: (q.get('from') || '').trim(),
+    to: (q.get('to') || '').trim(),
+  };
+}
 
-export default function CatalogInterestClient({
-  initialVehicleId: urlVehicleId,
-  initialFrom: urlFrom,
-  initialTo: urlTo,
-}: CatalogInterestClientProps) {
+export default function CatalogInterestClient() {
   const router = useRouter();
+  const pathname = usePathname();
+  const [urlFilters, setUrlFilters] = useState(readUrlFilters);
+  const urlVehicleId = urlFilters.vehicleId;
+  const urlFrom = urlFilters.from;
+  const urlTo = urlFilters.to;
 
   const [vehicleIdFilter, setVehicleIdFilter] = useState(urlVehicleId);
   const [dateFrom, setDateFrom] = useState(urlFrom);
@@ -118,10 +125,12 @@ export default function CatalogInterestClient({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setVehicleIdFilter(urlVehicleId);
-    setDateFrom(urlFrom);
-    setDateTo(urlTo);
-  }, [urlVehicleId, urlFrom, urlTo]);
+    const next = readUrlFilters();
+    setUrlFilters(next);
+    setVehicleIdFilter(next.vehicleId);
+    setDateFrom(next.from);
+    setDateTo(next.to);
+  }, [pathname]);
 
   const stats = useMemo(() => (signals.length > 0 ? computeStats(signals) : null), [signals]);
 
