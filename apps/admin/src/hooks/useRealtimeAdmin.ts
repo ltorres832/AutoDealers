@@ -41,14 +41,9 @@ export function useRealtimeAdminStats() {
 
   async function fetchStats() {
     try {
-      const token = localStorage.getItem('authToken') || 
-                    document.cookie.split(';').find(c => c.trim().startsWith('authToken='))?.split('=')[1];
-      
-      const response = await fetch('/api/admin/global/stats', {
+      const { fetchWithAuth } = await import('@/lib/fetch-with-auth');
+      const response = await fetchWithAuth('/api/admin/global/stats', {
         cache: 'no-store',
-        headers: {
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-        },
       });
       
       if (response.ok) {

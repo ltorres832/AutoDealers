@@ -79,8 +79,17 @@ export default function AdminSellersPage() {
       const res = await fetch(`/api/admin/sellers?${params}`, { credentials: 'include' });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setMessage({ type: 'err', text: data.error || 'No se pudo cargar' });
+        const msg =
+          res.status === 401
+            ? 'Sesión inválida o sin permisos de administrador. Cierra sesión y entra en /login con tu cuenta admin.'
+            : data.error || 'No se pudo cargar';
+        setMessage({ type: 'err', text: msg });
         setSellers([]);
+        if (res.status === 401) {
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 3000);
+        }
         return;
       }
       setSellers(data.sellers || []);

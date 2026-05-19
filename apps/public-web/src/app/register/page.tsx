@@ -3,6 +3,10 @@
 import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import {
+  REGISTER_DEALER_FEATURES,
+  REGISTER_SELLER_FEATURES,
+} from '@/lib/register-profile-features';
 
 function RegisterPageContent() {
   const router = useRouter();
@@ -154,7 +158,7 @@ function RegisterPageContent() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
             {/* Dealer Option Card */}
             <div
               onClick={() => {
@@ -170,20 +174,15 @@ function RegisterPageContent() {
               </div>
 
               <h3 className="relative z-10 text-3xl font-black text-slate-900 mb-4 tracking-tight group-hover:text-blue-600 transition-colors">Concesionario</h3>
-              <p className="relative z-10 text-slate-500 font-medium mb-10 px-4 leading-relaxed">Infraestructura completa para gestionar inventarios masivos y equipos de ventas.</p>
+              <p className="relative z-10 text-slate-500 text-sm mb-6 px-2 leading-snug">Inventario, equipo de ventas y sitio con subdominio propio.</p>
 
               <div className="relative z-10 w-full bg-slate-50 rounded-3xl p-8 mb-10 border border-slate-100">
                 <ul className="text-left space-y-4">
-                  {[
-                    'Ecosistema Multi-Vendedor',
-                    'Dashboard CRM de Alto Rendimiento',
-                    'Sitio Web Pro y Subdominio Exclusivo',
-                    'Reportes de Inteligencia de Negocio'
-                  ].map((feat, i) => (
-                    <li key={i} className="flex items-center gap-3 text-sm font-bold text-slate-700">
-                      <div className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0 shadow-sm">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={4}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                      </div>
+                  {REGISTER_DEALER_FEATURES.map((feat) => (
+                    <li key={feat} className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                      <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0 text-[10px]">
+                        ✓
+                      </span>
                       {feat}
                     </li>
                   ))}
@@ -221,20 +220,15 @@ function RegisterPageContent() {
               </div>
 
               <h3 className="relative z-10 text-3xl font-black text-slate-900 mb-4 tracking-tight group-hover:text-indigo-600 transition-colors">Vendedor</h3>
-              <p className="relative z-10 text-slate-500 font-medium mb-10 px-4 leading-relaxed">Agilidad y potencia para profesionales que buscan independencia y alcance.</p>
+              <p className="relative z-10 text-slate-500 text-sm mb-6 px-2 leading-snug">Leads, catálogo público y página propia en AutoDealers.</p>
 
               <div className="relative z-10 w-full bg-slate-50 rounded-3xl p-8 mb-10 border border-slate-100">
                 <ul className="text-left space-y-4">
-                  {[
-                    'Gestión Directa de Leads',
-                    'Panel de Control Intuitivo',
-                    'Presencia en Marketplace Global',
-                    'Herramientas de Cierre de Ventas'
-                  ].map((feat, i) => (
-                    <li key={i} className="flex items-center gap-3 text-sm font-bold text-slate-700">
-                      <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0 shadow-sm">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={4}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                      </div>
+                  {REGISTER_SELLER_FEATURES.map((feat) => (
+                    <li key={feat} className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                      <span className="w-4 h-4 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0 text-[10px]">
+                        ✓
+                      </span>
                       {feat}
                     </li>
                   ))}

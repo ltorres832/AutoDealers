@@ -1,5 +1,6 @@
 'use client';
 
+import '@/lib/fetch-interceptor';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -39,7 +40,6 @@ const navigationItems = [
   { name: 'Reportes', href: '/reports', icon: '📈', featureKey: 'crm_reports' },
   { name: 'Usuarios', href: '/users', icon: '👥', featureKey: null },
   { name: 'Configuración', href: '/settings', icon: '⚙️', featureKey: null },
-  { name: 'Video catálogo web', href: '/settings/seller-public-page', icon: '🎬', featureKey: null },
 ];
 
 export default function SellerLayoutWrapper({
@@ -55,105 +55,25 @@ export default function SellerLayoutWrapper({
   const [showPolicyModal, setShowPolicyModal] = useState(false);
   const fetchingUserRef = React.useRef(false);
 
-  // Inicializar interceptor de fetch para manejar tokens expirados automáticamente
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      import('@/lib/fetch-interceptor').catch(err => {
-        console.error('Error inicializando fetch interceptor:', err);
-      });
-    }
-  }, []);
-
   async function fetchUser() {
-    // Evitar múltiples llamadas simultáneas
     if (fetchingUserRef.current) {
       return;
     }
-    
-    fetchingUserRef.current = true;
-    
-    try {
-      // Primero verificar si hay un usuario autenticado en Firebase
-      const { auth } = await import('@/lib/firebase-client');
-      if (auth && auth.currentUser) {
-        // Si hay usuario en Firebase, intentar obtener datos del servidor
-        let response = await fetch('/api/user', {
-          credentials: 'include',
-        });
 
-        if (response.ok) {
-          const data = await response.json();
-          // Verificar que el usuario obtenido es realmente el seller actual
-          if (data.user && data.user.role === 'seller' && data.user.id === auth.currentUser.uid) {
-            setUser(data.user);
-            if (process.env.NODE_ENV === 'development') {
-              console.log('✅ Usuario obtenido:', data.user?.name || data.user?.email);
-            }
-          } else {
-            console.warn('⚠️ Usuario obtenido no coincide con el seller actual');
-            // Usar datos básicos de Firebase en lugar de datos incorrectos
-            setUser({
-              id: auth.currentUser.uid,
-              email: auth.currentUser.email || '',
-              name: auth.currentUser.displayName || 'Vendedor',
-              role: 'seller',
-            });
-          }
-        } else if (response.status === 401) {
-          // Solo intentar refrescar si es 401
-          const { refreshAuthToken } = await import('@/lib/token-refresh');
-          const newToken = await refreshAuthToken();
-          
-          if (newToken && newToken.length >= 200) {
-            response = await fetch('/api/user', {
-              credentials: 'include',
-            });
-            
-            if (response.ok) {
-              const data = await response.json();
-              // Verificar que el usuario obtenido es realmente el seller actual
-              if (data.user && data.user.role === 'seller' && data.user.id === auth.currentUser.uid) {
-                setUser(data.user);
-              } else {
-                // Usar datos básicos de Firebase
-                setUser({
-                  id: auth.currentUser.uid,
-                  email: auth.currentUser.email || '',
-                  name: auth.currentUser.displayName || 'Vendedor',
-                  role: 'seller',
-                });
-              }
-            }
-          }
-        } else {
-          // Si falla la API pero hay usuario en Firebase, usar datos básicos de Firebase
-          setUser({
-            id: auth.currentUser.uid,
-            email: auth.currentUser.email || '',
-            name: auth.currentUser.displayName || 'Vendedor',
-            role: 'seller',
-          });
-        }
-      } else {
-        // No hay usuario en Firebase, limpiar estado
-        setUser(null);
+    fetchingUserRef.current = true;
+
+    try {
+      const { loadCurrentSellerUser } = await import('@/lib/current-seller-user');
+      const profile = await loadCurrentSellerUser();
+      if (profile) {
+        setUser(profile);
+        return;
       }
+
+      setUser(null);
     } catch (error) {
       console.error('Error en fetchUser:', error);
-      // Si hay error pero hay usuario en Firebase, usar datos básicos
-      try {
-        const { auth } = await import('@/lib/firebase-client');
-        if (auth && auth.currentUser) {
-          setUser({
-            id: auth.currentUser.uid,
-            email: auth.currentUser.email || '',
-            name: auth.currentUser.displayName || 'Vendedor',
-            role: 'seller',
-          });
-        }
-      } catch (e) {
-        // Ignorar errores secundarios
-      }
+      setUser(null);
     } finally {
       fetchingUserRef.current = false;
     }

@@ -1,6 +1,7 @@
 /**
- * Interceptor global de fetch que maneja automáticamente el refresh de tokens expirados
+ * Interceptor global de fetch: Authorization + refresh de tokens expirados
  */
+import { authHeaders } from './auth-token-client';
 
 let isRefreshing = false;
 let refreshPromise: Promise<string | null> | null = null;
@@ -21,6 +22,7 @@ async function refreshTokenIfNeeded(): Promise<string | null> {
         const isSecure = window.location.protocol === 'https:';
         const cookieValue = encodeURIComponent(newToken);
         document.cookie = `authToken=${cookieValue}; path=/; max-age=86400; SameSite=Lax${isSecure ? '; Secure' : ''}`;
+        localStorage.setItem('authToken', newToken);
         console.log('✅ Token refrescado exitosamente en interceptor');
         return newToken;
       }
@@ -50,26 +52,32 @@ if (typeof window !== 'undefined') {
       return originalFetch(input, init);
     }
 
-    // Primera intento
-    let response = await originalFetch(input, {
-      ...init,
-      credentials: 'include',
+    const withAuth = (base?: RequestInit): RequestInit => ({
+      ...base,
+      credentials: base?.credentials ?? 'include',
+      headers: authHeaders(base?.headers),
     });
+
+    // Primera intento
+    let response = await originalFetch(input, withAuth(init));
 
     // Si recibimos un 401, intentar refrescar el token y reintentar
     // EXCEPCIÓN: No redirigir para rutas del chat interno (polling)
     const isInternalChat = url.includes('/api/internal-chat/');
     
     if (response.status === 401) {
+      const { resolveClientAuthToken } = await import('./auth-token-client');
+      if (!resolveClientAuthToken()) {
+        document.cookie = 'authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        localStorage.removeItem('authToken');
+      }
+
       // Para el chat interno, solo intentar refrescar pero NO redirigir
       if (isInternalChat) {
         const newToken = await refreshTokenIfNeeded();
         if (newToken) {
           // Reintentar la petición con el nuevo token
-          response = await originalFetch(input, {
-            ...init,
-            credentials: 'include',
-          });
+          response = await originalFetch(input, withAuth(init));
         }
         // No redirigir para chat interno, solo retornar la respuesta
         return response;
@@ -81,10 +89,7 @@ if (typeof window !== 'undefined') {
       
       if (newToken) {
         // Reintentar la petición con el nuevo token
-        response = await originalFetch(input, {
-          ...init,
-          credentials: 'include',
-        });
+        response = await originalFetch(input, withAuth(init));
         
         // Si sigue siendo 401 después del refresh, el usuario necesita iniciar sesión
         if (response.status === 401) {

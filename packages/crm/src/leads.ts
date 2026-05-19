@@ -67,6 +67,22 @@ export async function createLead(
       console.warn('[crm] lead routing skipped:', error);
     }
   }
+  if (!assignedTo) {
+    try {
+      const { getUsersByTenant } = await import('@autodealers/core');
+      const users = await getUsersByTenant(tenantId);
+      const activeSellers = users.filter((u) => {
+        if (u.role !== 'seller') return false;
+        const st = (u as { status?: string }).status;
+        return st === undefined || st === 'active' || st === 'pending';
+      });
+      if (activeSellers.length === 1) {
+        assignedTo = activeSellers[0].id;
+      }
+    } catch (error) {
+      console.warn('[crm] single-seller fallback skipped:', error);
+    }
+  }
 
   const fillStandard = extras?.populateStandardContactFields === true;
   const contactResolved = fillStandard

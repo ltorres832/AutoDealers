@@ -6,20 +6,53 @@
       "dependsOn": ["^build"],
       "outputs": [".next/**", "!.next/cache/**", "dist/**"]
     },
-    "lint": {
-      "dependsOn": ["^lint"]
+    "@autodealers/billing#build": {
+      "dependsOn": ["@autodealers/shared#build"]
     },
-    "dev": {
-      "cache": false,
-      "persistent": true
+    "@autodealers/crm#build": {
+      "dependsOn": ["@autodealers/shared#build", "@autodealers/billing#build"]
     },
-    "test": {
-      "dependsOn": ["^build"]
+    "@autodealers/core#build": {
+      "dependsOn": [
+        "@autodealers/shared#build",
+        "@autodealers/billing#build",
+        "@autodealers/crm#build"
+      ]
+    },
+    "@autodealers/inventory#build": {
+      "dependsOn": [
+        "@autodealers/shared#build",
+        "@autodealers/billing#build",
+        "@autodealers/crm#build",
+        "@autodealers/core#build"
+      ]
+    },
+    "@autodealers/ai#build": {
+      "dependsOn": [
+        "@autodealers/shared#build",
+        "@autodealers/billing#build",
+        "@autodealers/crm#build",
+        "@autodealers/core#build",
+        "@autodealers/inventory#build"
+      ]
+    },
+    "@autodealers/messaging#build": {
+      "dependsOn": ["@autodealers/shared#build", "@autodealers/crm#build"]
+    },
+    "@autodealers/reports#build": {
+      "dependsOn": ["@autodealers/shared#build", "@autodealers/crm#build", "@autodealers/core#build"]
+    },
+    "@autodealers/seller#build": {
+      "dependsOn": [
+        "@autodealers/shared#build",
+        "@autodealers/crm#build",
+        "@autodealers/core#build",
+        "@autodealers/inventory#build",
+        "@autodealers/ai#build",
+        "@autodealers/messaging#build",
+        "@autodealers/billing#build",
+        "@autodealers/reports#build"
+      ]
     }
   }
 }
-
-
-
-
-

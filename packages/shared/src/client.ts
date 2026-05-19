@@ -13,6 +13,7 @@ export { PageHeader } from './components/PageHeader';
 export { Sidebar } from './components/Sidebar';
 export { StatsCard } from './components/StatsCard';
 export { SocialIcon } from './components/SocialIcon';
+export { MetaIntegrationsCard, type MetaIntegrationRow } from './components/MetaIntegrationsCard';
 export { ToastNotification, type ToastData } from './components/ToastNotification';
 export { expeditionStageLabel, type ExpeditionStage } from './expedition-labels';
 export {

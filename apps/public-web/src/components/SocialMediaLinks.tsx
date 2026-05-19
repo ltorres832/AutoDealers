@@ -65,10 +65,12 @@ export function SocialMediaLinks({
   socialMedia,
   className = '',
   iconClassName = 'w-7 h-7',
+  showLabels = false,
 }: {
   socialMedia?: SocialMediaMap | null;
   className?: string;
   iconClassName?: string;
+  showLabels?: boolean;
 }) {
   if (!socialMedia) return null;
 
@@ -91,9 +93,12 @@ export function SocialMediaLinks({
             rel="noopener noreferrer"
             title={label}
             aria-label={label}
-            className={`inline-flex items-center justify-center rounded-lg p-1.5 transition-colors ${colorClass}`}
+            className={`inline-flex items-center gap-2 rounded-lg p-1.5 transition-colors ${colorClass} ${
+              showLabels ? 'pr-2.5' : 'justify-center'
+            }`}
           >
             <Icon className={iconClassName} />
+            {showLabels ? <span className="text-sm font-medium">{label}</span> : null}
           </a>
         );
       })}

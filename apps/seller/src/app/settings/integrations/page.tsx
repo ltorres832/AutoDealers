@@ -2,7 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { SocialIcon, ToastNotification, type ToastData } from '@autodealers/shared/client';
+import {
+  SocialIcon,
+  ToastNotification,
+  MetaIntegrationsCard,
+  type ToastData,
+  type MetaIntegrationRow,
+} from '@autodealers/shared/client';
 
 interface Integration {
   id: string;
@@ -10,6 +16,7 @@ interface Integration {
   status: 'active' | 'inactive' | 'error';
   name: string;
   description: string;
+  pageName?: string;
 }
 
 const availableIntegrations: Integration[] = [
@@ -31,10 +38,32 @@ const availableIntegrations: Integration[] = [
     id: 'instagram',
     type: 'instagram',
     name: 'Instagram',
-    description: 'Conecta tu cuenta de Instagram para publicar y gestionar mensajes directos',
+    description:
+      'Instagram Business se autoriza con Meta (Facebook): inicia sesión, elige la página de Facebook vinculada a tu perfil profesional de Instagram y acepta los permisos.',
     status: 'inactive',
   },
 ];
+
+function toMetaRow(
+  integration: Integration | undefined,
+  fallbackType: 'facebook' | 'instagram'
+): MetaIntegrationRow {
+  const base =
+    integration ??
+    ({
+      id: fallbackType,
+      type: fallbackType,
+      status: 'inactive' as const,
+      name: '',
+      description: '',
+    } satisfies Integration);
+  return {
+    id: base.id,
+    type: base.type === 'instagram' ? 'instagram' : 'facebook',
+    status: base.status,
+    pageName: base.pageName,
+  };
+}
 
 export default function IntegrationsPage() {
   const [integrations, setIntegrations] = useState<Integration[]>(availableIntegrations);
@@ -65,11 +94,18 @@ export default function IntegrationsPage() {
     const success = urlParams.get('success');
     const error = urlParams.get('error');
     
-    if (success === 'connected') {
+    if (success === 'connected' || success === 'meta') {
+      const ig = urlParams.get('instagram');
+      const message =
+        success === 'meta'
+          ? ig === '1'
+            ? 'Facebook e Instagram quedaron conectados con un solo inicio de sesión en Meta.'
+            : 'Facebook conectado. Si tienes Instagram Business, vincúlalo a tu página en Meta Business Suite y pulsa «Actualizar permisos».'
+          : 'Integración conectada exitosamente';
       setErrorModal({
         show: true,
         title: '✅ Éxito',
-        message: 'Integración conectada exitosamente',
+        message,
       });
       window.history.replaceState({}, '', '/settings/integrations');
       fetchIntegrations();
@@ -92,6 +128,10 @@ export default function IntegrationsPage() {
         case 'no_facebook_page_token':
           errorMessage =
             'Meta no devolvió el permiso de página. Vuelve a intentar y acepta los permisos de páginas de Facebook, o revisa la configuración de la app en Meta.';
+          break;
+        case 'no_instagram_business':
+          errorMessage =
+            'No encontramos una cuenta de Instagram Business vinculada a ninguna página de Facebook. Convierte tu Instagram a cuenta profesional y vincúlala a una Fan Page en Meta Business Suite, luego vuelve a conectar.';
           break;
         case 'token_exchange_failed':
           errorMessage = 'Error al obtener el token de acceso. Por favor intenta nuevamente.';
@@ -162,8 +202,17 @@ export default function IntegrationsPage() {
         addDebugLog('✅ Respuesta OK, procesando datos...');
         const data = await response.json();
         const updated = availableIntegrations.map((integration) => {
-          const existing = data.integrations?.find((i: any) => i.type === integration.type);
-          return existing ? { ...integration, status: existing.status || 'active', id: existing.id } : integration;
+          const existing = data.integrations?.find((i: { type: string }) => i.type === integration.type);
+          if (!existing) return integration;
+          const creds = existing.credentials as { pageName?: string } | undefined;
+          const pageName =
+            typeof creds?.pageName === 'string' ? creds.pageName : undefined;
+          return {
+            ...integration,
+            status: existing.status || 'active',
+            id: existing.id,
+            ...(pageName ? { pageName } : {}),
+          };
         });
         setIntegrations(updated);
         addDebugLog('✅ Integraciones cargadas exitosamente');
@@ -207,10 +256,10 @@ export default function IntegrationsPage() {
         return;
       }
 
-      if (type === 'facebook' || type === 'instagram') {
-        setConnectingType(type);
-        addDebugLog(`🔵 Iniciando conexión con ${type}...`);
-        await initiateOAuth(type);
+      if (type === 'facebook' || type === 'instagram' || type === 'meta') {
+        setConnectingType('meta');
+        addDebugLog('🔵 Iniciando conexión unificada con Meta (Facebook + Instagram)...');
+        await initiateOAuth('meta');
         return;
       }
     } catch (error: unknown) {
@@ -407,7 +456,7 @@ export default function IntegrationsPage() {
       </div>
 
       <div className="space-y-4">
-        {integrations.map((integration) => (
+        {integrations.filter((i) => i.type === 'whatsapp').map((integration) => (
           <div
             key={integration.id}
             className="bg-white rounded-lg shadow border border-gray-200 p-6"
@@ -450,13 +499,21 @@ export default function IntegrationsPage() {
 
           </div>
         ))}
+
+        <MetaIntegrationsCard
+          facebook={toMetaRow(integrations.find((i) => i.type === 'facebook'), 'facebook')}
+          instagram={toMetaRow(integrations.find((i) => i.type === 'instagram'), 'instagram')}
+          connecting={connectingType === 'meta'}
+          onConnect={() => void handleConnect('meta')}
+          onDisconnect={handleDisconnect}
+        />
       </div>
 
       <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h4 className="font-semibold text-blue-900 mb-2">💡 Información</h4>
         <p className="text-sm text-blue-800">
-          Cada vendedor configura sus propias integraciones de forma independiente. 
-          Las redes sociales que conectes serán utilizadas solo por tu cuenta.
+          Usa un solo botón «Conectar con Meta» para Facebook e Instagram. WhatsApp se configura aparte. Cada
+          integración queda asociada solo a tu cuenta.
         </p>
       </div>
 

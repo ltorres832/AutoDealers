@@ -21,7 +21,7 @@
     "build:advertiser": "cd apps/advertiser && npm run build",
     "build:admin-web": "cd apps/admin-web && flutter build web --release",
     "dev:admin-web": "cd apps/admin-web && flutter run -d chrome",
-    "deploy:public:firebase": "firebase deploy --only apphosting:public-web-app",
+    "deploy:public:firebase": "firebase deploy --only apphosting:public-web-app && firebase deploy --only hosting",
     "deploy:admin:firebase": "firebase deploy --only apphosting:admin-app",
     "deploy:dealer:firebase": "firebase deploy --only apphosting:dealer-app",
     "deploy:seller:firebase": "firebase deploy --only apphosting:seller-app",

@@ -58,15 +58,43 @@ export async function GET(
     const tenantData = tenantDoc.data();
     const tenantId = tenantDoc.id;
 
+    let sellerInfo =
+      tenantData.sellerInfo && typeof tenantData.sellerInfo === 'object'
+        ? { ...(tenantData.sellerInfo as Record<string, unknown>) }
+        : null;
+
+    const sellerScopedIdFromInfo =
+      sellerInfo &&
+      typeof sellerInfo.id === 'string' &&
+      sellerInfo.id.trim()
+        ? sellerInfo.id.trim()
+        : '';
+
+    let sellerScopedId = sellerScopedIdFromInfo;
+
+    // Workspace de vendedor independiente: asegurar sellerInfo para la página azul (Vista Previa)
+    if (!sellerScopedId && (tenantData.type === 'seller' || tenantData.tenantType === 'seller')) {
+      const sellersSnap = await db
+        .collection('users')
+        .where('tenantId', '==', tenantId)
+        .where('role', '==', 'seller')
+        .limit(1)
+        .get();
+      if (!sellersSnap.empty) {
+        const sellerDoc = sellersSnap.docs[0];
+        const u = sellerDoc.data();
+        sellerScopedId = sellerDoc.id;
+        sellerInfo = {
+          id: sellerDoc.id,
+          name: (u.name as string) || tenantData.name || '',
+          photo: (u.photo as string) || (u.photoUrl as string) || '',
+          bio: (u.bio as string) || (u.description as string) || '',
+        };
+      }
+    }
+
     // Todos los vehículos del tenant (sin filtrar solo status=available; muchos docs legacy no tienen ese campo)
     const vehiclesRaw = await getVehicles(tenantId);
-
-    const sellerScopedId =
-      tenantData.sellerInfo &&
-      typeof tenantData.sellerInfo === 'object' &&
-      typeof (tenantData.sellerInfo as { id?: unknown }).id === 'string'
-        ? String((tenantData.sellerInfo as { id: string }).id).trim()
-        : '';
 
     let plainVehicles = (vehiclesRaw || []).map((v) => ({ ...(v as object) } as Record<string, unknown>));
 
@@ -93,7 +121,7 @@ export async function GET(
       website: tenantData.website,
       description: tenantData.description,
       businessHours: tenantData.businessHours,
-      sellerInfo: tenantData.sellerInfo,
+      sellerInfo: sellerInfo || tenantData.sellerInfo,
       socialMedia: tenantData.socialMedia,
       websiteSettings: tenantData.websiteSettings,
     };

@@ -26,7 +26,7 @@ export function parseCatalogUserAgent(ua: string | null | undefined): {
   else if (/chrome\//i.test(raw) && !/edg\//i.test(raw)) browser = 'Chrome';
   else if (/firefox\//i.test(raw)) browser = 'Firefox';
   else if (/safari\//i.test(raw) && !/chrome\//i.test(raw)) browser = 'Safari';
-  else if (/opr\//|opera/i.test(raw)) browser = 'Opera';
+  else if (/opr\/|opera/i.test(raw)) browser = 'Opera';
 
   return { browser, os, device };
 }
@@ -35,10 +35,11 @@ export function catalogReferrerHost(referrer: string | null | undefined): string
   if (!referrer?.trim()) return '—';
   try {
     const u = new URL(referrer);
-    return u.hostname.replace(/^www\./, '');
+    const host = u.hostname.replace(/^www\./, '');
+    return host.length <= 40 ? host : `${host.slice(0, 37)}…`;
   } catch {
     const t = referrer.trim();
-    return t.length <= 48 ? t : `${t.slice(0, 45)}…`;
+    return t.length <= 40 ? t : `${t.slice(0, 37)}…`;
   }
 }
 

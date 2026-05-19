@@ -8,6 +8,8 @@ buildConfig:
     if [ -f ../../package-lock.json ]; then cd ../..; fi
     npm ci --legacy-peer-deps
     npm run build --workspace=@autodealers/shared
+    npm run build --workspace=@autodealers/inventory
+    npm run build --workspace=@autodealers/crm
     npm run build --workspace=@autodealers/public-web
   outputDir: .next/standalone
 
@@ -74,7 +76,13 @@ env:
     availability:
       - RUNTIME
   - variable: NEXT_PUBLIC_APP_URL
-    value: https://public-web-app--autodealers-7f62e.us-central1.hosted.app
+    value: https://autodealers-7f62e.web.app
+    availability:
+      - BUILD
+      - RUNTIME
+  # Web azul del vendedor en https://autodealers-7f62e.web.app/ (vacío = marketplace en la raíz)
+  - variable: NEXT_PUBLIC_DEFAULT_ROOT_SELLER_ID
+    value: "BRaL9edMRfNhEXNsMou0l7oCHFI2"
     availability:
       - BUILD
       - RUNTIME

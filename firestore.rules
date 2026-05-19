@@ -39,7 +39,17 @@ service cloud.firestore {
              request.auth.token.tenantId == tenantId;
     }
     
-    // Función isSeller removida - no se usa en las reglas actuales
+    function isSeller(tenantId) {
+      return isAuthenticated() &&
+             request.auth.token.role == 'seller' &&
+             request.auth.token.tenantId == tenantId;
+    }
+
+    function isSellerAssignedLead() {
+      return isAuthenticated() &&
+             request.auth.token.role == 'seller' &&
+             resource.data.assignedTo == request.auth.uid;
+    }
     
     // Users collection
     match /users/{userId} {
@@ -92,9 +102,9 @@ service cloud.firestore {
     
     // Leads collection
     match /tenants/{tenantId}/leads/{leadId} {
-      allow read: if isOwner(tenantId);
+      allow read: if isOwner(tenantId) || (isSeller(tenantId) && isSellerAssignedLead());
       allow create: if isOwner(tenantId);
-      allow update: if isOwner(tenantId);
+      allow update: if isOwner(tenantId) || (isSeller(tenantId) && isSellerAssignedLead());
       allow delete: if isAdmin() || isDealer(tenantId) || isManagerOrAdmin(tenantId);
     }
 
@@ -106,9 +116,9 @@ service cloud.firestore {
     
     // Messages collection
     match /tenants/{tenantId}/messages/{messageId} {
-      allow read: if isOwner(tenantId);
-      allow create: if isOwner(tenantId);
-      allow update: if isOwner(tenantId);
+      allow read: if isOwner(tenantId) || isSeller(tenantId);
+      allow create: if isOwner(tenantId) || isSeller(tenantId);
+      allow update: if isOwner(tenantId) || isSeller(tenantId);
       allow delete: if isAdmin() || isManagerOrAdmin(tenantId);
     }
     

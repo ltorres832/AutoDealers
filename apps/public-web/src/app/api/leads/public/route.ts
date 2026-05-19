@@ -1,17 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getTenantById, canPerformAction } from '@autodealers/core';
+import { getTenantById, canPerformAction, getFirestore } from '@autodealers/core';
 import { createLead, normalizeLeadSource } from '@autodealers/crm';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+async function sellerBelongsToTenant(tenantId: string, sellerId: string): Promise<boolean> {
+  const db = getFirestore();
+  const snap = await db.collection('users').doc(sellerId).get();
+  if (!snap.exists) return false;
+  const d = snap.data();
+  if (d?.role !== 'seller' || d?.tenantId !== tenantId) return false;
+  const status = d?.status;
+  return status === undefined || status === 'active' || status === 'pending';
+}
+
 /**
- * Lead desde la página pública del tenant (modal de contacto, etc.).
+ * Lead desde la página pública del tenant o del vendedor (modal de contacto, etc.).
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { tenantId, source, contact, notes } = body;
+    const {
+      tenantId,
+      source,
+      contact,
+      notes,
+      sellerId: sellerIdRaw,
+      vehicleInterest,
+      leadFormResponses: formResponsesRaw,
+    } = body;
 
     if (!tenantId || typeof tenantId !== 'string' || !tenantId.trim()) {
       return NextResponse.json({ error: 'tenantId requerido' }, { status: 400 });
@@ -60,6 +78,33 @@ export async function POST(request: NextRequest) {
           ? 'email'
           : 'phone';
 
+    let assignedTo: string | undefined;
+    const sellerId =
+      typeof sellerIdRaw === 'string' && sellerIdRaw.trim() ? sellerIdRaw.trim() : '';
+    if (sellerId) {
+      const ok = await sellerBelongsToTenant(tenantId.trim(), sellerId);
+      if (!ok) {
+        return NextResponse.json({ error: 'Vendedor no válido para este concesionario' }, { status: 400 });
+      }
+      assignedTo = sellerId;
+    }
+
+    const leadFormResponses: Record<string, string> = {};
+    if (formResponsesRaw && typeof formResponsesRaw === 'object' && !Array.isArray(formResponsesRaw)) {
+      for (const [k, v] of Object.entries(formResponsesRaw as Record<string, unknown>)) {
+        if (typeof v === 'string' && v.trim()) leadFormResponses[k] = v.trim();
+      }
+    }
+    if (message) leadFormResponses.Mensaje = message;
+    if (email) leadFormResponses.Email = email;
+    leadFormResponses.Nombre = name;
+    leadFormResponses.Teléfono = phone;
+
+    const vehicleInterestStr =
+      typeof vehicleInterest === 'string' && vehicleInterest.trim()
+        ? vehicleInterest.trim()
+        : undefined;
+
     const lead = await createLead(
       tenantId.trim(),
       src,
@@ -69,7 +114,14 @@ export async function POST(request: NextRequest) {
         email,
         preferredChannel,
       },
-      noteText
+      noteText,
+      {
+        ...(assignedTo ? { assignedTo } : {}),
+        ...(vehicleInterestStr ? { vehicleInterest: vehicleInterestStr } : {}),
+        ...(Object.keys(leadFormResponses).length > 0 ? { leadFormResponses } : {}),
+        populateStandardContactFields: true,
+        tags: sellerId ? ['pagina_vendedor', 'formulario_contacto'] : ['formulario_contacto'],
+      }
     );
 
     return NextResponse.json({ success: true, leadId: lead.id });

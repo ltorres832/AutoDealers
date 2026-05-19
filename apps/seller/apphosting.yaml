@@ -1,6 +1,20 @@
 buildConfig:
   runtime: nodejs20
-  buildCommand: npm ci --legacy-peer-deps && npm run build --workspace=@autodealers/shared && cd apps/seller && npm run build
+  # Mismo patrón que admin-app (rollout OK): raíz del repo, paquetes del monorepo, luego Next en apps/seller.
+  # App Hosting usa Turborepo; turbo.json ordena billing → crm → core → inventory → seller.
+  buildCommand: |
+    set -e
+    if [ -f ../../package-lock.json ]; then cd ../..; fi
+    npm ci --legacy-peer-deps
+    npm run build --workspace=@autodealers/shared
+    npm run build --workspace=@autodealers/billing
+    npm run build --workspace=@autodealers/crm
+    npm run build --workspace=@autodealers/core
+    npm run build --workspace=@autodealers/inventory
+    npm run build --workspace=@autodealers/ai
+    npm run build --workspace=@autodealers/messaging
+    npm run build --workspace=@autodealers/reports
+    cd apps/seller && npm run build
   outputDir: .next
 
 runConfig:

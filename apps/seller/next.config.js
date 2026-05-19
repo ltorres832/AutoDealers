@@ -4,7 +4,8 @@ const path = require('path');
 const nextConfig = {
   reactStrictMode: true,
   turbopack: {},
-  output: 'standalone', // Servidor Node empaquetado para Cloud Run / Firebase
+  // Sin standalone: Firebase App Hosting (mismo patrón que admin-app).
+  // output: 'standalone',
   typescript: {
     ignoreBuildErrors: true,
   },

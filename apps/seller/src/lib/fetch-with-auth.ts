@@ -1,6 +1,7 @@
 /**
  * Fetch wrapper que maneja automáticamente el refresh de tokens expirados
  */
+import { authHeaders } from './auth-token-client';
 
 let isRefreshing = false;
 let refreshPromise: Promise<string | null> | null = null;
@@ -19,7 +20,9 @@ async function refreshTokenIfNeeded(): Promise<string | null> {
       if (newToken && newToken.length >= 200) {
         // Actualizar cookie con el nuevo token
         const cookieValue = encodeURIComponent(newToken);
-        document.cookie = `authToken=${cookieValue}; path=/; max-age=3600; SameSite=Lax`;
+        const isSecure = window.location.protocol === 'https:';
+        document.cookie = `authToken=${cookieValue}; path=/; max-age=86400; SameSite=Lax${isSecure ? '; Secure' : ''}`;
+        localStorage.setItem('authToken', newToken);
         return newToken;
       }
       return null;
@@ -39,11 +42,14 @@ export async function fetchWithAuth(
   url: string,
   options: RequestInit = {}
 ): Promise<Response> {
-  // Primera intento
-  let response = await fetch(url, {
+  const withAuth = (): RequestInit => ({
     ...options,
-    credentials: 'include',
+    credentials: options.credentials ?? 'include',
+    headers: authHeaders(options.headers),
   });
+
+  // Primera intento
+  let response = await fetch(url, withAuth());
 
   // Si recibimos un 401, intentar refrescar el token y reintentar
   // EXCEPCIÓN: No redirigir para rutas del chat interno (polling)
@@ -55,10 +61,7 @@ export async function fetchWithAuth(
       const newToken = await refreshTokenIfNeeded();
       if (newToken) {
         // Reintentar la petición con el nuevo token
-        response = await fetch(url, {
-          ...options,
-          credentials: 'include',
-        });
+        response = await fetch(url, withAuth());
       }
       // No redirigir para chat interno, solo retornar la respuesta
       return response;
@@ -70,10 +73,7 @@ export async function fetchWithAuth(
     
     if (newToken) {
       // Reintentar la petición con el nuevo token
-      response = await fetch(url, {
-        ...options,
-        credentials: 'include',
-      });
+      response = await fetch(url, withAuth());
       
       // Si sigue siendo 401 después del refresh, el usuario necesita iniciar sesión
       if (response.status === 401) {

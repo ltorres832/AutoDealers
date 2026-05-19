@@ -45,6 +45,12 @@ export default function RootLayout({
                   const authTokenCookie = cookies.find(c => c.trim().startsWith('authToken='));
                   if (authTokenCookie) {
                     const tokenValue = decodeURIComponent(authTokenCookie.split('=')[1] || '');
+                    if (tokenValue && /^[a-f0-9]{64}$/i.test(tokenValue)) {
+                      document.cookie = 'authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+                      document.cookie = 'authToken=; path=/seller; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+                      localStorage.removeItem('authToken');
+                      return;
+                    }
                     if (tokenValue && tokenValue.length < 200) {
                       try {
                         const decoded = atob(tokenValue);

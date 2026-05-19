@@ -20,10 +20,12 @@ export default function MessagesPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch('/api/user')
-      .then(res => res.json())
-      .then(data => setUser(data.user))
-      .catch(err => console.error('Error fetching user:', err));
+    import('@/lib/current-seller-user')
+      .then(({ loadCurrentSellerUser }) => loadCurrentSellerUser())
+      .then((u) => {
+        if (u) setUser(u);
+      })
+      .catch((err) => console.error('Error fetching user:', err));
   }, []);
 
   const { conversations, loading } = useRealtimeMessages(user?.tenantId);

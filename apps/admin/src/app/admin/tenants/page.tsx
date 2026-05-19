@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRealtimeTenants } from '@/hooks/useRealtimeTenants';
 import { RealtimeIndicator } from '@/components/RealtimeIndicator';
 import StarRating from '@/components/StarRating';
+import { fetchWithAuth } from '@/lib/fetch-with-auth';
 
 interface Tenant {
   id: string;
@@ -46,7 +47,7 @@ export default function AdminTenantsPage() {
     setDeleteLoading(true);
     setDeleteError(null);
     try {
-      const res = await fetch(`/api/admin/tenants/${deleteTarget.id}`, { method: 'DELETE' });
+      const res = await fetchWithAuth(`/api/admin/tenants/${deleteTarget.id}`, { method: 'DELETE' });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setDeleteError(typeof data.error === 'string' ? data.error : 'No se pudo eliminar');
@@ -65,7 +66,7 @@ export default function AdminTenantsPage() {
     const newStatus = currentStatus === 'active' ? 'suspended' : 'active';
     
     try {
-      const response = await fetch(`/api/admin/tenants/${tenantId}/status`, {
+      const response = await fetchWithAuth(`/api/admin/tenants/${tenantId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
@@ -347,7 +348,7 @@ function CreateTenantModal({
     setLoading(true);
 
     try {
-      const response = await fetch('/api/admin/tenants', {
+      const response = await fetchWithAuth('/api/admin/tenants', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -37,8 +37,8 @@ export default function SettingsPage() {
               <span className="text-2xl">🎬</span>
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Video en tu página pública</h3>
-              <p className="text-sm text-gray-600">YouTube, Vimeo o subir MP4 — aparece antes de tus autos</p>
+              <h3 className="text-lg font-semibold text-gray-900">Videos en tu página pública</h3>
+              <p className="text-sm text-gray-600">Varios videos en filas de 2 — YouTube, Vimeo o subir MP4</p>
             </div>
           </div>
         </Link>

@@ -9,6 +9,7 @@ import {
   catalogInterestSignalsToCsv,
   downloadCatalogInterestCsv,
 } from '@/lib/catalog-interest-helpers';
+import { CatalogInterestSignalsTable } from '@/components/CatalogInterestSignalsTable';
 
 type VehicleSummary = {
   label: string;
@@ -391,70 +392,7 @@ function CatalogInterestPageInner() {
         <p className="text-gray-500">No hay señales aún o no coinciden con el filtro.</p>
       ) : (
         <>
-          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
-            <table className="min-w-full text-sm">
-              <thead className="bg-gray-50 text-left text-gray-600">
-                <tr>
-                  <th className="px-3 py-2 whitespace-nowrap">Fecha</th>
-                  <th className="px-3 py-2 min-w-[160px]">Vehículo</th>
-                  <th className="px-3 py-2 min-w-[140px]">Superficie</th>
-                  <th className="px-3 py-2">Path</th>
-                  <th className="px-3 py-2">Referrer</th>
-                  <th className="px-3 py-2 whitespace-nowrap">UTM</th>
-                  <th className="px-3 py-2 min-w-[120px]">Agente</th>
-                  <th className="px-3 py-2 whitespace-nowrap">Tipo</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {signals.map((row) => (
-                  <tr key={row.id} className="hover:bg-gray-50/80 align-top">
-                    <td className="px-3 py-2 whitespace-nowrap text-gray-800">{formatLocal(row.createdAt)}</td>
-                    <td className="px-3 py-2 text-gray-800">
-                      <div className="font-medium text-gray-900">
-                        {row.vehicleSummary?.label || (row.vehicleId ? trunc(row.vehicleId, 26) : '—')}
-                      </div>
-                      {row.vehicleSummary?.stockNumber ? (
-                        <div className="text-xs text-blue-800 mt-0.5">Stock #{row.vehicleSummary.stockNumber}</div>
-                      ) : null}
-                      {row.vehicleId && row.vehicleSummary?.label ? (
-                        <div className="font-mono text-[11px] text-gray-500 mt-1 break-all" title={row.vehicleId}>
-                          {trunc(row.vehicleId, 28)}
-                        </div>
-                      ) : null}
-                    </td>
-                    <td className="px-3 py-2 text-gray-800">
-                      <div>{catalogSurfaceLabel(row.surface)}</div>
-                      {row.surface ? (
-                        <div className="font-mono text-[11px] text-gray-400 mt-0.5">{row.surface}</div>
-                      ) : null}
-                    </td>
-                    <td className="px-3 py-2 text-gray-600 max-w-[200px]" title={row.path || ''}>
-                      {trunc(row.path, 48)}
-                    </td>
-                    <td className="px-3 py-2 text-gray-600 max-w-[200px]" title={row.referrer || ''}>
-                      {trunc(row.referrer, 48)}
-                    </td>
-                    <td
-                      className="px-3 py-2 text-gray-600 text-xs max-w-[180px]"
-                      title={[row.utmSource, row.utmMedium, row.utmCampaign].filter(Boolean).join(' | ')}
-                    >
-                      {trunc([row.utmSource, row.utmMedium, row.utmCampaign].filter(Boolean).join(' · '), 40)}
-                    </td>
-                    <td className="px-3 py-2 text-gray-500 text-xs max-w-[140px]" title={row.userAgent || ''}>
-                      {trunc(row.userAgent, 42)}
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      {row.hasExplicitContact ? (
-                        <span className="text-green-700 font-medium">Con formulario</span>
-                      ) : (
-                        <span className="text-gray-500">Anónimo</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <CatalogInterestSignalsTable rows={signals} formatCreatedAt={formatLocal} />
           {hasMore && nextCursor ? (
             <div className="mt-4 flex justify-center">
               <button

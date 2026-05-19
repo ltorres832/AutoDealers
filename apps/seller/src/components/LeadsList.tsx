@@ -24,13 +24,15 @@ export default function LeadsList() {
   }, [searchParams]);
 
   useEffect(() => {
-    fetch('/api/user')
-      .then(res => res.json())
-      .then(data => setUser(data.user))
-      .catch(err => console.error('Error fetching user:', err));
+    import('@/lib/current-seller-user')
+      .then(({ loadCurrentSellerUser }) => loadCurrentSellerUser())
+      .then((u) => {
+        if (u) setUser(u);
+      })
+      .catch((err) => console.error('Error fetching user:', err));
   }, []);
 
-  const { leads, loading } = useRealtimeLeads({
+  const { leads, loading, error } = useRealtimeLeads({
     tenantId: user?.tenantId,
     assignedTo: user?.id,
     status: filters.status || undefined,

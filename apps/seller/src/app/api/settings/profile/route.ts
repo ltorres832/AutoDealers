@@ -55,7 +55,10 @@ export async function GET(request: NextRequest) {
       country: typeof addr.country === 'string' ? addr.country : '',
       website: tenantData?.website || '',
       description: tenantData?.description || '',
-      businessHours: tenantData?.businessHours || '',
+      businessHours:
+        (typeof userData?.businessHours === 'string' && userData.businessHours.trim()) ||
+        (typeof tenantData?.businessHours === 'string' && tenantData.businessHours.trim()) ||
+        '',
       socialMedia: tenantData?.socialMedia || {},
       title: (typeof userData?.title === 'string' && userData.title.trim()) ||
         (typeof userData?.jobTitle === 'string' && userData.jobTitle.trim()) ||
@@ -126,6 +129,13 @@ export async function PUT(request: NextRequest) {
 
     if (bio !== undefined) {
       userUpdate.bio = bio || admin.firestore.FieldValue.delete();
+    }
+
+    if (businessHours !== undefined) {
+      userUpdate.businessHours =
+        typeof businessHours === 'string' && businessHours.trim()
+          ? businessHours.trim()
+          : admin.firestore.FieldValue.delete();
     }
 
     const { title, jobTitle } = body as { title?: string; jobTitle?: string };

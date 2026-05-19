@@ -158,6 +158,17 @@ export function useRealtimeLeads(options: UseRealtimeLeadsOptions = {}) {
           console.error('Error en tiempo real leads:', err);
           setError(err.message);
           setLoading(false);
+          if (options.assignedTo) {
+            void fetch('/api/leads', { credentials: 'include' })
+              .then((res) => (res.ok ? res.json() : null))
+              .then((data) => {
+                if (data?.leads) {
+                  setLeads(data.leads);
+                  setError(null);
+                }
+              })
+              .catch(() => undefined);
+          }
         }
       );
 

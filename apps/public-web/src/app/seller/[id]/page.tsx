@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
@@ -12,6 +12,7 @@ import { getFirstPhoto, handleImageError } from '@/lib/vehicle-image';
 import { externalWebsiteHref, normalizeMisplacedFirebaseAppHostingUrl } from '@/lib/normalize-app-hosting-url';
 import { pingCatalogVehicleClick } from '@/lib/catalog-vehicle-click';
 import PublicPromoVideo from '../../../components/PublicPromoVideo';
+import { resolveBusinessHours } from '@/lib/resolve-business-hours';
 
 interface Seller {
   id: string;
@@ -327,6 +328,7 @@ export default function SellerPublicPage() {
   const [reviews, setReviews] = useState<PublicReviewItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [websiteSettings, setWebsiteSettings] = useState<TenantWebsiteSettingsForSellerPage | null>(null);
+  const [businessHours, setBusinessHours] = useState('');
 
   const inventoryByMakeModel = useMemo(
     () => groupSellerInventoryByMakeAndModel(vehicles),
@@ -426,6 +428,12 @@ export default function SellerPublicPage() {
           data.websiteSettings && typeof data.websiteSettings === 'object'
             ? (data.websiteSettings as TenantWebsiteSettingsForSellerPage)
             : null
+        );
+        setBusinessHours(
+          resolveBusinessHours(
+            data.profile?.businessHours,
+            data.seller?.businessHours
+          )
         );
       } catch (fetchError: any) {
         clearTimeout(timeoutId);
@@ -601,8 +609,31 @@ export default function SellerPublicPage() {
                     <span className="text-gray-400">No disponible</span>
                   )}
                 </div>
+
+                {businessHours ? (
+                  <div className="flex items-start gap-2 text-gray-700">
+                    <svg
+                      className="w-5 h-5 text-gray-500 shrink-0 mt-0.5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      aria-hidden
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    <div>
+                      <p className="text-xs font-medium text-gray-500">Horario de atención</p>
+                      <p className="text-gray-800 whitespace-pre-line leading-snug">{businessHours}</p>
+                    </div>
+                  </div>
+                ) : null}
               </div>
-              
+
               {seller.socialMedia &&
               Object.values(seller.socialMedia).some((v) => typeof v === 'string' && v.trim()) ? (
                 <div className="mt-5 pt-4 border-t border-gray-100">

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import SubdomainSellerWebsite from '@/components/SubdomainSellerWebsite';
 import ChatWidget from '../../components/ChatWidget';
 import VehicleDetailModal from './VehicleDetailModal';
 import { getFirstPhoto, handleImageError } from '../../lib/vehicle-image';
@@ -516,6 +517,17 @@ export default function TenantPublicPage() {
         </div>
       </div>
     );
+  }
+
+  const sellerWorkspaceId =
+    tenant.sellerInfo &&
+    typeof tenant.sellerInfo.id === 'string' &&
+    tenant.sellerInfo.id.trim()
+      ? tenant.sellerInfo.id.trim()
+      : '';
+
+  if (sellerWorkspaceId) {
+    return <SubdomainSellerWebsite sellerId={sellerWorkspaceId} />;
   }
 
   return (

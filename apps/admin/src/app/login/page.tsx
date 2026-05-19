@@ -56,9 +56,15 @@ export default function LoginPage() {
       console.log('✅ Autenticación exitosa');
       console.log('💾 Guardando token...');
 
-      // Guardar el token en cookie y localStorage
+      // Limpiar tokens de otras apps (seller/dealer Firebase JWT)
+      localStorage.removeItem('authToken');
+      document.cookie = 'authToken=; path=/; max-age=0';
+      document.cookie = 'authToken=; path=/seller; max-age=0';
+      document.cookie = 'authToken=; path=/dealer; max-age=0';
+
       document.cookie = `authToken=${data.token}; path=/; max-age=86400; SameSite=Lax`;
       localStorage.setItem('authToken', data.token);
+      localStorage.setItem('authApp', 'admin');
       localStorage.setItem('userEmail', data.user.email);
       localStorage.setItem('userId', data.user.uid);
 

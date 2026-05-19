@@ -208,6 +208,15 @@ export function LeadRowExtras({ lead }: { lead: Lead }) {
     chips.push({ key: 'ti2', text: 'Trade-in (detalle en ficha)', className: 'bg-violet-50 text-violet-800 border border-violet-200' });
   }
 
+  const notes = typeof lead.notes === 'string' ? lead.notes.trim() : '';
+  if (notes) {
+    chips.push({
+      key: 'notes',
+      text: notes.length > 100 ? `Notas: ${notes.slice(0, 97)}…` : `Notas: ${notes}`,
+      className: 'bg-gray-50 text-gray-800 border border-gray-200',
+    });
+  }
+
   if (!chips.length) return null;
   return (
     <div className="mt-2 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>

@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import {
+  getDefaultRootSellerId,
+  isFirebasePublicRootHost,
+} from '@/lib/default-root-seller-website';
 
 /** Rutas raíz de la app (no bajo /[tenant]/). Sin esto, `tenant.dominio/register` → 404. */
 function isPlatformRootPath(pathname: string): boolean {
@@ -11,6 +15,7 @@ function isPlatformRootPath(pathname: string): boolean {
   if (pathname.startsWith('/dealers')) return true;
   if (pathname.startsWith('/dealer/')) return true;
   if (pathname.startsWith('/seller/')) return true;
+  if (pathname.startsWith('/home-seller/')) return true;
   if (pathname.startsWith('/contacto')) return true;
   if (pathname.startsWith('/faq')) return true;
   if (pathname.startsWith('/terminos')) return true;
@@ -86,6 +91,16 @@ export function middleware(request: NextRequest) {
 
   // Si es el dominio base de Firebase, NO buscar subdominio
   if (firebaseBaseDomains.includes(hostname) || firebaseBaseDomains.some(base => hostname.startsWith(base + ':'))) {
+    const rootSellerId = getDefaultRootSellerId();
+    if (
+      rootSellerId &&
+      isFirebasePublicRootHost(hostname) &&
+      (pathname === '/' || pathname === '')
+    ) {
+      const url = request.nextUrl.clone();
+      url.pathname = `/home-seller/${rootSellerId}`;
+      return NextResponse.rewrite(url);
+    }
     return NextResponse.next();
   }
 

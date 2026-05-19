@@ -7,7 +7,7 @@
     "rules": "storage.rules"
   },
   "hosting": {
-    "public": "autodealers_flutter/build/web",
+    "public": "hosting-stub",
     "ignore": [
       "firebase.json",
       "**/.*",
@@ -16,7 +16,10 @@
     "rewrites": [
       {
         "source": "**",
-        "destination": "/index.html"
+        "run": {
+          "serviceId": "public-web-app",
+          "region": "us-central1"
+        }
       }
     ],
     "headers": [

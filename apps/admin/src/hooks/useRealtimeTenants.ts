@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { fetchWithAuth } from '@/lib/fetch-with-auth';
 
 interface Tenant {
   id: string;
@@ -27,14 +28,24 @@ export function useRealtimeTenants() {
   const fetchTenants = useCallback(async () => {
     try {
       setError(null);
-      const response = await fetch('/api/admin/tenants');
+      const response = await fetchWithAuth('/api/admin/tenants', { cache: 'no-store' });
       if (response.ok) {
         const data = await response.json();
         setTenants(data.tenants || []);
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
-        setError(errorData.error || 'Error al cargar tenants');
+        const message = errorData.error || 'Error al cargar tenants';
+        setError(
+          response.status === 401
+            ? 'Sesión expirada o sin permisos. Cierra sesión e inicia de nuevo en /login.'
+            : message
+        );
         setTenants([]);
+        if (response.status === 401 && typeof window !== 'undefined') {
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 2500);
+        }
       }
     } catch (err: any) {
       console.error('Error fetching tenants:', err);

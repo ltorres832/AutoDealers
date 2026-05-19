@@ -24,7 +24,8 @@ export function PromoVideosEditor({
   onSave,
   maxVideos = MAX_PUBLIC_PROMO_VIDEOS,
   title = 'Videos en tu página pública',
-  description = 'Puedes agregar varios videos. En la web se muestran en filas de dos, uno al lado del otro.',
+  description =
+    'Puedes agregar varios videos. Con uno solo ocupa todo el ancho; con dos, van uno al lado del otro; con más, en filas de dos.',
 }: PromoVideosEditorProps) {
   const atLimit = urls.length >= maxVideos;
 

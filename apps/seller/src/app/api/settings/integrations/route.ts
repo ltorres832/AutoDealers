@@ -59,10 +59,16 @@ export async function GET(request: NextRequest) {
         type: data.type,
         status: data.status || 'inactive',
         tenantId: auth.tenantId,
-        credentials: data.credentials ? {
-          appId: data.credentials.appId || undefined,
-          hasAppSecret: !!data.credentials.appSecret, // Indicar si existe sin devolverlo
-        } : undefined,
+        credentials: data.credentials
+          ? {
+              appId: data.credentials.appId || undefined,
+              hasAppSecret: !!data.credentials.appSecret,
+              pageName:
+                typeof data.credentials.pageName === 'string'
+                  ? data.credentials.pageName
+                  : undefined,
+            }
+          : undefined,
         createdAt: data.createdAt,
         updatedAt: data.updatedAt,
       };
@@ -187,8 +193,8 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Para Facebook e Instagram, usar credenciales globales del sistema
-      if (type === 'facebook' || type === 'instagram') {
+      // Meta (Facebook + Instagram): un solo OAuth; también compat. facebook|instagram por separado
+      if (type === 'facebook' || type === 'instagram' || type === 'meta') {
         try {
           // Obtener credenciales globales desde system_settings.credentials (donde el admin las guarda)
           const credentialsDoc = await db.collection('system_settings').doc('credentials').get();
@@ -238,12 +244,18 @@ export async function POST(request: NextRequest) {
           }
 
           const redirectUri = `${baseUrl}/api/settings/integrations/callback`;
-          const scope = type === 'facebook' 
-            ? 'pages_show_list,pages_manage_posts,pages_read_engagement,pages_messaging,instagram_basic,instagram_content_publish,ads_read,ads_management' 
-            : 'instagram_basic,instagram_content_publish,instagram_manage_messages,pages_show_list';
-          
+          const metaScopes =
+            'pages_show_list,pages_manage_posts,pages_read_engagement,pages_messaging,instagram_basic,instagram_content_publish,instagram_manage_messages,ads_read,ads_management';
+          const scope =
+            type === 'instagram'
+              ? 'instagram_basic,instagram_content_publish,instagram_manage_messages,pages_show_list'
+              : type === 'facebook'
+                ? metaScopes
+                : metaScopes;
+          const oauthType = type === 'meta' ? 'meta' : type;
+
           const statePayload = encodeSocialOAuthState({
-            type,
+            type: oauthType,
             tenantId: auth.tenantId,
             leadOwnerUserId: auth.userId,
           });

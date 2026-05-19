@@ -187,8 +187,7 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Para Facebook e Instagram, usar credenciales globales del sistema
-      if (type === 'facebook' || type === 'instagram') {
+      if (type === 'facebook' || type === 'instagram' || type === 'meta') {
         try {
           // Obtener credenciales globales desde system_settings.credentials (donde el admin las guarda)
           const credentialsDoc = await db.collection('system_settings').doc('credentials').get();
@@ -238,12 +237,16 @@ export async function POST(request: NextRequest) {
           }
 
           const redirectUri = `${baseUrl}/api/settings/integrations/callback`;
-          const scope = type === 'facebook' 
-            ? 'pages_show_list,pages_manage_posts,pages_read_engagement,pages_messaging,instagram_basic,instagram_content_publish,ads_read,ads_management' 
-            : 'instagram_basic,instagram_content_publish,instagram_manage_messages,pages_show_list';
-          
+          const metaScopes =
+            'pages_show_list,pages_manage_posts,pages_read_engagement,pages_messaging,instagram_basic,instagram_content_publish,instagram_manage_messages,ads_read,ads_management';
+          const scope =
+            type === 'instagram'
+              ? 'instagram_basic,instagram_content_publish,instagram_manage_messages,pages_show_list'
+              : metaScopes;
+          const oauthType = type === 'meta' ? 'meta' : type;
+
           const statePayload = encodeSocialOAuthState({
-            type,
+            type: oauthType,
             tenantId: auth.tenantId,
             leadOwnerUserId: auth.userId,
           });

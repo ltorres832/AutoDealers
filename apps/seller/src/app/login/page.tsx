@@ -80,7 +80,10 @@ export default function LoginPage() {
       document.cookie = 'authToken=; path=/seller; expires=Thu, 01 Jan 1970 00:00:00 GMT';
       document.cookie = 'authToken=; path=/advertiser; expires=Thu, 01 Jan 1970 00:00:00 GMT';
       document.cookie = 'authToken=; path=/admin; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-      
+      document.cookie = 'authToken=; path=/dealer; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('authApp');
+
       // Esperar un momento para asegurar que las cookies se borren
       await new Promise(resolve => setTimeout(resolve, 100));
 
@@ -91,7 +94,8 @@ export default function LoginPage() {
       
       // Guardar con un nombre específico para seller para evitar conflictos
       document.cookie = `authToken=${cookieValue}; path=/; max-age=86400; SameSite=Lax${isSecure ? '; Secure' : ''}`;
-      
+      localStorage.setItem('authToken', token);
+
       console.log('✅ Token guardado en cookie, longitud:', token.length);
       console.log('✅ Token preview:', token.substring(0, 50) + '...');
       console.log('✅ Token es Firebase ID token:', token.length > 800 && token.startsWith('eyJ'));

@@ -19,6 +19,13 @@ export function repairHeroTitle(title: unknown): string {
   return t;
 }
 
+export function repairHeroSubtitle(subtitle: unknown): string {
+  if (typeof subtitle !== 'string' || !subtitle.trim()) return DEFAULT_HERO_SUBTITLE;
+  const t = subtitle.trim();
+  if (/^Tenemos\s+\d+\s+veh[ií]culos/i.test(t)) return DEFAULT_HERO_SUBTITLE;
+  return t;
+}
+
 export function createDefaultWebsiteSettingsRecord(): Record<string, unknown> {
   return {
     hero: {
@@ -53,9 +60,7 @@ export function normalizeWebsiteSettingsFromFirestore(
   const hero = merged.hero;
   if (isPlainObject(hero)) {
     hero.title = repairHeroTitle(hero.title);
-    if (typeof hero.subtitle !== 'string' || !hero.subtitle.trim()) {
-      hero.subtitle = DEFAULT_HERO_SUBTITLE;
-    }
+    hero.subtitle = repairHeroSubtitle(hero.subtitle);
     if (typeof hero.ctaText !== 'string' || !hero.ctaText.trim()) {
       hero.ctaText = DEFAULT_HERO_CTA;
     }

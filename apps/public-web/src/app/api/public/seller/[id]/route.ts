@@ -10,6 +10,7 @@ import {
   vehicleBelongsToSeller,
 } from '@/lib/seller-public-catalog';
 import { normalizePromoVideoUrls } from '@autodealers/shared/promo-video-urls';
+import { resolveBusinessHours } from '@/lib/resolve-business-hours';
 
 // Exportar configuración de runtime
 export const runtime = 'nodejs';
@@ -323,10 +324,13 @@ export async function GET(
         city: typeof sellerData.city === 'string' ? sellerData.city : '',
         state: typeof sellerData.state === 'string' ? sellerData.state : '',
         zipCode: typeof sellerData.zipCode === 'string' ? sellerData.zipCode : '',
-        businessHours:
-          (typeof sellerData.businessHours === 'string' && sellerData.businessHours.trim()) ||
-          (typeof tenantData?.businessHours === 'string' ? tenantData.businessHours : '') ||
-          '',
+        businessHours: resolveBusinessHours(
+          sellerData.businessHours,
+          sellerData.profile && typeof sellerData.profile === 'object'
+            ? (sellerData.profile as Record<string, unknown>).businessHours
+            : undefined,
+          tenantData?.businessHours
+        ),
       },
       vehicles: vehiclesOut,
       reviews: publicReviews.map((r) => ({
@@ -336,6 +340,9 @@ export async function GET(
         title: r.title,
         comment: r.comment,
         photos: r.photos,
+        customerEmail: r.customerEmail,
+        saleId: r.saleId,
+        vehicleId: r.vehicleId,
         createdAt:
           r.createdAt instanceof Date ? r.createdAt.toISOString() : r.createdAt,
         response: r.response

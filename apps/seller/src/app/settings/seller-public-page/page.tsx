@@ -6,8 +6,6 @@ import { PromoVideosEditor } from '@autodealers/shared/components/PromoVideosEdi
 
 export default function SellerPublicPageSettings() {
   const [publicPromoVideoUrls, setPublicPromoVideoUrls] = useState<string[]>([]);
-  const [sellerId, setSellerId] = useState('');
-  const [tenantSubdomain, setTenantSubdomain] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -25,7 +23,11 @@ export default function SellerPublicPageSettings() {
       const res = await fetchWithAuth('/api/settings/seller-public-catalog', {});
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        setMessage(err.error || 'No se pudo cargar la configuración');
+        setMessage(
+          res.status === 401
+            ? 'Sesión expirada. Cierra sesión e inicia de nuevo en /login.'
+            : err.error || 'No se pudo cargar'
+        );
         return;
       }
       const data = await res.json();
@@ -36,10 +38,8 @@ export default function SellerPublicPageSettings() {
             ? [data.publicPromoVideoUrl]
             : []
       );
-      setSellerId(data.sellerId || '');
-      setTenantSubdomain(data.tenantSubdomain || '');
     } catch {
-      setMessage('Error de red al cargar');
+      setMessage('Error de red');
     } finally {
       setLoading(false);
     }
@@ -78,7 +78,7 @@ export default function SellerPublicPageSettings() {
       const res = await fetchWithAuth('/api/upload', { method: 'POST', body: form });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        setMessage(err.error || 'Error al subir el video');
+        setMessage(err.error || 'Error al subir');
         return null;
       }
       const data = await res.json();
@@ -91,8 +91,6 @@ export default function SellerPublicPageSettings() {
     }
   }
 
-  const publicPath = sellerId ? `/seller/${sellerId}` : '/seller/…';
-
   if (loading) {
     return (
       <div className="flex justify-center py-16">
@@ -102,18 +100,18 @@ export default function SellerPublicPageSettings() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6 p-4">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Tus videos en la web pública</h1>
+        <h1 className="text-2xl font-bold">Videos en tu página pública</h1>
         <p className="mt-2 text-gray-600">
-          Los visitantes verán tus videos en filas de dos, uno al lado del otro, antes de tu inventario.
+          Se muestran en la web en filas de dos, antes del inventario.
         </p>
       </div>
 
       {message && (
         <div
           className={`rounded-lg border px-4 py-3 text-sm ${
-            message.includes('correctamente') || message.includes('guardad')
+            message.includes('correctamente')
               ? 'border-green-200 bg-green-50 text-green-800'
               : 'border-amber-200 bg-amber-50 text-amber-900'
           }`}
@@ -122,21 +120,7 @@ export default function SellerPublicPageSettings() {
         </div>
       )}
 
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-2 font-semibold text-gray-900">Enlace público de tu catálogo</h2>
-        <p className="mb-3 text-sm text-gray-600">
-          Ruta en la web pública:{' '}
-          <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">{publicPath}</code>
-          {tenantSubdomain ? (
-            <>
-              {' '}
-              (subdominio: <span className="font-mono text-xs">{tenantSubdomain}</span>)
-            </>
-          ) : null}
-        </p>
-      </div>
-
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="rounded-lg border bg-white p-6 shadow-sm">
         <PromoVideosEditor
           urls={publicPromoVideoUrls}
           onChange={setPublicPromoVideoUrls}
@@ -147,7 +131,7 @@ export default function SellerPublicPageSettings() {
         />
       </div>
 
-      <p className="text-center text-sm text-gray-500">
+      <p className="text-center text-sm">
         <Link href="/settings" className="text-primary-600 hover:underline">
           Volver a configuración
         </Link>
