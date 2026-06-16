@@ -4,6 +4,10 @@ export function safeTrim(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+export function normalizeLoginEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
 export function sanitizeSocialMedia(raw: unknown): Record<string, string> {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
   const out: Record<string, string> = {};

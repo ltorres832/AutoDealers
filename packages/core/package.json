@@ -12,7 +12,8 @@
     "./feature-flags": "./src/feature-flags.ts",
     "./dashboard-feature-membership": "./src/dashboard-feature-membership.ts",
     "./dealer-seller-links": "./src/dealer-seller-links.ts",
-    "./dealer-seller-invite-codes": "./src/dealer-seller-invite-codes.ts"
+    "./dealer-seller-invite-codes": "./src/dealer-seller-invite-codes.ts",
+    "./user-auth-sync": "./src/user-auth-sync.ts"
   },
   "scripts": {
     "build": "node -e \"const fs = require('fs'); const path = require('path'); const {execSync} = require('child_process'); try { execSync('npx esbuild src/seller-management.ts --outfile=src/seller-management.js --platform=node --format=cjs --packages=external', {stdio: 'inherit', cwd: __dirname}); } catch(e) { console.warn('esbuild seller-management skipped', e.message); } try { if (fs.existsSync(path.join(__dirname, 'dist'))) { fs.rmSync(path.join(__dirname, 'dist'), {recursive: true, force: true}); } execSync('tsc --skipLibCheck --noEmitOnError false', {stdio: 'inherit'}); } catch(e) {} process.exit(0);\"",

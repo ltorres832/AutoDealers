@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getFirestore, normalizeLoginEmail, syncLoginEmail } from '@autodealers/core';
+import { getFirestore } from '@autodealers/core';
+import { syncLoginEmail } from '@autodealers/core/user-auth-sync';
 import {
   businessHoursForStorage,
   normalizeBusinessHoursForForm,
+  normalizeLoginEmail,
   safeTrim,
   sanitizeSocialMedia,
 } from '@autodealers/shared/settings-profile';

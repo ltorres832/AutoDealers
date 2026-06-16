@@ -54,6 +54,10 @@ const nextConfig = {
       ...config.resolve.alias,
       '@': path.join(__dirname, 'src'),
       '@autodealers/core': path.join(__dirname, '../../packages/core/src'),
+      '@autodealers/core/user-auth-sync': path.join(
+        __dirname,
+        '../../packages/core/src/user-auth-sync.ts'
+      ),
       '@autodealers/shared/client': path.join(sharedSrc, 'client.ts'),
       '@autodealers/shared/firebase-server': path.join(sharedSrc, 'firebase-server.ts'),
       '@autodealers/shared/platform-branding-client': path.join(

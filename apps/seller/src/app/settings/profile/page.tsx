@@ -151,7 +151,11 @@ export default function ProfileSettingsPage() {
         alert('Perfil actualizado exitosamente');
       } else {
         const err = await response.json().catch(() => ({}));
-        alert(err.error || err.details || 'Error al actualizar perfil');
+        const msg =
+          err.error === 'Internal server error' && err.details
+            ? err.details
+            : err.error || err.details || 'Error al actualizar perfil';
+        alert(msg);
       }
     } catch (error) {
       console.error('Error:', error);

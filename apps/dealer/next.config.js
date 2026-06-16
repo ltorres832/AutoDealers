@@ -53,6 +53,10 @@ const nextConfig = {
       '@autodealers/shared/promo-video-urls': path.join(sharedSrc, 'promo-video-urls.ts'),
       '@autodealers/shared/public-trust-gallery': path.join(sharedSrc, 'public-trust-gallery.ts'),
       '@autodealers/shared/settings-profile': path.join(sharedSrc, 'settings-profile.ts'),
+      '@autodealers/core/user-auth-sync': path.join(
+        __dirname,
+        '../../packages/core/src/user-auth-sync.ts'
+      ),
       '@autodealers/shared/firebase-storage-upload': path.join(
         sharedSrc,
         'firebase-storage-upload.ts'
