@@ -46,12 +46,12 @@ export function PublicTrustGallery({
               key={`${item.url}-${index}`}
               className="group flex flex-col overflow-hidden rounded-2xl bg-gray-100 shadow-md ring-1 ring-black/5"
             >
-              <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-200">
+              <div className="flex min-h-[240px] items-center justify-center bg-gray-200/80 p-4 sm:min-h-[280px]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={src}
                   alt={caption || `Galería ${index + 1}`}
-                  className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-[1.02]"
+                  className="max-h-[320px] w-full object-contain object-center transition duration-300 group-hover:scale-[1.01]"
                   loading={index < 4 ? 'eager' : 'lazy'}
                   decoding="async"
                   fetchPriority={index < 2 ? 'high' : 'auto'}

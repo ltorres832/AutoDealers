@@ -32,7 +32,9 @@ export function PublicTrustGallerySection({
 
   function updateCaption(index: number, caption: string) {
     onChange(
-      items.map((item, i) => (i === index ? { ...item, caption: caption.trim() || undefined } : item))
+      items.map((item, i) =>
+        i === index ? { ...item, caption: caption.length ? caption : undefined } : item
+      )
     );
   }
 
@@ -116,12 +118,12 @@ export function PublicTrustGallerySection({
               key={`${item.url}-${index}`}
               className="overflow-hidden rounded-xl border bg-white shadow-sm"
             >
-              <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
+              <div className="relative flex min-h-[220px] items-center justify-center bg-gray-100 p-3">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={item.url}
                   alt={item.caption || `Foto ${index + 1}`}
-                  className="h-full w-full object-cover object-center"
+                  className="max-h-[280px] w-full object-contain object-center"
                 />
                 <button
                   type="button"
@@ -138,10 +140,16 @@ export function PublicTrustGallerySection({
                 <textarea
                   value={item.caption || ''}
                   onChange={(e) => updateCaption(index, e.target.value)}
+                  onBlur={(e) => {
+                    const trimmed = e.target.value.trim();
+                    if (trimmed !== (item.caption || '')) {
+                      updateCaption(index, trimmed);
+                    }
+                  }}
                   rows={2}
                   maxLength={200}
                   placeholder="Ej: Entrega del Toyota Corolla 2024 a la familia Rivera"
-                  className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm normal-case text-gray-900 placeholder:text-gray-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                 />
                 <span className="mt-1 block text-right text-xs text-gray-400">
                   {(item.caption || '').length}/200
