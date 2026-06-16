@@ -86,7 +86,7 @@ export default function VehiclesList() {
                         photos: vehicle.photos,
                       })
                     }
-                    className="mt-4 w-full px-4 py-2 rounded font-medium text-sm bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-700 hover:to-indigo-700"
+                    className="mt-4 w-full px-4 py-2 rounded font-medium text-sm bg-gradient-to-r from-primary-600 to-primary-600 text-white hover:from-primary-700 hover:to-primary-700"
                   >
                     📱 Publicar en redes
                   </button>

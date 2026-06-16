@@ -187,7 +187,7 @@ export function LeadRowExtras({ lead }: { lead: Lead }) {
     chips.push({
       key: 'int',
       text: t.length > 90 ? `Interés: ${t.slice(0, 87)}…` : `Interés: ${t}`,
-      className: 'bg-sky-50 text-sky-900 border border-sky-200',
+      className: 'bg-primary-50 text-primary-900 border border-sky-200',
     });
   }
   if (lead.budget != null && String(lead.budget).trim()) {
@@ -202,10 +202,10 @@ export function LeadRowExtras({ lead }: { lead: Lead }) {
     chips.push({
       key: 'ti',
       text: `Trade-in: ${th}`,
-      className: 'bg-violet-50 text-violet-900 border border-violet-200',
+      className: 'bg-primary-50 text-primary-900 border border-primary-200',
     });
   } else if (lead.tradeIn && Object.keys(lead.tradeIn).length > 0) {
-    chips.push({ key: 'ti2', text: 'Trade-in (detalle en ficha)', className: 'bg-violet-50 text-violet-800 border border-violet-200' });
+    chips.push({ key: 'ti2', text: 'Trade-in (detalle en ficha)', className: 'bg-primary-50 text-primary-800 border border-primary-200' });
   }
 
   const notes = typeof lead.notes === 'string' ? lead.notes.trim() : '';

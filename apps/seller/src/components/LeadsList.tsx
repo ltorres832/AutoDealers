@@ -6,10 +6,12 @@ import Link from 'next/link';
 import type { Lead } from '@autodealers/crm';
 import { LeadRowExtras } from '@/components/LeadProfileSections';
 import { useRealtimeLeads } from '@/hooks/useRealtimeLeads';
+import { fetchWithAuth } from '@/lib/fetch-with-auth';
 
 export default function LeadsList() {
   const searchParams = useSearchParams();
   const [user, setUser] = useState<any>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [filters, setFilters] = useState({
     status: searchParams.get('status') || '',
     source: searchParams.get('source') || '',
@@ -35,16 +37,39 @@ export default function LeadsList() {
   const { leads, loading, error } = useRealtimeLeads({
     tenantId: user?.tenantId,
     assignedTo: user?.id,
+    independentWorkspace: user?.isIndependentWorkspace,
     status: filters.status || undefined,
     search: filters.search || undefined,
   });
 
+  async function handleDeleteLead(leadId: string, leadName: string) {
+    if (
+      !window.confirm(
+        `¿Eliminar permanentemente a ${leadName}? Esta acción no se puede deshacer.`
+      )
+    ) {
+      return;
+    }
+    setDeletingId(leadId);
+    try {
+      const res = await fetchWithAuth(`/api/leads/${leadId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error || 'No se pudo eliminar');
+      }
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Error al eliminar');
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   function getStatusColor(status: string) {
     const colors: Record<string, string> = {
-      new: 'bg-blue-100 text-blue-700',
+      new: 'bg-primary-100 text-primary-700',
       contacted: 'bg-yellow-100 text-yellow-700',
       qualified: 'bg-green-100 text-green-700',
-      appointment: 'bg-purple-100 text-purple-700',
+      appointment: 'bg-primary-100 text-primary-700',
       closed: 'bg-gray-100 text-gray-700',
       lost: 'bg-red-100 text-red-700',
     };
@@ -111,12 +136,12 @@ export default function LeadsList() {
           </div>
         ) : (
           leads.map((lead) => (
-            <Link
-              key={lead.id}
-              href={`/leads/${lead.id}`}
-              className="block p-4 hover:bg-gray-50 transition"
-            >
-              <div className="flex flex-col gap-1">
+            <div key={lead.id} className="flex items-stretch">
+              <Link
+                href={`/leads/${lead.id}`}
+                className="block min-w-0 flex-1 p-4 transition hover:bg-gray-50"
+              >
+                <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4 flex-1">
                   <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center">
@@ -170,7 +195,18 @@ export default function LeadsList() {
               </div>
               <LeadRowExtras lead={lead as unknown as Lead} />
               </div>
-            </Link>
+              </Link>
+              <div className="flex shrink-0 flex-col justify-center gap-1 border-l border-gray-100 bg-white px-2 py-2">
+                <button
+                  type="button"
+                  className="rounded-md border border-red-200 px-2 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                  disabled={deletingId === lead.id}
+                  onClick={() => handleDeleteLead(lead.id, lead.contact.name || 'Cliente')}
+                >
+                  {deletingId === lead.id ? '…' : 'Eliminar'}
+                </button>
+              </div>
+            </div>
           ))
         )}
       </div>

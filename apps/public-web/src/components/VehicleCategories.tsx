@@ -6,8 +6,8 @@ const CATEGORY_DISPLAY: Record<string, { label: string; image: string; color: st
   sedan: {
     label: 'Sedán',
     image: '/sedan_category_1773634522734.png',
-    color: 'text-blue-600',
-    gradient: 'from-blue-600/20 to-blue-900/40'
+    color: 'text-primary-600',
+    gradient: 'from-primary-600/20 to-primary-900/40'
   },
   suv: {
     label: 'SUV',
@@ -30,8 +30,8 @@ const CATEGORY_DISPLAY: Record<string, { label: string; image: string; color: st
   minivan: {
     label: 'Miniván',
     image: '/minivan_category_1773634597825.png',
-    color: 'text-indigo-600',
-    gradient: 'from-indigo-600/20 to-indigo-900/40'
+    color: 'text-primary-600',
+    gradient: 'from-primary-600/20 to-primary-900/40'
   },
   'hibrido-ev': {
     label: 'Híbrido/EV',
@@ -51,11 +51,11 @@ export default function VehicleCategories({ vehicleCounts }: VehicleCategoriesPr
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="text-center mb-16">
-        <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-full mb-6">
+        <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-full mb-6">
           <span className="text-[10px] font-black uppercase tracking-[0.3em]">Colecciones</span>
         </div>
         <h2 className="text-4xl md:text-6xl font-black text-slate-900 mb-6 tracking-tight">
-          Explora Nuestro <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Catálogo</span>
+          Explora Nuestro <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-primary-600">Catálogo</span>
         </h2>
         <p className="text-xl text-slate-500 max-w-2xl mx-auto font-medium leading-relaxed">
           Encuentra el vehículo perfecto para tu estilo de vida entre nuestras categorías más populares.
@@ -93,7 +93,7 @@ export default function VehicleCategories({ vehicleCounts }: VehicleCategoriesPr
                 </h3>
                 {vehicleCounts && vehicleCounts[id] !== undefined && (
                   <div className="flex items-center gap-1.5 text-white/70 text-[10px] font-bold uppercase tracking-widest mb-2 group-hover:text-white transition-colors">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary-500"></span>
                     {vehicleCounts[id]} {vehicleCounts[id] === 1 ? 'Vehículo' : 'Vehículos'}
                   </div>
                 )}
@@ -117,7 +117,7 @@ export default function VehicleCategories({ vehicleCounts }: VehicleCategoriesPr
           className="group relative flex items-center gap-4 px-12 py-6 bg-white border border-slate-200 rounded-[2.5rem] shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-2"
         >
           <span className="text-slate-900 font-black text-lg uppercase tracking-widest">Explora Catálogo Full</span>
-          <div className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center group-hover:translate-x-2 transition-transform duration-500">
+          <div className="w-10 h-10 rounded-full bg-primary-600 text-white flex items-center justify-center group-hover:translate-x-2 transition-transform duration-500">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
             </svg>

@@ -51,6 +51,22 @@ export async function validateMembershipFeature(
       return null; // null = continuar sin restricciones
     }
 
+    if (auth.tenantId) {
+      const { assertTenantHasActiveBilling } = await import('@autodealers/billing');
+      const billing = await assertTenantHasActiveBilling(auth.tenantId);
+      if (!billing.allowed) {
+        return NextResponse.json(
+          {
+            error: 'billing_suspended',
+            reason: billing.reason,
+            subscriptionStatus: billing.subscription?.status,
+            upgradeRequired: true,
+          },
+          { status: 402 }
+        );
+      }
+    }
+
     // Validar que el tenant tiene la feature
     if (!auth.tenantId) {
       return NextResponse.json(

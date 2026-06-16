@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuth, isDealerPortalRole } from '@/lib/auth';
 import {
   getLeads,
   createLead,
@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
     const leads = await getLeads(auth.tenantId, {
       status: status ? (status as LeadStatus) : undefined,
       source: source ? (source as LeadSource) : undefined,
+      dealerVisibleOnly: isDealerPortalRole(auth.role) || auth.role === 'dealer',
     });
 
     // Filtrar por búsqueda

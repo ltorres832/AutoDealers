@@ -1,9 +1,9 @@
 // Unificación de mensajes de todos los canales
 
-import { MessagePayload, MessageResponse, MessageChannel } from './types';
+import { MessagePayload, MessageResponse } from './types';
 import { WhatsAppService } from './whatsapp';
-// Importación dinámica para evitar dependencias circulares
-// import { createMessage, getMessageById } from '@autodealers/crm';
+import { EmailService } from './email';
+import { SMSService } from './sms';
 
 export class UnifiedMessagingService {
   private whatsappService?: WhatsAppService;
@@ -15,37 +15,27 @@ export class UnifiedMessagingService {
   /**
    * Envía un mensaje por el canal especificado
    */
-  async sendMessage(
-    payload: MessagePayload
-  ): Promise<MessageResponse> {
+  async sendMessage(payload: MessagePayload): Promise<MessageResponse> {
     let response: MessageResponse;
 
     switch (payload.channel) {
       case 'whatsapp':
-        if (!this.whatsappService) {
-          throw new Error('WhatsApp service not configured');
-        }
-        response = await this.whatsappService.sendMessage(payload);
+        response = await this.sendWhatsApp(payload);
         break;
-
       case 'email':
         response = await this.sendEmail(payload);
         break;
-
       case 'sms':
         response = await this.sendSMS(payload);
         break;
-
       case 'facebook':
       case 'instagram':
         response = await this.sendSocialMessage(payload);
         break;
-
       default:
         throw new Error(`Unsupported channel: ${payload.channel}`);
     }
 
-    // Guardar en CRM (importación dinámica para evitar dependencias circulares)
     if (response.status === 'sent' && payload.leadId) {
       const { createMessage } = await import('@autodealers/crm');
       await createMessage({
@@ -66,50 +56,63 @@ export class UnifiedMessagingService {
     return response;
   }
 
-  /**
-   * Envía un email
-   */
+  private async sendWhatsApp(payload: MessagePayload): Promise<MessageResponse> {
+    if (this.whatsappService) {
+      return this.whatsappService.sendMessage(payload);
+    }
+
+    const { createWhatsAppServiceForTenant } = await import('@autodealers/core');
+    const wa = await createWhatsAppServiceForTenant(payload.tenantId);
+    if (!wa) {
+      return { id: '', status: 'failed', error: 'WhatsApp not configured' };
+    }
+
+    return wa.service.sendMessage({
+      ...payload,
+      from: payload.from || wa.phoneNumberId,
+    });
+  }
+
   private async sendEmail(payload: MessagePayload): Promise<MessageResponse> {
-    // TODO: Implementar con SendGrid o Resend
-    return {
-      id: '',
-      status: 'sent',
-    };
+    const { createEmailService } = await import('@autodealers/core');
+    const configured = await createEmailService();
+    if (!configured) {
+      return { id: '', status: 'failed', error: 'Email not configured' };
+    }
+
+    return configured.service.sendEmail({
+      ...payload,
+      from: payload.from || configured.fromAddress,
+    });
   }
 
-  /**
-   * Envía un SMS
-   */
   private async sendSMS(payload: MessagePayload): Promise<MessageResponse> {
-    // TODO: Implementar con Twilio
-    return {
-      id: '',
-      status: 'sent',
-    };
+    const { createSmsService } = await import('@autodealers/core');
+    const sms = await createSmsService();
+    if (!sms) {
+      return { id: '', status: 'failed', error: 'Twilio not configured' };
+    }
+
+    return sms.sendSMS(payload);
   }
 
   /**
-   * Envía mensaje a redes sociales
+   * Envía mensaje a redes sociales (Meta Graph API — pendiente de unificar credenciales por tenant)
    */
-  private async sendSocialMessage(
-    payload: MessagePayload
-  ): Promise<MessageResponse> {
-    // TODO: Implementar con Meta Graph API
+  private async sendSocialMessage(payload: MessagePayload): Promise<MessageResponse> {
+    console.warn(`Social outbound not implemented for channel ${payload.channel}`, payload.tenantId);
     return {
       id: '',
-      status: 'sent',
+      status: 'failed',
+      error: `Outbound ${payload.channel} not implemented`,
     };
   }
 
   /**
    * Obtiene todos los mensajes de un lead
    */
-  async getLeadMessages(
-    tenantId: string,
-    leadId: string
-  ): Promise<any[]> {
-    // TODO: Implementar consulta a Firestore
-    return [];
+  async getLeadMessages(tenantId: string, leadId: string): Promise<any[]> {
+    const { getLeadMessages } = await import('@autodealers/crm');
+    return getLeadMessages(tenantId, leadId);
   }
 }
-

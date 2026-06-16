@@ -18,13 +18,13 @@ export type ExclusiveOfferGradientKey = (typeof EXCLUSIVE_OFFER_GRADIENT_KEYS)[n
 
 /** Clases Tailwind permitidas (no se guardan strings arbitrarios desde admin). */
 export const EXCLUSIVE_OFFER_GRADIENT_CLASSES: Record<ExclusiveOfferGradientKey, string> = {
-  blue: 'from-blue-600 to-indigo-700',
+  blue: 'from-primary-600 to-primary-800',
   emerald: 'from-emerald-500 to-teal-700',
   amber: 'from-amber-500 to-orange-600',
   slate: 'from-slate-700 to-slate-900',
   rose: 'from-rose-500 to-pink-700',
-  violet: 'from-violet-600 to-purple-800',
-  cyan: 'from-cyan-500 to-blue-700',
+  violet: 'from-primary-600 to-brand-black-deep',
+  cyan: 'from-primary-500 to-primary-800',
 };
 
 export interface ExclusiveOfferCard {

@@ -106,7 +106,7 @@ function ComparePageContent() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Cargando comparación...</p>
         </div>
       </div>
@@ -122,7 +122,7 @@ function ComparePageContent() {
           <p className="text-gray-600 mb-6">Los vehículos seleccionados no están disponibles</p>
           <PublicBackButton
             fallbackHref="/"
-            className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-medium"
+            className="inline-block bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 font-medium"
           >
             ← Volver
           </PublicBackButton>
@@ -181,7 +181,7 @@ function ComparePageContent() {
           <div className="flex justify-between items-center">
             <PublicBackButton
               fallbackHref="/"
-              className="text-blue-600 hover:underline flex items-center gap-2"
+              className="text-primary-600 hover:underline flex items-center gap-2"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -239,7 +239,7 @@ function ComparePageContent() {
                   <h3 className="text-xl font-bold mb-2">
                     {vehicle.year} {vehicle.make} {vehicle.model}
                   </h3>
-                  <p className="text-2xl font-bold text-blue-600 mb-2">
+                  <p className="text-2xl font-bold text-primary-600 mb-2">
                     {vehicle.currency} {vehicle.price.toLocaleString()}
                   </p>
                   {vehicle.tenantName && (
@@ -247,7 +247,7 @@ function ComparePageContent() {
                   )}
                   <Link
                     href={`/${vehicle.tenantId}/vehicle/${vehicle.id}`}
-                    className="block w-full bg-blue-600 text-white text-center py-2 rounded-lg hover:bg-blue-700 transition font-medium"
+                    className="block w-full bg-primary-600 text-white text-center py-2 rounded-lg hover:bg-primary-700 transition font-medium"
                     onClick={() =>
                       pingCatalogVehicleClick({
                         vehicleId: vehicle.id,
@@ -317,7 +317,7 @@ function ComparePageContent() {
             {vehicles.length < 3 && (
               <Link
                 href="/"
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-medium"
+                className="bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 font-medium"
               >
                 Agregar Vehículo
               </Link>

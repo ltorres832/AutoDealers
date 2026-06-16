@@ -10,6 +10,11 @@ export type SellerClientUser = {
   role: string;
   tenantId?: string;
   dealerId?: string;
+  isIndependentWorkspace?: boolean;
+  mustChangePassword?: boolean;
+  createdByAdmin?: boolean;
+  adminMembershipSelectionRequired?: boolean;
+  adminMembershipAccess?: 'granted' | 'required';
 };
 
 /** Perfil del vendedor vía API; si falla (cookie admin, etc.), lee Firestore con Firebase Auth. */
@@ -21,7 +26,16 @@ export async function loadCurrentSellerUser(): Promise<SellerClientUser | null> 
       if (data.user?.role === 'seller') {
         const id = data.user.id || data.user.userId;
         if (id && data.user.tenantId) {
-          return { ...data.user, id };
+          return {
+            ...data.user,
+            id,
+            isIndependentWorkspace: data.user.isIndependentWorkspace === true,
+            mustChangePassword: data.user.mustChangePassword === true,
+            createdByAdmin: data.user.createdByAdmin === true,
+            adminMembershipSelectionRequired:
+              data.user.adminMembershipSelectionRequired === true,
+            adminMembershipAccess: data.user.adminMembershipAccess,
+          };
         }
       }
     }
@@ -48,6 +62,10 @@ export async function loadCurrentSellerUser(): Promise<SellerClientUser | null> 
       role: 'seller',
       tenantId: d.tenantId as string,
       dealerId: d.dealerId as string | undefined,
+      mustChangePassword: d.mustChangePassword === true,
+      createdByAdmin: d.createdByAdmin === true,
+      adminMembershipSelectionRequired: d.adminMembershipSelectionRequired === true,
+      adminMembershipAccess: d.adminMembershipAccess as 'granted' | 'required' | undefined,
     };
   } catch {
     return null;

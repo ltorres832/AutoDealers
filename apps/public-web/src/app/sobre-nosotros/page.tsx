@@ -11,16 +11,16 @@ export default function SobreNosotrosPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <Link href="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-primary-600 to-primary-600 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-xl">AD</span>
               </div>
-              <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              <span className="text-2xl font-bold bg-gradient-to-r from-primary-600 to-primary-600 bg-clip-text text-transparent">
                 AutoDealers
               </span>
             </Link>
             <Link
               href="/login"
-              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-lg hover:shadow-lg transition-all"
+              className="bg-gradient-to-r from-primary-600 to-primary-600 text-white px-6 py-2 rounded-lg hover:shadow-lg transition-all"
             >
               Iniciar Sesión
             </Link>
@@ -37,7 +37,7 @@ export default function SobreNosotrosPage() {
             Volver
           </PublicBackButton>
           <span className="text-gray-300 hidden sm:inline">|</span>
-          <Link href="/" className="text-sm text-gray-500 hover:text-purple-600">
+          <Link href="/" className="text-sm text-gray-500 hover:text-primary-600">
             Inicio
           </Link>
         </div>
@@ -45,7 +45,7 @@ export default function SobreNosotrosPage() {
         <div className="text-center mb-16">
           <h1 className="text-5xl font-bold mb-4">
             Sobre{' '}
-            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-primary-600 to-primary-600 bg-clip-text text-transparent">
               Nosotros
             </span>
           </h1>
@@ -56,7 +56,7 @@ export default function SobreNosotrosPage() {
 
         <div className="space-y-12">
           {/* Mission */}
-          <section className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl p-8">
+          <section className="bg-gradient-to-br from-primary-50 to-primary-50 rounded-2xl p-8">
             <h2 className="text-3xl font-bold mb-4">Nuestra Misión</h2>
             <p className="text-lg text-gray-700 leading-relaxed">
               En AutoDealers, creemos que cada concesionario merece herramientas profesionales para 
@@ -138,8 +138,8 @@ export default function SobreNosotrosPage() {
                 { name: 'Soporte al Cliente', count: '15+' },
                 { name: 'Ventas y Marketing', count: '10+' },
               ].map((team, i) => (
-                <div key={i} className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-6 text-center">
-                  <div className="text-3xl font-bold text-blue-600 mb-2">{team.count}</div>
+                <div key={i} className="bg-gradient-to-br from-primary-50 to-primary-50 rounded-xl p-6 text-center">
+                  <div className="text-3xl font-bold text-primary-600 mb-2">{team.count}</div>
                   <div className="text-gray-700">{team.name}</div>
                 </div>
               ))}
@@ -148,14 +148,14 @@ export default function SobreNosotrosPage() {
         </div>
 
         {/* CTA */}
-        <div className="mt-16 text-center bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-12 text-white">
+        <div className="mt-16 text-center bg-gradient-to-r from-primary-600 to-primary-600 rounded-2xl p-12 text-white">
           <h2 className="text-3xl font-bold mb-4">¿Quieres unirte a nuestro equipo?</h2>
           <p className="text-xl mb-8 opacity-90">
             Estamos siempre buscando talento excepcional
           </p>
           <Link
             href="/contacto"
-            className="inline-block bg-white text-blue-600 px-8 py-4 rounded-lg hover:shadow-xl transition-all font-semibold text-lg"
+            className="inline-block bg-white text-primary-600 px-8 py-4 rounded-lg hover:shadow-xl transition-all font-semibold text-lg"
           >
             Ver Oportunidades
           </Link>

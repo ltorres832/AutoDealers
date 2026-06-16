@@ -110,6 +110,40 @@ export async function POST(request: NextRequest) {
 
     await documentRef.set(documentData);
 
+    let sellerId: string | undefined;
+    if (requestId) {
+      const reqDoc = await db
+        .collection('tenants')
+        .doc(auth.tenantId)
+        .collection('fi_requests')
+        .doc(requestId)
+        .get();
+      sellerId = reqDoc.data()?.createdBy as string | undefined;
+    }
+
+    try {
+      const { notifyFIDocumentEvent } = await import('@autodealers/core');
+      const clientDoc = await db
+        .collection('tenants')
+        .doc(auth.tenantId)
+        .collection('fi_clients')
+        .doc(clientId)
+        .get();
+      const clientName = clientDoc.data()?.name || 'Cliente';
+
+      await notifyFIDocumentEvent(auth.tenantId, {
+        title: 'Documento F&I subido',
+        message: `Se subió "${file.name}" para ${clientName}.`,
+        sellerId,
+        excludeUserIds: [auth.userId],
+        requestId: requestId || undefined,
+        clientId,
+        route: requestId ? `/fi/requests/${requestId}` : '/fi',
+      });
+    } catch (notifErr) {
+      console.warn('F&I document upload notification skipped:', notifErr);
+    }
+
     return NextResponse.json({
       documentId: documentRef.id,
       url: publicUrl,

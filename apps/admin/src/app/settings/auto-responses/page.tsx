@@ -116,7 +116,7 @@ export default function AutoResponsesPage() {
                         {response.trigger.keywords?.map((keyword, i) => (
                           <span
                             key={i}
-                            className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs"
+                            className="px-2 py-1 bg-primary-100 text-primary-700 rounded text-xs"
                           >
                             {keyword}
                           </span>
@@ -316,7 +316,7 @@ function CreateAutoResponseModal({
                   {formData.keywords.map((keyword, i) => (
                     <span
                       key={i}
-                      className="px-3 py-1 bg-blue-100 text-blue-700 rounded flex items-center gap-2"
+                      className="px-3 py-1 bg-primary-100 text-primary-700 rounded flex items-center gap-2"
                     >
                       {keyword}
                       <button
@@ -327,7 +327,7 @@ function CreateAutoResponseModal({
                             keywords: formData.keywords.filter((_, idx) => idx !== i),
                           });
                         }}
-                        className="text-blue-700 hover:text-blue-900"
+                        className="text-primary-700 hover:text-primary-900"
                       >
                         ✕
                       </button>

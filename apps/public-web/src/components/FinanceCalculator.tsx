@@ -35,7 +35,7 @@ export default function FinanceCalculator() {
   };
 
   return (
-    <section className="py-16 bg-gradient-to-br from-blue-50 to-indigo-50">
+    <section id="financiamiento" className="py-16 bg-gradient-to-br from-primary-50 to-primary-50">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-8">
           <h2 className="text-4xl font-bold text-gray-900 mb-4">
@@ -60,7 +60,7 @@ export default function FinanceCalculator() {
                   value={vehiclePrice}
                   onChange={(e) => setVehiclePrice(e.target.value)}
                   placeholder="30,000"
-                  className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
             </div>
@@ -77,7 +77,7 @@ export default function FinanceCalculator() {
                   value={downPayment}
                   onChange={(e) => setDownPayment(e.target.value)}
                   placeholder="5,000"
-                  className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
             </div>
@@ -92,7 +92,7 @@ export default function FinanceCalculator() {
                 step="0.1"
                 value={interestRate}
                 onChange={(e) => setInterestRate(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
 
@@ -104,7 +104,7 @@ export default function FinanceCalculator() {
               <select
                 value={loanTerm}
                 onChange={(e) => setLoanTerm(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
                 <option value="36">36 meses</option>
                 <option value="48">48 meses</option>
@@ -117,7 +117,7 @@ export default function FinanceCalculator() {
 
           <button
             onClick={calculatePayment}
-            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 rounded-lg hover:from-blue-700 hover:to-indigo-700 font-bold text-lg transition-all transform hover:scale-105 mb-6"
+            className="w-full bg-gradient-to-r from-primary-600 to-primary-600 text-white py-4 rounded-lg hover:from-primary-700 hover:to-primary-700 font-bold text-lg transition-all transform hover:scale-105 mb-6"
           >
             Calcular Pago Mensual
           </button>

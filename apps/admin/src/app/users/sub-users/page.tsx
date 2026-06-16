@@ -128,7 +128,7 @@ export default function SubUsersPage() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs capitalize">
+                    <span className="px-2 py-1 bg-primary-100 text-primary-700 rounded text-xs capitalize">
                       {user.role}
                     </span>
                   </td>

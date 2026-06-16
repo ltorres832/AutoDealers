@@ -101,7 +101,7 @@ export default function UsersManagementPage() {
                 <p className="text-sm text-gray-600 mb-2">Permisos:</p>
                 <div className="flex flex-wrap gap-1">
                   {user.permissions.canManageInventory && (
-                    <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">Inventario</span>
+                    <span className="px-2 py-1 bg-primary-100 text-primary-700 text-xs rounded">Inventario</span>
                   )}
                   {user.permissions.canManageLeads && (
                     <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded">Leads</span>
@@ -110,13 +110,13 @@ export default function UsersManagementPage() {
                     <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded">Integraciones</span>
                   )}
                   {user.permissions.canManageTemplates && (
-                    <span className="px-2 py-1 bg-pink-100 text-pink-700 text-xs rounded">Templates</span>
+                    <span className="px-2 py-1 bg-primary-100 text-primary-700 text-xs rounded">Templates</span>
                   )}
                   {user.permissions.canViewReports && (
-                    <span className="px-2 py-1 bg-indigo-100 text-indigo-700 text-xs rounded">Reportes</span>
+                    <span className="px-2 py-1 bg-primary-100 text-primary-700 text-xs rounded">Reportes</span>
                   )}
                   {user.permissions.canManageAppointments && (
-                    <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded">Citas</span>
+                    <span className="px-2 py-1 bg-primary-100 text-primary-700 text-xs rounded">Citas</span>
                   )}
                   {user.permissions.canManageCampaigns && (
                     <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded">Campañas</span>

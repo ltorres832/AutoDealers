@@ -85,17 +85,17 @@ export function generateReceiptHTML(receipt: Receipt): string {
   <style>
     body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
     .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { border-bottom: 2px solid #2563eb; padding-bottom: 20px; margin-bottom: 20px; }
-    .header h1 { color: #2563eb; margin: 0; }
+    .header { border-bottom: 2px solid #E10600; padding-bottom: 20px; margin-bottom: 20px; }
+    .header h1 { color: #E10600; margin: 0; }
     .receipt-info { background: #f3f4f6; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
     .receipt-info p { margin: 5px 0; }
     table { width: 100%; border-collapse: collapse; margin: 20px 0; }
     th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
-    th { background-color: #2563eb; color: white; }
+    th { background-color: #E10600; color: white; }
     .text-right { text-align: right; }
-    .total-section { margin-top: 20px; padding-top: 20px; border-top: 2px solid #2563eb; }
+    .total-section { margin-top: 20px; padding-top: 20px; border-top: 2px solid #E10600; }
     .total-row { display: flex; justify-content: space-between; padding: 10px 0; }
-    .total-row.final { font-size: 1.2em; font-weight: bold; color: #2563eb; }
+    .total-row.final { font-size: 1.2em; font-weight: bold; color: #E10600; }
     .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; color: #666; font-size: 0.9em; }
   </style>
 </head>

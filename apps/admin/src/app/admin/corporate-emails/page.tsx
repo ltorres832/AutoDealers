@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import { useRealtimeCorporateEmailsAdmin } from '@/hooks/useRealtimeCorporateEmails';
+import { useRealtimeTenants } from '@/hooks/useRealtimeTenants';
 
 interface CorporateEmail {
   id: string;
@@ -30,33 +32,23 @@ interface Tenant {
 }
 
 export default function CorporateEmailsPage() {
-  const [emails, setEmails] = useState<CorporateEmail[]>([]);
+  const { emails, loading } = useRealtimeCorporateEmailsAdmin();
+  const { tenants: tenantList } = useRealtimeTenants();
   const [users, setUsers] = useState<Record<string, User>>({});
-  const [tenants, setTenants] = useState<Record<string, Tenant>>({});
-  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'active' | 'suspended' | 'pending'>('all');
   const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
-    fetchEmails();
-    fetchUsers();
-    fetchTenants();
-  }, []);
+  const tenants = useMemo(() => {
+    const map: Record<string, Tenant> = {};
+    tenantList.forEach((t) => {
+      map[t.id] = { id: t.id, name: t.name || t.companyName || t.id };
+    });
+    return map;
+  }, [tenantList]);
 
-  async function fetchEmails() {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/admin/corporate-emails');
-      if (response.ok) {
-        const data = await response.json();
-        setEmails(data.emails || []);
-      }
-    } catch (error) {
-      console.error('Error fetching corporate emails:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
   async function fetchUsers() {
     try {
@@ -74,22 +66,6 @@ export default function CorporateEmailsPage() {
     }
   }
 
-  async function fetchTenants() {
-    try {
-      const response = await fetch('/api/admin/tenants');
-      if (response.ok) {
-        const data = await response.json();
-        const tenantsMap: Record<string, Tenant> = {};
-        (data.tenants || []).forEach((tenant: Tenant) => {
-          tenantsMap[tenant.id] = tenant;
-        });
-        setTenants(tenantsMap);
-      }
-    } catch (error) {
-      console.error('Error fetching tenants:', error);
-    }
-  }
-
   async function handleSuspend(emailId: string) {
     if (!confirm('¿Estás seguro de suspender este email?')) return;
 
@@ -100,7 +76,6 @@ export default function CorporateEmailsPage() {
 
       if (response.ok) {
         alert('✅ Email suspendido exitosamente');
-        fetchEmails();
       } else {
         alert('❌ Error al suspender email');
       }
@@ -118,7 +93,6 @@ export default function CorporateEmailsPage() {
 
       if (response.ok) {
         alert('✅ Email activado exitosamente');
-        fetchEmails();
       } else {
         alert('❌ Error al activar email');
       }
@@ -138,7 +112,6 @@ export default function CorporateEmailsPage() {
 
       if (response.ok) {
         alert('✅ Email eliminado exitosamente');
-        fetchEmails();
       } else {
         alert('❌ Error al eliminar email');
       }
@@ -228,7 +201,7 @@ export default function CorporateEmailsPage() {
               onClick={() => setFilter('pending')}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 filter === 'pending'
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-primary-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -302,7 +275,7 @@ export default function CorporateEmailsPage() {
                             : email.status === 'suspended'
                             ? 'bg-yellow-100 text-yellow-800'
                             : email.status === 'pending'
-                            ? 'bg-blue-100 text-blue-800'
+                            ? 'bg-primary-100 text-primary-800'
                             : 'bg-red-100 text-red-800'
                         }`}
                       >
@@ -375,7 +348,7 @@ export default function CorporateEmailsPage() {
           <div className="text-sm text-gray-600">Suspendidos</div>
         </div>
         <div className="bg-white rounded-lg shadow p-6">
-          <div className="text-2xl font-bold text-blue-600">
+          <div className="text-2xl font-bold text-primary-600">
             {emails.filter((e) => e.status === 'pending').length}
           </div>
           <div className="text-sm text-gray-600">Pendientes</div>

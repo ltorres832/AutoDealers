@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getQuickListingById } from '@autodealers/core';
+import { getQuickListingById, incrementQuickListingView } from '@autodealers/core';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,6 +62,8 @@ export default async function AnuncioParticularPage({ params }: { params: Promis
   const item = await getQuickListingById(id);
   if (!item) notFound();
 
+  incrementQuickListingView(id).catch(() => {});
+
   const phoneDigits = digitsOnly(item.contactPhone);
   const waHref =
     phoneDigits.length > 0
@@ -73,7 +75,7 @@ export default async function AnuncioParticularPage({ params }: { params: Promis
   return (
     <div className="min-h-screen bg-slate-50 pb-16">
       <div className="max-w-4xl mx-auto px-4 pt-6">
-        <Link href="/" className="text-sm text-blue-600 hover:underline">
+        <Link href="/" className="text-sm text-primary-600 hover:underline">
           ← Volver al inicio
         </Link>
       </div>
@@ -84,7 +86,7 @@ export default async function AnuncioParticularPage({ params }: { params: Promis
           <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900">
             {item.year} {item.make} {item.model}
           </h1>
-          <p className="text-2xl font-extrabold text-blue-700 mt-2">{formatPrice(item.price, item.currency)}</p>
+          <p className="text-2xl font-extrabold text-primary-700 mt-2">{formatPrice(item.price, item.currency)}</p>
         </header>
 
         {item.photos.length > 0 ? (
@@ -174,7 +176,7 @@ export default async function AnuncioParticularPage({ params }: { params: Promis
             {phoneDigits ? (
               <a
                 href={`tel:+${phoneDigits}`}
-                className="flex-1 py-3 bg-blue-600 text-white text-center font-bold rounded-xl hover:bg-blue-700"
+                className="flex-1 py-3 bg-primary-600 text-white text-center font-bold rounded-xl hover:bg-primary-700"
               >
                 Llamar a {item.contactName}
               </a>

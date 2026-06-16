@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { formatSsnInput } from '@autodealers/core/fi-ssn';
 
 export interface FIAdvancedClientFormData {
   // Paso 1: Información Personal
@@ -74,11 +75,13 @@ interface AutoCompleteSuggestion {
 export default function FIAdvancedClientForm({ 
   initialData, 
   onSave, 
-  onComplete 
+  onComplete,
+  submitLabel = '✓ Completar',
 }: { 
   initialData?: Partial<FIAdvancedClientFormData>;
   onSave?: (data: FIAdvancedClientFormData) => void;
   onComplete?: (data: FIAdvancedClientFormData) => void;
+  submitLabel?: string;
 }) {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
@@ -241,10 +244,11 @@ export default function FIAdvancedClientForm({
   };
 
   const handleFieldChange = (field: keyof FIAdvancedClientFormData, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    const nextValue = field === 'ssn' ? formatSsnInput(String(value)) : value;
+    setFormData(prev => ({ ...prev, [field]: nextValue }));
     
     // Validación en tiempo real
-    const error = validateField(field, value);
+    const error = validateField(field, nextValue);
     if (error) {
       setErrors(prev => ({ ...prev, [field]: error }));
     } else {
@@ -346,7 +350,7 @@ export default function FIAdvancedClientForm({
                     index + 1 < currentStep
                       ? 'bg-green-500 text-white'
                       : index + 1 === currentStep
-                      ? 'bg-blue-600 text-white'
+                      ? 'bg-primary-600 text-white'
                       : 'bg-gray-200 text-gray-600'
                   }`}
                 >
@@ -369,7 +373,7 @@ export default function FIAdvancedClientForm({
       </div>
       <div className="w-full bg-gray-200 rounded-full h-2">
         <div
-          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+          className="bg-primary-600 h-2 rounded-full transition-all duration-300"
           style={{ width: `${completionPercentage}%` }}
         />
       </div>
@@ -394,7 +398,7 @@ export default function FIAdvancedClientForm({
               setShowSuggestions('firstName');
             }}
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-              errors.firstName ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+              errors.firstName ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary-500'
             }`}
             placeholder="Juan"
           />
@@ -429,7 +433,7 @@ export default function FIAdvancedClientForm({
               setShowSuggestions('lastName');
             }}
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-              errors.lastName ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+              errors.lastName ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary-500'
             }`}
             placeholder="Pérez"
           />
@@ -445,7 +449,7 @@ export default function FIAdvancedClientForm({
             value={formData.phone}
             onChange={(e) => handleFieldChange('phone', e.target.value)}
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-              errors.phone ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+              errors.phone ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary-500'
             }`}
             placeholder="+1 (555) 123-4567"
           />
@@ -461,7 +465,7 @@ export default function FIAdvancedClientForm({
             value={formData.email}
             onChange={(e) => handleFieldChange('email', e.target.value)}
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-              errors.email ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+              errors.email ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary-500'
             }`}
             placeholder="juan@example.com"
           />
@@ -477,7 +481,7 @@ export default function FIAdvancedClientForm({
             value={formData.dateOfBirth}
             onChange={(e) => handleFieldChange('dateOfBirth', e.target.value)}
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-              errors.dateOfBirth ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+              errors.dateOfBirth ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary-500'
             }`}
           />
         </div>
@@ -491,7 +495,7 @@ export default function FIAdvancedClientForm({
             value={formData.ssn}
             onChange={(e) => handleFieldChange('ssn', e.target.value)}
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-              errors.ssn ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+              errors.ssn ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary-500'
             }`}
             placeholder="XXX-XX-XXXX"
             maxLength={11}
@@ -505,7 +509,7 @@ export default function FIAdvancedClientForm({
           <select
             value={formData.maritalStatus}
             onChange={(e) => handleFieldChange('maritalStatus', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             <option value="">Seleccionar...</option>
             <option value="single">Soltero</option>
@@ -524,7 +528,7 @@ export default function FIAdvancedClientForm({
             min="0"
             value={formData.dependents}
             onChange={(e) => handleFieldChange('dependents', parseInt(e.target.value) || 0)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
       </div>
@@ -549,7 +553,7 @@ export default function FIAdvancedClientForm({
               setShowSuggestions('address');
             }}
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-              errors.address ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+              errors.address ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary-500'
             }`}
             placeholder="123 Main St"
           />
@@ -565,7 +569,7 @@ export default function FIAdvancedClientForm({
             value={formData.city}
             onChange={(e) => handleFieldChange('city', e.target.value)}
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-              errors.city ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+              errors.city ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary-500'
             }`}
           />
         </div>
@@ -580,7 +584,7 @@ export default function FIAdvancedClientForm({
             value={formData.state}
             onChange={(e) => handleFieldChange('state', e.target.value)}
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-              errors.state ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+              errors.state ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary-500'
             }`}
             placeholder="CA"
             maxLength={2}
@@ -597,7 +601,7 @@ export default function FIAdvancedClientForm({
             value={formData.zipCode}
             onChange={(e) => handleFieldChange('zipCode', e.target.value)}
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-              errors.zipCode ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+              errors.zipCode ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary-500'
             }`}
             placeholder="12345"
           />
@@ -610,7 +614,7 @@ export default function FIAdvancedClientForm({
           <select
             value={formData.housingType}
             onChange={(e) => handleFieldChange('housingType', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             <option value="">Seleccionar...</option>
             <option value="rent">Renta</option>
@@ -629,7 +633,7 @@ export default function FIAdvancedClientForm({
             step="0.01"
             value={formData.monthlyHousingPayment}
             onChange={(e) => handleFieldChange('monthlyHousingPayment', parseFloat(e.target.value) || 0)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
         
@@ -643,7 +647,7 @@ export default function FIAdvancedClientForm({
             step="0.1"
             value={formData.yearsAtAddress}
             onChange={(e) => handleFieldChange('yearsAtAddress', parseFloat(e.target.value) || 0)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
       </div>
@@ -663,7 +667,7 @@ export default function FIAdvancedClientForm({
             value={formData.employmentStatus}
             onChange={(e) => handleFieldChange('employmentStatus', e.target.value)}
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-              errors.employmentStatus ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+              errors.employmentStatus ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary-500'
             }`}
           >
             <option value="">Seleccionar...</option>
@@ -687,7 +691,7 @@ export default function FIAdvancedClientForm({
                   handleFieldChange('employer', e.target.value);
                   setShowSuggestions('employer');
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             
@@ -699,7 +703,7 @@ export default function FIAdvancedClientForm({
                 type="text"
                 value={formData.position}
                 onChange={(e) => handleFieldChange('position', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             
@@ -715,7 +719,7 @@ export default function FIAdvancedClientForm({
                 value={formData.monthlyIncome}
                 onChange={(e) => handleFieldChange('monthlyIncome', parseFloat(e.target.value) || 0)}
                 className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                  errors.monthlyIncome ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+                  errors.monthlyIncome ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary-500'
                 }`}
               />
             </div>
@@ -729,7 +733,7 @@ export default function FIAdvancedClientForm({
                 min="0"
                 value={formData.timeAtJob}
                 onChange={(e) => handleFieldChange('timeAtJob', parseInt(e.target.value) || 0)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
           </>
@@ -756,7 +760,7 @@ export default function FIAdvancedClientForm({
               setShowSuggestions('vehicleMake');
             }}
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-              errors.vehicleMake ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+              errors.vehicleMake ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary-500'
             }`}
             placeholder="Toyota"
           />
@@ -772,7 +776,7 @@ export default function FIAdvancedClientForm({
             value={formData.vehicleModel}
             onChange={(e) => handleFieldChange('vehicleModel', e.target.value)}
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-              errors.vehicleModel ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+              errors.vehicleModel ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary-500'
             }`}
             placeholder="Camry"
           />
@@ -790,7 +794,7 @@ export default function FIAdvancedClientForm({
             value={formData.vehicleYear}
             onChange={(e) => handleFieldChange('vehicleYear', e.target.value)}
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-              errors.vehicleYear ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+              errors.vehicleYear ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary-500'
             }`}
             placeholder="2024"
           />
@@ -808,7 +812,7 @@ export default function FIAdvancedClientForm({
             value={formData.vehiclePrice}
             onChange={(e) => handleFieldChange('vehiclePrice', parseFloat(e.target.value) || 0)}
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-              errors.vehiclePrice ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+              errors.vehiclePrice ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary-500'
             }`}
           />
         </div>
@@ -825,7 +829,7 @@ export default function FIAdvancedClientForm({
             value={formData.downPayment}
             onChange={(e) => handleFieldChange('downPayment', parseFloat(e.target.value) || 0)}
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-              errors.downPayment ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+              errors.downPayment ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary-500'
             }`}
           />
           {formData.vehiclePrice > 0 && formData.downPayment > 0 && (
@@ -842,7 +846,7 @@ export default function FIAdvancedClientForm({
               id="hasTradeIn"
               checked={formData.hasTradeIn}
               onChange={(e) => handleFieldChange('hasTradeIn', e.target.checked)}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
             />
             <label htmlFor="hasTradeIn" className="ml-2 text-sm font-medium text-gray-700">
               Tiene Trade-In
@@ -859,7 +863,7 @@ export default function FIAdvancedClientForm({
                   type="text"
                   value={formData.tradeInMake}
                   onChange={(e) => handleFieldChange('tradeInMake', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               
@@ -871,7 +875,7 @@ export default function FIAdvancedClientForm({
                   type="text"
                   value={formData.tradeInModel}
                   onChange={(e) => handleFieldChange('tradeInModel', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               
@@ -885,7 +889,7 @@ export default function FIAdvancedClientForm({
                   max={new Date().getFullYear()}
                   value={formData.tradeInYear}
                   onChange={(e) => handleFieldChange('tradeInYear', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               
@@ -899,7 +903,7 @@ export default function FIAdvancedClientForm({
                   step="0.01"
                   value={formData.tradeInValue}
                   onChange={(e) => handleFieldChange('tradeInValue', parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
@@ -908,7 +912,7 @@ export default function FIAdvancedClientForm({
                   type="text"
                   value={formData.tradeInVin}
                   onChange={(e) => handleFieldChange('tradeInVin', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
@@ -918,7 +922,7 @@ export default function FIAdvancedClientForm({
                   min="0"
                   value={formData.tradeInMileage}
                   onChange={(e) => handleFieldChange('tradeInMileage', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
@@ -927,7 +931,7 @@ export default function FIAdvancedClientForm({
                   type="text"
                   value={formData.tradeInColor}
                   onChange={(e) => handleFieldChange('tradeInColor', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
@@ -938,7 +942,7 @@ export default function FIAdvancedClientForm({
                   step="0.01"
                   value={formData.tradeInPayoff}
                   onChange={(e) => handleFieldChange('tradeInPayoff', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
@@ -947,7 +951,7 @@ export default function FIAdvancedClientForm({
                   type="text"
                   value={formData.tradeInLienholder}
                   onChange={(e) => handleFieldChange('tradeInLienholder', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
@@ -957,7 +961,7 @@ export default function FIAdvancedClientForm({
                   onChange={(e) =>
                     handleFieldChange('tradeInTitleStatus', e.target.value as FIAdvancedClientFormData['tradeInTitleStatus'])
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="">—</option>
                   <option value="clean">Limpio</option>
@@ -974,7 +978,7 @@ export default function FIAdvancedClientForm({
                   type="text"
                   value={formData.tradeInAccidentHistory}
                   onChange={(e) => handleFieldChange('tradeInAccidentHistory', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div className="md:col-span-2">
@@ -983,7 +987,7 @@ export default function FIAdvancedClientForm({
                   rows={2}
                   value={formData.tradeInNotes}
                   onChange={(e) => handleFieldChange('tradeInNotes', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
             </div>
@@ -1005,7 +1009,7 @@ export default function FIAdvancedClientForm({
           <select
             value={formData.identificationType}
             onChange={(e) => handleFieldChange('identificationType', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             <option value="">Seleccionar...</option>
             <option value="drivers_license">Licencia de Conducir</option>
@@ -1022,7 +1026,7 @@ export default function FIAdvancedClientForm({
             type="text"
             value={formData.identificationNumber}
             onChange={(e) => handleFieldChange('identificationNumber', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
         
@@ -1034,7 +1038,7 @@ export default function FIAdvancedClientForm({
             rows={4}
             value={formData.notes}
             onChange={(e) => handleFieldChange('notes', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
             placeholder="Información adicional sobre el cliente..."
           />
         </div>
@@ -1084,7 +1088,7 @@ export default function FIAdvancedClientForm({
               <button
                 type="button"
                 onClick={handleNext}
-                className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
               >
                 Siguiente →
               </button>
@@ -1095,7 +1099,7 @@ export default function FIAdvancedClientForm({
                 disabled={loading}
                 className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
               >
-                {loading ? 'Procesando...' : '✓ Completar'}
+                {loading ? 'Procesando...' : submitLabel}
               </button>
             )}
           </div>

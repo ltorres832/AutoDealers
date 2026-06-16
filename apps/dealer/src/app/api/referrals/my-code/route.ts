@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth, isDealerPortalRole } from '@/lib/auth';
 import { getReferralCode } from '@autodealers/core';
+import { buildDealerReferralRegisterLink } from '@/lib/referral-register-url';
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,8 +22,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const baseUrl = request.nextUrl.origin.replace('app.', '');
-    const referralLink = `${baseUrl}/register/dealer?ref=${code}`;
+    const referralLink = buildDealerReferralRegisterLink(request, code);
 
     return NextResponse.json({
       code,

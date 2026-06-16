@@ -2,6 +2,7 @@
 // Gestión de leads, mensajes, citas, ventas
 
 export * from './leads';
+export * from './seller-owned-leads';
 export { getLeads } from './leads';
 export {
   ingestFacebookLeadgenWebhook,
@@ -26,6 +27,7 @@ export * from './post-sale';
 export * from './internal-messages';
 export * from './public-chat';
 export * from './reviews';
+export * from './review-invites';
 // NO usar export * para customer-files - usar exportación explícita más abajo
 // export * from './customer-files';
 export * from './pre-qualification';

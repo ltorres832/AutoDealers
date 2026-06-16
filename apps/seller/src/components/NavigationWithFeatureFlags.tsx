@@ -71,8 +71,8 @@ export default function NavigationWithFeatureFlags({
             onClick={() => onNavigate?.()}
             className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-start'} px-4 py-3 rounded-lg transition-all ${
               isActive
-                ? 'bg-primary-50 text-primary-700 font-medium shadow-sm'
-                : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                ? 'brand-nav-active'
+                : 'text-gray-700 hover:bg-primary-50 hover:text-primary-700'
             }`}
             title={sidebarCollapsed ? item.name : undefined}
           >

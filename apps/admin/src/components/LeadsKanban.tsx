@@ -8,12 +8,12 @@ interface LeadsKanbanProps {
 }
 
 const STATUS_COLUMNS: { status: LeadStatus; label: string; color: string }[] = [
-  { status: 'new', label: 'Nuevos', color: 'bg-blue-50 border-blue-200' },
+  { status: 'new', label: 'Nuevos', color: 'bg-primary-50 border-primary-200' },
   { status: 'contacted', label: 'Contactados', color: 'bg-yellow-50 border-yellow-200' },
   { status: 'qualified', label: 'Calificados', color: 'bg-green-50 border-green-200' },
-  { status: 'pre_qualified', label: 'Pre-Calificados', color: 'bg-purple-50 border-purple-200' },
-  { status: 'appointment', label: 'Citas', color: 'bg-indigo-50 border-indigo-200' },
-  { status: 'test_drive', label: 'Pruebas', color: 'bg-pink-50 border-pink-200' },
+  { status: 'pre_qualified', label: 'Pre-Calificados', color: 'bg-primary-50 border-primary-200' },
+  { status: 'appointment', label: 'Citas', color: 'bg-primary-50 border-primary-200' },
+  { status: 'test_drive', label: 'Pruebas', color: 'bg-primary-50 border-primary-200' },
   { status: 'negotiation', label: 'Negociación', color: 'bg-orange-50 border-orange-200' },
   { status: 'closed', label: 'Cerrados', color: 'bg-gray-50 border-gray-200' },
   { status: 'lost', label: 'Perdidos', color: 'bg-red-50 border-red-200' },
@@ -175,7 +175,7 @@ export default function LeadsKanban({ tenantId }: LeadsKanbanProps) {
                         {lead.tags.slice(0, 3).map((tag, idx) => (
                           <span
                             key={idx}
-                            className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded"
+                            className="text-xs bg-primary-100 text-primary-700 px-2 py-0.5 rounded"
                           >
                             {tag}
                           </span>

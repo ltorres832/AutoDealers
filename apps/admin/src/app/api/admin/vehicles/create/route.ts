@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { createErrorResponse, createSuccessResponse } from '@/lib/api-error-handler';
-import { getFirestore } from '@autodealers/core';
+import { getFirestore, notifyUser, notifyManagersAndAdmins } from '@autodealers/core';
 import * as admin from 'firebase-admin';
 
 export const dynamic = 'force-dynamic';
@@ -144,60 +144,33 @@ export async function POST(request: NextRequest) {
 
     await vehicleRef.set(vehicleData);
 
-    // Crear notificaciones según la asignación
-    const notifications: Promise<any>[] = [];
-
-    // Si se asignó a dealer, notificar a los admins del dealer
     if (dealerId) {
-      const dealerAdmins = await db
-        .collection('users')
-        .where('tenantId', '==', dealerId)
-        .where('role', '==', 'dealer')
-        .get();
-
-      dealerAdmins.docs.forEach((doc) => {
-        notifications.push(
-          db.collection('notifications').add({
-            type: 'new_vehicle',
-            title: 'Nuevo Vehículo Asignado',
-            message: `El admin agregó un nuevo vehículo: ${year} ${make} ${model}${
-              sellerId ? ` (asignado a ${sellerName})` : ''
-            }`,
-            userId: doc.id,
-            tenantId: dealerId,
-            isRead: false,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            data: {
-              vehicleId: vehicleRef.id,
-              vehicleName: `${year} ${make} ${model}`,
-              assignedBy: 'admin',
-            },
-          })
-        );
+      await notifyManagersAndAdmins(dealerId, {
+        type: 'system_alert',
+        title: 'Nuevo Vehículo Asignado',
+        message: `El admin agregó un nuevo vehículo: ${year} ${make} ${model}${
+          sellerId ? ` (asignado a ${sellerName})` : ''
+        }`,
+        metadata: {
+          vehicleId: vehicleRef.id,
+          vehicleName: `${year} ${make} ${model}`,
+          assignedBy: 'admin',
+        },
       });
     }
 
-    // Si se asignó a vendedor, notificar directamente
-    if (sellerId) {
-      notifications.push(
-        db.collection('notifications').add({
-          type: 'vehicle_assigned',
-          title: 'Vehículo Asignado',
-          message: `El admin te asignó un vehículo: ${year} ${make} ${model}`,
-          userId: sellerId,
-          tenantId: tenantId!,
-          isRead: false,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          data: {
-            vehicleId: vehicleRef.id,
-            vehicleName: `${year} ${make} ${model}`,
-            assignedBy: 'admin',
-          },
-        })
-      );
+    if (sellerId && tenantId) {
+      await notifyUser(tenantId, sellerId, {
+        type: 'system_alert',
+        title: 'Vehículo Asignado',
+        message: `El admin te asignó un vehículo: ${year} ${make} ${model}`,
+        metadata: {
+          vehicleId: vehicleRef.id,
+          vehicleName: `${year} ${make} ${model}`,
+          assignedBy: 'admin',
+        },
+      });
     }
-
-    await Promise.all(notifications);
 
     // Mensaje de confirmación
     let assignmentMessage = '';

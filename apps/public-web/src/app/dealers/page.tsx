@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import PublicBackButton from '@/components/PublicBackButton';
 import StarRating from '../../components/StarRating';
+import { formatPublicLocation } from '@/lib/format-public-location';
 
 interface Seller {
   id: string;
@@ -35,7 +36,7 @@ export default function DealersPage() {
     <Suspense
       fallback={
         <div className="flex justify-center items-center min-h-screen">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600" />
         </div>
       }
     >
@@ -118,7 +119,7 @@ function DealersPageContent() {
       if (!searchQuery) return true;
       const query = searchQuery.toLowerCase();
       const name = (dealer.companyName || dealer.name || '').toLowerCase();
-      const location = (dealer.location || '').toLowerCase();
+      const location = formatPublicLocation(dealer.location).toLowerCase();
       return name.includes(query) || location.includes(query);
     })
     .sort((a, b) => {
@@ -165,7 +166,7 @@ function DealersPageContent() {
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
       </div>
     );
   }
@@ -175,14 +176,14 @@ function DealersPageContent() {
       {/* Header */}
       <nav className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4 flex flex-wrap items-center gap-3">
-          <PublicBackButton className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-2 font-medium">
+          <PublicBackButton className="text-primary-600 hover:text-primary-800 hover:underline flex items-center gap-2 font-medium">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
             Volver
           </PublicBackButton>
           <span className="text-gray-300">|</span>
-          <Link href="/" className="text-sm text-gray-500 hover:text-blue-600">
+          <Link href="/" className="text-sm text-gray-500 hover:text-primary-600">
             Inicio
           </Link>
         </div>
@@ -212,7 +213,7 @@ function DealersPageContent() {
                   setSearchQuery(e.target.value);
                   setItemsPerPage(12); // Resetear paginación al buscar
                 }}
-                className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               />
               <svg
                 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
@@ -240,12 +241,12 @@ function DealersPageContent() {
 
           <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
             {/* Tabs */}
-            <div className="flex gap-2 border-b border-gray-200 w-full md:w-auto">
+            <div className="flex gap-2 border-b border-gray-200 w-full md:w-auto overflow-x-auto pb-px -mx-1 px-1">
               <button
                 onClick={() => applyTab('all')}
                 className={`px-6 py-3 font-medium transition-colors ${
                   activeTab === 'all'
-                    ? 'border-b-2 border-blue-600 text-blue-600'
+                    ? 'border-b-2 border-primary-600 text-primary-600'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
@@ -255,7 +256,7 @@ function DealersPageContent() {
                 onClick={() => applyTab('dealers')}
                 className={`px-6 py-3 font-medium transition-colors ${
                   activeTab === 'dealers'
-                    ? 'border-b-2 border-blue-600 text-blue-600'
+                    ? 'border-b-2 border-primary-600 text-primary-600'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
@@ -265,7 +266,7 @@ function DealersPageContent() {
                 onClick={() => applyTab('sellers')}
                 className={`px-6 py-3 font-medium transition-colors ${
                   activeTab === 'sellers'
-                    ? 'border-b-2 border-blue-600 text-blue-600'
+                    ? 'border-b-2 border-primary-600 text-primary-600'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
@@ -282,7 +283,7 @@ function DealersPageContent() {
                   setSortBy(e.target.value as any);
                   setItemsPerPage(12);
                 }}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               >
                 <option value="rating">Mejor Calificación</option>
                 <option value="vehicles">Más Vehículos</option>
@@ -310,7 +311,7 @@ function DealersPageContent() {
                   <Link
                     key={dealer.id}
                     href={`/dealer/${dealer.id}`}
-                    className="bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all overflow-hidden border-2 border-transparent hover:border-blue-500 group"
+                    className="bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all overflow-hidden border-2 border-transparent hover:border-primary-500 group"
                   >
                     <div className="p-6">
                       {/* Foto y Nombre */}
@@ -326,19 +327,19 @@ function DealersPageContent() {
                               const parent = target.parentElement;
                               if (parent) {
                                 const fallback = document.createElement('div');
-                                fallback.className = 'w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-xl font-bold';
+                                fallback.className = 'w-16 h-16 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white text-xl font-bold';
                                 fallback.textContent = (dealer.companyName || dealer.name).charAt(0).toUpperCase();
                                 parent.appendChild(fallback);
                               }
                             }}
                           />
                         ) : (
-                          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-xl font-bold">
+                          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white text-xl font-bold">
                             {(dealer.companyName || dealer.name).charAt(0).toUpperCase()}
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition truncate">
+                          <h3 className="text-lg font-bold text-gray-900 group-hover:text-primary-600 transition truncate">
                             {dealer.companyName || dealer.name}
                           </h3>
                           {dealer.companyName && dealer.name !== dealer.companyName && (
@@ -350,7 +351,7 @@ function DealersPageContent() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                               </svg>
-                              {dealer.location}
+                              {formatPublicLocation(dealer.location)}
                             </p>
                           )}
                         </div>
@@ -389,7 +390,7 @@ function DealersPageContent() {
                       </div>
 
                       {/* Botón */}
-                      <button className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-medium transition-colors">
+                      <button className="w-full bg-primary-600 text-white py-2 rounded-lg hover:bg-primary-700 font-medium transition-colors">
                         Ver Perfil Completo
                       </button>
                     </div>
@@ -402,7 +403,7 @@ function DealersPageContent() {
                 <div className="mt-8 text-center">
                   <button
                     onClick={() => setItemsPerPage(itemsPerPage + 12)}
-                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
+                    className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium transition-colors"
                   >
                     Cargar Más Dealers ({filteredDealers.length - displayedDealers.length} restantes)
                   </button>
@@ -427,7 +428,7 @@ function DealersPageContent() {
                   <Link
                     key={seller.id}
                     href={`/seller/${seller.id}`}
-                    className="bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all overflow-hidden border-2 border-transparent hover:border-purple-500 group"
+                    className="bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all overflow-hidden border-2 border-transparent hover:border-primary-500 group"
                   >
                     <div className="p-6">
                       {/* Foto y Nombre */}
@@ -443,19 +444,19 @@ function DealersPageContent() {
                               const parent = target.parentElement;
                               if (parent) {
                                 const fallback = document.createElement('div');
-                                fallback.className = 'w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center text-white text-xl font-bold';
+                                fallback.className = 'w-16 h-16 rounded-full bg-gradient-to-br from-primary-500 to-brand-red-bright600 flex items-center justify-center text-white text-xl font-bold';
                                 fallback.textContent = seller.name.charAt(0).toUpperCase();
                                 parent.appendChild(fallback);
                               }
                             }}
                           />
                         ) : (
-                          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center text-white text-xl font-bold">
+                          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary-500 to-brand-red-bright600 flex items-center justify-center text-white text-xl font-bold">
                             {seller.name.charAt(0).toUpperCase()}
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-lg font-bold text-gray-900 group-hover:text-purple-600 transition truncate">
+                          <h3 className="text-lg font-bold text-gray-900 group-hover:text-primary-600 transition truncate">
                             {seller.name}
                           </h3>
                           <p className="text-sm text-gray-600 truncate">{seller.title || 'Vendedor'}</p>
@@ -488,7 +489,7 @@ function DealersPageContent() {
                       </div>
 
                       {/* Botón */}
-                      <button className="w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 font-medium transition-colors">
+                      <button className="w-full bg-primary-600 text-white py-2 rounded-lg hover:bg-primary-700 font-medium transition-colors">
                         Ver Perfil Completo
                       </button>
                     </div>
@@ -501,7 +502,7 @@ function DealersPageContent() {
                 <div className="mt-8 text-center">
                   <button
                     onClick={() => setItemsPerPage(itemsPerPage + 12)}
-                    className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition-colors"
+                    className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium transition-colors"
                   >
                     Cargar Más Vendedores ({filteredSellers.length - displayedSellers.length} restantes)
                   </button>

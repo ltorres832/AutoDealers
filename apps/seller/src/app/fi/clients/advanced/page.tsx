@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { normalizeSsn, isValidSsn } from '@autodealers/core/fi-ssn';
 import FIAdvancedClientForm, {
   type FIAdvancedClientFormData,
 } from '@/components/FIAdvancedClientForm';
@@ -128,6 +129,10 @@ function AdvancedFIClientPageContent() {
 
   async function handleComplete(formData: FIAdvancedClientFormData) {
     const name = `${formData.firstName} ${formData.lastName}`.trim();
+    if (formData.ssn && !isValidSsn(formData.ssn)) {
+      alert('SSN inválido. Use el formato XXX-XX-XXXX (9 dígitos).');
+      return;
+    }
     const vehicleYear = formData.vehicleYear.trim()
       ? parseInt(formData.vehicleYear, 10)
       : undefined;
@@ -149,6 +154,16 @@ function AdvancedFIClientPageContent() {
           email: formData.email || undefined,
           address: buildAddressLine(formData),
           identification,
+          identificationType: formData.identificationType || undefined,
+          dateOfBirth: formData.dateOfBirth || undefined,
+          city: formData.city || undefined,
+          state: formData.state || undefined,
+          zipCode: formData.zipCode || undefined,
+          ssn: formData.ssn ? normalizeSsn(formData.ssn) : undefined,
+          yearsAtAddress: formData.yearsAtAddress || undefined,
+          timeAtAddressMonths: formData.yearsAtAddress
+            ? formData.yearsAtAddress * 12
+            : undefined,
           vehicleId: formData.vehicleId || undefined,
           vehicleMake: formData.vehicleMake || undefined,
           vehicleModel: formData.vehicleModel || undefined,
@@ -179,10 +194,10 @@ function AdvancedFIClientPageContent() {
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <Link href="/fi/clients/new" className="text-blue-600 hover:text-blue-700 text-sm">
+        <Link href="/fi/clients/new" className="text-primary-600 hover:text-primary-700 text-sm">
           ← Formulario corto
         </Link>
-        <Link href="/fi" className="text-blue-600 hover:text-blue-700 text-sm">
+        <Link href="/fi" className="text-primary-600 hover:text-primary-700 text-sm">
           F&amp;I
         </Link>
       </div>

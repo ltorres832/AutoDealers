@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { getFirestore } from '@autodealers/shared';
+import { notifyUser } from '@autodealers/core';
 import * as admin from 'firebase-admin';
 
 const db = getFirestore();
@@ -108,11 +109,8 @@ export async function POST(request: NextRequest) {
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    // Notificar al usuario asignado
-    await db.collection('notifications').add({
-      userId: assignedToUserId,
-      tenantId: assignedToTenantId,
-      type: 'banner_assigned',
+    await notifyUser(assignedToTenantId, assignedToUserId, {
+      type: 'promotion',
       title: 'Banner Premium Asignado',
       message: `Se te ha asignado un banner premium: "${title}". Realiza el pago para activarlo.`,
       metadata: {
@@ -120,8 +118,6 @@ export async function POST(request: NextRequest) {
         price,
         duration,
       },
-      read: false,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
     return NextResponse.json({

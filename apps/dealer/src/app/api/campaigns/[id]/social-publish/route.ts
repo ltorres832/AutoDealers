@@ -2,10 +2,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth, isDealerPortalRole } from '@/lib/auth';
 import { getFirestore } from '@autodealers/core';
 import * as admin from 'firebase-admin';
-import { SocialPublisherService, type PublishResult } from '@autodealers/messaging';
-import { pickSocialPlatforms, campaignContentToPostContent } from '@/lib/campaign-social-publish';
+import { SocialPublisherService, type PublishResult, MetaMarketingPublisherService } from '@autodealers/messaging';
+import {
+  pickSocialPlatforms,
+  campaignContentToPostContent,
+  campaignContentLink,
+} from '@/lib/campaign-social-publish';
 
 export const dynamic = 'force-dynamic';
+
+function resolveFacebookDailyBudgetMajor(
+  budgets: Array<{ platform: string; amount: number; dailyLimit?: number }> | undefined
+): number {
+  const fb = budgets?.find((b) => b.platform === 'facebook');
+  if (fb?.dailyLimit != null && fb.dailyLimit > 0) return Math.min(fb.dailyLimit, 50000);
+  if (fb?.amount != null && fb.amount > 0) return Math.max(1, Math.round(fb.amount / 30));
+  return 5;
+}
 
 export async function POST(
   request: NextRequest,
@@ -30,15 +43,6 @@ export async function POST(
     }
 
     const d = snap.data() as Record<string, unknown>;
-    if (d.metaDistribution === 'paid_ads') {
-      return NextResponse.json(
-        {
-          error:
-            'Esta campaña está marcada como anuncios de pago (Meta Ads). No se publica como post orgánico. Crea el anuncio en Meta Ads Manager; el cobro va a la cuenta publicitaria configurada allí. La creación automática de Ads desde esta app está en desarrollo.',
-        },
-        { status: 400 }
-      );
-    }
     const socialPlatforms = pickSocialPlatforms(d.platforms);
     if (socialPlatforms.length === 0) {
       return NextResponse.json(
@@ -54,6 +58,65 @@ export async function POST(
         { error: 'Tu plan no incluye publicación en redes sociales' },
         { status: 403 }
       );
+    }
+
+    if (d.metaDistribution === 'paid_ads') {
+      if (d.metaAdsAdId) {
+        return NextResponse.json({
+          success: true,
+          alreadyPublished: true,
+          metaAdId: String(d.metaAdsAdId),
+        });
+      }
+      if (!socialPlatforms.includes('facebook')) {
+        return NextResponse.json(
+          { error: 'Los anuncios de pago requieren Facebook en las plataformas de la campaña.' },
+          { status: 400 }
+        );
+      }
+
+      const postContent = campaignContentToPostContent(
+        d.content,
+        String(d.description ?? ''),
+        String(d.name ?? '')
+      );
+      const adsPub = new MetaMarketingPublisherService();
+      const landingUrl =
+        campaignContentLink(d.content) || (await adsPub.resolveTenantLandingUrl(auth.tenantId));
+      const budgets = Array.isArray(d.budgets)
+        ? (d.budgets as Array<{ platform: string; amount: number; dailyLimit?: number }>)
+        : undefined;
+      const r = await adsPub.createAndLaunchPaidCampaign(auth.tenantId, {
+        name: String(d.name ?? 'Campaña'),
+        dailyBudgetMajorUnits: resolveFacebookDailyBudgetMajor(budgets),
+        message: postContent.text,
+        imageUrl: postContent.imageUrl,
+        linkUrl: landingUrl,
+        platforms: socialPlatforms,
+      });
+
+      const patch: Record<string, unknown> = {
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+      if (r.success && r.metaCampaignId) {
+        patch.metaAdsCampaignId = r.metaCampaignId;
+        if (r.metaAdSetId) patch.metaAdsAdSetId = r.metaAdSetId;
+        if (r.metaCreativeId) patch.metaAdsCreativeId = r.metaCreativeId;
+        if (r.metaAdId) patch.metaAdsAdId = r.metaAdId;
+        patch.metaAdsPublishError = admin.firestore.FieldValue.delete();
+      } else {
+        patch.metaAdsPublishError = r.error || 'Error al publicar en Meta';
+      }
+      await snap.ref.update(patch);
+
+      if (!r.success) {
+        return NextResponse.json({ error: r.error || 'No se pudo publicar en Meta' }, { status: 502 });
+      }
+
+      return NextResponse.json({
+        success: true,
+        metaAdsPublish: r,
+      });
     }
 
     const postContent = campaignContentToPostContent(

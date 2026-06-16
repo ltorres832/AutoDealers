@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase-client';
-import { collection, query, where, onSnapshot, Timestamp } from 'firebase/firestore';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { filterPublicCatalogMemberships } from '@autodealers/billing/membership-visibility';
 
 interface Membership {
   id: string;
@@ -11,10 +12,9 @@ interface Membership {
   price: number;
   currency: string;
   billingCycle: 'monthly' | 'yearly';
-  features: any;
-  stripePriceId: string;
+  features: Record<string, unknown>;
+  stripePriceId?: string;
   isActive: boolean;
-  createdAt?: Date | Timestamp;
 }
 
 export function useRealtimeMemberships(type: 'dealer' | 'seller' = 'seller') {
@@ -23,51 +23,44 @@ export function useRealtimeMemberships(type: 'dealer' | 'seller' = 'seller') {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const q = query(
-        collection(db, 'memberships'),
-        where('type', '==', type),
-        where('isActive', '==', true)
-      );
-
-      const unsubscribe = onSnapshot(
-        q,
-        (snapshot: any) => {
-          const membershipsData: Membership[] = [];
-          
-          snapshot.forEach((doc: any) => {
-            const data = doc.data();
-            membershipsData.push({
-              id: doc.id,
-              ...data,
-              createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : data.createdAt,
-            } as Membership);
-          });
-
-          // Ordenar por precio
-          membershipsData.sort((a, b) => a.price - b.price);
-
-          setMemberships(membershipsData);
-          setLoading(false);
-        },
-        (err) => {
-          console.error('Error en listener de membresías:', err);
-          setError(err.message);
-          setLoading(false);
-        }
-      );
-
-      return () => unsubscribe();
-    } catch (err: any) {
-      console.error('Error setting up memberships listener:', err);
-      setError(err.message);
+    if (!db) {
       setLoading(false);
+      return;
     }
+
+    const unsubscribe = onSnapshot(
+      collection(db, 'memberships'),
+      (snapshot) => {
+        const mapped: Membership[] = snapshot.docs.map((doc) => {
+          const d = doc.data();
+          return {
+            id: doc.id,
+            name: (d.name as string) || doc.id,
+            type: (d.type as 'dealer' | 'seller') || 'seller',
+            price: Number(d.price) || 0,
+            currency: (d.currency as string) || 'USD',
+            billingCycle: (d.billingCycle as 'monthly' | 'yearly') || 'monthly',
+            features: (d.features as Record<string, unknown>) || {},
+            stripePriceId: d.stripePriceId as string | undefined,
+            isActive: d.isActive !== false,
+          };
+        });
+
+        let rows = filterPublicCatalogMemberships(mapped.filter((m) => m.type === type));
+        rows.sort((a, b) => (a.price || 0) - (b.price || 0));
+        setMemberships(rows);
+        setLoading(false);
+        setError(null);
+      },
+      (err) => {
+        console.error('Error en listener memberships:', err);
+        setError(err.message);
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
   }, [type]);
 
   return { memberships, loading, error };
 }
-

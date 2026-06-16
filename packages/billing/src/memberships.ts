@@ -1,7 +1,9 @@
 // Gestión de membresías
 
 import { Membership, MembershipType } from './types';
-import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
+import { isCatalogMembership } from './membership-visibility';
+import { getFirestoreFieldValue } from '@autodealers/shared';
+import { getFirestore } from '@autodealers/shared';
 
 // NO inicializar db aquí - se inicializa en cada función
 let db: any = null;
@@ -11,6 +13,31 @@ function getDb() {
     db = getFirestore();
   }
   return db;
+}
+
+/** Repara precios guardados como epoch ISO (299 → "1970-01-01T00:00:00.299Z"). */
+function coerceMembershipPrice(value: unknown): number {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (/^1970-01-01T00:00:00\.\d{3}Z$/.test(trimmed)) {
+      const ms = new Date(trimmed).getTime();
+      if (Number.isFinite(ms) && ms < 86_400_000) return ms;
+    }
+  }
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function isCatalogMembershipRow(
+  id: string,
+  data: Record<string, unknown>
+): data is Record<string, unknown> & { type: MembershipType; name: string } {
+  return isCatalogMembership({
+    id,
+    name: String(data.name || ''),
+    type: String(data.type || ''),
+    billingCycle: (data.billingCycle as string | null | undefined) ?? null,
+  });
 }
 
 /**
@@ -37,254 +64,55 @@ export async function createMembership(
 /**
  * Obtiene todas las membresías (para admin)
  */
+function mapMembershipDoc(doc: { id: string; data: () => Record<string, unknown> | undefined }): Membership | null {
+  const data = doc.data() || {};
+  if (!isCatalogMembershipRow(doc.id, data)) return null;
+  const createdAt = (data as { createdAt?: { toDate?: () => Date } }).createdAt;
+  const isActive =
+    data.isActive === false || data.status === 'inactive' ? false : true;
+  return {
+    id: doc.id,
+    ...data,
+    price: coerceMembershipPrice(data.price),
+    isActive,
+    createdAt: createdAt?.toDate?.() || new Date(),
+  } as Membership;
+}
+
 export async function getMemberships(
   type?: MembershipType
 ): Promise<Membership[]> {
-  console.log(`🔍 getMemberships: Obteniendo membresías${type ? ` (tipo: ${type})` : ' (todas)'}`);
-
-  try {
-    // Primero intentar sin orderBy para evitar problemas de índice
-    let query: any = getDb().collection('memberships');
-
-    if (type) {
-      query = query.where('type', '==', type);
-    }
-
-    console.log(`📡 Ejecutando query de Firestore...`);
-    const snapshot = await query.get();
-
-    console.log(`📊 getMemberships: Encontradas ${snapshot.size} membresías en Firestore`);
-
-    if (snapshot.empty) {
-      console.warn(`⚠️ getMemberships: No se encontraron membresías${type ? ` de tipo ${type}` : ''}`);
-      // Verificar si hay membresías sin filtro
-      if (type) {
-        const allSnapshot = await getDb().collection('memberships').limit(10).get();
-        console.log(`📋 Total de membresías en Firestore (sin filtro): ${allSnapshot.size}`);
-        if (allSnapshot.size > 0) {
-          console.log(`📋 Primeras membresías encontradas:`);
-          allSnapshot.docs.forEach((doc, i) => {
-            const data = doc.data();
-            console.log(`  ${i + 1}. ID: ${doc.id}, Nombre: ${data.name}, Tipo: ${data.type}, Precio: ${data.price}, Activa: ${data.isActive}`);
-          });
-        }
-      }
-      return [];
-    }
-
-    const memberships = snapshot.docs.map((doc) => {
-      const data = doc.data();
-      const membership = {
-        id: doc.id,
-        ...data,
-        createdAt: data?.createdAt?.toDate() || new Date(),
-      } as Membership;
-
-      console.log(`  ✓ ${membership.name} (${membership.type}) - $${membership.price} - Activa: ${membership.isActive}`);
-      return membership;
-    });
-
-    // Ordenar manualmente por precio (más confiable que orderBy en query)
-    memberships.sort((a, b) => (a.price || 0) - (b.price || 0));
-
-    console.log(`✅ getMemberships: Retornando ${memberships.length} membresías ordenadas`);
-    return memberships;
-  } catch (error: any) {
-    console.error(`❌ Error in getMemberships:`, error);
-    console.error(`Stack:`, error.stack);
-
-    // Último recurso: obtener todas sin filtros
-    try {
-      console.log(`🔄 Intentando obtener todas las membresías sin filtros...`);
-      const allSnapshot = await getDb().collection('memberships').get();
-
-      if (allSnapshot.empty) {
-        console.warn(`⚠️ No hay membresías en Firestore`);
-        return [];
-      }
-
-      const allMemberships = allSnapshot.docs.map((doc) => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          ...data,
-          createdAt: data?.createdAt?.toDate() || new Date(),
-        } as Membership;
-      });
-
-      // Filtrar por tipo si se especificó
-      const filtered = type
-        ? allMemberships.filter(m => m.type?.toLowerCase() === type.toLowerCase())
-        : allMemberships;
-
-      // Ordenar por precio
-      filtered.sort((a, b) => (a.price || 0) - (b.price || 0));
-
-      console.log(`✅ getMemberships (fallback): Retornando ${filtered.length} membresías`);
-      return filtered;
-    } catch (finalError) {
-      console.error(`❌ Error en fallback final de getMemberships:`, finalError);
-      return [];
-    }
+  const snapshot = await getDb().collection('memberships').get();
+  let list = snapshot.docs
+    .map(mapMembershipDoc)
+    .filter((m): m is Membership => m != null);
+  if (type) {
+    list = list.filter((m) => m.type === type);
   }
+  list.sort((a, b) => (a.price || 0) - (b.price || 0));
+  return list;
 }
 
-/**
- * Obtiene todas las membresías activas
- */
 export async function getActiveMemberships(
   type?: MembershipType
 ): Promise<Membership[]> {
-  console.log(`🔍 getActiveMemberships: Obteniendo membresías activas${type ? ` (tipo: ${type})` : ' (todas)'}`);
-
-  try {
-    // Primero intentar sin orderBy para evitar problemas de índice
-    let query: any = getDb()
-      .collection('memberships')
-      .where('isActive', '==', true);
-
-    if (type) {
-      query = query.where('type', '==', type);
-    }
-
-    console.log(`📡 Ejecutando query de Firestore para membresías activas...`);
-    const snapshot = await query.get();
-
-    console.log(`📊 getActiveMemberships: Encontradas ${snapshot.size} membresías activas en Firestore`);
-
-    if (snapshot.empty) {
-      console.warn(`⚠️ getActiveMemberships: No se encontraron membresías activas${type ? ` de tipo ${type}` : ''}`);
-      // Verificar si hay membresías activas sin filtro
-      if (type) {
-        const allActiveSnapshot = await getDb()
-          .collection('memberships')
-          .where('isActive', '==', true)
-          .limit(10)
-          .get();
-        console.log(`📋 Total de membresías activas en Firestore (sin filtro de tipo): ${allActiveSnapshot.size}`);
-        if (allActiveSnapshot.size > 0) {
-          console.log(`📋 Primeras membresías activas encontradas:`);
-          allActiveSnapshot.docs.forEach((doc, i) => {
-            const data = doc.data();
-            console.log(`  ${i + 1}. ID: ${doc.id}, Nombre: ${data.name}, Tipo: ${data.type}, Precio: ${data.price}`);
-          });
-        }
-      }
-      return [];
-    }
-
-    const memberships = snapshot.docs.map((doc) => {
-      const data = doc.data();
-      const membership = {
-        id: doc.id,
-        ...data,
-        createdAt: data?.createdAt?.toDate() || new Date(),
-      } as Membership;
-
-      console.log(`  ✓ ${membership.name} (${membership.type}) - $${membership.price}`);
-      return membership;
-    });
-
-    // Ordenar manualmente por precio (más confiable que orderBy en query)
-    memberships.sort((a, b) => (a.price || 0) - (b.price || 0));
-
-    console.log(`✅ getActiveMemberships: Retornando ${memberships.length} membresías activas ordenadas`);
-    return memberships;
-  } catch (error: any) {
-    console.error(`❌ Error in getActiveMemberships:`, error);
-    console.error(`Stack:`, error.stack);
-
-    // Fallback: obtener todas y filtrar manualmente
-    try {
-      console.log(`🔄 Intentando fallback: obtener todas las membresías y filtrar manualmente...`);
-      const allSnapshot = await getDb().collection('memberships').get();
-
-      if (allSnapshot.empty) {
-        console.warn(`⚠️ No hay membresías en Firestore`);
-        return [];
-      }
-
-      const allMemberships = allSnapshot.docs.map((doc) => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          ...data,
-          createdAt: data?.createdAt?.toDate() || new Date(),
-        } as Membership;
-      });
-
-      // Filtrar por activas y tipo
-      let filtered = allMemberships.filter(m => m.isActive === true);
-      if (type) {
-        filtered = filtered.filter(m => m.type?.toLowerCase() === type.toLowerCase());
-      }
-
-      // Ordenar por precio
-      filtered.sort((a, b) => (a.price || 0) - (b.price || 0));
-
-      console.log(`✅ getActiveMemberships (fallback): Retornando ${filtered.length} membresías activas`);
-      return filtered;
-    } catch (finalError: any) {
-      console.error(`❌ Error en fallback final de getActiveMemberships:`, finalError);
-      console.error(`Stack:`, finalError.stack);
-      return [];
-    }
-  }
+  const all = await getMemberships(type);
+  return all.filter((m) => m.isActive !== false);
 }
 
-/**
- * Obtiene una membresía por ID
- */
+export async function getSelfServiceActiveMemberships(
+  type?: MembershipType
+): Promise<Membership[]> {
+  return getActiveMemberships(type);
+}
+
 export async function getMembershipById(
   membershipId: string
 ): Promise<Membership | null> {
-  if (!membershipId || membershipId.trim() === '') {
-    console.error('❌ getMembershipById: membershipId vacío o inválido');
-    return null;
-  }
-
-  try {
-    console.log(`🔍 getMembershipById: Buscando membresía con ID: ${membershipId}`);
-
-    const membershipDoc = await getDb()
-      .collection('memberships')
-      .doc(membershipId)
-      .get();
-
-    if (!membershipDoc.exists) {
-      console.warn(`⚠️ getMembershipById: Membership ${membershipId} not found in Firestore`);
-      // Verificar si hay membresías en la colección
-      const allMemberships = await getDb().collection('memberships').limit(5).get();
-      console.log(`📊 Total de membresías en Firestore: ${allMemberships.size}`);
-      if (allMemberships.size > 0) {
-        console.log(`📋 Primeras membresías encontradas:`);
-        allMemberships.docs.forEach((doc, i) => {
-          const data = doc.data();
-          console.log(`  ${i + 1}. ID: ${doc.id}, Nombre: ${data.name}, Tipo: ${data.type}`);
-        });
-      }
-      return null;
-    }
-
-    const data = membershipDoc.data();
-    if (!data) {
-      console.warn(`⚠️ getMembershipById: Membership ${membershipId} exists but has no data`);
-      return null;
-    }
-
-    const membership = {
-      id: membershipDoc.id,
-      ...data,
-      createdAt: data?.createdAt?.toDate() || new Date(),
-    } as Membership;
-
-    console.log(`✅ getMembershipById: Encontrada membresía ${membership.name} (${membership.type}) - Activa: ${membership.isActive}`);
-    return membership;
-  } catch (error: any) {
-    console.error(`❌ getMembershipById: Error fetching membership ${membershipId}:`, error);
-    console.error(`Stack:`, error.stack);
-    return null;
-  }
+  if (!membershipId?.trim()) return null;
+  const doc = await getDb().collection('memberships').doc(membershipId.trim()).get();
+  if (!doc.exists) return null;
+  return mapMembershipDoc({ id: doc.id, data: () => doc.data() });
 }
 
 /**

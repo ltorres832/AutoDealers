@@ -8,7 +8,7 @@ export default function GuiaCredencialesMetaPage() {
       <div className="mb-6">
         <Link
           href="/settings/integrations"
-          className="text-blue-600 hover:underline flex items-center gap-2"
+          className="text-primary-600 hover:underline flex items-center gap-2"
         >
           ← Volver a Integraciones
         </Link>
@@ -44,7 +44,7 @@ export default function GuiaCredencialesMetaPage() {
                 <strong>Ve a Meta for Developers</strong>
                 <br />
                 Abre tu navegador y visita:{' '}
-                <a href="https://developers.facebook.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                <a href="https://developers.facebook.com" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
                   https://developers.facebook.com
                 </a>
               </li>
@@ -283,16 +283,16 @@ export default function GuiaCredencialesMetaPage() {
               Si tienes problemas:
             </p>
             <ul className="list-disc list-inside space-y-2 text-gray-700">
-              <li>Revisa la documentación oficial: <a href="https://developers.facebook.com/docs" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">https://developers.facebook.com/docs</a></li>
+              <li>Revisa la documentación oficial: <a href="https://developers.facebook.com/docs" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">https://developers.facebook.com/docs</a></li>
               <li>Verifica que tu aplicación esté configurada correctamente</li>
               <li>Contacta al soporte de la plataforma</li>
             </ul>
           </section>
 
-          <section className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-            <h2 className="text-2xl font-bold mb-4 text-blue-900">📋 Resumen Rápido</h2>
+          <section className="bg-primary-50 border border-primary-200 rounded-lg p-6">
+            <h2 className="text-2xl font-bold mb-4 text-primary-900">📋 Resumen Rápido</h2>
             <ol className="list-decimal list-inside space-y-2 text-gray-700">
-              <li>✅ Crear aplicación en <a href="https://developers.facebook.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">developers.facebook.com</a></li>
+              <li>✅ Crear aplicación en <a href="https://developers.facebook.com" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">developers.facebook.com</a></li>
               <li>✅ Obtener App ID y App Secret en Configuración → Básico</li>
               <li>✅ Agregar productos (Facebook Login, Instagram)</li>
               <li>✅ Configurar URLs de redirección</li>
@@ -301,7 +301,7 @@ export default function GuiaCredencialesMetaPage() {
               <li>✅ Ingresar credenciales en la plataforma</li>
               <li>✅ Autorizar acceso</li>
             </ol>
-            <p className="mt-4 text-lg font-semibold text-blue-900">
+            <p className="mt-4 text-lg font-semibold text-primary-900">
               ¡Listo para conectar tus redes sociales! 🎉
             </p>
           </section>

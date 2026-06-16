@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import PublicBackButton from '@/components/PublicBackButton';
+import { PublicMarketingNav } from '@/components/PublicMarketingNav';
 
 export default function ContactoPage() {
   const [formData, setFormData] = useState({
@@ -13,40 +14,43 @@ export default function ContactoPage() {
     message: '',
   });
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Enviar a API
-    setSubmitted(true);
-    setTimeout(() => {
-      setSubmitted(false);
-      setFormData({ name: '', email: '', phone: '', businessType: 'dealer', message: '' });
-    }, 3000);
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch('/api/public/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setError(data.error || 'No se pudo enviar el mensaje');
+        return;
+      }
+
+      setSubmitted(true);
+      setTimeout(() => {
+        setSubmitted(false);
+        setFormData({ name: '', email: '', phone: '', businessType: 'dealer', message: '' });
+      }, 4000);
+    } catch {
+      setError('Error de conexión. Intenta de nuevo.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
-      {/* Header */}
-      <nav className="bg-white/95 backdrop-blur-sm shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-xl">AD</span>
-              </div>
-              <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                AutoDealers
-              </span>
-            </Link>
-            <Link
-              href="/login"
-              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-lg hover:shadow-lg transition-all"
-            >
-              Iniciar Sesión
-            </Link>
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-gray-50">
+      <PublicMarketingNav showDefaultLinks />
 
       <div className="max-w-4xl mx-auto px-4 py-16">
         <div className="mb-8 flex flex-wrap items-center gap-3 gap-y-2">
@@ -57,7 +61,7 @@ export default function ContactoPage() {
             Volver
           </PublicBackButton>
           <span className="text-gray-300 hidden sm:inline">|</span>
-          <Link href="/" className="text-sm text-gray-500 hover:text-purple-600">
+          <Link href="/" className="text-sm text-gray-500 hover:text-primary-600">
             Inicio
           </Link>
         </div>
@@ -78,29 +82,29 @@ export default function ContactoPage() {
               <h2 className="text-2xl font-bold mb-6">Información de Contacto</h2>
               <div className="space-y-6">
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0">
                     <span className="text-2xl">📧</span>
                   </div>
                   <div>
                     <h3 className="font-semibold mb-1">Email</h3>
-                    <a href="mailto:contacto@autodealers.com" className="text-blue-600 hover:text-blue-700">
+                    <a href="mailto:contacto@autodealers.com" className="text-primary-600 hover:text-primary-700">
                       contacto@autodealers.com
                     </a>
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0">
                     <span className="text-2xl">📞</span>
                   </div>
                   <div>
                     <h3 className="font-semibold mb-1">Teléfono</h3>
-                    <a href="tel:+1234567890" className="text-blue-600 hover:text-blue-700">
+                    <a href="tel:+1234567890" className="text-primary-600 hover:text-primary-700">
                       +1 (234) 567-890
                     </a>
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0">
                     <span className="text-2xl">💬</span>
                   </div>
                   <div>
@@ -127,7 +131,7 @@ export default function ContactoPage() {
               </p>
               <Link
                 href="/login"
-                className="inline-block bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg hover:shadow-lg transition-all font-semibold"
+                className="inline-block bg-gradient-to-r from-primary-600 to-primary-600 text-white px-6 py-3 rounded-lg hover:shadow-lg transition-all font-semibold"
               >
                 Acceder al Soporte
               </Link>
@@ -148,6 +152,11 @@ export default function ContactoPage() {
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-6">
+                {error && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                    {error}
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Nombre Completo *
@@ -156,7 +165,7 @@ export default function ContactoPage() {
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                     required
                   />
                 </div>
@@ -168,7 +177,7 @@ export default function ContactoPage() {
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                     required
                   />
                 </div>
@@ -180,7 +189,7 @@ export default function ContactoPage() {
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 <div>
@@ -190,7 +199,7 @@ export default function ContactoPage() {
                   <select
                     value={formData.businessType}
                     onChange={(e) => setFormData({ ...formData, businessType: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="dealer">Concesionario</option>
                     <option value="seller">Vendedor Individual</option>
@@ -205,15 +214,16 @@ export default function ContactoPage() {
                     value={formData.message}
                     onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                     rows={5}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                     required
                   />
                 </div>
                 <button
                   type="submit"
-                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 px-6 rounded-lg hover:shadow-xl transition-all font-semibold text-lg"
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-primary-600 to-primary-600 text-white py-4 px-6 rounded-lg hover:shadow-xl transition-all font-semibold text-lg disabled:opacity-50"
                 >
-                  Enviar Mensaje 🚀
+                  {loading ? 'Enviando…' : 'Enviar Mensaje 🚀'}
                 </button>
               </form>
             )}

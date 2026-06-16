@@ -402,6 +402,30 @@ export async function addCustomerDocument(
     updatedAt: getFirestoreFieldValue().serverTimestamp(),
   } as any);
 
+  try {
+    const { notifyUser, notifyManagersAndAdmins } = await import('@autodealers/core');
+    const sellerId = fileData.sellerId as string | undefined;
+    const customerName = fileData.customerInfo?.fullName || 'Cliente';
+    const payload = {
+      type: 'document_uploaded' as const,
+      title: 'Documento del cliente recibido',
+      message: `${customerName} subió: ${document.name || document.type}`,
+      metadata: {
+        fileId,
+        documentId: newDocument.id,
+        route: `/customer-files/${fileId}`,
+      },
+    };
+    if (sellerId) {
+      await notifyUser(tenantId, sellerId, payload);
+    }
+    await notifyManagersAndAdmins(tenantId, payload, {
+      excludeUserIds: sellerId ? [sellerId] : undefined,
+    });
+  } catch (e) {
+    console.warn('Customer document notification skipped:', e);
+  }
+
   return newDocument;
 }
 
@@ -442,6 +466,33 @@ export async function addDealerDocument(
     documents,
     updatedAt: getFirestoreFieldValue().serverTimestamp(),
   } as any);
+
+  try {
+    const { notifyFIDocumentEvent } = await import('@autodealers/core');
+    const sellerId = fileData.sellerId as string | undefined;
+    const customerName = fileData.customerInfo?.fullName || 'Cliente';
+    const docLabel = document.name || document.type;
+
+    if (uploadedBy === 'seller') {
+      await notifyFIDocumentEvent(tenantId, {
+        title: 'Documento agregado al expediente',
+        message: `El vendedor agregó "${docLabel}" al expediente de ${customerName}.`,
+        excludeUserIds: sellerId ? [sellerId] : undefined,
+        fileId,
+        route: `/customer-files/${fileId}`,
+      });
+    } else {
+      await notifyFIDocumentEvent(tenantId, {
+        title: 'Documento agregado al expediente',
+        message: `Se agregó "${docLabel}" al expediente de ${customerName}.`,
+        sellerId,
+        fileId,
+        route: `/customer-files/${fileId}`,
+      });
+    }
+  } catch (e) {
+    console.warn('Dealer document notification skipped:', e);
+  }
 
   return newDocument;
 }

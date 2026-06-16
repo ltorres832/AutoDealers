@@ -1,116 +1,48 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase-client';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { useRealtimeMemberships } from '@/hooks/useRealtimeMemberships';
-
-interface DashboardData {
-  stats: {
-    myLeads: number;
-    activeLeads: number;
-    mySales: number;
-    myRevenue: number;
-    weeklyRevenue: number;
-    dailyRevenue: number;
-    monthlyCommissions: number;
-    totalCommissions: number;
-    appointmentsToday: number;
-    unreadMessages: number;
-    conversionRate: number;
-    totalVehicles: number;
-    availableVehicles: number;
-    dailySales: number;
-    weeklySales: number;
-    monthlySales: number;
-    totalPromotions?: number;
-    activePromotions?: number;
-    totalPromotionViews?: number;
-    totalPromotionClicks?: number;
-  };
-  recentLeads: any[];
-  recentSales: any[];
-  upcomingAppointments: any[];
-  recentPromotions?: Array<{
-    id: string;
-    name: string;
-    views: number;
-    clicks: number;
-    status: string;
-    createdAt?: string;
-  }>;
-}
+import { useRealtimeDashboard } from '@/hooks/useRealtimeDashboard';
+import { useRealtimeProfile } from '@/hooks/useRealtimeProfile';
 
 export default function SellerDashboardPage() {
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [tenantId, setTenantId] = useState<string | undefined>(undefined);
   const [authLoading, setAuthLoading] = useState(true);
-  const [profileInfo, setProfileInfo] = useState<any>(null);
+  const [profileBannerDismissed, setProfileBannerDismissed] = useState(false);
   const router = useRouter();
-  const intervalIdRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // Hooks de tiempo real para membresías y suscripciones (mismo que en la página de membresías)
+
+  const sellerId = user?.id || user?.userId;
+  const { data, loading: dashboardLoading } = useRealtimeDashboard(tenantId, sellerId);
+  const { profile: profileInfo, loading: profileLoading } = useRealtimeProfile(tenantId, sellerId);
   const { subscription, loading: subscriptionLoading } = useRealtimeSubscription(tenantId);
   const { memberships, loading: membershipsLoading } = useRealtimeMemberships('seller');
-  
-  // Obtener membresía actual basada en la suscripción
-  const currentMembership = subscription?.membershipId 
-    ? memberships.find(m => m.id === subscription.membershipId) 
+  const currentMembership = subscription?.membershipId
+    ? memberships.find((m) => m.id === subscription.membershipId)
     : null;
 
   useEffect(() => {
     if (!auth) {
       console.error('Firebase auth no está configurado');
       setAuthLoading(false);
-      setLoading(false);
-      setData({
-        stats: {
-          myLeads: 0,
-          activeLeads: 0,
-          mySales: 0,
-          myRevenue: 0,
-          weeklyRevenue: 0,
-          dailyRevenue: 0,
-          monthlyCommissions: 0,
-          totalCommissions: 0,
-          appointmentsToday: 0,
-          unreadMessages: 0,
-          conversionRate: 0,
-          totalVehicles: 0,
-          availableVehicles: 0,
-          dailySales: 0,
-          weeklySales: 0,
-          monthlySales: 0,
-        },
-        recentLeads: [],
-        recentSales: [],
-        upcomingAppointments: [],
-      });
       return;
     }
 
-    let isValidating = false; // Flag para evitar múltiples validaciones simultáneas
-    let hasValidated = false; // Flag para evitar validaciones repetidas
-    
-    // Limpiar cualquier intervalo anterior al inicio
-    if (intervalIdRef.current) {
-      clearInterval(intervalIdRef.current);
-      intervalIdRef.current = null;
-    }
+    let isValidating = false;
+    let hasValidated = false;
 
-    // Verificar autenticación primero
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       // Si ya validamos exitosamente, no volver a validar
-      if (hasValidated && user) {
+      if (hasValidated && firebaseUser) {
         return;
       }
       
-      if (!user) {
+      if (!firebaseUser) {
         setAuthLoading(false);
         setTimeout(() => {
           if (!auth.currentUser) {
@@ -129,7 +61,7 @@ export default function SellerDashboardPage() {
       
       try {
         // Obtener token y guardarlo en cookie
-        const token = await user.getIdToken(true); // Forzar renovación
+        const token = await firebaseUser.getIdToken(true);
         if (!token || token.length < 200) {
           console.error('❌ Token inválido o truncado:', token?.length);
           throw new Error('Error al obtener token de autenticación');
@@ -145,7 +77,7 @@ export default function SellerDashboardPage() {
           const loginResponse = await fetch('/api/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: user.uid }),
+            body: JSON.stringify({ userId: firebaseUser.uid }),
             credentials: 'include',
           });
           
@@ -158,15 +90,6 @@ export default function SellerDashboardPage() {
               hasValidated = true;
               isValidating = false;
               setAuthLoading(false);
-              fetchDashboardData();
-              fetchProfileInfo();
-              
-              // Establecer intervalo para actualizar datos cada 60 segundos (reducido de 30)
-              if (!intervalIdRef.current) {
-                intervalIdRef.current = setInterval(() => {
-                  fetchDashboardData();
-                }, 60000);
-              }
               return;
             }
           }
@@ -191,14 +114,6 @@ export default function SellerDashboardPage() {
         hasValidated = true;
         isValidating = false;
         setAuthLoading(false);
-        fetchDashboardData();
-        fetchProfileInfo();
-        
-        if (!intervalIdRef.current) {
-          intervalIdRef.current = setInterval(() => {
-            fetchDashboardData();
-          }, 60000); // Reducido de 30 a 60 segundos
-        }
       } catch (error) {
         isValidating = false;
         setAuthLoading(false);
@@ -213,146 +128,8 @@ export default function SellerDashboardPage() {
 
     return () => {
       unsubscribe();
-      if (intervalIdRef.current) {
-        clearInterval(intervalIdRef.current);
-        intervalIdRef.current = null;
-      }
     };
   }, [router]);
-
-  async function fetchDashboardData() {
-    let timeoutId: NodeJS.Timeout | undefined;
-    
-    try {
-      setLoading(true);
-      
-      // Agregar timeout de 8 segundos
-      const controller = new AbortController();
-      timeoutId = setTimeout(() => controller.abort(), 8000);
-      
-      const response = await fetch('/api/dashboard', {
-        signal: controller.signal,
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
-        console.error('Error fetching dashboard:', errorData, 'Status:', response.status);
-        
-        // Si es un error de autenticación, NO redirigir inmediatamente
-        // El onAuthStateChanged se encargará de manejar esto
-        if (response.status === 401) {
-          console.log('[DASHBOARD] 401 error, but user is authenticated. Waiting for auth state change.');
-          // No redirigir aquí - dejar que onAuthStateChanged maneje
-          return;
-        }
-        
-        // Establecer datos vacíos en lugar de null para evitar el mensaje de error
-        setData({
-          stats: {
-            myLeads: 0,
-            activeLeads: 0,
-            mySales: 0,
-            myRevenue: 0,
-            weeklyRevenue: 0,
-            dailyRevenue: 0,
-            monthlyCommissions: 0,
-            totalCommissions: 0,
-            appointmentsToday: 0,
-            unreadMessages: 0,
-            conversionRate: 0,
-            totalVehicles: 0,
-            availableVehicles: 0,
-            dailySales: 0,
-            weeklySales: 0,
-            monthlySales: 0,
-            totalPromotions: 0,
-            activePromotions: 0,
-            totalPromotionViews: 0,
-            totalPromotionClicks: 0,
-          },
-          recentLeads: [],
-          recentSales: [],
-          upcomingAppointments: [],
-          recentPromotions: [],
-        });
-        return;
-      }
-      
-      const dashboardData = await response.json();
-      // Asegurar que siempre tenga los campos de promociones
-      const finalData: DashboardData = {
-        ...dashboardData,
-        stats: {
-          ...dashboardData.stats,
-          totalPromotions: dashboardData.stats?.totalPromotions ?? 0,
-          activePromotions: dashboardData.stats?.activePromotions ?? 0,
-          totalPromotionViews: dashboardData.stats?.totalPromotionViews ?? 0,
-          totalPromotionClicks: dashboardData.stats?.totalPromotionClicks ?? 0,
-        },
-        recentPromotions: dashboardData.recentPromotions || [],
-      };
-      setData(finalData);
-    } catch (error: any) {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-      console.error('Error:', error);
-      
-      // Si es un timeout, mostrar datos vacíos
-      if (error.name === 'AbortError') {
-        console.warn('Dashboard request timeout');
-      }
-      
-      // Establecer datos vacíos en lugar de null
-      setData({
-        stats: {
-          myLeads: 0,
-          activeLeads: 0,
-          mySales: 0,
-          myRevenue: 0,
-          weeklyRevenue: 0,
-          dailyRevenue: 0,
-          monthlyCommissions: 0,
-          totalCommissions: 0,
-          appointmentsToday: 0,
-          unreadMessages: 0,
-          conversionRate: 0,
-          totalVehicles: 0,
-          availableVehicles: 0,
-          dailySales: 0,
-          weeklySales: 0,
-          monthlySales: 0,
-          totalPromotions: 0,
-          activePromotions: 0,
-          totalPromotionViews: 0,
-          totalPromotionClicks: 0,
-        },
-        recentLeads: [],
-        recentSales: [],
-        upcomingAppointments: [],
-        recentPromotions: [],
-      });
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // Ya no necesitamos fetchMembershipInfo porque usamos hooks de tiempo real
-  // Los datos se actualizan automáticamente desde Firestore
-
-  async function fetchProfileInfo() {
-    try {
-      const response = await fetch('/api/settings/profile');
-      if (response.ok) {
-        const data = await response.json();
-        setProfileInfo(data.profile);
-      }
-    } catch (error) {
-      console.error('Error fetching profile info:', error);
-    }
-  }
 
   function getStatusColor(status: string) {
     switch (status) {
@@ -383,7 +160,7 @@ export default function SellerDashboardPage() {
     return labels[status] || status;
   }
 
-  if (authLoading || loading) {
+  if (authLoading || dashboardLoading) {
     return (
       <div className="flex justify-center p-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
@@ -392,44 +169,17 @@ export default function SellerDashboardPage() {
   }
 
   // Asegurar que data siempre tenga la estructura correcta
-  const safeData = data || {
+  const safeData = {
+    ...data,
     stats: {
-      myLeads: 0,
-      activeLeads: 0,
-      mySales: 0,
-      myRevenue: 0,
-      weeklyRevenue: 0,
-      dailyRevenue: 0,
-      monthlyCommissions: 0,
-      totalCommissions: 0,
-      appointmentsToday: 0,
-      unreadMessages: 0,
-      conversionRate: 0,
-      totalVehicles: 0,
-      availableVehicles: 0,
-      dailySales: 0,
-      weeklySales: 0,
-      monthlySales: 0,
-      totalPromotions: 0,
-      activePromotions: 0,
-      totalPromotionViews: 0,
-      totalPromotionClicks: 0,
+      ...data.stats,
+      totalPromotions: data.stats?.totalPromotions ?? 0,
+      activePromotions: data.stats?.activePromotions ?? 0,
+      totalPromotionViews: data.stats?.totalPromotionViews ?? 0,
+      totalPromotionClicks: data.stats?.totalPromotionClicks ?? 0,
     },
-    recentLeads: [],
-    recentSales: [],
-    upcomingAppointments: [],
-    recentPromotions: [],
+    recentPromotions: data.recentPromotions || [],
   };
-
-  // Normalizar datos de promociones
-  safeData.stats = {
-    ...safeData.stats,
-    totalPromotions: safeData.stats?.totalPromotions ?? 0,
-    activePromotions: safeData.stats?.activePromotions ?? 0,
-    totalPromotionViews: safeData.stats?.totalPromotionViews ?? 0,
-    totalPromotionClicks: safeData.stats?.totalPromotionClicks ?? 0,
-  };
-  safeData.recentPromotions = safeData.recentPromotions || [];
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -475,12 +225,12 @@ export default function SellerDashboardPage() {
       </div>
 
       {/* Profile Completion Banner */}
-      {profileInfo && !profileInfo._dismissed && (!profileInfo.photo || !profileInfo.bio) && (
-        <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 rounded-lg p-6 shadow-md">
+      {profileInfo && !profileBannerDismissed && (!profileInfo.photo || !profileInfo.bio) && (
+        <div className="mb-6 bg-gradient-to-r from-primary-50 to-primary-50 border-l-4 border-primary-500 rounded-lg p-6 shadow-md">
           <div className="flex items-start justify-between">
             <div className="flex items-start gap-4 flex-1">
               <div className="flex-shrink-0">
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center">
                   <span className="text-2xl">📸</span>
                 </div>
               </div>
@@ -493,13 +243,13 @@ export default function SellerDashboardPage() {
                 </p>
                 <div className="flex flex-wrap gap-2 mb-3">
                   {!profileInfo.photo && (
-                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-white rounded-full text-sm font-medium text-blue-700 border border-blue-200">
+                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-white rounded-full text-sm font-medium text-primary-700 border border-primary-200">
                       <span>❌</span>
                       Foto de perfil faltante
                     </span>
                   )}
                   {!profileInfo.bio && (
-                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-white rounded-full text-sm font-medium text-blue-700 border border-blue-200">
+                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-white rounded-full text-sm font-medium text-primary-700 border border-primary-200">
                       <span>❌</span>
                       Biografía faltante
                     </span>
@@ -507,7 +257,7 @@ export default function SellerDashboardPage() {
                 </div>
                 <Link
                   href="/settings/profile"
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition shadow-md hover:shadow-lg"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition shadow-md hover:shadow-lg"
                 >
                   <span>Completar Perfil</span>
                   <span>→</span>
@@ -515,7 +265,7 @@ export default function SellerDashboardPage() {
               </div>
             </div>
             <button
-              onClick={() => setProfileInfo({ ...profileInfo, _dismissed: true })}
+              onClick={() => setProfileBannerDismissed(true)}
               className="flex-shrink-0 text-gray-400 hover:text-gray-600 ml-4"
               aria-label="Cerrar"
             >
@@ -627,7 +377,7 @@ export default function SellerDashboardPage() {
         <div className="bg-white rounded-lg shadow p-6">
           <p className="text-sm text-gray-600 mb-2">Vehículos</p>
           <p className="text-3xl font-bold">{safeData.stats.totalVehicles}</p>
-          <p className="text-sm text-blue-600 mt-1">
+          <p className="text-sm text-primary-600 mt-1">
             {safeData.stats.availableVehicles} disponibles
           </p>
         </div>
@@ -678,14 +428,14 @@ export default function SellerDashboardPage() {
             </div>
             <div className="bg-white rounded-lg p-4 shadow">
               <p className="text-sm text-gray-600 mb-1">Total Vistas</p>
-              <p className="text-2xl font-bold text-blue-600">{safeData.stats.totalPromotionViews || 0}</p>
+              <p className="text-2xl font-bold text-primary-600">{safeData.stats.totalPromotionViews || 0}</p>
               <p className="text-xs text-gray-500 mt-1">
                 {safeData.stats.totalPromotionClicks || 0} clics
               </p>
             </div>
             <div className="bg-white rounded-lg p-4 shadow">
               <p className="text-sm text-gray-600 mb-1">Total Clics</p>
-              <p className="text-2xl font-bold text-purple-600">{safeData.stats.totalPromotionClicks || 0}</p>
+              <p className="text-2xl font-bold text-primary-600">{safeData.stats.totalPromotionClicks || 0}</p>
               <p className="text-xs text-gray-500 mt-1">
                 {(safeData.stats.totalPromotionViews ?? 0) > 0 
                   ? ((safeData.stats.totalPromotionClicks || 0) / (safeData.stats.totalPromotionViews || 1) * 100).toFixed(1)
@@ -718,11 +468,11 @@ export default function SellerDashboardPage() {
                     </div>
                     <div className="flex gap-4 text-sm">
                       <div className="text-center">
-                        <p className="text-blue-600 font-bold">{promo.views || 0}</p>
+                        <p className="text-primary-600 font-bold">{promo.views || 0}</p>
                         <p className="text-xs text-gray-500">Vistas</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-purple-600 font-bold">{promo.clicks || 0}</p>
+                        <p className="text-primary-600 font-bold">{promo.clicks || 0}</p>
                         <p className="text-xs text-gray-500">Clics</p>
                       </div>
                       {promo.views > 0 && (
@@ -741,7 +491,7 @@ export default function SellerDashboardPage() {
           ) : (
             <div className="bg-white rounded-lg p-4 shadow">
               <p className="text-gray-500 text-center py-4">
-                No hay promociones aún. <Link href="/promotions" className="text-purple-600 hover:text-purple-700 font-medium">Crea tu primera promoción</Link>
+                No hay promociones aún. <Link href="/promotions" className="text-primary-600 hover:text-primary-700 font-medium">Crea tu primera promoción</Link>
               </p>
             </div>
           )}
@@ -781,7 +531,7 @@ export default function SellerDashboardPage() {
                     <span
                       className={`px-2 py-1 rounded text-xs ${
                         lead.status === 'new'
-                          ? 'bg-blue-100 text-blue-700'
+                          ? 'bg-primary-100 text-primary-700'
                           : lead.status === 'qualified'
                           ? 'bg-green-100 text-green-700'
                           : 'bg-gray-100 text-gray-700'
@@ -821,16 +571,11 @@ export default function SellerDashboardPage() {
                     <div>
                       <p className="font-medium">{apt.leadName}</p>
                       <p className="text-sm text-gray-500">
-                        {(() => {
-                          const date = apt.scheduledAt instanceof Date 
-                            ? apt.scheduledAt 
-                            : (apt.scheduledAt as any)?.toDate?.() || new Date(apt.scheduledAt);
-                          return date.toLocaleString();
-                        })()}
+                        {new Date(apt.scheduledAt).toLocaleString()}
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs capitalize">
+                      <span className="px-2 py-1 bg-primary-100 text-primary-700 rounded text-xs capitalize">
                         {apt.type}
                       </span>
                       <span className={`px-2 py-1 rounded text-xs ${
@@ -896,12 +641,7 @@ export default function SellerDashboardPage() {
                       ${sale.price.toLocaleString()}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
-                      {(() => {
-                        const date = sale.createdAt instanceof Date 
-                          ? sale.createdAt 
-                          : (sale.createdAt as any)?.toDate?.() || new Date(sale.createdAt);
-                        return date.toLocaleDateString();
-                      })()}
+                      {new Date(sale.createdAt).toLocaleDateString()}
                     </td>
                   </tr>
                 ))
@@ -1025,7 +765,7 @@ function PreQualificationsSection() {
       case 'partially_approved':
         return 'bg-yellow-100 text-yellow-700';
       case 'manual_review':
-        return 'bg-blue-100 text-blue-700';
+        return 'bg-primary-100 text-primary-700';
       case 'not_qualified':
         return 'bg-red-100 text-red-700';
       default:

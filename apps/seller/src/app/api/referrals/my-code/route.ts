@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
+import { dealerManagedReferralsResponse } from '@/lib/referrals-access-guard';
 import { getReferralCode } from '@autodealers/core';
+import { buildSellerReferralRegisterLink } from '@/lib/referral-register-url';
 
 export async function GET(request: NextRequest) {
   try {
@@ -41,6 +43,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const blocked = dealerManagedReferralsResponse(auth);
+    if (blocked) return blocked;
+
     console.log('🔄 Obteniendo código de referido para userId:', auth.userId);
     
     try {
@@ -77,16 +82,7 @@ export async function GET(request: NextRequest) {
       
       console.log('✅ Código obtenido exitosamente:', code);
 
-    console.log('✅ Código generado:', code);
-    // Obtener la URL base (sin subdominio seller)
-    let baseUrl = request.nextUrl.origin;
-    // Si tiene subdominio seller, removerlo
-    if (baseUrl.includes('seller.')) {
-      baseUrl = baseUrl.replace('seller.', '');
-    }
-    // Link de referido apunta a la página de registro con tipo seller
-    const referralLink = `${baseUrl}/register?ref=${code}&type=seller`;
-
+      const referralLink = buildSellerReferralRegisterLink(request, code);
       console.log('✅ Link generado:', referralLink);
 
       return NextResponse.json({

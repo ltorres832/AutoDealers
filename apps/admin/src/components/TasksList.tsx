@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useRealtimeTasks } from '@/hooks/useRealtimeTasks';
 import { Task, TaskType, TaskStatus, TaskPriority } from '@autodealers/crm';
 import CreateTaskModal from './CreateTaskModal';
 
@@ -14,8 +15,6 @@ interface TasksListProps {
 
 export default function TasksList({ leadId, assignedTo, tenantId, onTaskComplete }: TasksListProps) {
   const { auth } = useAuth();
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     status: '' as TaskStatus | '',
     type: '' as TaskType | '',
@@ -25,48 +24,19 @@ export default function TasksList({ leadId, assignedTo, tenantId, onTaskComplete
 
   const effectiveTenantId = tenantId || auth?.tenantId;
 
-  useEffect(() => {
-    loadTasks();
-  }, [leadId, assignedTo, filters, effectiveTenantId]);
+  const { tasks: realtimeTasks, loading, error } = useRealtimeTasks({
+    tenantId: effectiveTenantId || undefined,
+    status: filters.status || undefined,
+    assignedTo,
+    leadId,
+    type: filters.type || undefined,
+    priority: filters.priority || undefined,
+  });
 
-  async function loadTasks() {
-    if (!effectiveTenantId) return;
+  const tasks = useMemo(() => realtimeTasks, [realtimeTasks]);
 
-    try {
-      setLoading(true);
-      const params = new URLSearchParams();
-      if (leadId) params.append('leadId', leadId);
-      if (assignedTo) params.append('assignedTo', assignedTo);
-      if (filters.status) params.append('status', filters.status);
-      if (filters.type) params.append('type', filters.type);
-      if (filters.priority) params.append('priority', filters.priority);
-      
-      // Si es admin y especificó tenantId, usar API de admin
-      const apiPath = tenantId && auth?.role === 'admin' 
-        ? `/api/admin/tasks?tenantId=${tenantId}&${params.toString()}`
-        : `/api/tasks?${params.toString()}`;
-
-      const response = await fetch(apiPath, {
-        credentials: 'include',
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text();
-        throw new Error(`Expected JSON but got ${contentType}: ${text.substring(0, 100)}`);
-      }
-      
-      const data = await response.json();
-      setTasks(data.tasks || []);
-    } catch (error) {
-      console.error('Error loading tasks:', error);
-    } finally {
-      setLoading(false);
-    }
+  async function reloadAfterMutation() {
+    onTaskComplete?.();
   }
 
   async function handleCompleteTask(taskId: string) {
@@ -90,7 +60,7 @@ export default function TasksList({ leadId, assignedTo, tenantId, onTaskComplete
       });
 
       if (response.ok) {
-        loadTasks();
+        reloadAfterMutation();
         onTaskComplete?.();
       }
     } catch (error) {
@@ -121,7 +91,7 @@ export default function TasksList({ leadId, assignedTo, tenantId, onTaskComplete
       });
 
       if (response.ok) {
-        loadTasks();
+        reloadAfterMutation();
       }
     } catch (error) {
       console.error('Error deleting task:', error);
@@ -168,7 +138,7 @@ export default function TasksList({ leadId, assignedTo, tenantId, onTaskComplete
   const getStatusColor = (status: TaskStatus) => {
     const colors: Record<TaskStatus, string> = {
       pending: 'bg-gray-100 text-gray-700',
-      in_progress: 'bg-blue-100 text-blue-700',
+      in_progress: 'bg-primary-100 text-primary-700',
       completed: 'bg-green-100 text-green-700',
       cancelled: 'bg-red-100 text-red-700',
     };
@@ -384,7 +354,7 @@ export default function TasksList({ leadId, assignedTo, tenantId, onTaskComplete
           assignedTo={assignedTo || auth?.userId}
           onClose={() => {
             setShowCreateModal(false);
-            loadTasks();
+            reloadAfterMutation();
           }}
         />
       )}

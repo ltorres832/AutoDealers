@@ -34,6 +34,10 @@
     "deploy:flutter": "npm run flutter:clean && npm run build:flutter:web && firebase deploy --only hosting",
     "predeploy:functions": "node ./functions/predeploy.js",
     "smoke": "node scripts/smoke-production.mjs",
+    "seed:test-users": "node scripts/seed-production-test-users.mjs",
+    "e2e:prod": "node scripts/e2e-production.mjs",
+    "brand:colors": "node scripts/apply-brand-colors.mjs && node scripts/fix-brand-artifacts.mjs",
+    "brand:enforce": "node scripts/enforce-visible-brand.mjs",
     "lint": "turbo run lint",
     "test": "turbo run test",
     "clean": "turbo run clean"

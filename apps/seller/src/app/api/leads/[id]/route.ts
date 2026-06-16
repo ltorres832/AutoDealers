@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
+import { assertSellerLeadAccess } from '@/lib/seller-workspace';
 import { updateLead, getLeadById, parseLeadPatchBody } from '@autodealers/crm';
 import { getCrmPipelineSettings } from '@autodealers/core';
 
@@ -21,8 +22,9 @@ export async function PATCH(
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
     }
 
-    if (lead.assignedTo !== auth.userId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const access = await assertSellerLeadAccess(auth, lead);
+    if (!access.ok) {
+      return NextResponse.json({ error: access.error }, { status: access.status });
     }
 
     const pipeline = await getCrmPipelineSettings();
@@ -67,14 +69,47 @@ export async function GET(
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
     }
 
-    if (lead.assignedTo !== auth.userId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const access = await assertSellerLeadAccess(auth, lead);
+    if (!access.ok) {
+      return NextResponse.json({ error: access.error }, { status: access.status });
     }
 
     return NextResponse.json({ lead });
   } catch (error: unknown) {
     console.error('Error fetching lead:', error);
     const message = error instanceof Error ? error.message : 'Error fetching lead';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const auth = await verifyAuth(request);
+    if (!auth || !auth.tenantId || auth.role !== 'seller') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { id: leadId } = await params;
+    const lead = await getLeadById(auth.tenantId, leadId);
+    if (!lead) {
+      return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
+    }
+
+    const access = await assertSellerLeadAccess(auth, lead);
+    if (!access.ok) {
+      return NextResponse.json({ error: access.error }, { status: access.status });
+    }
+
+    const { deleteLead } = await import('@autodealers/crm');
+    await deleteLead(auth.tenantId, leadId);
+
+    return NextResponse.json({ success: true });
+  } catch (error: unknown) {
+    console.error('Error deleting lead:', error);
+    const message = error instanceof Error ? error.message : 'Error deleting lead';
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

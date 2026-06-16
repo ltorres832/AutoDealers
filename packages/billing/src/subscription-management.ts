@@ -4,6 +4,8 @@ import { getFirestore } from '@autodealers/shared';
 import { Subscription, SubscriptionStatus } from './types';
 import * as admin from 'firebase-admin';
 import { updateTenant } from '@autodealers/core';
+import { checkAndSuspendEmailsOnSubscriptionChange, reactivateTenantCorporateEmails } from './email-suspension';
+import { updateStripeSubscriptionPrice } from './stripe-membership-sync';
 
 // NO inicializar db aquí - se inicializa en cada función
 let db: admin.firestore.Firestore | null = null;
@@ -52,21 +54,45 @@ export async function getAllSubscriptions(filters?: {
   }
 }
 
+function readFirestoreDate(value: unknown): Date | undefined {
+  if (value == null) return undefined;
+  if (value instanceof Date) return value;
+  if (typeof value === 'object' && value !== null) {
+    const ts = value as { toDate?: () => Date; _seconds?: number; seconds?: number };
+    if (typeof ts.toDate === 'function') {
+      try {
+        return ts.toDate();
+      } catch {
+        return undefined;
+      }
+    }
+    const seconds = ts._seconds ?? ts.seconds;
+    if (typeof seconds === 'number') {
+      return new Date(seconds * 1000);
+    }
+  }
+  if (typeof value === 'string' || typeof value === 'number') {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? undefined : d;
+  }
+  return undefined;
+}
+
 function mapSubscriptionDocs(docs: admin.firestore.QueryDocumentSnapshot[]): Subscription[] {
   return docs.map((doc) => {
     const data = doc.data();
     return {
       id: doc.id,
       ...data,
-      currentPeriodStart: data?.currentPeriodStart?.toDate() || new Date(),
-      currentPeriodEnd: data?.currentPeriodEnd?.toDate() || new Date(),
-      lastPaymentDate: data?.lastPaymentDate?.toDate(),
-      nextPaymentDate: data?.nextPaymentDate?.toDate(),
-      suspendedAt: data?.suspendedAt?.toDate(),
-      reactivatedAt: data?.reactivatedAt?.toDate(),
-      cancelledAt: data?.cancelledAt?.toDate(),
-      createdAt: data?.createdAt?.toDate() || new Date(),
-      updatedAt: data?.updatedAt?.toDate() || new Date(),
+      currentPeriodStart: readFirestoreDate(data?.currentPeriodStart) || new Date(),
+      currentPeriodEnd: readFirestoreDate(data?.currentPeriodEnd) || new Date(),
+      lastPaymentDate: readFirestoreDate(data?.lastPaymentDate),
+      nextPaymentDate: readFirestoreDate(data?.nextPaymentDate),
+      suspendedAt: readFirestoreDate(data?.suspendedAt),
+      reactivatedAt: readFirestoreDate(data?.reactivatedAt),
+      cancelledAt: readFirestoreDate(data?.cancelledAt),
+      createdAt: readFirestoreDate(data?.createdAt) || new Date(),
+      updatedAt: readFirestoreDate(data?.updatedAt) || new Date(),
     } as Subscription;
   });
 }
@@ -197,27 +223,47 @@ export async function updateSubscriptionStatus(
 }
 
 /**
- * Suspende una cuenta automáticamente por falta de pago
+ * Suspende una cuenta automáticamente por falta de pago (tenant, usuarios y emails corporativos).
  */
-export async function suspendAccountForNonPayment(subscriptionId: string): Promise<void> {
+export async function suspendAccountForNonPayment(
+  subscriptionId: string,
+  reason = 'Suspensión por falta de pago'
+): Promise<void> {
   const subscription = await getSubscriptionById(subscriptionId);
   if (!subscription) {
     throw new Error('Subscription not found');
   }
 
-  // Actualizar estado de suscripción
   await updateSubscriptionStatus(subscriptionId, 'suspended', {
     suspendedAt: new Date(),
     daysPastDue: subscription.daysPastDue || 0,
-    statusReason: 'Suspensión por falta de pago',
+    statusReason: reason,
   });
 
-  // Actualizar estado del tenant
   await updateTenant(subscription.tenantId, {
     status: 'suspended',
   });
 
-  console.log(`Account ${subscription.tenantId} suspended for non-payment`);
+  const usersSnapshot = await getDb()
+    .collection('users')
+    .where('tenantId', '==', subscription.tenantId)
+    .get();
+
+  if (!usersSnapshot.empty) {
+    const batch = getDb().batch();
+    const ts = admin.firestore.FieldValue.serverTimestamp();
+    for (const userDoc of usersSnapshot.docs) {
+      batch.update(userDoc.ref, {
+        status: 'suspended',
+        updatedAt: ts,
+      });
+    }
+    await batch.commit();
+  }
+
+  await checkAndSuspendEmailsOnSubscriptionChange(subscriptionId, 'suspended');
+
+  console.log(`Account ${subscription.tenantId} suspended for non-payment (${reason})`);
 }
 
 /**
@@ -229,19 +275,89 @@ export async function reactivateAccountAfterPayment(subscriptionId: string): Pro
     throw new Error('Subscription not found');
   }
 
-  // Actualizar estado de suscripción
+  const periodEnd = subscription.currentPeriodEnd ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
   await updateSubscriptionStatus(subscriptionId, 'active', {
     reactivatedAt: new Date(),
     lastPaymentDate: new Date(),
+    nextPaymentDate: periodEnd,
+    daysPastDue: 0,
     statusReason: 'Reactivación después de pago exitoso',
   });
 
-  // Actualizar estado del tenant
   await updateTenant(subscription.tenantId, {
     status: 'active',
   });
 
+  const usersSnapshot = await getDb()
+    .collection('users')
+    .where('tenantId', '==', subscription.tenantId)
+    .get();
+
+  if (!usersSnapshot.empty) {
+    const batch = getDb().batch();
+    const ts = admin.firestore.FieldValue.serverTimestamp();
+    for (const userDoc of usersSnapshot.docs) {
+      const data = userDoc.data();
+      if (data.status === 'suspended' || data.status === 'cancelled') {
+        batch.update(userDoc.ref, {
+          status: 'active',
+          updatedAt: ts,
+        });
+      }
+    }
+    await batch.commit();
+  }
+
+  await checkAndSuspendEmailsOnSubscriptionChange(subscriptionId, 'active');
+  await reactivateTenantCorporateEmails(subscription.tenantId);
+
   console.log(`Account ${subscription.tenantId} reactivated after payment`);
+}
+
+/** Sincroniza membershipId en suscripción, tenant y usuarios (sin tocar Stripe). */
+export async function syncMembershipForSubscription(
+  subscriptionId: string,
+  membershipId: string
+): Promise<void> {
+  const subscription = await getSubscriptionById(subscriptionId);
+  if (!subscription) {
+    throw new Error('Subscription not found');
+  }
+
+  await getDb().collection('subscriptions').doc(subscriptionId).update({
+    membershipId,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  try {
+    const tenantRef = getDb().collection('tenants').doc(subscription.tenantId);
+    const tenantDoc = await tenantRef.get();
+    if (tenantDoc.exists) {
+      await tenantRef.update({
+        membershipId,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+  } catch (error) {
+    console.warn('Could not update tenant membershipId:', error);
+  }
+
+  const usersSnapshot = await getDb()
+    .collection('users')
+    .where('tenantId', '==', subscription.tenantId)
+    .get();
+
+  for (const userDoc of usersSnapshot.docs) {
+    await userDoc.ref.update({
+      membershipId,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
+
+  console.log(
+    `Membership synced for subscription ${subscriptionId} → ${membershipId} (${usersSnapshot.size} users)`
+  );
 }
 
 /**
@@ -250,50 +366,27 @@ export async function reactivateAccountAfterPayment(subscriptionId: string): Pro
 export async function changeMembership(
   subscriptionId: string,
   newMembershipId: string,
-  newPriceId: string
+  newPriceId: string,
+  options?: { skipStripeUpdate?: boolean }
 ): Promise<void> {
   const subscription = await getSubscriptionById(subscriptionId);
   if (!subscription) {
     throw new Error('Subscription not found');
   }
 
-  // Actualizar suscripción en Firestore
-  await getDb().collection('subscriptions').doc(subscriptionId).update({
-    membershipId: newMembershipId,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    // El cambio real en Stripe se hace desde el frontend o webhook
-  });
-
-  // Actualizar el tenant con la nueva membresía (si tiene el campo)
-  try {
-    const tenantRef = getDb().collection('tenants').doc(subscription.tenantId);
-    const tenantDoc = await tenantRef.get();
-    if (tenantDoc.exists) {
-      await tenantRef.update({
-        membershipId: newMembershipId,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-    }
-  } catch (error) {
-    console.warn('Could not update tenant membershipId:', error);
+  if (
+    !options?.skipStripeUpdate &&
+    subscription.stripeSubscriptionId?.trim() &&
+    newPriceId?.trim()
+  ) {
+    await updateStripeSubscriptionPrice(
+      subscription.stripeSubscriptionId,
+      newPriceId,
+      newMembershipId
+    );
   }
 
-  // Actualizar membershipId en todos los usuarios del tenant
-  const usersSnapshot = await getDb()
-    .collection('users')
-    .where('tenantId', '==', subscription.tenantId)
-    .get();
-  const users = usersSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-  
-  for (const user of users) {
-    await getDb().collection('users').doc(user.id).update({
-      membershipId: newMembershipId,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-  }
-
-  console.log(`Membership changed for subscription ${subscriptionId} to ${newMembershipId}`);
-  console.log(`Updated ${users.length} users and tenant ${subscription.tenantId}`);
+  await syncMembershipForSubscription(subscriptionId, newMembershipId);
 }
 
 /**

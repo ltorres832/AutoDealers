@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRealtimeRewards } from '@/hooks/useRealtimeRewards';
 import { useRealtimeReferrals } from '@/hooks/useRealtimeReferrals';
+import { DealerManagedReferralsNotice } from '@autodealers/shared/client';
 
 interface Referral {
   id: string;
@@ -44,12 +45,13 @@ export default function ReferralsPage() {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState(true);
-  
-  // Hook en tiempo real para recompensas
-  const { rewards, loading: rewardsLoading } = useRealtimeRewards(userId);
-  
-  // Hook en tiempo real para referidos
-  const { referrals, loading: referralsLoading } = useRealtimeReferrals(userId);
+  const [userDealerManaged, setUserDealerManaged] = useState(false);
+
+  const { rewards, loading: rewardsLoading, dealerManaged: rewardsDealerManaged } = useRealtimeRewards(userId);
+  const { referrals, loading: referralsLoading, dealerManaged: referralsDealerManaged } =
+    useRealtimeReferrals(userId);
+
+  const dealerManaged = userDealerManaged || rewardsDealerManaged || referralsDealerManaged;
 
   useEffect(() => {
     fetchUserAndData();
@@ -128,7 +130,13 @@ export default function ReferralsPage() {
       
       const userData = await userResponse.json();
       const userIdValue = userData.user?.userId || userData.user?.id || userData.id || '';
-      
+
+      if (userData.user?.dealerId) {
+        setUserDealerManaged(true);
+        setLoading(false);
+        return;
+      }
+
       if (!userIdValue) {
         setError('No se pudo obtener tu ID de usuario.');
         setLoading(false);
@@ -146,7 +154,12 @@ export default function ReferralsPage() {
         if (codeResponse.status === 401) {
           setError('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.');
         } else if (codeResponse.status === 403) {
-          setError('No tienes permiso para acceder a esta función.');
+          if (errorData.error === 'dealer_managed_referrals') {
+            setUserDealerManaged(true);
+            setError('');
+          } else {
+            setError('No tienes permiso para acceder a esta función.');
+          }
         } else {
           setError(errorData.error || errorData.message || 'Error al obtener el código de referido.');
         }
@@ -205,7 +218,7 @@ export default function ReferralsPage() {
   function getStatusBadge(status: string) {
     const styles: Record<string, string> = {
       pending: 'bg-yellow-100 text-yellow-800',
-      confirmed: 'bg-blue-100 text-blue-800',
+      confirmed: 'bg-primary-100 text-primary-800',
       rewarded: 'bg-green-100 text-green-800',
       cancelled: 'bg-red-100 text-red-800',
     };
@@ -222,12 +235,16 @@ export default function ReferralsPage() {
     );
   }
 
+  if (dealerManaged) {
+    return <DealerManagedReferralsNotice />;
+  }
+
   const pageLoading = loading || ((rewardsLoading && !rewards) || (referralsLoading && referrals.length === 0));
   
   if (pageLoading && !referralCode) {
     return (
       <div className="flex flex-col items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mb-4"></div>
         <p className="text-gray-600">Cargando código de referido...</p>
       </div>
     );
@@ -300,7 +317,7 @@ export default function ReferralsPage() {
                 disabled={!referralCode || loading}
                 className={`px-4 py-2 rounded-lg transition-colors ${
                   referralCode && !loading
-                    ? 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer active:bg-blue-800'
+                    ? 'bg-primary-600 text-white hover:bg-primary-700 cursor-pointer active:bg-primary-800'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
                 type="button"
@@ -329,7 +346,7 @@ export default function ReferralsPage() {
                 disabled={!referralLink || loading}
                 className={`px-4 py-2 rounded-lg transition-colors ${
                   referralLink && !loading
-                    ? 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer active:bg-blue-800'
+                    ? 'bg-primary-600 text-white hover:bg-primary-700 cursor-pointer active:bg-primary-800'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
                 type="button"
@@ -346,9 +363,9 @@ export default function ReferralsPage() {
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Mis Recompensas</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-blue-50 rounded-lg p-4">
+            <div className="bg-primary-50 rounded-lg p-4">
               <div className="text-sm text-gray-600 mb-1">Descuento Próximo Mes</div>
-              <div className="text-2xl font-bold text-blue-600">
+              <div className="text-2xl font-bold text-primary-600">
                 {rewards.activeRewards.nextMonthDiscount > 0 ? `${rewards.activeRewards.nextMonthDiscount}%` : '0%'}
               </div>
             </div>
@@ -358,9 +375,9 @@ export default function ReferralsPage() {
                 {rewards.activeRewards.freeMonthsRemaining}
               </div>
             </div>
-            <div className="bg-purple-50 rounded-lg p-4">
+            <div className="bg-primary-50 rounded-lg p-4">
               <div className="text-sm text-gray-600 mb-1">Promociones Disponibles</div>
-              <div className="text-2xl font-bold text-purple-600">
+              <div className="text-2xl font-bold text-primary-600">
                 {rewards.activeRewards.promotionCredits}
               </div>
             </div>

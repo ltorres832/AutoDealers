@@ -77,7 +77,7 @@ export default function FIApprovalScore({
     return (
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
           <span className="ml-3 text-gray-600">Calculando score de aprobación...</span>
         </div>
       </div>
@@ -133,10 +133,10 @@ export default function FIApprovalScore({
       <h2 className="text-xl font-bold mb-4">🎯 Score de Aprobación Automático</h2>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <span className="text-sm text-blue-700">Score Total</span>
-          <p className="text-4xl font-bold text-blue-900">{score.score}/100</p>
-          <div className="mt-2 w-full bg-blue-200 rounded-full h-2">
+        <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+          <span className="text-sm text-primary-700">Score Total</span>
+          <p className="text-4xl font-bold text-primary-900">{score.score}/100</p>
+          <div className="mt-2 w-full bg-primary-200 rounded-full h-2">
             <div
               className={`h-2 rounded-full ${
                 score.score >= 75 ? 'bg-green-600' :

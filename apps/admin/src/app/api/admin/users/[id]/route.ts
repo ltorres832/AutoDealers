@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { getFirestore, getAuth } from '@autodealers/shared';
+import {
+  resolveRegistrationLinks,
+  setTemporaryPassword,
+} from '@autodealers/core';
+import { getAdminMembershipAccessStatus } from '@/lib/admin-membership-grant-server';
 import * as admin from 'firebase-admin';
 
 export const dynamic = 'force-dynamic';
@@ -134,9 +139,17 @@ export async function GET(
       authSummary = null;
     }
 
+    let membershipAccess: Awaited<ReturnType<typeof getAdminMembershipAccessStatus>> | null = null;
+    try {
+      membershipAccess = await getAdminMembershipAccessStatus(id);
+    } catch {
+      membershipAccess = null;
+    }
+
     return NextResponse.json({
       user: serializeUserDoc(id, snap.data() || {}),
       auth: authSummary,
+      membershipAccess,
     });
   } catch (e) {
     console.error('admin users [id] GET:', e);
@@ -161,6 +174,7 @@ export async function PATCH(
 
     const body = (await request.json()) as Record<string, unknown>;
     const newPassword = typeof body.newPassword === 'string' ? body.newPassword.trim() : '';
+    const generateTemporaryPassword = body.generateTemporaryPassword === true;
     const authDisabledExplicit = typeof body.authDisabled === 'boolean' ? body.authDisabled : undefined;
 
     const userRef = db.collection('users').doc(id);
@@ -280,6 +294,26 @@ export async function PATCH(
       }
     }
 
+    if (nextTenantId) {
+      const tSnap = await db.collection('tenants').doc(nextTenantId).get();
+      const tData = tSnap.exists ? tSnap.data() || {} : {};
+      const links = resolveRegistrationLinks({
+        role: nextRole,
+        tenantId: nextTenantId,
+        tenantType: tData.type,
+        tenantOwnerId: tData.ownerId,
+        userId: id,
+        explicitDealerId: nextDealerId,
+      });
+      if (links.dealerId === null) {
+        nextDealerId = undefined;
+        firestorePatch.dealerId = admin.firestore.FieldValue.delete();
+      } else if (typeof links.dealerId === 'string' && links.dealerId.trim()) {
+        nextDealerId = links.dealerId.trim();
+        firestorePatch.dealerId = nextDealerId;
+      }
+    }
+
     if (body.permissions === null) {
       firestorePatch.permissions = admin.firestore.FieldValue.delete();
     } else if (
@@ -293,10 +327,13 @@ export async function PATCH(
     }
 
     const hasMeaningfulFirestore = Object.keys(firestorePatch).some((k) => k !== 'updatedAt');
-    const hasAuthExtras = Boolean(newPassword) || authDisabledExplicit !== undefined;
+    const hasAuthExtras =
+      Boolean(newPassword) || generateTemporaryPassword || authDisabledExplicit !== undefined;
     if (!hasMeaningfulFirestore && !hasAuthExtras) {
       return NextResponse.json({ error: 'No hay cambios que aplicar' }, { status: 400 });
     }
+
+    let temporaryPassword: string | undefined;
 
     const authUpdates: admin.auth.UpdateRequest = {};
     if (typeof firestorePatch.name === 'string') {
@@ -311,6 +348,8 @@ export async function PATCH(
         return NextResponse.json({ error: 'La contraseña debe tener al menos 6 caracteres' }, { status: 400 });
       }
       authUpdates.password = newPassword;
+    } else if (generateTemporaryPassword) {
+      // Se aplica después de authUpdates básicos vía setTemporaryPassword
     }
 
     if (authDisabledExplicit !== undefined) {
@@ -337,7 +376,21 @@ export async function PATCH(
       return NextResponse.json({ error: msg }, { status: 400 });
     }
 
-    await userRef.update(firestorePatch as admin.firestore.UpdateData<admin.firestore.DocumentData>);
+    if (generateTemporaryPassword) {
+      try {
+        const result = await setTemporaryPassword(id);
+        temporaryPassword = result.password;
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : 'No se pudo generar la contraseña temporal';
+        return NextResponse.json({ error: msg }, { status: 400 });
+      }
+    }
+
+    if (hasMeaningfulFirestore) {
+      await userRef.update(firestorePatch as admin.firestore.UpdateData<admin.firestore.DocumentData>);
+    } else if (generateTemporaryPassword) {
+      // mustChangePassword ya actualizado en setTemporaryPassword
+    }
 
     await auth.setCustomUserClaims(id, buildClaims(nextRole, nextTenantId ?? null, nextDealerId ?? null));
 
@@ -347,7 +400,10 @@ export async function PATCH(
       status: nextStatus,
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      ...(temporaryPassword ? { temporaryPassword } : {}),
+    });
   } catch (e) {
     console.error('admin users [id] PATCH:', e);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

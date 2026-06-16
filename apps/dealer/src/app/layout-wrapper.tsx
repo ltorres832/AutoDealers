@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { TenantLogo } from '@/components/TenantLogo';
@@ -10,6 +10,9 @@ import { MaintenanceScreen } from '@/components/MaintenanceScreen';
 import { MaintenanceBanner } from '@/components/MaintenanceBanner';
 import { AnnouncementsBanner } from '@/components/AnnouncementsBanner';
 import { PolicyAcceptanceModal } from '@/components/PolicyAcceptanceModal';
+import { NotificationAlertsBootstrap } from '@autodealers/shared/client';
+import { BillingAccessGuard } from '@/components/BillingAccessGuard';
+import { MustChangePasswordGate } from '@/components/MustChangePasswordGate';
 import { isDealerPortalRole, isSellerRole } from '@/lib/dealer-portal-roles';
 import { useRouter } from 'next/navigation';
 
@@ -17,12 +20,13 @@ import { useRouter } from 'next/navigation';
 const publicRoutes = ['/login'];
 
 const sellerNavigationItems = [
-  { name: 'Mi página pública (video)', href: '/settings/seller-public-page', icon: '🎬', featureKey: null },
+  { name: 'Página pública (fotos y videos)', href: '/settings/seller-public-page', icon: '📸', featureKey: null },
 ];
 
 // Navigation items con feature flags
 const navigationItems = [
   { name: 'Dashboard', href: '/dashboard', icon: '📊', featureKey: null },
+  { name: '📸 Fotos página pública', href: '/settings/trust-gallery', icon: '📸', featureKey: null },
   { name: 'Leads', href: '/leads', icon: '📞', featureKey: null },
   { name: 'Interés catálogo web', href: '/catalog-interest', icon: '👁️', featureKey: null },
   { name: 'Pipeline Kanban', href: '/leads/kanban', icon: '📋', featureKey: 'crm_kanban' },
@@ -84,6 +88,10 @@ export default function DealerLayoutWrapper({
           if (isDealerPortalRole(role)) {
             setUser(data.user);
 
+            if (data.user?.mustChangePassword) {
+              return;
+            }
+
             if (
               pathname &&
               !pathname.startsWith('/settings/membership') &&
@@ -125,22 +133,17 @@ export default function DealerLayoutWrapper({
                   }
 
                   if (!subscriptionFound) {
-                    alert(
-                      'Debes tener una membresía activa para acceder a tu cuenta. Por favor, selecciona y paga una membresía primero.'
-                    );
-                    window.location.href = '/settings/membership';
+                    router.replace('/settings/membership?onboarding=required');
                     return;
                   }
                 } catch {
                   if (!data.user?.membershipId) {
-                    alert('Error al verificar tu membresía. Por favor, intenta de nuevo.');
-                    window.location.href = '/settings/membership';
+                    router.replace('/settings/membership?onboarding=required');
                     return;
                   }
                 }
               } else if (data.user?.status !== 'active') {
-                alert(`Tu cuenta está en estado: ${data.user?.status}. Por favor, contacta a soporte.`);
-                window.location.href = '/settings/membership';
+                router.replace('/settings/membership?onboarding=required');
                 return;
               }
             }
@@ -215,11 +218,20 @@ export default function DealerLayoutWrapper({
     }
   }
 
-  async function checkRequiredPolicies() {
-    if (!user?.id || pathname === '/login') return;
-    if (isSellerRole(user.role)) return;
+  const checkingPoliciesRef = useRef(false);
 
+  async function checkRequiredPolicies() {
+    if (!user?.id || pathname === '/login' || checkingPoliciesRef.current) return;
+    if (isSellerRole(user.role)) return;
+    
+    checkingPoliciesRef.current = true;
+    
     try {
+      void fetch('/api/policies/notify-updates', {
+        method: 'POST',
+        credentials: 'include',
+      });
+
       const response = await fetch(
         `/api/policies/required?userId=${user.id}&role=dealer${user.tenantId ? `&tenantId=${user.tenantId}` : ''}`,
         { credentials: 'include' }
@@ -236,6 +248,8 @@ export default function DealerLayoutWrapper({
       }
     } catch (error) {
       // Silenciar errores de verificación de políticas
+    } finally {
+      checkingPoliciesRef.current = false;
     }
   }
   
@@ -341,7 +355,9 @@ export default function DealerLayoutWrapper({
 
   async function handleLogout() {
     try {
-      // Si hay Firebase auth, cerrar sesión ahí también
+      const { unregisterWebPushToken } = await import('@autodealers/shared/client');
+      await unregisterWebPushToken('/api/notifications/fcm-token');
+
       const { auth } = await import('@/lib/firebase-client');
       if (auth) {
         const { signOut } = await import('firebase/auth');
@@ -393,6 +409,7 @@ export default function DealerLayoutWrapper({
   return React.createElement(
     'div',
     null,
+    React.createElement(NotificationAlertsBootstrap),
     showPolicyModal && user && user.id && React.createElement(PolicyAcceptanceModal, {
       userId: user.id,
       role: policyRole,
@@ -527,7 +544,13 @@ export default function DealerLayoutWrapper({
         ),
         React.createElement('main', { className: 'custom-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto' },
           React.createElement('div', { className: 'mx-auto max-w-7xl px-3 py-6 sm:px-6 lg:px-8' },
-            children
+            React.createElement(MustChangePasswordGate, { user },
+              React.createElement(BillingAccessGuard, {
+                tenantId: user?.tenantId,
+                membershipId: user?.membershipId,
+                userReady: Boolean(user?.id),
+              }, children)
+            )
           )
         )
       )

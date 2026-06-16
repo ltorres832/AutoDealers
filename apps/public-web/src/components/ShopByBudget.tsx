@@ -21,7 +21,7 @@ export default function ShopByBudget() {
                         <Link
                             key={idx}
                             href={`/search?priceMin=${range.min || 0}&priceMax=${range.max || ''}`}
-                            className="flex items-center justify-center px-4 py-3 border-2 border-gray-200 rounded-lg text-sm font-semibold text-gray-700 hover:border-blue-600 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200"
+                            className="flex items-center justify-center px-4 py-3 border-2 border-gray-200 rounded-lg text-sm font-semibold text-gray-700 hover:border-primary-600 hover:text-primary-600 hover:bg-primary-50 transition-all duration-200"
                         >
                             {range.label}
                         </Link>

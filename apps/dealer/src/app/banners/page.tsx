@@ -202,11 +202,11 @@ export default function BannersPage() {
         </div>
         <div className="bg-white rounded-lg shadow p-4">
           <div className="text-sm text-gray-600 mb-1">Vistas</div>
-          <div className="text-2xl font-bold text-blue-600">{stats.totalViews}</div>
+          <div className="text-2xl font-bold text-primary-600">{stats.totalViews}</div>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
           <div className="text-sm text-gray-600 mb-1">Clics</div>
-          <div className="text-2xl font-bold text-purple-600">{stats.totalClicks}</div>
+          <div className="text-2xl font-bold text-primary-600">{stats.totalClicks}</div>
         </div>
       </div>
 
@@ -243,11 +243,11 @@ export default function BannersPage() {
                   <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
                     <div>
                       <div className="text-gray-500">Vistas</div>
-                      <div className="font-bold text-blue-600">{banner.views || 0}</div>
+                      <div className="font-bold text-primary-600">{banner.views || 0}</div>
                     </div>
                     <div>
                       <div className="text-gray-500">Clics</div>
-                      <div className="font-bold text-purple-600">{banner.clicks || 0}</div>
+                      <div className="font-bold text-primary-600">{banner.clicks || 0}</div>
                     </div>
                   </div>
                   {banner.expiresAt && (
@@ -265,7 +265,7 @@ export default function BannersPage() {
       {/* Banners Asignados (Pendientes de Pago) */}
       {assignedBanners.length > 0 && (
         <div className="mb-8">
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
+          <div className="bg-gradient-to-r from-primary-50 to-primary-50 border border-primary-200 rounded-lg p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
                 <span className="text-3xl">🎁</span>
@@ -279,7 +279,7 @@ export default function BannersPage() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {assignedBanners.map((banner) => (
-                <div key={banner.id} className="bg-white rounded-lg border-2 border-blue-300 p-4">
+                <div key={banner.id} className="bg-white rounded-lg border-2 border-primary-300 p-4">
                   {banner.imageUrl && (
                     <img
                       src={banner.imageUrl}
@@ -289,7 +289,7 @@ export default function BannersPage() {
                   )}
                   <h3 className="font-bold text-lg mb-2">{banner.title}</h3>
                   <p className="text-sm text-gray-600 mb-3">{banner.description}</p>
-                  <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-3">
+                  <div className="bg-primary-50 border border-primary-200 rounded p-3 mb-3">
                     <div className="flex justify-between items-center">
                       <div>
                         <div className="text-xs text-gray-600">Duración</div>
@@ -297,13 +297,13 @@ export default function BannersPage() {
                       </div>
                       <div className="text-right">
                         <div className="text-xs text-gray-600">Precio</div>
-                        <div className="font-bold text-lg text-blue-600">${banner.price}</div>
+                        <div className="font-bold text-lg text-primary-600">${banner.price}</div>
                       </div>
                     </div>
                   </div>
                   <button
                     onClick={() => payAssignedBanner(banner.id)}
-                    className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium"
+                    className="w-full bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 font-medium"
                   >
                     💳 Pagar y Activar Banner
                   </button>
@@ -375,7 +375,7 @@ export default function BannersPage() {
                   <span className={`px-3 py-1 rounded text-xs ${
                     banner.status === 'active' ? 'bg-green-100 text-green-700' :
                     banner.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                    banner.status === 'assigned' ? 'bg-blue-100 text-blue-700' :
+                    banner.status === 'assigned' ? 'bg-primary-100 text-primary-700' :
                     banner.status === 'rejected' ? 'bg-red-100 text-red-700' :
                     'bg-gray-100 text-gray-700'
                   }`}>
@@ -430,7 +430,7 @@ export default function BannersPage() {
       {/* Modal de Pago Integrado */}
       {showPayment && paymentData && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl p-8 border-2 border-blue-200 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-xl p-8 border-2 border-primary-200 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Completa el Pago</h2>
@@ -853,7 +853,7 @@ function BuyBannerModal({
                 className="w-full border rounded px-3 py-2"
                 required
               />
-              <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800">
+              <div className="mt-2 bg-primary-50 border border-primary-200 rounded-lg p-3 text-xs text-primary-800">
                 <strong>📸 Especificaciones de Imagen para Banner:</strong>
                 <ul className="mt-1 ml-4 list-disc space-y-1">
                   <li><strong>Formatos permitidos:</strong> JPG, JPEG, PNG, WebP</li>
@@ -884,7 +884,7 @@ function BuyBannerModal({
                 className="w-full border rounded px-3 py-2"
                 required
               />
-              <div className="mt-2 bg-purple-50 border border-purple-200 rounded-lg p-3 text-xs text-purple-800">
+              <div className="mt-2 bg-primary-50 border border-primary-200 rounded-lg p-3 text-xs text-primary-800">
                 <strong>🎥 Especificaciones de Video para Banner:</strong>
                 <ul className="mt-1 ml-4 list-disc space-y-1">
                   <li><strong>Formatos permitidos:</strong> MP4, WebM, MOV</li>
@@ -925,11 +925,11 @@ function BuyBannerModal({
             />
           </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
             <div className="flex justify-between items-center">
               <div>
                 <div className="text-sm text-gray-600">Precio Total</div>
-                <div className="text-3xl font-bold text-blue-600">${getPrice().toFixed(2)}</div>
+                <div className="text-3xl font-bold text-primary-600">${getPrice().toFixed(2)}</div>
               </div>
               <div className="text-right text-sm text-gray-600">
                 <div>Duración: {formData.duration} días</div>

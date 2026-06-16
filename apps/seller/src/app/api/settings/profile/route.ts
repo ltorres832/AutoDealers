@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getFirestore } from '@autodealers/core';
+import { getFirestore, normalizeLoginEmail, syncLoginEmail } from '@autodealers/core';
 import * as admin from 'firebase-admin';
 
 const db = getFirestore();
@@ -119,7 +119,34 @@ export async function PUT(request: NextRequest) {
     };
 
     if (name !== undefined) userUpdate.name = name || admin.firestore.FieldValue.delete();
-    if (email !== undefined) userUpdate.email = email || admin.firestore.FieldValue.delete();
+    if (email !== undefined) {
+      const normalizedEmail =
+        typeof email === 'string' && email.trim() ? normalizeLoginEmail(email) : '';
+      if (normalizedEmail) {
+        const currentEmail =
+          typeof userRow.email === 'string' ? normalizeLoginEmail(userRow.email) : '';
+        if (normalizedEmail !== currentEmail) {
+          try {
+            await syncLoginEmail(auth.userId, normalizedEmail);
+          } catch (syncErr: unknown) {
+            const code =
+              syncErr && typeof syncErr === 'object' && 'code' in syncErr
+                ? (syncErr as { code?: string }).code
+                : '';
+            const msg =
+              code === 'auth/email-already-exists'
+                ? 'Ese email ya está en uso en otra cuenta'
+                : syncErr instanceof Error
+                  ? syncErr.message
+                  : 'No se pudo actualizar el email de inicio de sesión';
+            return NextResponse.json({ error: msg }, { status: 400 });
+          }
+        }
+        userUpdate.email = normalizedEmail;
+      } else {
+        userUpdate.email = admin.firestore.FieldValue.delete();
+      }
+    }
     if (phone !== undefined) userUpdate.phone = phone || admin.firestore.FieldValue.delete();
 
     if (photo !== undefined) {
@@ -165,7 +192,15 @@ export async function PUT(request: NextRequest) {
 
     if (isIndependentSellerWorkspace) {
       tenantPatch.name = name || admin.firestore.FieldValue.delete();
-      tenantPatch.contactEmail = email || admin.firestore.FieldValue.delete();
+      const contactEmail =
+        email !== undefined
+          ? typeof email === 'string' && email.trim()
+            ? normalizeLoginEmail(email)
+            : admin.firestore.FieldValue.delete()
+          : undefined;
+      if (contactEmail !== undefined) {
+        tenantPatch.contactEmail = contactEmail;
+      }
       tenantPatch.contactPhone = phone || admin.firestore.FieldValue.delete();
     }
     // Vendedor de un dealer: no tocar nombre ni contacto del tenant (son del concesionario).

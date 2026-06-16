@@ -11,6 +11,12 @@ export type MessageDirection = 'inbound' | 'outbound';
 
 export type MessageStatus = 'sent' | 'delivered' | 'read' | 'failed';
 
+export interface EmailAttachment {
+  filename: string;
+  content: Buffer | Uint8Array;
+  contentType?: string;
+}
+
 export interface MessagePayload {
   tenantId: string;
   leadId?: string;
@@ -20,6 +26,8 @@ export interface MessagePayload {
   to: string;
   content: string;
   attachments?: string[];
+  /** Adjuntos binarios (PDF, etc.) */
+  emailAttachments?: EmailAttachment[];
   metadata?: Record<string, any>;
 }
 

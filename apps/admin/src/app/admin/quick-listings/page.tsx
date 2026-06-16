@@ -95,7 +95,7 @@ export default function AdminQuickListingsPage() {
         <button
           onClick={handlePurge}
           disabled={purging}
-          className="px-4 py-2 bg-slate-900 text-white rounded-lg disabled:opacity-50"
+          className="px-4 py-2 bg-primary-600 text-white rounded-lg disabled:opacity-50"
         >
           {purging ? 'Limpiando…' : 'Eliminar vencidos ahora'}
         </button>

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import PublicBackButton from '@/components/PublicBackButton';
+import { PublicMarketingNav } from '@/components/PublicMarketingNav';
 import MembershipCard from '../../components/MembershipCard';
 
 interface Membership {
@@ -69,28 +70,8 @@ export default function PreciosPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
-      {/* Header */}
-      <nav className="bg-white/95 backdrop-blur-sm shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-xl">AD</span>
-              </div>
-              <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                AutoDealers
-              </span>
-            </Link>
-            <Link
-              href="/login"
-              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-lg hover:shadow-lg transition-all"
-            >
-              Iniciar Sesión
-            </Link>
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-gray-50">
+      <PublicMarketingNav showDefaultLinks />
 
       <div className="max-w-7xl mx-auto px-4 py-16">
         <div className="mb-8 flex flex-wrap items-center gap-3 gap-y-2">
@@ -101,14 +82,14 @@ export default function PreciosPage() {
             Volver
           </PublicBackButton>
           <span className="text-gray-300 hidden sm:inline">|</span>
-          <Link href="/" className="text-sm text-gray-500 hover:text-purple-600">
+          <Link href="/" className="text-sm text-gray-500 hover:text-primary-600">
             Inicio
           </Link>
         </div>
 
         {checkingAuth ? (
           <div className="flex flex-col items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mb-4"></div>
             <p className="text-gray-600">Verificando acceso...</p>
           </div>
         ) : user ? (
@@ -116,12 +97,12 @@ export default function PreciosPage() {
             <div className="text-center mb-16">
               <h1 className="text-5xl font-bold mb-4">
                 Planes y{' '}
-                <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-primary-600 to-primary-600 bg-clip-text text-transparent">
                   Precios
                 </span>
               </h1>
               <p className="text-xl text-gray-600 mb-4">
-                Elige el plan perfecto para tu negocio. Todos incluyen prueba gratuita de 14 días.
+                Elige el plan perfecto para tu negocio. Todos incluyen prueba gratuita de 7 días.
               </p>
               <p className="text-sm text-gray-500">
                 Mostrando planes para: <span className="font-semibold">{user.type === 'dealer' ? 'Concesionarios' : 'Vendedores'}</span>
@@ -131,7 +112,7 @@ export default function PreciosPage() {
             {/* Pricing Cards */}
             {loading ? (
               <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
               </div>
             ) : memberships.length === 0 ? (
               <div className="text-center py-12 text-gray-500">
@@ -166,7 +147,7 @@ export default function PreciosPage() {
             <div className="flex gap-4 justify-center">
               <Link
                 href="/registro"
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
+                className="bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700"
               >
                 Registrarse
               </Link>
@@ -211,14 +192,14 @@ export default function PreciosPage() {
         </div>
 
         {/* CTA Final */}
-        <div className="mt-16 text-center bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-12 text-white">
+        <div className="mt-16 text-center bg-gradient-to-r from-primary-600 to-primary-600 rounded-2xl p-12 text-white">
           <h2 className="text-3xl font-bold mb-4">¿No estás seguro qué plan elegir?</h2>
           <p className="text-xl mb-8 opacity-90">
             Nuestro equipo está listo para ayudarte a encontrar la mejor solución para tu negocio.
           </p>
           <a
             href="/contacto"
-            className="inline-block bg-white text-blue-600 px-8 py-4 rounded-lg hover:shadow-xl transition-all font-semibold text-lg"
+            className="inline-block bg-white text-primary-600 px-8 py-4 rounded-lg hover:shadow-xl transition-all font-semibold text-lg"
           >
             Contactar Ventas
           </a>

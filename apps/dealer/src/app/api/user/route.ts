@@ -36,8 +36,9 @@ export async function GET(request: NextRequest) {
         email: user.email,
         role: user.role,
         tenantId: user.tenantId,
-        membershipId: user.membershipId, // CRÍTICO: Incluir membershipId
-        status: user.status, // CRÍTICO: Incluir status
+        membershipId: user.membershipId,
+        status: user.status,
+        mustChangePassword: user.mustChangePassword === true,
       },
     });
   } catch (error) {

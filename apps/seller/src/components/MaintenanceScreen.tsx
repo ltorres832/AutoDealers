@@ -48,7 +48,7 @@ export function MaintenanceScreen() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
       </div>
     );
   }
@@ -89,11 +89,11 @@ export function MaintenanceScreen() {
         </p>
         
         {endDate && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <p className="text-sm text-blue-800 font-semibold mb-2">
+          <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 mb-6">
+            <p className="text-sm text-primary-800 font-semibold mb-2">
               ⏰ Tiempo estimado de finalización:
             </p>
-            <p className="text-lg text-blue-900 font-bold">
+            <p className="text-lg text-primary-900 font-bold">
               {endDate.toLocaleString('es-ES', {
                 weekday: 'long',
                 year: 'numeric',
@@ -104,7 +104,7 @@ export function MaintenanceScreen() {
               })}
             </p>
             {timeRemaining !== null && timeRemaining > 0 && (
-              <p className="text-sm text-blue-700 mt-2">
+              <p className="text-sm text-primary-700 mt-2">
                 Tiempo restante: aproximadamente {formatTimeRemaining(timeRemaining)}
               </p>
             )}
@@ -114,7 +114,7 @@ export function MaintenanceScreen() {
         <div className="mt-8">
           <button
             onClick={() => window.location.reload()}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+            className="px-6 py-3 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 transition-colors"
           >
             🔄 Revisar Estado
           </button>

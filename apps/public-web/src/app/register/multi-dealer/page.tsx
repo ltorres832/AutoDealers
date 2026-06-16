@@ -119,12 +119,12 @@ function MultiDealerContent() {
     }
   }
 
-  const inputClasses = "w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600 outline-none transition-all font-medium text-slate-900 placeholder:text-slate-400";
+  const inputClasses = "w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 focus:ring-4 focus:ring-primary-600/10 focus:border-primary-600 outline-none transition-all font-medium text-slate-900 placeholder:text-slate-400";
   const labelClasses = "block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 ml-1";
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center py-24 px-4 relative overflow-hidden">
-      <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-blue-50/50 to-transparent pointer-events-none"></div>
+      <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-primary-50/50 to-transparent pointer-events-none"></div>
 
       <div className="max-w-5xl w-full relative z-10 transition-all duration-700">
         <div className="text-center mb-16">
@@ -133,7 +133,7 @@ function MultiDealerContent() {
             <span className="text-amber-600 font-black text-[10px] uppercase tracking-widest">Requiere Aprobación Elite</span>
           </div>
           <h1 className="text-5xl md:text-6xl font-black text-slate-900 mb-6 tracking-tighter uppercase leading-none">
-            Registro <span className="text-blue-600">Multi Dealer</span>
+            Registro <span className="text-primary-600">Multi Dealer</span>
           </h1>
           <p className="text-xl text-slate-500 max-w-2xl mx-auto font-medium leading-relaxed">
             Gestiona flotas y múltiples concesionarios desde una infraestructura centralizada y potente.
@@ -152,7 +152,7 @@ function MultiDealerContent() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
               {loadingPlans ? (
                 <div className="lg:col-span-3 flex justify-center py-16">
-                  <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                  <div className="w-12 h-12 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" />
                 </div>
               ) : (
                 <>
@@ -171,7 +171,7 @@ function MultiDealerContent() {
                             : 'border-white shadow-xl hover:border-amber-100 hover:-translate-y-1'
                         }`}
                       >
-                        <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-2 group-hover:text-blue-600 transition-colors">
+                        <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-2 group-hover:text-primary-600 transition-colors">
                           {membership.name}
                         </h3>
                         <div className="flex items-baseline gap-1 mb-6">
@@ -202,7 +202,7 @@ function MultiDealerContent() {
                         )}
                         <div
                           className={`h-12 rounded-xl flex items-center justify-center font-black text-[10px] uppercase tracking-[0.2em] transition-all ${
-                            selectedMembership === membership.id ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-400'
+                            selectedMembership === membership.id ? 'bg-primary-600 text-white' : 'bg-slate-50 text-slate-400'
                           }`}
                         >
                           {selectedMembership === membership.id ? 'Seleccionado' : 'Elegir'}
@@ -217,7 +217,7 @@ function MultiDealerContent() {
                         En Firestore deben existir membresías con <code className="bg-slate-100 px-1 rounded">features.multiDealerEnabled: true</code>.
                         Ejecuta el script <code className="bg-slate-100 px-1 rounded">create-default-memberships</code> o créalos desde el admin.
                       </p>
-                      <Link href="/register?type=dealer" className="text-blue-600 font-semibold hover:underline">
+                      <Link href="/register?type=dealer" className="text-primary-600 font-semibold hover:underline">
                         Registro concesionario estándar
                       </Link>
                     </div>
@@ -231,7 +231,7 @@ function MultiDealerContent() {
                 type="button"
                 onClick={() => setStep(2)}
                 disabled={!selectedMembership}
-                className="group bg-slate-900 text-white h-20 px-12 rounded-[2rem] font-black text-xs uppercase tracking-[0.4em] transition-all hover:bg-blue-600 disabled:opacity-50"
+                className="group bg-primary-600 text-white h-20 px-12 rounded-[2rem] font-black text-xs uppercase tracking-[0.4em] transition-all hover:bg-primary-700 disabled:opacity-50"
               >
                 Continuar al Formulario
               </button>
@@ -243,7 +243,7 @@ function MultiDealerContent() {
             <div className="bg-white rounded-[3rem] shadow-2xl p-10 md:p-16 border border-slate-100 space-y-12">
               <section>
                 <div className="flex items-center gap-4 mb-8">
-                  <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center font-black text-xl">01</div>
+                  <div className="w-12 h-12 bg-primary-50 text-primary-600 rounded-2xl flex items-center justify-center font-black text-xl">01</div>
                   <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Identidad y Seguridad</h3>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -273,7 +273,7 @@ function MultiDealerContent() {
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-300 hover:text-blue-600 transition-colors"
+                          className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-300 hover:text-primary-600 transition-colors"
                         >
                           {showPassword ? (
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
@@ -299,7 +299,7 @@ function MultiDealerContent() {
 
               <section>
                 <div className="flex items-center gap-4 mb-8">
-                  <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center font-black text-xl">02</div>
+                  <div className="w-12 h-12 bg-primary-50 text-primary-600 rounded-2xl flex items-center justify-center font-black text-xl">02</div>
                   <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Detalles de la Corporación</h3>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -328,7 +328,7 @@ function MultiDealerContent() {
 
               <section>
                 <div className="flex items-center gap-4 mb-8">
-                  <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center font-black text-xl">03</div>
+                  <div className="w-12 h-12 bg-primary-50 text-primary-600 rounded-2xl flex items-center justify-center font-black text-xl">03</div>
                   <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Visión del Negocio</h3>
                 </div>
                 <div className="grid grid-cols-1 gap-6">
@@ -351,15 +351,15 @@ function MultiDealerContent() {
                   type="checkbox"
                   checked={acceptTerms}
                   onChange={(e) => setAcceptTerms(e.target.checked)}
-                  className="mt-1 w-5 h-5 rounded border-slate-300 text-blue-600"
+                  className="mt-1 w-5 h-5 rounded border-slate-300 text-primary-600"
                 />
                 <label htmlFor="multi-dealer-terms" className="text-sm font-medium text-slate-600 leading-relaxed cursor-pointer">
                   Acepto los{' '}
-                  <Link href="/terminos" className="text-blue-600 underline underline-offset-2" target="_blank" rel="noopener noreferrer">
+                  <Link href="/terminos" className="text-primary-600 underline underline-offset-2" target="_blank" rel="noopener noreferrer">
                     Términos y Condiciones
                   </Link>{' '}
                   y la{' '}
-                  <Link href="/privacidad" className="text-blue-600 underline underline-offset-2" target="_blank" rel="noopener noreferrer">
+                  <Link href="/privacidad" className="text-primary-600 underline underline-offset-2" target="_blank" rel="noopener noreferrer">
                     Política de Privacidad
                   </Link>{' '}
                   de la plataforma AutoDealers.
@@ -373,7 +373,7 @@ function MultiDealerContent() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex-1 group bg-slate-900 text-white h-20 rounded-[2rem] font-black text-xs uppercase tracking-[0.4em] relative overflow-hidden shadow-2xl hover:bg-blue-600 transition-all duration-500 active:scale-[0.98]"
+                  className="flex-1 group bg-primary-600 text-white h-20 rounded-[2rem] font-black text-xs uppercase tracking-[0.4em] relative overflow-hidden shadow-2xl hover:bg-primary-700 transition-all duration-500 active:scale-[0.98]"
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:animate-shimmer"></div>
                   {loading ? 'Procesando Solicitud...' : 'Enviar para Aprobación'}
@@ -389,7 +389,7 @@ function MultiDealerContent() {
 
 export default function MultiDealerRegisterPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center"><div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>}>
+    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center"><div className="w-12 h-12 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div></div>}>
       <MultiDealerContent />
     </Suspense>
   );

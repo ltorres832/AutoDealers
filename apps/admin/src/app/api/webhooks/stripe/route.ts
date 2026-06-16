@@ -2,11 +2,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   getFirestore,
-  sendAutomaticCommunication,
+  trySendBillingCommunicationAllChannels,
   createReferral,
   markReferralAsConfirmed,
   cancelReferral,
   getUserByReferralCode,
+  resolveReferralMembershipTier,
+  notifyPlatformAdmins,
+  notifyUser,
+  applyPendingSubdomainForMembership,
 } from '@autodealers/core';
 import {
   updateSubscriptionStatus,
@@ -17,7 +21,11 @@ import {
 import type { SubscriptionStatus } from '@autodealers/billing';
 import Stripe from 'stripe';
 import * as admin from 'firebase-admin';
-import { getStripeInstance, getStripeWebhookSecretValue } from '@autodealers/core';
+import {
+  getStripeInstance,
+  getStripeWebhookSecretValue,
+  getStripeWebhookSecret,
+} from '@autodealers/core';
 
 const db = getFirestore();
 
@@ -38,6 +46,12 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     console.error('Webhook signature verification failed:', err);
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
+  }
+
+  const eventRef = db.collection('stripe_webhook_events').doc(event.id);
+  const alreadyProcessed = await eventRef.get();
+  if (alreadyProcessed.exists) {
+    return NextResponse.json({ received: true, duplicate: true });
   }
 
   try {
@@ -87,6 +101,10 @@ export async function POST(request: NextRequest) {
         }
         break;
 
+      case 'customer.subscription.trial_will_end':
+        // Sin aviso previo al usuario: el cobro ocurre automáticamente al terminar el trial.
+        break;
+
       case 'checkout.session.completed':
         await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session);
         break;
@@ -94,6 +112,12 @@ export async function POST(request: NextRequest) {
       default:
         console.log(`Unhandled event type: ${event.type}`);
     }
+
+    await eventRef.set({
+      type: event.type,
+      livemode: event.livemode,
+      processedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
 
     return NextResponse.json({ received: true });
   } catch (error) {
@@ -103,6 +127,51 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+const STRIPE_WEBHOOK_EVENTS = [
+  'invoice.payment_succeeded',
+  'invoice.payment_failed',
+  'customer.subscription.created',
+  'customer.subscription.updated',
+  'customer.subscription.deleted',
+  'customer.subscription.trial_will_end',
+  'checkout.session.completed',
+] as const;
+
+function resolveAdminWebhookBaseUrl(): string {
+  const fromEnv =
+    process.env.ADMIN_APP_URL?.trim() ||
+    process.env.NEXT_PUBLIC_ADMIN_URL?.trim() ||
+    process.env.NEXTAUTH_URL?.trim();
+  if (fromEnv) return fromEnv.replace(/\/$/, '');
+  return 'https://admin-app--autodealers-7f62e.us-central1.hosted.app';
+}
+
+/** Verificación rápida: abre esta URL en el navegador o usa Stripe "Send test webhook". */
+export async function GET() {
+  const base = resolveAdminWebhookBaseUrl();
+  const secret = await getStripeWebhookSecret();
+  const webhookSecretConfigured =
+    typeof secret === 'string' &&
+    secret.trim().startsWith('whsec_') &&
+    secret.trim().length > 12;
+
+  return NextResponse.json({
+    ok: true,
+    service: 'autodealers-admin-stripe-webhook',
+    endpoint: `${base}/api/webhooks/stripe`,
+    method: 'POST',
+    events: STRIPE_WEBHOOK_EVENTS,
+    webhookSecretConfigured,
+    stripeDashboardHint:
+      'Stripe Dashboard → Developers → Webhooks → Add endpoint → pegar la URL de endpoint',
+    doNotUse: [
+      'seller-app /api/webhooks/stripe (no existe para membresías)',
+      'dealer-app /api/webhooks/stripe',
+      'Cloud Function stripeWebhook (duplicaría eventos; usar solo Admin)',
+    ],
+  });
 }
 
 /**
@@ -158,22 +227,17 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
 
   // Enviar email con recibo
   try {
-    const { EmailService } = await import('@autodealers/messaging');
-    const { getEmailCredentials } = await import('@autodealers/core');
-    const emailCreds = await getEmailCredentials();
-    const emailApiKey = emailCreds.apiKey || '';
-    const emailProvider = emailApiKey.includes('re_') || emailApiKey.startsWith('re_') ? 'resend' : 'sendgrid';
-    
-    if (!emailApiKey) {
+    const { createEmailService } = await import('@autodealers/core');
+    const configured = await createEmailService();
+
+    if (!configured) {
       console.warn('Email API Key no configurada. No se enviará email de recibo.');
     } else {
-      const emailService = new EmailService(emailApiKey, emailProvider);
-
-      await emailService.sendEmail({
+      await configured.service.sendEmail({
         tenantId: subscriptionData.tenantId,
         channel: 'email',
         direction: 'outbound',
-        from: emailCreds.fromAddress || 'noreply@autodealers.com',
+        from: configured.fromAddress,
         to: customerEmail,
         content: generateReceiptHTML(receipt),
         metadata: {
@@ -189,23 +253,35 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
   // Aplicar meses gratis y descuentos automáticamente
   await applyFreeMonthsAndDiscounts(subscriptionData.userId, invoice);
 
+  const wasSuspendedOrPastDue =
+    subscriptionData.status === 'suspended' || subscriptionData.status === 'past_due';
+
   // Actualizar estado y reactivar si estaba suspendida
-  if (subscriptionData.status === 'suspended' || subscriptionData.status === 'past_due') {
+  if (wasSuspendedOrPastDue) {
     await reactivateAccountAfterPayment(subscriptionId_local);
-    // Reactivar emails corporativos cuando se reactiva la suscripción
     const subscriptionDoc = await db.collection('subscriptions').doc(subscriptionId_local).get();
     if (subscriptionDoc.exists) {
-      const subData = subscriptionDoc.data();
       await checkAndSuspendEmailsOnSubscriptionChange(subscriptionId_local, 'active');
     }
+    await trySendBillingCommunicationAllChannels(
+      'account_reactivated',
+      subscriptionId_local
+    );
   } else {
-    // Actualizar fecha de último pago
     await updateSubscriptionStatus(subscriptionId_local, 'active', {
       lastPaymentDate: new Date(invoice.created * 1000),
-      nextPaymentDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 días
+      nextPaymentDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       daysPastDue: 0,
     });
   }
+
+  const invoiceAmount = (invoice.amount_paid ?? invoice.total ?? 0) / 100;
+  await trySendBillingCommunicationAllChannels('invoice_generated', subscriptionId_local, {
+    amount: invoiceAmount,
+  });
+  await trySendBillingCommunicationAllChannels('payment_success', subscriptionId_local, {
+    amount: invoiceAmount,
+  });
 }
 
 /**
@@ -230,55 +306,43 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
   const subscriptionDoc = subscriptionSnapshot.docs[0];
   const subscriptionId_local = subscriptionDoc.id;
 
-  // Actualizar estado a past_due
+  const existing = subscriptionDoc.data();
+  const daysPastDue = (existing?.daysPastDue ?? 0) + 1;
+
   await updateSubscriptionStatus(subscriptionId_local, 'past_due', {
-    daysPastDue: 1,
+    daysPastDue,
+    statusReason: 'Pago fallido en Stripe',
   });
 
-  // Suspender emails corporativos si el pago falla múltiples veces
-  // (En producción, podrías agregar lógica para suspender después de N intentos fallidos)
-  // Por ahora, solo suspendemos después de que la suscripción esté suspendida
+  await checkAndSuspendEmailsOnSubscriptionChange(subscriptionId_local, 'past_due');
 
-  // Obtener información del usuario para email
-  const subscriptionData = subscriptionDoc.data();
-  const userDoc = await db.collection('users').doc(subscriptionData.userId).get();
-  const userData = userDoc.data();
-  const customerEmail = userData?.email || '';
+  const { getSubscriptionGraceDays } = await import('@autodealers/billing');
+  if (daysPastDue >= getSubscriptionGraceDays()) {
+    await suspendAccountForNonPayment(
+      subscriptionId_local,
+      'Suspensión automática tras pago fallido'
+    );
+    await trySendBillingCommunicationAllChannels('account_suspended', subscriptionId_local, {
+      daysPastDue,
+      days: daysPastDue,
+    });
+  }
 
-  // Enviar email de pago fallido
-  if (customerEmail) {
-    try {
-      const { EmailService } = await import('@autodealers/messaging');
-      const { getEmailCredentials } = await import('@autodealers/core');
-      const emailCreds = await getEmailCredentials();
-      const emailApiKey = emailCreds.apiKey || '';
-      const emailProvider = emailApiKey.includes('re_') || emailApiKey.startsWith('re_') ? 'resend' : 'sendgrid';
-      
-      if (!emailApiKey) {
-        console.warn('Email API Key no configurada. No se enviará email de pago fallido.');
-      } else {
-        const emailService = new EmailService(emailApiKey, emailProvider);
+  await trySendBillingCommunicationAllChannels('payment_failed', subscriptionId_local, {
+    daysPastDue,
+    days: daysPastDue,
+  });
 
-        await emailService.sendEmail({
-          tenantId: subscriptionData.tenantId,
-          channel: 'email',
-          direction: 'outbound',
-          from: emailCreds.fromAddress || 'noreply@autodealers.com',
-          to: customerEmail,
-          content: `
-            <h2>Pago Fallido</h2>
-            <p>Su pago de membresía no pudo ser procesado.</p>
-            <p>Por favor, actualice su método de pago para continuar usando nuestros servicios.</p>
-            <p>Si tiene preguntas, contáctenos.</p>
-          `,
-          metadata: {
-            subject: 'Pago Fallido - AutoDealers',
-          },
-        });
-      }
-    } catch (emailError) {
-      console.error('Error enviando email de pago fallido:', emailError);
-    }
+  if (daysPastDue === 3) {
+    await trySendBillingCommunicationAllChannels('payment_reminder_3days', subscriptionId_local, {
+      daysPastDue,
+      days: daysPastDue,
+    });
+  } else if (daysPastDue === 5) {
+    await trySendBillingCommunicationAllChannels('payment_reminder_5days', subscriptionId_local, {
+      daysPastDue,
+      days: daysPastDue,
+    });
   }
 }
 
@@ -305,24 +369,23 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
     return;
   }
 
-  // Si viene del registro y está activa, activar cuenta y asignar membresía
-  if (metadata.source === 'registration' && subscription.status === 'active') {
-    // Actualizar usuario con membresía y activar cuenta
-    await db.collection('users').doc(metadata.userId).update({
-      membershipId: metadata.membershipId,
-      status: 'active',
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    // Actualizar tenant con membresía y activar
-    await db.collection('tenants').doc(metadata.tenantId).update({
-      membershipId: metadata.membershipId,
-      status: 'active',
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    console.log('✅ Cuenta activada desde subscription.created para registro:', metadata.userId);
+  const isPayableStatus =
+    subscription.status === 'active' || subscription.status === 'trialing';
+  const userUpdate: Record<string, unknown> = {
+    membershipId: metadata.membershipId,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+  const tenantUpdate: Record<string, unknown> = {
+    membershipId: metadata.membershipId,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+  if (isPayableStatus) {
+    userUpdate.status = 'active';
+    tenantUpdate.status = 'active';
   }
+  await db.collection('users').doc(metadata.userId).update(userUpdate);
+  await db.collection('tenants').doc(metadata.tenantId).update(tenantUpdate);
+  console.log('✅ Membresía sincronizada desde subscription.created:', metadata.userId);
 
   // Crear suscripción en Firestore
   const subscriptionData = {
@@ -341,6 +404,18 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
 
   await db.collection('subscriptions').add(subscriptionData);
   console.log('✅ Subscription created in Firestore:', subscription.id);
+
+  const createdSub = await db
+    .collection('subscriptions')
+    .where('stripeSubscriptionId', '==', subscription.id)
+    .limit(1)
+    .get();
+  if (!createdSub.empty) {
+    await trySendBillingCommunicationAllChannels(
+      'subscription_created',
+      createdSub.docs[0].id
+    );
+  }
 
   // Procesar referido si existe
   await processReferralOnPayment(metadata.userId, subscription.id, metadata.membershipId);
@@ -391,7 +466,37 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
       status = 'active';
   }
 
+  const previousStatus = subscriptionDoc.data()?.status as string | undefined;
   await updateSubscriptionStatus(subscriptionId_local, status);
+
+  if (status === 'unpaid') {
+    await suspendAccountForNonPayment(
+      subscriptionId_local,
+      'Stripe marcó la suscripción como unpaid'
+    );
+  } else if (status === 'past_due') {
+    await checkAndSuspendEmailsOnSubscriptionChange(subscriptionId_local, 'past_due');
+    const daysPastDue = subscriptionDoc.data()?.daysPastDue ?? 0;
+    const { getSubscriptionGraceDays } = await import('@autodealers/billing');
+    if (daysPastDue >= getSubscriptionGraceDays()) {
+      await suspendAccountForNonPayment(
+        subscriptionId_local,
+        'Suspensión automática: suscripción past_due en Stripe'
+      );
+    }
+  } else if (status === 'active') {
+    if (
+      previousStatus === 'suspended' ||
+      previousStatus === 'past_due' ||
+      previousStatus === 'unpaid'
+    ) {
+      await reactivateAccountAfterPayment(subscriptionId_local);
+    } else {
+      await checkAndSuspendEmailsOnSubscriptionChange(subscriptionId_local, 'active');
+    }
+  } else if (status === 'cancelled' || status === 'suspended') {
+    await checkAndSuspendEmailsOnSubscriptionChange(subscriptionId_local, status);
+  }
 
   const sync: Record<string, unknown> = {
     currentPeriodStart: admin.firestore.Timestamp.fromDate(
@@ -427,6 +532,11 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   const subscriptionData = subscriptionDoc.data();
 
   await updateSubscriptionStatus(subscriptionId_local, 'cancelled');
+
+  await trySendBillingCommunicationAllChannels(
+    'subscription_cancelled',
+    subscriptionId_local
+  );
 
   // Cancelar referidos pendientes del usuario
   await cancelUserReferrals(subscriptionData.userId, subscription.id);
@@ -488,16 +598,16 @@ async function handlePremiumBannerPurchase(
       priority: activeBannersSnapshot.size + 1,
     });
 
-    // Notificar al admin para aprobación (se puede hacer mediante una colección de notificaciones)
-    await db.collection('admin_notifications').add({
-      type: 'banner_approval',
-      tenantId,
-      bannerId: bannerRef.id,
-      title: bannerData.title,
-      description: bannerData.description,
-      imageUrl: bannerData.imageUrl,
-      status: 'pending',
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    // Notificar al admin para aprobación
+    await notifyPlatformAdmins({
+      type: 'system_alert',
+      title: 'Banner pendiente de aprobación',
+      message: `Banner "${bannerData.title}" requiere aprobación`,
+      metadata: {
+        bannerId: bannerRef.id,
+        tenantId,
+        kind: 'banner_approval',
+      },
     });
 
     console.log(`✅ Banner premium pagado: ${bannerRef.id} para tenant ${tenantId} - Pendiente de aprobación`);
@@ -581,18 +691,14 @@ async function handleAssignedBannerPayment(
     });
 
     // Notificar al usuario
-    await db.collection('notifications').add({
-      userId: bannerData.assignedTo,
-      tenantId,
-      type: 'banner_activated',
-      title: 'Banner Premium Activado',
-      message: `Tu banner premium "${bannerData.title}" ha sido activado exitosamente.`,
-      metadata: {
-        bannerId: bannerRef.id,
-      },
-      read: false,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    if (bannerData.assignedTo) {
+      await notifyUser(tenantId, bannerData.assignedTo, {
+        type: 'promotion',
+        title: 'Banner Premium Activado',
+        message: `Tu banner premium "${bannerData.title}" ha sido activado exitosamente.`,
+        metadata: { bannerId: bannerRef.id },
+      });
+    }
 
     console.log(`✅ Banner asignado activado automáticamente: ${bannerRef.id} para tenant ${tenantId}`);
   } catch (error: any) {
@@ -860,6 +966,14 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
 
+        const subdomainResult = await applyPendingSubdomainForMembership(
+          metadata.tenantId,
+          metadata.membershipId
+        );
+        if (subdomainResult.activated) {
+          console.log('✅ Subdominio activado para registro:', subdomainResult.subdomain);
+        }
+
         // Crear o actualizar suscripción en Firestore
         const existingSub = await db
           .collection('subscriptions')
@@ -878,16 +992,26 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
         }
 
         if (existingSub.empty) {
-          // Crear suscripción con status apropiado
           await db.collection('subscriptions').add({
             tenantId: metadata.tenantId,
             userId: metadata.userId,
             membershipId: metadata.membershipId,
             stripeSubscriptionId: subscription.id,
             stripeCustomerId: subscription.customer as string,
+            billingSource: 'stripe',
             status: subscriptionStatus,
             currentPeriodStart: admin.firestore.Timestamp.fromDate(new Date(subscription.current_period_start * 1000)),
             currentPeriodEnd: admin.firestore.Timestamp.fromDate(new Date(subscription.current_period_end * 1000)),
+            ...(subscription.trial_end
+              ? {
+                  trialEndsAt: admin.firestore.Timestamp.fromDate(
+                    new Date(subscription.trial_end * 1000)
+                  ),
+                  nextPaymentDate: admin.firestore.Timestamp.fromDate(
+                    new Date(subscription.trial_end * 1000)
+                  ),
+                }
+              : {}),
             cancelAtPeriodEnd: subscription.cancel_at_period_end || false,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -906,6 +1030,16 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
           await existingSubDoc.ref.update({
             status: subscriptionStatus,
             membershipId: metadata.membershipId,
+            ...(subscription.trial_end
+              ? {
+                  trialEndsAt: admin.firestore.Timestamp.fromDate(
+                    new Date(subscription.trial_end * 1000)
+                  ),
+                  nextPaymentDate: admin.firestore.Timestamp.fromDate(
+                    new Date(subscription.trial_end * 1000)
+                  ),
+                }
+              : {}),
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           });
           console.log('✅ Suscripción existente actualizada:', existingSubDoc.id);
@@ -984,17 +1118,11 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     const requestData = requestDoc.data();
     const isAssigned = metadata.isAssigned === 'true' || requestData?.status === 'assigned';
     if (isAssigned && requestData?.assignedTo) {
-      await db.collection('notifications').add({
-        userId: requestData.assignedTo,
-        tenantId,
-        type: 'promotion_activated',
+      await notifyUser(tenantId, requestData.assignedTo, {
+        type: 'promotion',
         title: 'Promoción Activada',
         message: `Tu promoción "${requestData?.name || 'Promoción Premium'}" ha sido activada exitosamente.`,
-        metadata: {
-          promotionId: promotionId,
-        },
-        read: false,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        metadata: { promotionId },
       });
     }
 
@@ -1121,7 +1249,10 @@ async function processReferralOnPayment(
     if (!membershipDoc.exists) return;
 
     const membershipData = membershipDoc.data() || {};
-    const membershipType = membershipData.type || 'basic'; // basic, professional, premium
+    const membershipType = resolveReferralMembershipTier({
+      name: membershipData.name as string | undefined,
+      price: membershipData.price as number | undefined,
+    });
     const userType = userData.role === 'dealer' ? 'dealer' : 'seller';
 
     // Crear registro de referido

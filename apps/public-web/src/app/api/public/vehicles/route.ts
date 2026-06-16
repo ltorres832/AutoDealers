@@ -58,7 +58,10 @@ export async function GET(request: NextRequest) {
           isVehicleVisibleOnPublicListing(v)
         );
 
-        return publishedVehicles;
+        return publishedVehicles.map((v: Record<string, unknown>) => ({
+          ...v,
+          tenantId,
+        }));
       } catch (error: any) {
         // Si es timeout o error de índice, retornar array vacío
         if (error.message?.includes('Timeout') ||

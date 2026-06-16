@@ -1,5 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createUser } from '@autodealers/core';
+import {
+  createUser,
+  finalizeUserRegistration,
+  getUserByReferralCode,
+  upsertNewsletterSubscriber,
+  announceNewRegistrationOnFacebook,
+  isTenantSubdomainSlugAvailable,
+  validateTenantSubdomainSlug,
+  normalizeLoginEmail,
+} from '@autodealers/core';
 import { getFirestore } from '@autodealers/core';
 import * as admin from 'firebase-admin';
 
@@ -50,6 +59,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const normalizedEmail = normalizeLoginEmail(String(email));
+    if (
+      normalizedEmail.length < 5 ||
+      normalizedEmail.length > 200 ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)
+    ) {
+      return NextResponse.json(
+        { error: 'Correo electrónico inválido' },
+        { status: 400 }
+      );
+    }
+
     if (password.length < 6) {
       return NextResponse.json(
         { error: 'La contraseña debe tener al menos 6 caracteres' },
@@ -65,6 +86,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validar subdominio solicitado (se activa solo si la membresía incluye customSubdomain)
+    let pendingSubdomain: string | null = null;
+    if (typeof subdomain === 'string' && subdomain.trim()) {
+      const format = validateTenantSubdomainSlug(subdomain);
+      if (!format.ok) {
+        return NextResponse.json({ error: format.error }, { status: 400 });
+      }
+      const available = await isTenantSubdomainSlugAvailable(format.slug);
+      if (!available) {
+        return NextResponse.json({ error: 'El subdominio ya está en uso' }, { status: 400 });
+      }
+      pendingSubdomain = format.slug;
+    }
+
     // Crear usuario sin membresía (se asignará después)
     const role = accountType === 'dealer' ? 'dealer' : 'seller';
 
@@ -76,7 +111,8 @@ export async function POST(request: NextRequest) {
       name: accountType === 'dealer' ? companyName : name,
       type: accountType,
       status: 'active',
-      subdomain: subdomain || null,
+      subdomain: null,
+      ...(pendingSubdomain ? { pendingSubdomain } : {}),
       phone: phone || null,
       taxId: taxId || null,
       address: address || null,
@@ -89,7 +125,7 @@ export async function POST(request: NextRequest) {
 
     // Crear usuario
     const user = await createUser(
-      email,
+      normalizedEmail,
       password,
       name,
       role,
@@ -107,18 +143,45 @@ export async function POST(request: NextRequest) {
       ownerId: user.id,
     });
 
-    // Si hay código de referido, procesarlo (opcional)
-    if (referralCode) {
-      // Lógica de referidos aquí si es necesario
-      console.log('Referral code:', referralCode);
+    await finalizeUserRegistration(user.id);
+
+    await upsertNewsletterSubscriber({
+      email: normalizedEmail,
+      source: 'user_registration',
+      name,
+      role,
+      userId: user.id,
+    });
+
+    if (referralCode && typeof referralCode === 'string') {
+      const refCode = referralCode.trim();
+      if (refCode) {
+        const referrerId = await getUserByReferralCode(refCode);
+        if (referrerId && referrerId !== user.id) {
+          await db.collection('users').doc(user.id).update({
+            referredBy: referrerId,
+            referralCodeUsed: refCode,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        }
+      }
     }
+
+    // Facebook: anuncio en página AutoDealers + en página propia si ya está conectada (si no, queda pendiente)
+    announceNewRegistrationOnFacebook({
+      tenantId,
+      userId: user.id,
+      displayName: accountType === 'dealer' ? (companyName || name) : name,
+      accountType: accountType === 'dealer' ? 'dealer' : 'seller',
+      companyName: companyName || undefined,
+    }).catch((err) => console.warn('registration Facebook announce:', err));
 
     // Retornar también email y name para que el frontend pueda usarlos
     return NextResponse.json({
       success: true,
       userId: user.id,
       tenantId,
-      userEmail: email,
+      userEmail: normalizedEmail,
       userName: name,
       message: 'Cuenta creada exitosamente',
     });

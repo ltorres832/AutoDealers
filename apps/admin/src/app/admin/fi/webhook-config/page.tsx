@@ -44,7 +44,7 @@ export default function FIWebhookConfigPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-6">
-        <Link href="/admin/fi" className="text-blue-600 hover:text-blue-700 text-sm">
+        <Link href="/admin/fi" className="text-primary-600 hover:text-primary-700 text-sm">
           ← Volver a F&I
         </Link>
       </div>
@@ -76,7 +76,7 @@ export default function FIWebhookConfigPage() {
               />
               <button
                 onClick={() => copyToClipboard(webhookUrl)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
               >
                 Copiar
               </button>
@@ -128,12 +128,12 @@ export default function FIWebhookConfigPage() {
       </div>
 
       {/* Guía de Configuración */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <h2 className="text-xl font-semibold text-blue-900 mb-4">
+      <div className="bg-primary-50 border border-primary-200 rounded-lg p-6">
+        <h2 className="text-xl font-semibold text-primary-900 mb-4">
           📚 Guía de Configuración
         </h2>
         
-        <div className="space-y-4 text-sm text-blue-800">
+        <div className="space-y-4 text-sm text-primary-800">
           <div>
             <h3 className="font-semibold mb-2">Para Resend:</h3>
             <ol className="list-decimal list-inside space-y-1 ml-2">
@@ -154,10 +154,10 @@ export default function FIWebhookConfigPage() {
             </ol>
           </div>
 
-          <div className="mt-4 pt-4 border-t border-blue-300">
+          <div className="mt-4 pt-4 border-t border-primary-300">
             <p className="font-semibold">📖 Documentación completa:</p>
             <p className="text-xs mt-1">
-              Ver archivo: <code className="bg-blue-100 px-2 py-1 rounded">docs/CONFIGURACION_WEBHOOK_FI.md</code>
+              Ver archivo: <code className="bg-primary-100 px-2 py-1 rounded">docs/CONFIGURACION_WEBHOOK_FI.md</code>
             </p>
           </div>
         </div>
@@ -186,8 +186,8 @@ export default function FIWebhookConfigPage() {
           </div>
         </div>
 
-        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
-          <p className="text-sm text-blue-800">
+        <div className="mt-4 p-4 bg-primary-50 border border-primary-200 rounded-md">
+          <p className="text-sm text-primary-800">
             <strong>Nota:</strong> El código está 100% implementado. Solo necesitas configurar 
             el webhook en tu proveedor de email (Resend o SendGrid) usando la URL proporcionada arriba.
           </p>

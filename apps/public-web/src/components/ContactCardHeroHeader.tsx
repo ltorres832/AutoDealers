@@ -2,8 +2,8 @@
 export default function ContactCardHeroHeader({
   title,
   subtitle,
-  primaryColor = '#2563EB',
-  secondaryColor = '#1E40AF',
+  primaryColor = '#E10600',
+  secondaryColor = '#0A0A0A',
   variant = 'blue',
 }: {
   title: string;
@@ -23,7 +23,7 @@ export default function ContactCardHeroHeader({
     <div
       className={
         variant === 'purple'
-          ? '-mx-8 -mt-8 mb-6 rounded-t-lg bg-gradient-to-r from-purple-600 to-pink-600 px-8 py-6 text-white text-center'
+          ? '-mx-8 -mt-8 mb-6 rounded-t-lg bg-gradient-to-r from-primary-600 to-brand-red-bright600 px-8 py-6 text-white text-center'
           : '-mx-6 -mt-6 mb-5 rounded-t-lg px-6 py-5 text-white text-center'
       }
       style={gradientStyle}

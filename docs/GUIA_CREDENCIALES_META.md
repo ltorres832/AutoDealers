@@ -63,20 +63,41 @@ Esta guía te ayudará a obtener las credenciales necesarias para conectar tus c
 
 ---
 
-## 🌐 Paso 4: Configurar URLs de Redirección
+## 🌐 Paso 4: Dominios y URLs de redirección (obligatorio)
 
-1. Ve a **"Configuración"** → **"Básico"**
-2. En **"Dominios de la aplicación"**, agrega:
-   - Tu dominio (si tienes uno)
-   - `localhost` (para pruebas)
+Si ves *"El dominio de esta URL no está incluido en los dominios de la app"*, falta configurar Meta.
 
-3. Ve a **"Configuración"** → **"Facebook Login"** → **"Configuración"**
-4. En **"URI de redirección de OAuth válidos"**, agrega:
+### A) Configuración → Básico
+
+1. **URL del sitio** (Site URL):
    ```
-   http://localhost:3002/api/settings/integrations/callback
-   https://tu-dominio.com/api/settings/integrations/callback
+   https://seller-app--autodealers-7f62e.us-central1.hosted.app
    ```
-   (Reemplaza `tu-dominio.com` con tu dominio real si lo tienes)
+   (Dealer: `https://dealer-app--autodealers-7f62e.us-central1.hosted.app`)
+
+2. **Dominios de la app** (App Domains), una línea por dominio **sin** `https://`:
+   ```
+   seller-app--autodealers-7f62e.us-central1.hosted.app
+   dealer-app--autodealers-7f62e.us-central1.hosted.app
+   localhost
+   ```
+   Opcional si usas el sitio público: `autodealers-7f62e.web.app`
+
+3. Guarda cambios.
+
+### B) Productos → Facebook Login → Configuración
+
+En **URI de redirección de OAuth válidos** (cada URL en su propia línea):
+
+```
+https://seller-app--autodealers-7f62e.us-central1.hosted.app/api/settings/integrations/callback
+https://dealer-app--autodealers-7f62e.us-central1.hosted.app/api/settings/integrations/callback
+http://localhost:3003/api/settings/integrations/callback
+http://localhost:3002/api/settings/integrations/callback
+```
+
+4. Activa **Inicio de sesión con OAuth web** y **HTTPS** en producción.
+5. Guarda cambios.
 
 ---
 
@@ -85,15 +106,24 @@ Esta guía te ayudará a obtener las credenciales necesarias para conectar tus c
 1. Ve a **"Configuración"** → **"Permisos y características"**
 2. Solicita estos permisos (según lo que necesites):
 
-   **Para Facebook:**
+   **Para Facebook (orgánico + mensajes):**
+   - `pages_show_list` - Listar páginas del negocio
    - `pages_manage_posts` - Publicar en tu página
    - `pages_read_engagement` - Ver interacciones
+   - `pages_manage_metadata` - Metadatos de la página
    - `pages_messaging` - Gestionar mensajes
+
+   **Para anuncios de pago (Meta Ads):**
+   - `business_management` - Acceso a Business Manager / cuentas ads
+   - `ads_read` - Leer cuentas y campañas
+   - `ads_management` - Crear y activar anuncios
 
    **Para Instagram:**
    - `instagram_basic` - Acceso básico
    - `instagram_content_publish` - Publicar contenido
    - `instagram_manage_messages` - Gestionar mensajes
+
+   La plataforma solicita todos estos permisos en un solo inicio de sesión OAuth. Si conectaste antes con permisos limitados, usa **Actualizar permisos de Facebook** en Integraciones (`auth_type=rerequest`).
 
 3. **Nota**: Algunos permisos requieren revisión de Meta (puede tardar días). Para desarrollo, puedes usar el modo de prueba.
 

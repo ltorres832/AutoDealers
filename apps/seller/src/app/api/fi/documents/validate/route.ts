@@ -2,7 +2,9 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { requireTenantFeature } from '@/lib/membership-middleware';
-import { getOpenAIApiKey } from '@autodealers/core';
+import { validateDocument } from '@autodealers/crm';
+import { getFirestore } from '@autodealers/core';
+import * as admin from 'firebase-admin';
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,37 +19,33 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { documentId, documentUrl, documentType, clientId } = body;
 
-    if (!documentUrl || !documentType) {
+    if (!documentUrl || !documentType || !clientId) {
       return NextResponse.json(
-        { error: 'documentUrl and documentType are required' },
+        { error: 'documentUrl, documentType and clientId are required' },
         { status: 400 }
       );
     }
 
-    // Por ahora, retornar validación básica
-    // En producción, aquí se integraría con servicios de IA/OCR reales
-    // como Google Cloud Vision API, AWS Textract, o servicios similares
+    const validation = await validateDocument(
+      documentUrl,
+      documentType,
+      { id: clientId, tenantId: auth.tenantId } as any
+    );
 
-    const apiKey = await getOpenAIApiKey();
-    
-    // Validación básica simulada
-    // TODO: Integrar con servicio de OCR real
     const validationResult = {
-      isValid: true,
-      isLegible: true,
-      extractedData: {},
-      matchesRequest: true,
-      discrepancies: [],
-      confidence: 0.85,
-      validationDate: new Date().toISOString(),
-      notes: 'Validación básica completada. Integración con OCR pendiente.',
+      isValid: validation.isValid,
+      isLegible: validation.isLegible,
+      extractedData: validation.extractedData || {},
+      matchesRequest: validation.matchesRequest,
+      discrepancies: validation.discrepancies || [],
+      confidence: validation.confidence,
+      validationDate: validation.validationDate.toISOString(),
+      notes: validation.confidence >= 0.8
+        ? 'Validación completada.'
+        : 'Revisión manual recomendada.',
     };
 
-    // Actualizar estado del documento en Firestore
-    const { getFirestore } = await import('@autodealers/core');
     const db = getFirestore();
-    
-    // Buscar el documento y actualizar su estado
     const documentsSnapshot = await db
       .collection('tenants')
       .doc(auth.tenantId)
@@ -59,22 +57,17 @@ export async function POST(request: NextRequest) {
       .get();
 
     if (!documentsSnapshot.empty) {
-      const docRef = documentsSnapshot.docs[0].ref;
-      await docRef.update({
+      await documentsSnapshot.docs[0].ref.update({
         status: validationResult.isValid ? 'valid' : 'needs_review',
         validation: validationResult,
-        updatedAt: (await import('firebase-admin')).firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
     }
 
     return NextResponse.json(validationResult);
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Error al validar documento';
     console.error('Error validating document:', error);
-    return NextResponse.json(
-      { error: error.message || 'Error al validar documento' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-
-

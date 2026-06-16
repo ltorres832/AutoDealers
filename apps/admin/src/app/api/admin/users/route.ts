@@ -3,9 +3,15 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import * as admin from 'firebase-admin';
 import { verifyAuth } from '@/lib/auth';
-import { createUser } from '@autodealers/core';
+import {
+  createUser,
+  finalizeUserRegistration,
+  resolveRegistrationLinks,
+  upsertNewsletterSubscriber,
+} from '@autodealers/core';
 import { getFirestore } from '@autodealers/core';
 import { getAuth } from '@autodealers/shared';
+import { sendWelcomeEmailForRole } from '@/lib/send-welcome-email';
 
 const db = getFirestore();
 
@@ -175,8 +181,20 @@ export async function POST(request: NextRequest) {
       const tData = tenantSnap.data()!;
       resolvedMembershipId = (tData.membershipId as string) || undefined;
       if (role === 'seller' && tData.type === 'dealer' && !resolvedDealerId) {
-        // Misma convención que /api/sellers: dealerId = id del tenant del concesionario
         resolvedDealerId = tid;
+      }
+      const links = resolveRegistrationLinks({
+        role,
+        tenantId: tid,
+        tenantType: tData.type,
+        tenantOwnerId: tData.ownerId,
+        userId: '',
+        explicitDealerId: resolvedDealerId,
+      });
+      if (links.dealerId === null) {
+        resolvedDealerId = undefined;
+      } else if (typeof links.dealerId === 'string') {
+        resolvedDealerId = links.dealerId;
       }
     }
 
@@ -211,7 +229,11 @@ export async function POST(request: NextRequest) {
       const patch: Record<string, unknown> = {
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         createdByAdmin: true,
+        mustChangePassword: true,
         adminCreatorUserId: auth.userId,
+        ...(role === 'seller' || role === 'dealer'
+          ? { adminMembershipSelectionRequired: true }
+          : {}),
       };
       if (phoneNorm) {
         patch.phone = phoneNorm;
@@ -221,6 +243,14 @@ export async function POST(request: NextRequest) {
         patch.platformTermsAcceptedAt = admin.firestore.FieldValue.serverTimestamp();
       }
       await db.collection('users').doc(user.id).update(patch);
+      await finalizeUserRegistration(user.id);
+      await upsertNewsletterSubscriber({
+        email,
+        source: 'user_registration',
+        name: (name as string).trim(),
+        role,
+        userId: user.id,
+      });
     } catch (updErr) {
       console.error('Admin create user: post-create update failed, rolling back:', updErr);
       try {
@@ -274,7 +304,23 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ user, warnings }, { status: 201 });
+    let welcomeEmailSent = false;
+
+    if (role !== 'admin') {
+      const welcome = await sendWelcomeEmailForRole({
+        email,
+        name: name.trim(),
+        role,
+      });
+      welcomeEmailSent = welcome.sent;
+      if (!welcome.sent && welcome.error) {
+        warnings.push(
+          `Usuario creado pero no se pudo enviar el email de bienvenida: ${welcome.error}`
+        );
+      }
+    }
+
+    return NextResponse.json({ user, warnings, welcomeEmailSent }, { status: 201 });
   } catch (error) {
     console.error('Error creating user:', error);
     return NextResponse.json(

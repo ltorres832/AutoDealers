@@ -54,7 +54,7 @@ export default function StripeManagementPage() {
   if (loading) {
     return (
       <div className="p-8 flex justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
       </div>
     );
   }
@@ -86,7 +86,7 @@ export default function StripeManagementPage() {
           </div>
 
           {/* Ingresos Último Mes */}
-          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow p-6 text-white">
+          <div className="bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg shadow p-6 text-white">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-medium opacity-90">Ingresos (30 días)</h3>
               <span className="text-2xl">📈</span>
@@ -100,7 +100,7 @@ export default function StripeManagementPage() {
           </div>
 
           {/* Balance Disponible */}
-          <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow p-6 text-white">
+          <div className="bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg shadow p-6 text-white">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-medium opacity-90">Balance Disponible</h3>
               <span className="text-2xl">💵</span>
@@ -137,7 +137,7 @@ export default function StripeManagementPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Link
             href="/admin/stripe/subscriptions"
-            className="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all"
+            className="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-all"
           >
             <span className="text-3xl">📋</span>
             <div>
@@ -148,7 +148,7 @@ export default function StripeManagementPage() {
 
           <Link
             href="/admin/stripe/payments"
-            className="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all"
+            className="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-all"
           >
             <span className="text-3xl">💳</span>
             <div>
@@ -159,7 +159,7 @@ export default function StripeManagementPage() {
 
           <Link
             href="/admin/stripe/products"
-            className="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all"
+            className="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-all"
           >
             <span className="text-3xl">📦</span>
             <div>
@@ -170,7 +170,7 @@ export default function StripeManagementPage() {
 
           <Link
             href="/admin/stripe/customers"
-            className="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all"
+            className="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-all"
           >
             <span className="text-3xl">👤</span>
             <div>

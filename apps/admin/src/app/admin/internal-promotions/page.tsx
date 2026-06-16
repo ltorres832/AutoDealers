@@ -112,13 +112,13 @@ export default function InternalPromotionsPage() {
         </div>
         <div className="bg-white rounded-lg shadow p-4">
           <div className="text-sm text-gray-600 mb-1">Vistas Totales</div>
-          <div className="text-2xl font-bold text-blue-600">
+          <div className="text-2xl font-bold text-primary-600">
             {promotions.reduce((sum, p) => sum + (p.views || 0), 0)}
           </div>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
           <div className="text-sm text-gray-600 mb-1">Clics Totales</div>
-          <div className="text-2xl font-bold text-purple-600">
+          <div className="text-2xl font-bold text-primary-600">
             {promotions.reduce((sum, p) => sum + (p.clicks || 0), 0)}
           </div>
         </div>
@@ -190,17 +190,17 @@ export default function InternalPromotionsPage() {
                 <div className="grid grid-cols-2 gap-4 mb-4 text-xs">
                   <div>
                     <div className="text-gray-500">Vistas</div>
-                    <div className="font-bold text-blue-600">{promotion.views || 0}</div>
+                    <div className="font-bold text-primary-600">{promotion.views || 0}</div>
                   </div>
                   <div>
                     <div className="text-gray-500">Clics</div>
-                    <div className="font-bold text-purple-600">{promotion.clicks || 0}</div>
+                    <div className="font-bold text-primary-600">{promotion.clicks || 0}</div>
                   </div>
                 </div>
 
                 {promotion.placement && (
                   <div className="mb-3">
-                    <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                    <span className="px-2 py-1 bg-primary-100 text-primary-700 rounded text-xs">
                       📍 {promotion.placement.replace('_', ' ').toUpperCase()}
                     </span>
                   </div>
@@ -226,7 +226,7 @@ export default function InternalPromotionsPage() {
                     onClick={() => {
                       router.push(`/admin/internal-promotions/${promotion.id}/edit`);
                     }}
-                    className="flex-1 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm font-medium"
+                    className="flex-1 bg-primary-600 text-white px-4 py-2 rounded hover:bg-primary-700 text-sm font-medium"
                   >
                     ✏️ Editar
                   </button>

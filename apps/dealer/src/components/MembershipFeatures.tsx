@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import UpgradeModal from './UpgradeModal';
 
 interface FeatureLimit {
   name: string;
@@ -25,6 +26,7 @@ interface MembershipFeaturesData {
 export default function MembershipFeatures() {
   const [data, setData] = useState<MembershipFeaturesData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
   useEffect(() => {
     fetchFeatures();
@@ -83,7 +85,7 @@ export default function MembershipFeatures() {
           </p>
         </div>
         <button
-          onClick={() => {/* TODO: Abrir modal de upgrade */}}
+          onClick={() => setShowUpgrade(true)}
           className="px-4 py-2 bg-white text-primary-600 rounded-lg font-semibold hover:bg-gray-100 transition"
         >
           Mejorar Plan
@@ -149,6 +151,12 @@ export default function MembershipFeatures() {
           </div>
         ))}
       </div>
+
+      <UpgradeModal
+        isOpen={showUpgrade}
+        onClose={() => setShowUpgrade(false)}
+        reason="Elige un plan superior para ampliar límites y desbloquear más funciones."
+      />
     </div>
   );
 }

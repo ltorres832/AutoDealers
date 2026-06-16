@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getFirestore } from '@autodealers/core';
+import { getFirestore, isValidStripeWebhookSecret } from '@autodealers/core';
 
 const db = getFirestore();
 
@@ -48,7 +48,14 @@ export async function GET(request: NextRequest) {
         stripe: {
           secretKey: !!data.stripeSecretKey,
           webhookSecret: !!data.stripeWebhookSecret,
+          webhookSecretValid: isValidStripeWebhookSecret(data.stripeWebhookSecret),
+          webhookSecretLooksLikeUrl:
+            typeof data.stripeWebhookSecret === 'string' &&
+            /^https?:\/\//i.test(data.stripeWebhookSecret.trim()),
           advertiserWebhookSecret: !!data.stripeAdvertiserWebhookSecret,
+          advertiserWebhookSecretValid: data.stripeAdvertiserWebhookSecret
+            ? isValidStripeWebhookSecret(data.stripeAdvertiserWebhookSecret)
+            : null,
         },
         openai: {
           apiKey: !!data.openaiApiKey,

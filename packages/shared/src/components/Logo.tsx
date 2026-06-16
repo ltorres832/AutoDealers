@@ -39,8 +39,8 @@ export function Logo({ size = 'md', variant = 'color', className = '' }: LogoPro
         />
         <defs>
           <linearGradient id="gradient" x1="0" y1="0" x2="200" y2="200">
-            <stop offset="0%" stopColor="#2563EB" />
-            <stop offset="100%" stopColor="#1E40AF" />
+            <stop offset="0%" stopColor="#E10600" />
+            <stop offset="100%" stopColor="#0A0A0A" />
           </linearGradient>
         </defs>
       </svg>

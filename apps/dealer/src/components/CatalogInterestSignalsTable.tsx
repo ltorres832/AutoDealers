@@ -63,7 +63,63 @@ export function CatalogInterestSignalsTable({
   formatCreatedAt: (iso: string | null) => string;
 }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+    <>
+      <div className="md:hidden space-y-3">
+        {rows.map((row, index) => {
+          const ua = parseCatalogUserAgent(row.userAgent);
+          const utm = [row.utmSource, row.utmMedium, row.utmCampaign]
+            .filter(Boolean)
+            .join(' · ');
+          const referrerLabel = catalogReferrerHost(row.referrer);
+          const pathLabel = row.path?.trim() ? row.path : '—';
+
+          return (
+            <article
+              key={`${row.id}-card-${index}`}
+              className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
+            >
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <p className="text-xs text-gray-500">{formatCreatedAt(row.createdAt)}</p>
+                <span className={`text-xs font-medium ${row.hasExplicitContact ? 'text-green-700' : 'text-gray-500'}`}>
+                  {row.hasExplicitContact ? 'Con formulario' : 'Anónimo'}
+                </span>
+              </div>
+              <p className="font-medium text-gray-900 text-sm">
+                {row.vehicleSummary?.label || (row.vehicleId ? trunc(row.vehicleId, 26) : '—')}
+              </p>
+              {row.vehicleSummary?.stockNumber && (
+                <p className="text-xs text-primary-800 mt-0.5">Stock #{row.vehicleSummary.stockNumber}</p>
+              )}
+              <dl className="mt-3 grid grid-cols-1 gap-2 text-xs text-gray-600">
+                <div>
+                  <dt className="font-medium text-gray-500">Superficie</dt>
+                  <dd>{catalogSurfaceLabel(row.surface)}</dd>
+                </div>
+                <div>
+                  <dt className="font-medium text-gray-500">Path</dt>
+                  <dd className="font-mono break-all">{pathLabel}</dd>
+                </div>
+                <div>
+                  <dt className="font-medium text-gray-500">Referrer</dt>
+                  <dd className="break-all">{referrerLabel}</dd>
+                </div>
+                {utm && (
+                  <div>
+                    <dt className="font-medium text-gray-500">UTM</dt>
+                    <dd className="break-all">{utm}</dd>
+                  </div>
+                )}
+                <div>
+                  <dt className="font-medium text-gray-500">Dispositivo</dt>
+                  <dd>{ua.browser} · {ua.os} · {ua.device}</dd>
+                </div>
+              </dl>
+            </article>
+          );
+        })}
+      </div>
+
+      <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200 bg-white">
       <table className="w-full min-w-[1100px] table-fixed border-collapse text-sm">
         <colgroup>
           <col style={{ width: '11%' }} />
@@ -115,7 +171,7 @@ export function CatalogInterestSignalsTable({
                         ? [
                             {
                               text: `Stock #${row.vehicleSummary.stockNumber}`,
-                              className: 'text-xs text-blue-800',
+                              className: 'text-xs text-primary-800',
                             },
                           ]
                         : []),
@@ -196,5 +252,6 @@ export function CatalogInterestSignalsTable({
         </tbody>
       </table>
     </div>
+    </>
   );
 }

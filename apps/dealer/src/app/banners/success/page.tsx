@@ -66,7 +66,7 @@ function BannerSuccessContent() {
               Está pendiente de aprobación del administrador.
             </p>
             {bannerInfo && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-left">
+              <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 mb-6 text-left">
                 <div className="text-sm text-gray-600 mb-2">Detalles del banner:</div>
                 <div className="space-y-1 text-sm">
                   <div><strong>Título:</strong> {bannerInfo.title}</div>

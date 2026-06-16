@@ -88,9 +88,9 @@ export function AnnouncementsBanner({ dashboard, userId, tenantId }: Announcemen
       case 'success':
         return `${baseStyles} bg-green-500 text-white`;
       case 'announcement':
-        return `${baseStyles} bg-blue-600 text-white`;
+        return `${baseStyles} bg-primary-600 text-white`;
       default:
-        return `${baseStyles} bg-blue-500 text-white`;
+        return `${baseStyles} bg-primary-500 text-white`;
     }
   };
 

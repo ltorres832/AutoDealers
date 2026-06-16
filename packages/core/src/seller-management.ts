@@ -103,6 +103,9 @@ export type AdminSellerRow = User & {
   dealerName?: string | null;
   tenantName?: string | null;
   tenantType?: string | null;
+  tenantOwnerId?: string | null;
+  /** Titular de tenant type seller (independiente), aunque exista dealerId obsoleto */
+  isIndependentSeller?: boolean;
   authDisabled?: boolean;
 };
 
@@ -138,12 +141,6 @@ export async function getAllSellersForAdmin(
     rows = rows.filter((s) => (s.status || 'active') === filters.status);
   }
 
-  if (filters.linkType === 'independent') {
-    rows = rows.filter((s) => !s.dealerId);
-  } else if (filters.linkType === 'linked') {
-    rows = rows.filter((s) => !!s.dealerId);
-  }
-
   if (filters.search) {
     const q = filters.search.trim().toLowerCase();
     rows = rows.filter(
@@ -160,7 +157,7 @@ export async function getAllSellersForAdmin(
     if (s.dealerId) tenantIds.add(s.dealerId);
   }
 
-  const tenantNames = new Map<string, { name: string; type?: string }>();
+  const tenantNames = new Map<string, { name: string; type?: string; ownerId?: string }>();
   const idList = [...tenantIds].slice(0, 200);
   await Promise.all(
     idList.map(async (tid) => {
@@ -171,6 +168,7 @@ export async function getAllSellersForAdmin(
           tenantNames.set(tid, {
             name: (d?.name as string) || (d?.companyName as string) || tid,
             type: d?.type as string | undefined,
+            ownerId: (d?.ownerId as string) || undefined,
           });
         }
       } catch {
@@ -179,15 +177,29 @@ export async function getAllSellersForAdmin(
     })
   );
 
-  const enriched: AdminSellerRow[] = rows.map((s) => ({
-    ...s,
-    tenantName: s.tenantId ? tenantNames.get(s.tenantId)?.name ?? null : null,
-    tenantType: s.tenantId ? tenantNames.get(s.tenantId)?.type ?? null : null,
-    dealerName: s.dealerId ? tenantNames.get(s.dealerId)?.name ?? null : null,
-  }));
+  const enriched: AdminSellerRow[] = rows.map((s) => {
+    const tenantMeta = s.tenantId ? tenantNames.get(s.tenantId) : undefined;
+    const isIndependentSeller =
+      tenantMeta?.type === 'seller' && tenantMeta?.ownerId === s.id;
+    return {
+      ...s,
+      tenantName: s.tenantId ? tenantNames.get(s.tenantId)?.name ?? null : null,
+      tenantType: tenantMeta?.type ?? null,
+      tenantOwnerId: tenantMeta?.ownerId ?? null,
+      isIndependentSeller,
+      dealerName: s.dealerId ? tenantNames.get(s.dealerId)?.name ?? null : null,
+    };
+  });
 
-  enriched.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es'));
-  return enriched;
+  let filtered = enriched;
+  if (filters.linkType === 'independent') {
+    filtered = enriched.filter((s) => s.isIndependentSeller || !s.dealerId);
+  } else if (filters.linkType === 'linked') {
+    filtered = enriched.filter((s) => !!s.dealerId && !s.isIndependentSeller);
+  }
+
+  filtered.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es'));
+  return filtered;
 }
 
 async function assertSellerUser(sellerId: string): Promise<admin.firestore.DocumentData> {

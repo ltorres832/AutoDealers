@@ -90,7 +90,7 @@ export default function AdvancedReportsDashboard({
         </div>
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-sm font-medium text-gray-500 mb-1">Ventas Totales</h3>
-          <p className="text-3xl font-bold text-blue-600">
+          <p className="text-3xl font-bold text-primary-600">
             {data.performanceBySeller.reduce((sum, item) => sum + item.sales, 0)}
           </p>
         </div>
@@ -240,7 +240,7 @@ export default function AdvancedReportsDashboard({
               <div key={idx} className="flex-1 flex flex-col items-center gap-1">
                 <div className="w-full flex flex-col gap-1 justify-end" style={{ height: '200px' }}>
                   <div
-                    className="w-full bg-blue-500 rounded-t"
+                    className="w-full bg-primary-500 rounded-t"
                     style={{ height: `${(item.leads / maxValue) * 100}%` }}
                     title={`${item.leads} leads`}
                   ></div>
@@ -259,7 +259,7 @@ export default function AdvancedReportsDashboard({
         </div>
         <div className="flex justify-center gap-4 mt-4">
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-blue-500"></div>
+            <div className="w-4 h-4 bg-primary-500"></div>
             <span className="text-sm">Leads</span>
           </div>
           <div className="flex items-center gap-2">

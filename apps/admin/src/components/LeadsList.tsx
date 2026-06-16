@@ -62,10 +62,10 @@ export default function LeadsList() {
 
   function getStatusColor(status: string) {
     const colors: Record<string, string> = {
-      new: 'bg-blue-100 text-blue-700',
+      new: 'bg-primary-100 text-primary-700',
       contacted: 'bg-yellow-100 text-yellow-700',
       qualified: 'bg-green-100 text-green-700',
-      appointment: 'bg-purple-100 text-purple-700',
+      appointment: 'bg-primary-100 text-primary-700',
       closed: 'bg-gray-100 text-gray-700',
       lost: 'bg-red-100 text-red-700',
     };
@@ -155,7 +155,7 @@ export default function LeadsList() {
             <NewItemBadge key={lead.id} isNew={newLeads.has(lead.id)}>
               <Link
                 href={`/leads/${lead.id}`}
-                className="block p-4 hover:bg-gray-50 transition-all duration-300 border-l-4 border-transparent hover:border-blue-500"
+                className="block p-4 hover:bg-gray-50 transition-all duration-300 border-l-4 border-transparent hover:border-primary-500"
               >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4 flex-1">

@@ -49,7 +49,7 @@ export default function FIMetricsDashboard({ startDate, endDate }: FIMetricsDash
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
       </div>
     );
   }
@@ -90,7 +90,7 @@ export default function FIMetricsDashboard({ startDate, endDate }: FIMetricsDash
         
         <div className="bg-white rounded-lg shadow p-4">
           <span className="text-sm text-gray-600">Tiempo Promedio</span>
-          <p className="text-2xl font-bold text-blue-600">{metrics.averageProcessingTime.toFixed(1)}h</p>
+          <p className="text-2xl font-bold text-primary-600">{metrics.averageProcessingTime.toFixed(1)}h</p>
         </div>
         
         <div className="bg-white rounded-lg shadow p-4">
@@ -100,7 +100,7 @@ export default function FIMetricsDashboard({ startDate, endDate }: FIMetricsDash
         
         <div className="bg-white rounded-lg shadow p-4">
           <span className="text-sm text-gray-600">Score Promedio</span>
-          <p className="text-2xl font-bold text-purple-600">{metrics.averageCreditScore.toFixed(0)}</p>
+          <p className="text-2xl font-bold text-primary-600">{metrics.averageCreditScore.toFixed(0)}</p>
         </div>
       </div>
 

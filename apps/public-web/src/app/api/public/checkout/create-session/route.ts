@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPublicSiteOrigin } from '@/lib/public-site-origin';
-import { getStripeInstance } from '@autodealers/core';
-import { getMembershipById } from '@autodealers/billing';
-import { getFirestore } from '@autodealers/core';
-import * as admin from 'firebase-admin';
+import { getStripeInstance, getFirestore, isTenantSubdomainSlugAvailable } from '@autodealers/core';
+import { isCatalogMembership, assertSelfServiceMembership } from '@autodealers/billing/membership-visibility';
+import { getMembershipTrialDays } from '@autodealers/billing/membership-trial';
+import { membershipIncludesSubdomain } from '@/lib/subdomain-registration';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,13 +52,51 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Obtener información de la membresía
-    const membership = await getMembershipById(membershipId);
-    if (!membership) {
+    const membershipDoc = await db.collection('memberships').doc(membershipId).get();
+    if (!membershipDoc.exists) {
       return NextResponse.json(
         { error: 'Membresía no encontrada' },
         { status: 404 }
       );
+    }
+    const membership = membershipDoc.data()!;
+
+    const selectable = assertSelfServiceMembership({
+      id: membershipId,
+      name: membership.name as string,
+      type: membership.type as string,
+      billingCycle: (membership.billingCycle as string | null | undefined) ?? null,
+      isActive: membership.isActive !== false && membership.status !== 'inactive',
+    });
+    if (!selectable.ok) {
+      return NextResponse.json({ error: selectable.error || 'Plan no disponible.' }, { status: 403 });
+    }
+
+    const tenantDoc = await db.collection('tenants').doc(tenantId).get();
+    const pendingSubdomain = String(tenantDoc.data()?.pendingSubdomain || '').trim();
+    const planAllowsSubdomain = membershipIncludesSubdomain(
+      membership.features as Record<string, unknown> | undefined
+    );
+
+    if (pendingSubdomain && !planAllowsSubdomain) {
+      return NextResponse.json(
+        {
+          error:
+            'El plan seleccionado no incluye página web con subdominio propio. Elige un plan con subdominio o regístrate de nuevo sin subdominio.',
+          code: 'SUBDOMAIN_NOT_IN_PLAN',
+        },
+        { status: 400 }
+      );
+    }
+
+    if (pendingSubdomain && planAllowsSubdomain) {
+      const stillAvailable = await isTenantSubdomainSlugAvailable(pendingSubdomain, tenantId);
+      if (!stillAvailable) {
+        return NextResponse.json(
+          { error: 'El subdominio elegido ya no está disponible. Vuelve al registro y elige otro.' },
+          { status: 400 }
+        );
+      }
     }
 
     if (!membership.stripePriceId) {
@@ -116,8 +154,9 @@ export async function POST(request: NextRequest) {
     }
 
     const siteOrigin = getPublicSiteOrigin(request);
+    const trialDays = getMembershipTrialDays();
 
-    // Crear sesión de checkout con suscripción recurrente (facturación cada 30 días)
+    // Checkout: tarjeta obligatoria + trial de 7 días; Stripe cobra al terminar el trial
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       payment_method_types: ['card'],
@@ -128,7 +167,7 @@ export async function POST(request: NextRequest) {
           tax_rates: taxRateId ? [taxRateId] : undefined,
         },
       ],
-      mode: 'subscription', // Modo suscripción para facturación recurrente automática
+      mode: 'subscription',
       success_url: `${siteOrigin}/register/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${siteOrigin}/register/membership?type=${accountType}&userId=${userId}&registered=true`,
       metadata: {
@@ -136,9 +175,11 @@ export async function POST(request: NextRequest) {
         tenantId,
         membershipId,
         accountType,
-        source: 'registration', // Identificar que viene del registro
+        source: 'registration',
+        trialDays: String(trialDays),
       },
       subscription_data: {
+        trial_period_days: trialDays > 0 ? trialDays : undefined,
         metadata: {
           userId,
           tenantId,
@@ -146,17 +187,15 @@ export async function POST(request: NextRequest) {
           accountType,
           source: 'registration',
         },
-        // Configurar facturación automática cada 30 días
-        billing_cycle_anchor: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60), // 30 días desde ahora
       },
       allow_promotion_codes: true,
-      // Configurar para que el pago se procese inmediatamente y active la cuenta
       payment_method_collection: 'always',
     });
 
     return NextResponse.json({
       checkoutUrl: session.url,
       sessionId: session.id,
+      trialDays,
     });
   } catch (error: any) {
     console.error('Error creating checkout session:', error);

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { DEFAULT_BRAND_LOGO_PATH } from '@/lib/default-brand-logo';
+import { fetchWithAuth } from '@/lib/fetch-with-auth';
 
 interface SiteInfo {
   name: string;
@@ -147,7 +148,7 @@ export default function SiteInfoSettingsPage() {
   async function fetchSiteInfo() {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/settings/site-info');
+      const response = await fetchWithAuth('/api/admin/settings/site-info');
       if (response.ok) {
         const data = await response.json();
         if (data.siteInfo) {
@@ -189,9 +190,16 @@ export default function SiteInfoSettingsPage() {
           }
           setSiteInfo(siteInfoData);
         }
+      } else {
+        const error = await response.json().catch(() => ({}));
+        setMessage({
+          type: 'error',
+          text: error.error || 'No se pudo cargar la información del sitio',
+        });
       }
     } catch (error) {
       console.error('Error fetching site info:', error);
+      setMessage({ type: 'error', text: 'Error al cargar la información del sitio' });
     } finally {
       setLoading(false);
     }
@@ -201,7 +209,7 @@ export default function SiteInfoSettingsPage() {
     try {
       setSaving(true);
       setMessage(null);
-      const response = await fetch('/api/admin/settings/site-info', {
+      const response = await fetchWithAuth('/api/admin/settings/site-info', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ siteInfo }),

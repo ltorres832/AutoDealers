@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getFirestore } from '@autodealers/core';
+import { getFirestore, PLATFORM_ADMIN_TENANT_ID } from '@autodealers/core';
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,18 +12,12 @@ export async function GET(request: NextRequest) {
 
     const db = getFirestore();
     
-    // Obtener tenantId del usuario si no es admin
-    const tenantId = auth.tenantId || (auth.role === 'admin' ? null : null);
-    
-    if (!tenantId && auth.role !== 'admin') {
-      return NextResponse.json({ error: 'Tenant ID required' }, { status: 400 });
-    }
-    
-    // Para admin, buscar en todas las colecciones de tenants
-    // Para otros roles, buscar en su tenant específico
-    const notificationsCollection = tenantId 
-      ? db.collection('tenants').doc(tenantId).collection('notifications')
-      : db.collection('notifications'); // Fallback para admin
+    const tenantId = auth.tenantId || PLATFORM_ADMIN_TENANT_ID;
+
+    const notificationsCollection = db
+      .collection('tenants')
+      .doc(tenantId)
+      .collection('notifications');
     
     // Intentar obtener notificaciones con orderBy
     try {

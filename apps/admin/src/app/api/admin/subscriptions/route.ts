@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { getAllSubscriptions } from '@autodealers/billing';
+import { enrichPaymentDates } from '@/lib/subscription-api';
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,9 +18,7 @@ export async function GET(request: NextRequest) {
       status && status !== 'all' ? { status } : undefined
     );
 
-    // Enriquecer con datos de tenant, usuario y membresía
-    const { getTenantById } = await import('@autodealers/core');
-    const { getUserById } = await import('@autodealers/core');
+    const { getTenantById, getUserById } = await import('@autodealers/core');
     const { getMembershipById } = await import('@autodealers/billing');
 
     const enrichedSubscriptions = await Promise.all(
@@ -30,13 +29,13 @@ export async function GET(request: NextRequest) {
           getMembershipById(sub.membershipId),
         ]);
 
-        return {
+        return enrichPaymentDates({
           ...sub,
           tenantName: tenant?.name,
           userName: user?.name,
           membershipName: membership?.name,
           amount: membership?.price,
-        };
+        } as Record<string, unknown>);
       })
     );
 
@@ -44,13 +43,8 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error fetching subscriptions:', error);
     return NextResponse.json(
-      { subscriptions: [] },
-      { status: 200 }
+      { error: error instanceof Error ? error.message : 'Internal server error', subscriptions: [] },
+      { status: 500 }
     );
   }
 }
-
-
-
-
-

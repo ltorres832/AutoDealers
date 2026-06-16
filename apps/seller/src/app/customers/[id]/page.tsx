@@ -70,7 +70,7 @@ export default function CustomerCasePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
       </div>
     );
   }
@@ -84,14 +84,14 @@ export default function CustomerCasePage() {
             <div className="flex items-center space-x-3 mb-2 flex-wrap gap-y-2">
               <Link
                 href="/leads"
-                className="text-blue-600 hover:text-blue-800"
+                className="text-primary-600 hover:text-primary-800"
               >
                 ← Volver a Leads
               </Link>
               <span className="text-gray-300">|</span>
               <Link
                 href={`/leads/${customerId}`}
-                className="text-blue-600 hover:text-blue-800 font-medium"
+                className="text-primary-600 hover:text-primary-800 font-medium"
               >
                 Ficha CRM del lead →
               </Link>
@@ -107,25 +107,25 @@ export default function CustomerCasePage() {
       </div>
 
       {/* Información del Cliente */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg p-6 mb-6">
+      <div className="bg-gradient-to-r from-primary-50 to-primary-50 border-2 border-primary-200 rounded-lg p-6 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
-            <p className="text-xs text-blue-600 font-medium mb-1">Cliente</p>
-            <p className="text-blue-900 font-bold text-lg">{customerInfo?.contact?.name || 'N/A'}</p>
+            <p className="text-xs text-primary-600 font-medium mb-1">Cliente</p>
+            <p className="text-primary-900 font-bold text-lg">{customerInfo?.contact?.name || 'N/A'}</p>
           </div>
           <div>
-            <p className="text-xs text-blue-600 font-medium mb-1">Teléfono</p>
-            <p className="text-blue-900 font-semibold">{customerInfo?.contact?.phone || 'N/A'}</p>
+            <p className="text-xs text-primary-600 font-medium mb-1">Teléfono</p>
+            <p className="text-primary-900 font-semibold">{customerInfo?.contact?.phone || 'N/A'}</p>
           </div>
           <div>
-            <p className="text-xs text-blue-600 font-medium mb-1">Email</p>
-            <p className="text-blue-900 font-semibold">{customerInfo?.contact?.email || 'N/A'}</p>
+            <p className="text-xs text-primary-600 font-medium mb-1">Email</p>
+            <p className="text-primary-900 font-semibold">{customerInfo?.contact?.email || 'N/A'}</p>
           </div>
           <div>
-            <p className="text-xs text-blue-600 font-medium mb-1">Estado</p>
+            <p className="text-xs text-primary-600 font-medium mb-1">Estado</p>
             <span className={`px-3 py-1 rounded-full text-sm font-medium capitalize ${
               customerInfo?.status === 'closed' ? 'bg-green-200 text-green-800' :
-              customerInfo?.status === 'qualified' ? 'bg-blue-200 text-blue-800' :
+              customerInfo?.status === 'qualified' ? 'bg-primary-200 text-primary-800' :
               'bg-gray-200 text-gray-800'
             }`}>
               {customerInfo?.status || 'Nuevo'}
@@ -134,26 +134,26 @@ export default function CustomerCasePage() {
         </div>
 
         {saleInfo && (
-          <div className="mt-4 pt-4 border-t border-blue-200">
+          <div className="mt-4 pt-4 border-t border-primary-200">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <p className="text-xs text-blue-600 font-medium mb-1">Venta</p>
-                <p className="text-blue-900 font-semibold">
+                <p className="text-xs text-primary-600 font-medium mb-1">Venta</p>
+                <p className="text-primary-900 font-semibold">
                   ${saleInfo.salePrice?.toLocaleString() || '0'} - {saleInfo.status === 'completed' ? '✓ Completada' : 'Pendiente'}
                 </p>
               </div>
               {vehicleInfo && (
                 <div>
-                  <p className="text-xs text-blue-600 font-medium mb-1">Vehículo</p>
-                  <p className="text-blue-900 font-semibold">
+                  <p className="text-xs text-primary-600 font-medium mb-1">Vehículo</p>
+                  <p className="text-primary-900 font-semibold">
                     {vehicleInfo.year} {vehicleInfo.make} {vehicleInfo.model}
                   </p>
                 </div>
               )}
               {saleInfo.completedAt && (
                 <div>
-                  <p className="text-xs text-blue-600 font-medium mb-1">Fecha de Venta</p>
-                  <p className="text-blue-900 font-semibold">
+                  <p className="text-xs text-primary-600 font-medium mb-1">Fecha de Venta</p>
+                  <p className="text-primary-900 font-semibold">
                     {new Date(saleInfo.completedAt).toLocaleDateString('es-ES')}
                   </p>
                 </div>
@@ -177,7 +177,7 @@ export default function CustomerCasePage() {
               onClick={() => setActiveTab(tab.id as any)}
               className={`py-4 px-1 border-b-2 font-medium text-sm ${
                 activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600'
+                  ? 'border-primary-500 text-primary-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >

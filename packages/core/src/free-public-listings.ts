@@ -27,9 +27,9 @@ export interface FreePublicListingsSettings {
 const DEFAULTS: FreePublicListingsSettings = {
   enabled: true,
   maxActiveFreeVehiclesPerSeller: 2,
-  durationDays: 14,
+  durationDays: 7,
   ctaTitle: '¿Quieres vender?',
-  ctaSubtitle: 'Publica tu auto hoy mismo y llega a millones',
+  ctaSubtitle: 'Publica tu auto hoy mismo y llega a miles de compradores',
   ctaButtonLabel: 'Publicar Gratis',
   quickListingPath: '/publicar-gratis',
   registerPath: '/register?type=seller',

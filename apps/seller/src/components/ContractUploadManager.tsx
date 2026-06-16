@@ -159,7 +159,7 @@ export default function ContractUploadManager({
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+            className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50"
           >
             {uploading ? 'Subiendo...' : 'Seleccionar Contrato'}
           </button>
@@ -217,7 +217,7 @@ export default function ContractUploadManager({
                   href={contract.digitalizedDocumentUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-4 py-2 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200"
+                  className="px-4 py-2 bg-primary-100 text-primary-700 rounded-md hover:bg-primary-200"
                 >
                   Ver Digitalizado
                 </a>

@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth, isDealerPortalRole } from '@/lib/auth';
 import { getFirestore } from '@autodealers/core';
+import { requireTenantFeature } from '@/lib/membership-middleware';
 import * as admin from 'firebase-admin';
 
 const db = getFirestore();
@@ -20,8 +21,8 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Solo dealers pueden designar gerente F&I' }, { status: 403 });
     }
 
-    // TODO: Verificar membresía - solo Dealers PRO y Enterprise pueden designar gerente F&I
-    // Esto se implementará después de verificar la estructura de membresías
+    const fiGate = await requireTenantFeature(user.tenantId, 'useFIModule');
+    if (fiGate) return fiGate;
 
     const body = await request.json();
     const { fiManagerId, fiManagerPhone, fiManagerEmail } = body;

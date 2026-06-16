@@ -34,6 +34,8 @@ Set-Secret "NEXT_PUBLIC_FIREBASE_API_KEY" "AIzaSyDlPCtTMCZy4WXvhhyPOI9fac0LjN1jo
 Set-Secret "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN" "autodealers-7f62e.firebaseapp.com"
 Set-Secret "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID" "857179023916"
 Set-Secret "NEXT_PUBLIC_FIREBASE_APP_ID" "1:857179023916:web:31fb898acfb33b87b1bf89"
+# Web Push (Firebase Console > Cloud Messaging > Web Push certificates)
+Set-Secret "NEXT_PUBLIC_FIREBASE_VAPID_KEY" "xE0Cv-xN8NIopHXXuB7NWuoThOjykZjg1cu0_SRIPwM"
 
 # Firebase Admin SDK (Private)
 Set-Secret "FIREBASE_CLIENT_EMAIL" "firebase-adminsdk-fbsvc@autodealers-7f62e.iam.gserviceaccount.com"

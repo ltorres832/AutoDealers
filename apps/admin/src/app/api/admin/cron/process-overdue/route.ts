@@ -1,35 +1,23 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
-// import { processOverdueSubscriptions } from '@autodealers/billing';
+import { authorizeCronRequest } from '@/lib/cron-auth';
+import { processOverdueSubscriptions } from '@autodealers/billing';
 
 /**
- * Endpoint para procesar suscripciones vencidas
- * Debe ejecutarse diariamente (cron job)
- * Puede ser llamado manualmente desde el admin o configurado en un servicio de cron
+ * Procesa suscripciones vencidas y suspende cuentas tras el período de gracia.
+ * Ejecutar diariamente (Cloud Scheduler / Firebase Functions).
  */
 export async function POST(request: NextRequest) {
   try {
-    // Verificar autenticación (opcional para cron jobs internos)
-    // Para producción, usar un secret token
-    const authHeader = request.headers.get('authorization');
-    const cronSecret = process.env.CRON_SECRET;
-    
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-      // Si hay secret configurado, validarlo
-      const auth = await verifyAuth(request);
-      if (!auth || auth.role !== 'admin') {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
-    }
+    const denied = await authorizeCronRequest(request);
+    if (denied) return denied;
 
-    // Procesar suscripciones vencidas
-    // TODO: Implementar processOverdueSubscriptions en @autodealers/billing
-    // await processOverdueSubscriptions();
+    const result = await processOverdueSubscriptions();
 
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Overdue subscriptions processed successfully' 
+    return NextResponse.json({
+      success: true,
+      message: 'Overdue subscriptions processed',
+      result,
     });
   } catch (error) {
     console.error('Error processing overdue subscriptions:', error);
@@ -40,28 +28,16 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/**
- * GET para verificar el estado sin procesar
- */
 export async function GET(request: NextRequest) {
   try {
-    const auth = await verifyAuth(request);
-    if (!auth || auth.role !== 'admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const denied = await authorizeCronRequest(request);
+    if (denied) return denied;
 
-    return NextResponse.json({ 
-      message: 'Cron endpoint is active. Use POST to process overdue subscriptions.' 
+    return NextResponse.json({
+      message: 'POST para procesar suscripciones vencidas y suspender cuentas por falta de pago.',
+      graceDays: process.env.SUBSCRIPTION_GRACE_DAYS || '3 (default)',
     });
   } catch (error) {
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
-
-
-
-
-

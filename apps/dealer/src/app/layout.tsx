@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
+import '../../../../packages/shared/src/styles/brand-surface.css';
 import DealerLayoutWrapper from './layout-wrapper';
 import { PlatformBrandingHead } from '@/components/PlatformBrandingHead';
 
@@ -10,7 +11,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  themeColor: '#f9fafb',
+  themeColor: '#E10600',
 };
 
 const platformBrandIcon = '/brand/ad-platform-logo.png';
@@ -35,7 +36,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
-      <body className={`${inter.className} min-h-[100dvh] overflow-x-hidden antialiased`}>
+      <body className={`${inter.className} brand-top-accent min-h-[100dvh] overflow-x-hidden antialiased`}>
         <PlatformBrandingHead />
         <DealerLayoutWrapper>{children}</DealerLayoutWrapper>
       </body>

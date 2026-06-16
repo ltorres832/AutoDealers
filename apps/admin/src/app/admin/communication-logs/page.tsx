@@ -231,7 +231,7 @@ export default function CommunicationLogsPage() {
                     <div className="text-gray-500 text-xs">{log.event}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
                       {getTypeIcon(log.type)} {log.type.toUpperCase()}
                     </span>
                   </td>

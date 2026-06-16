@@ -75,7 +75,7 @@ export default function AdminCreateAdForAdvertiser() {
           <h1 className="text-3xl font-bold text-gray-900">Crear anuncio para anunciante</h1>
           <p className="text-sm text-gray-600">ID anunciante: {advertiserId}</p>
         </div>
-        <Link href={`/admin/advertisers/${advertiserId}`} className="text-blue-600 hover:text-blue-700 text-sm font-semibold">
+        <Link href={`/admin/advertisers/${advertiserId}`} className="text-primary-600 hover:text-primary-700 text-sm font-semibold">
           ← Volver
         </Link>
       </div>
@@ -256,7 +256,7 @@ export default function AdminCreateAdForAdvertiser() {
           <button
             type="submit"
             disabled={loading}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold disabled:opacity-50"
+            className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-semibold disabled:opacity-50"
           >
             {loading ? 'Creando...' : 'Crear anuncio'}
           </button>

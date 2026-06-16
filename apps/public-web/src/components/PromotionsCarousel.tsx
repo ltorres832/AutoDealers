@@ -17,7 +17,7 @@ const PROMO_CARDS = [
         title: 'Seguro de Auto Incluido',
         description: 'Compra tu auto certificado y recibe 3 meses de seguro gratuito con nuestros partners.',
         icon: '🛡️',
-        color: 'bg-blue-50 text-blue-700 border-blue-200',
+        color: 'bg-primary-50 text-primary-700 border-primary-200',
         link: '/insurance',
         cta: 'Más Detalles'
     },
@@ -26,7 +26,7 @@ const PROMO_CARDS = [
         title: 'Bono de Trade-In',
         description: 'Te damos $500 extra sobre el valor de mercado al cambiar tu auto usado con nosotros.',
         icon: '🚗',
-        color: 'bg-purple-50 text-purple-700 border-purple-200',
+        color: 'bg-primary-50 text-primary-700 border-primary-200',
         link: '/sell',
         cta: 'Valorar mi Auto'
     }
@@ -41,7 +41,7 @@ export default function PromotionsCarousel() {
                         <h2 className="text-3xl font-bold text-gray-900">Promociones Especiales</h2>
                         <p className="text-gray-600 mt-2">Ahorra más con nuestras ofertas exclusivas</p>
                     </div>
-                    <Link href="/promotions" className="hidden md:inline-flex text-blue-600 font-semibold hover:text-blue-800 transition-colors">
+                    <Link href="/promotions" className="hidden md:inline-flex text-primary-600 font-semibold hover:text-primary-800 transition-colors">
                         Ver todas las ofertas →
                     </Link>
                 </div>
@@ -65,7 +65,7 @@ export default function PromotionsCarousel() {
                 </div>
 
                 <div className="mt-8 text-center md:hidden">
-                    <Link href="/promotions" className="text-blue-600 font-semibold text-lg">
+                    <Link href="/promotions" className="text-primary-600 font-semibold text-lg">
                         Ver todas las ofertas →
                     </Link>
                 </div>

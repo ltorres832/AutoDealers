@@ -144,7 +144,7 @@ export default function VehicleDetailModal({ vehicle, subdomain, catalogTenantId
                         getPublicVehicleConditionLabel(vehicle) === 'Nuevo'
                           ? 'bg-green-100 text-green-800'
                           : getPublicVehicleConditionLabel(vehicle) === 'Certificado'
-                            ? 'bg-blue-100 text-blue-800'
+                            ? 'bg-primary-100 text-primary-800'
                             : 'bg-gray-100 text-gray-800'
                       }`}
                     >
@@ -226,7 +226,7 @@ export default function VehicleDetailModal({ vehicle, subdomain, catalogTenantId
                   </Link>
                   <Link
                     href={`/${subdomain}/appointment?vehicleId=${vehicle.id}&intent=test_drive_request`}
-                    className="w-full bg-indigo-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-indigo-700 text-center block transition"
+                    className="w-full bg-primary-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-700 text-center block transition"
                   >
                     🚗 Solicitar prueba de manejo
                   </Link>
@@ -258,7 +258,7 @@ export default function VehicleDetailModal({ vehicle, subdomain, catalogTenantId
                         const text = encodeURIComponent(`Mira este ${vehicle.year} ${vehicle.make} ${vehicle.model}`);
                         window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank');
                       }}
-                      className="flex-1 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition text-sm"
+                      className="flex-1 bg-primary-600 text-white px-4 py-2 rounded hover:bg-primary-700 transition text-sm"
                     >
                       Facebook
                     </button>

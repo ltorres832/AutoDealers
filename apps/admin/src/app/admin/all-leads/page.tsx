@@ -20,6 +20,7 @@ interface Lead {
 export default function AdminAllLeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [filters, setFilters] = useState({
     tenantId: '',
     status: '',
@@ -46,6 +47,32 @@ export default function AdminAllLeadsPage() {
       console.error('Error:', error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleDeleteLead(tenantId: string, leadId: string, leadName: string) {
+    if (
+      !window.confirm(
+        `¿Eliminar permanentemente a ${leadName}? Esta acción no se puede deshacer.`
+      )
+    ) {
+      return;
+    }
+    setDeletingId(leadId);
+    try {
+      const response = await fetch(`/api/admin/leads/${tenantId}/${leadId}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error || 'No se pudo eliminar');
+      }
+      setLeads((prev) => prev.filter((l) => l.id !== leadId));
+    } catch (error) {
+      console.error('Error:', error);
+      alert(error instanceof Error ? error.message : 'Error al eliminar');
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -76,7 +103,7 @@ export default function AdminAllLeadsPage() {
           </Link>
           <Link
             href="/admin/leads/create"
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+            className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 flex items-center gap-2"
           >
             <span>➕</span>
             Crear Lead
@@ -170,7 +197,7 @@ export default function AdminAllLeadsPage() {
                 </td>
                 <td className="px-6 py-4 text-sm capitalize">{lead.source}</td>
                 <td className="px-6 py-4">
-                  <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                  <span className="px-2 py-1 bg-primary-100 text-primary-700 rounded text-xs">
                     {lead.status}
                   </span>
                 </td>
@@ -178,12 +205,28 @@ export default function AdminAllLeadsPage() {
                   {new Date(lead.createdAt).toLocaleDateString()}
                 </td>
                 <td className="px-6 py-4">
-                  <Link
-                    href={`/admin/tenants/${lead.tenantId}`}
-                    className="text-primary-600 hover:text-primary-700 text-sm"
-                  >
-                    Ver Tenant
-                  </Link>
+                  <div className="flex flex-col gap-1">
+                    <Link
+                      href={`/admin/tenants/${lead.tenantId}`}
+                      className="text-primary-600 hover:text-primary-700 text-sm"
+                    >
+                      Ver Tenant
+                    </Link>
+                    <button
+                      type="button"
+                      disabled={deletingId === lead.id}
+                      onClick={() =>
+                        handleDeleteLead(
+                          lead.tenantId,
+                          lead.id,
+                          lead.contact?.name || 'Cliente'
+                        )
+                      }
+                      className="text-left text-sm text-red-600 hover:text-red-800 disabled:opacity-50"
+                    >
+                      {deletingId === lead.id ? 'Eliminando…' : 'Eliminar'}
+                    </button>
+                  </div>
                 </td>
               </tr>
               ))}

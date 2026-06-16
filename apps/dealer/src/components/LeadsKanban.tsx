@@ -8,34 +8,38 @@ import { useRealtimeLeads } from '@/hooks/useRealtimeLeads';
 import { fetchWithAuth } from '@/lib/fetch-with-auth';
 import { LeadKanbanFootnote } from '@/components/LeadProfileSections';
 import { LeadAssignmentModal } from '@/components/LeadAssignmentModal';
+import { isDealerPortalRole, isSellerRole } from '@/lib/dealer-portal-roles';
 
 interface LeadsKanbanProps {
   tenantId: string;
   /** Roles concesionario (gerente/admin) pueden reasignar y cargar SLA guardado */
   canReassign?: boolean;
+  userId?: string;
+  userRole?: string;
+  dealerVisibleOnly?: boolean;
 }
 
 type KanbanColumn = { status: LeadStatus; label: string; color: string };
 
 const FALLBACK_COLUMNS: KanbanColumn[] = [
-  { status: 'new', label: 'Nuevos', color: 'bg-blue-50 border-blue-200' },
+  { status: 'new', label: 'Nuevos', color: 'bg-primary-50 border-primary-200' },
   { status: 'contacted', label: 'Contactados', color: 'bg-yellow-50 border-yellow-200' },
   { status: 'qualified', label: 'Calificados', color: 'bg-green-50 border-green-200' },
-  { status: 'pre_qualified', label: 'Pre-Calificados', color: 'bg-purple-50 border-purple-200' },
-  { status: 'appointment', label: 'Citas', color: 'bg-indigo-50 border-indigo-200' },
-  { status: 'test_drive', label: 'Pruebas', color: 'bg-pink-50 border-pink-200' },
+  { status: 'pre_qualified', label: 'Pre-Calificados', color: 'bg-primary-50 border-primary-200' },
+  { status: 'appointment', label: 'Citas', color: 'bg-primary-50 border-primary-200' },
+  { status: 'test_drive', label: 'Pruebas', color: 'bg-primary-50 border-primary-200' },
   { status: 'negotiation', label: 'Negociación', color: 'bg-orange-50 border-orange-200' },
   { status: 'closed', label: 'Cerrados', color: 'bg-gray-50 border-gray-200' },
   { status: 'lost', label: 'Perdidos', color: 'bg-red-50 border-red-200' },
 ];
 
 const COLOR_KEY_TO_TAILWIND: Record<string, string> = {
-  blue: 'bg-blue-50 border-blue-200',
+  blue: 'bg-primary-50 border-primary-200',
   yellow: 'bg-yellow-50 border-yellow-200',
   green: 'bg-green-50 border-green-200',
-  purple: 'bg-purple-50 border-purple-200',
-  indigo: 'bg-indigo-50 border-indigo-200',
-  pink: 'bg-pink-50 border-pink-200',
+  purple: 'bg-primary-50 border-primary-200',
+  indigo: 'bg-primary-50 border-primary-200',
+  pink: 'bg-primary-50 border-primary-200',
   orange: 'bg-orange-50 border-orange-200',
   gray: 'bg-gray-50 border-gray-200',
   red: 'bg-red-50 border-red-200',
@@ -54,13 +58,20 @@ function pipelineToColumns(settings: CrmPipelineSettings | null): KanbanColumn[]
     }));
 }
 
-export default function LeadsKanban({ tenantId, canReassign = false }: LeadsKanbanProps) {
+export default function LeadsKanban({
+  tenantId,
+  canReassign = false,
+  userId,
+  userRole,
+  dealerVisibleOnly = false,
+}: LeadsKanbanProps) {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [draggedLead, setDraggedLead] = useState<Lead | null>(null);
   const [columns, setColumns] = useState<KanbanColumn[]>(FALLBACK_COLUMNS);
   const [sla, setSla] = useState<CrmSlaConfig>(DEFAULT_CRM_SLA);
   const [reassignLead, setReassignLead] = useState<{ id: string; name: string } | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -103,6 +114,7 @@ export default function LeadsKanban({ tenantId, canReassign = false }: LeadsKanb
 
   const { leads: realtimeLeads, loading: leadsLoading } = useRealtimeLeads({
     tenantId,
+    dealerVisibleOnly,
   });
 
   useEffect(() => {
@@ -198,6 +210,35 @@ export default function LeadsKanban({ tenantId, canReassign = false }: LeadsKanb
     );
   }
 
+  async function handleDeleteLead(leadId: string, leadName: string) {
+    if (
+      !window.confirm(
+        `¿Eliminar permanentemente a ${leadName}? Esta acción no se puede deshacer.`
+      )
+    ) {
+      return;
+    }
+    setDeletingId(leadId);
+    try {
+      const res = await fetchWithAuth(`/api/leads/${leadId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error || 'No se pudo eliminar');
+      }
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Error al eliminar');
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  function canDeleteLead(lead: Lead) {
+    return (
+      isDealerPortalRole(userRole) ||
+      (isSellerRole(userRole) && lead.assignedTo === userId)
+    );
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center p-8">
@@ -235,7 +276,7 @@ export default function LeadsKanban({ tenantId, canReassign = false }: LeadsKanb
           return (
             <div
               key={column.status}
-              className={`flex-shrink-0 w-80 rounded-lg border-2 ${column.color} p-4`}
+              className={`flex-shrink-0 w-[min(20rem,85vw)] sm:w-80 rounded-lg border-2 ${column.color} p-4`}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, column.status)}
             >
@@ -282,7 +323,7 @@ export default function LeadsKanban({ tenantId, canReassign = false }: LeadsKanb
                         {lead.tags.slice(0, 3).map((tag, idx) => (
                           <span
                             key={idx}
-                            className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded"
+                            className="text-xs bg-primary-100 text-primary-700 px-2 py-0.5 rounded"
                           >
                             {tag}
                           </span>
@@ -310,7 +351,7 @@ export default function LeadsKanban({ tenantId, canReassign = false }: LeadsKanb
                       </div>
                     )}
 
-                    {canReassign && (
+                    {canReassign ? (
                       <button
                         type="button"
                         className="mt-2 w-full rounded border border-primary-200 px-2 py-1 text-xs font-medium text-primary-800 hover:bg-primary-50"
@@ -325,7 +366,21 @@ export default function LeadsKanban({ tenantId, canReassign = false }: LeadsKanb
                       >
                         Reasignar
                       </button>
-                    )}
+                    ) : null}
+                    {canDeleteLead(lead) ? (
+                      <button
+                        type="button"
+                        className="mt-1 w-full rounded border border-red-200 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                        disabled={deletingId === lead.id}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void handleDeleteLead(lead.id, lead.contact.name || 'Cliente');
+                        }}
+                      >
+                        {deletingId === lead.id ? 'Eliminando…' : 'Eliminar'}
+                      </button>
+                    ) : null}
                   </div>
                 ))}
 

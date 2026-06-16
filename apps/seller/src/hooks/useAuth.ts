@@ -7,6 +7,7 @@ interface AuthUser {
   tenantId: string;
   email: string;
   role: 'admin' | 'dealer' | 'seller';
+  dealerId?: string;
 }
 
 export function useAuth() {

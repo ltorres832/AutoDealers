@@ -195,36 +195,36 @@ export default function SellerDetailPage() {
           <div className="bg-gray-50 rounded-lg p-4">
             <p className="text-sm text-gray-600 mb-1">Inventario</p>
             <p className="text-2xl font-bold">{stats.totalVehicles}</p>
-            <p className="text-xs text-blue-600 mt-1">{stats.availableVehicles} disponibles</p>
+            <p className="text-xs text-primary-600 mt-1">{stats.availableVehicles} disponibles</p>
           </div>
           <div className="bg-gray-50 rounded-lg p-4">
             <p className="text-sm text-gray-600 mb-1">Citas</p>
             <p className="text-2xl font-bold">{stats.totalAppointments}</p>
-            <p className="text-xs text-blue-600 mt-1">{stats.upcomingAppointments} próximas</p>
+            <p className="text-xs text-primary-600 mt-1">{stats.upcomingAppointments} próximas</p>
           </div>
           <div className="bg-gray-50 rounded-lg p-4">
             <p className="text-sm text-gray-600 mb-1">📢 Campañas</p>
             <p className="text-2xl font-bold">{stats.totalCampaigns}</p>
-            <p className="text-xs text-purple-600 mt-1">{stats.activeCampaigns} activas</p>
+            <p className="text-xs text-primary-600 mt-1">{stats.activeCampaigns} activas</p>
             <p className="text-xs text-gray-500 mt-1">{stats.pastCampaigns} pasadas</p>
           </div>
           <div className="bg-gray-50 rounded-lg p-4">
             <p className="text-sm text-gray-600 mb-1">🎁 Promociones</p>
             <p className="text-2xl font-bold">{stats.totalPromotions}</p>
-            <p className="text-xs text-purple-600 mt-1">{stats.activePromotions} activas</p>
+            <p className="text-xs text-primary-600 mt-1">{stats.activePromotions} activas</p>
             <p className="text-xs text-gray-500 mt-1">{stats.pastPromotions} pasadas</p>
           </div>
         </div>
 
         {seller.tenantId && seller.tenantId !== seller.dealerId && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <p className="text-sm text-blue-800">
+          <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 mb-6">
+            <p className="text-sm text-primary-800">
               <strong>✅ Tiene cuenta propia:</strong> Este vendedor tiene su propia cuenta con página web personal.
             </p>
-            <p className="text-sm text-blue-700 mt-1">
+            <p className="text-sm text-primary-700 mt-1">
               Tenant ID: {seller.tenantId}
             </p>
-            <p className="text-xs text-blue-600 mt-2">
+            <p className="text-xs text-primary-600 mt-2">
               El vendedor puede iniciar sesión en: <strong>http://localhost:3003/login</strong> (desarrollo) o en su subdominio personalizado (producción)
             </p>
           </div>

@@ -97,7 +97,7 @@ function CheckoutForm({ membershipId, clientSecret, onSuccess }: { membershipId:
         disabled={loading || !stripe}
         className="w-full px-6 py-3 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {loading ? 'Procesando...' : 'Confirmar y Suscribirse'}
+        {loading ? 'Procesando...' : 'Registrar tarjeta y activar prueba gratis'}
       </button>
     </form>
   );
@@ -221,7 +221,7 @@ function PaymentPageContent() {
   }, [membershipId, router]);
 
   const handleSuccess = () => {
-    router.push('/settings/membership?success=true');
+    router.push('/dashboard');
   };
 
   if (loading || !stripePromise || !clientSecret) {
@@ -245,10 +245,10 @@ function PaymentPageContent() {
     <div className="max-w-2xl mx-auto p-6">
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          Completar Pago
+          Activar membresía
         </h1>
         <p className="text-gray-600">
-          Completa tu suscripción a <strong>{membership.name}</strong>
+          Registra tu tarjeta para <strong>{membership.name}</strong>. Incluye <strong>14 días de prueba gratis</strong>; el cobro mensual inicia automáticamente al terminar.
         </p>
       </div>
 

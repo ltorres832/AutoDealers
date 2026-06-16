@@ -6,29 +6,27 @@ import DashboardLayout from '../../../../components/DashboardLayout';
 import Link from 'next/link';
 import { usePricingConfig, getBannerPrice } from '../../../../hooks/usePricingConfig';
 import { StripePaymentForm } from '@autodealers/shared';
-
-interface Plan {
-  id: string;
-  name: string;
-  price: number;
-  features: string[];
-  popular?: boolean;
-  stripePriceId?: string;
-}
+import { AdPlacementPreview } from '@/components/AdPlacementPreview';
+import { getPlacementPreviewSpec, type AdPlacement } from '@/lib/ad-placement-preview';
+import {
+  AD_LINK_TYPE_OPTIONS,
+  normalizeExternalUrl,
+  parseAdLinkType,
+  requiresDestinationUrl,
+  showsOptionalDestinationUrl,
+  type AdLinkType,
+} from '@/lib/ad-link-types';
 
 function CreateAdPageContent() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [advertiser, setAdvertiser] = useState<any>(null);
-  const [plans, setPlans] = useState<Plan[]>([]);
-  const [showPlanSelection, setShowPlanSelection] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<'image' | 'video'>('image');
   const [formData, setFormData] = useState({
     campaignName: '',
     type: 'banner' as 'banner' | 'promotion' | 'sponsor',
-    placement: 'sidebar' as 'hero' | 'sidebar' | 'sponsors_section' | 'between_content',
+    placement: 'between_content' as AdPlacement,
     durationDays: 7 as 7 | 15 | 30,
     title: '',
     description: '',
@@ -37,7 +35,7 @@ function CreateAdPageContent() {
     videoName: '',
     videoUrl: '',
     linkUrl: '',
-    linkType: 'external' as 'external' | 'landing_page',
+    linkType: 'marketplace' as AdLinkType,
     targetLocation: [] as string[],
     targetVehicleTypes: [] as string[],
     // Las fechas se calculan automáticamente según la duración
@@ -46,6 +44,7 @@ function CreateAdPageContent() {
   const { config: pricingConfig, loading: _pricingLoading } = usePricingConfig();
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [uploadNotice, setUploadNotice] = useState('');
   const [showPayment, setShowPayment] = useState(false);
   const [paymentData, setPaymentData] = useState<any>(null);
   const [createdAd, setCreatedAd] = useState<any>(null);
@@ -59,7 +58,6 @@ function CreateAdPageContent() {
 
   useEffect(() => {
     fetchAdvertiser();
-    fetchPlans();
     if (copyFrom) {
       preloadAd(copyFrom);
     }
@@ -91,7 +89,7 @@ function CreateAdPageContent() {
         videoUrl: media === 'video' ? ad.videoUrl || '' : '',
         videoName: '',
         linkUrl: ad.linkUrl || '',
-        linkType: (ad.linkType as any) || 'external',
+        linkType: parseAdLinkType(ad.linkType),
         targetLocation: ad.targetLocation || [],
         targetVehicleTypes: ad.targetVehicleTypes || [],
       }));
@@ -118,10 +116,6 @@ function CreateAdPageContent() {
       if (response.ok) {
         const data = await response.json();
         setAdvertiser(data.advertiser);
-        // Si no tiene plan, mostrar selección de plan
-        if (!data.advertiser.plan) {
-          setShowPlanSelection(true);
-        }
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
         setError(errorData.error || 'Error al cargar la información');
@@ -137,14 +131,18 @@ function CreateAdPageContent() {
     }
   }
 
+  const placementSpec = getPlacementPreviewSpec(formData.placement as AdPlacement);
+
   async function handleUpload(file: File, kind: 'image' | 'video') {
     if (!file) return;
-    const maxSizeMb = kind === 'video' ? 50 : 10;
+    const maxSizeMb =
+      kind === 'video' ? 50 : placementSpec.maxUploadMb;
     if (file.size > maxSizeMb * 1024 * 1024) {
       setError(`El archivo supera el límite de ${maxSizeMb}MB`);
       return;
     }
     try {
+      setUploadNotice('');
       if (kind === 'image') {
         setUploadingImage(true);
       } else {
@@ -153,6 +151,7 @@ function CreateAdPageContent() {
       const form = new FormData();
       form.append('file', file);
       form.append('kind', kind);
+      form.append('placement', formData.placement);
       const res = await fetch('/api/advertiser/upload', {
         method: 'POST',
         body: form,
@@ -173,10 +172,14 @@ function CreateAdPageContent() {
           ...prev,
           imageUrl: data.url,
           imageName: file.name,
-          // Si se sube imagen, limpiamos video
           videoUrl: '',
           videoName: '',
         }));
+        if (data.optimized && data.width && data.height) {
+          setUploadNotice(
+            `Imagen optimizada automáticamente a ${data.width}×${data.height}px para "${placementSpec.label}" (foto completa, alta calidad).`
+          );
+        }
       } else {
         setFormData((prev) => ({
           ...prev,
@@ -198,113 +201,9 @@ function CreateAdPageContent() {
     }
   }
 
-  async function fetchPlans() {
-    try {
-      const response = await fetch('/api/public/advertiser-pricing');
-      
-      // Verificar que la respuesta sea JSON
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text();
-        const errorMsg = text.includes('<!DOCTYPE') 
-          ? 'El servidor no está respondiendo correctamente. Verifica que esté corriendo en el puerto 3004.'
-          : 'Error al cargar los planes. Por favor recarga la página.';
-        setError(errorMsg);
-        return;
-      }
-      
-      if (response.ok) {
-        const data = await response.json();
-        const plansData: Plan[] = [
-          {
-            id: 'starter',
-            name: data.plans.starter.name,
-            price: data.plans.starter.amount / 100,
-            features: data.plans.starter.features,
-            stripePriceId: data.plans.starter.priceId,
-          },
-          {
-            id: 'professional',
-            name: data.plans.professional.name,
-            price: data.plans.professional.amount / 100,
-            features: data.plans.professional.features,
-            popular: true,
-            stripePriceId: data.plans.professional.priceId,
-          },
-          {
-            id: 'premium',
-            name: data.plans.premium.name,
-            price: data.plans.premium.amount / 100,
-            features: data.plans.premium.features,
-            stripePriceId: data.plans.premium.priceId,
-          },
-        ];
-        setPlans(plansData);
-      } else {
-        const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
-        setError(errorData.error || 'Error al cargar los planes');
-      }
-    } catch (error: any) {
-      if (error.message && error.message.includes('Failed to fetch')) {
-        setError('No se pudo conectar con el servidor. Asegúrate de que el servidor esté corriendo: npm run dev');
-      } else if (error.message && (error.message.includes('JSON') || error.message.includes('DOCTYPE'))) {
-        setError('El servidor devolvió una respuesta inválida. Verifica que esté corriendo correctamente.');
-      } else {
-        setError('Error al cargar los planes: ' + (error.message || 'Error de conexión'));
-      }
-    }
-  }
-
-  async function handleSelectPlan(planId: string) {
-    setSelectedPlan(planId);
-    setLoading(true);
-    try {
-      const response = await fetch('/api/advertiser/plan/change', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ newPlan: planId }),
-      });
-
-      // Verificar que la respuesta sea JSON
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text();
-        console.error('Expected JSON but got:', contentType, text.substring(0, 200));
-        setError('Error al procesar la solicitud. Por favor intenta de nuevo.');
-        setLoading(false);
-        return;
-      }
-
-      const data = await response.json();
-
-      if (response.ok && data.checkoutUrl) {
-        // Redirigir a Stripe Checkout
-        window.location.href = data.checkoutUrl;
-      } else {
-        setError(data.error || 'Error al seleccionar plan');
-        setLoading(false);
-      }
-    } catch (err: any) {
-      console.error('Error selecting plan:', err);
-      if (err.message && err.message.includes('JSON')) {
-        setError('Error al procesar la solicitud. Por favor intenta de nuevo.');
-      } else {
-        setError('Error al seleccionar plan: ' + err.message);
-      }
-      setLoading(false);
-    }
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-
-    // Si no tiene plan, debe seleccionar uno primero
-    if (!advertiser?.plan) {
-      setShowPlanSelection(true);
-      setError('Debes seleccionar un plan para crear anuncios');
-      return;
-    }
 
     setLoading(true);
 
@@ -319,6 +218,14 @@ function CreateAdPageContent() {
         setError('Debes subir o pegar un video.');
         setLoading(false);
         return;
+      }
+
+      if (requiresDestinationUrl(formData.linkType)) {
+        if (!normalizeExternalUrl(formData.linkUrl)) {
+          setError('Ingresa una URL válida para enlace externo (ej: https://tusitio.com o tusitio.com).');
+          setLoading(false);
+          return;
+        }
       }
 
       const response = await fetch('/api/advertiser/ads', {
@@ -363,86 +270,23 @@ function CreateAdPageContent() {
     }
   }
 
-  // Mostrar selección de plan si no tiene uno
-  if (showPlanSelection) {
-    return (
-      <DashboardLayout>
-        <div className="max-w-7xl mx-auto">
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold text-gray-900">Selecciona tu Plan</h1>
-            <p className="text-gray-600 mt-2">
-              Para crear anuncios, necesitas seleccionar un plan de suscripción
-            </p>
-          </div>
-
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
-              {error}
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {plans.map((plan) => (
-              <div
-                key={plan.id}
-                className={`bg-white rounded-xl shadow-lg p-8 border-2 ${
-                  plan.popular ? 'border-blue-500 scale-105' : 'border-gray-200'
-                }`}
-              >
-                {plan.popular && (
-                  <div className="bg-blue-500 text-white text-xs font-bold px-3 py-1 rounded-full inline-block mb-4">
-                    MÁS POPULAR
-                  </div>
-                )}
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">{plan.name}</h3>
-                <div className="mb-6">
-                  <span className="text-4xl font-bold text-gray-900">${plan.price}</span>
-                  <span className="text-gray-600">/mes</span>
-                </div>
-                <ul className="space-y-3 mb-8">
-                  {plan.features.map((feature, index) => (
-                    <li key={index} className="flex items-start gap-2">
-                      <span className="text-green-500 mt-1">✓</span>
-                      <span className="text-gray-700">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  onClick={() => handleSelectPlan(plan.id)}
-                  disabled={loading || selectedPlan === plan.id}
-                  className={`w-full py-3 rounded-lg font-semibold transition-all ${
-                    plan.popular
-                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700'
-                      : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
-                  } disabled:opacity-50`}
-                >
-                  {loading && selectedPlan === plan.id ? 'Procesando...' : 'Seleccionar Plan'}
-                </button>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-8 text-center">
-            <Link
-              href="/dashboard/ads"
-              className="text-blue-600 hover:text-blue-700 font-medium"
-            >
-              ← Volver a mis anuncios
-            </Link>
-          </div>
-        </div>
-      </DashboardLayout>
-    );
-  }
-
   return (
     <DashboardLayout>
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">Crear Nuevo Anuncio</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Crear Nuevo Anuncio</h1>
+        <p className="text-gray-600 mb-6">
+          Sin suscripción mensual: pagas una sola vez por este anuncio al confirmar con tarjeta.
+        </p>
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
             {error}
+          </div>
+        )}
+
+        {uploadNotice && (
+          <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg mb-6 text-sm">
+            {uploadNotice}
           </div>
         )}
 
@@ -455,7 +299,7 @@ function CreateAdPageContent() {
               <select
                 value={formData.type}
                 onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 required
               >
                 <option value="banner">Banner</option>
@@ -471,7 +315,7 @@ function CreateAdPageContent() {
               <select
                 value={formData.placement}
                 onChange={(e) => setFormData({ ...formData, placement: e.target.value as any })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 required
               >
                 <option value="hero">Hero (Principal)</option>
@@ -490,7 +334,7 @@ function CreateAdPageContent() {
               <select
                 value={formData.durationDays}
                 onChange={(e) => setFormData({ ...formData, durationDays: Number(e.target.value) as 7 | 15 | 30 })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 required
               >
                 <option value={7}>7 días</option>
@@ -552,7 +396,7 @@ function CreateAdPageContent() {
                 type="text"
                 value={formData.campaignName}
                 onChange={(e) => setFormData({ ...formData, campaignName: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 required
               />
             </div>
@@ -565,7 +409,7 @@ function CreateAdPageContent() {
                 type="text"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 required
               />
             </div>
@@ -578,69 +422,45 @@ function CreateAdPageContent() {
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
               rows={4}
             />
           </div>
 
-          {/* Vista previa */}
+          {/* Vista previa — mismo layout que el sitio público */}
           <div className="bg-white rounded-lg shadow p-6 space-y-4 border border-gray-200">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Vista previa</h3>
-                <p className="text-sm text-gray-600">Así se verá tu anuncio con la configuración actual.</p>
+                <p className="text-sm text-gray-600">
+                  Vista fiel a cómo se verá en el sitio ({placementSpec.label}).
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Cualquier tamaño sirve: el sistema ajusta automáticamente a {placementSpec.recommendedWidth}×
+                  {placementSpec.recommendedHeight}px, muestra la foto completa y guarda en alta calidad (máx.{' '}
+                  {placementSpec.maxUploadMb}MB de entrada).
+                </p>
               </div>
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-gray-600 shrink-0">
                 {formData.durationDays} días · ${price.toFixed(2)} · {formData.type} · {formData.placement}
               </div>
             </div>
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
-              {mediaType === 'image' && formData.imageUrl ? (
-                <img
-                  src={formData.imageUrl}
-                  alt="Preview"
-                  className="w-full max-h-56 object-cover rounded-md"
-                />
-              ) : mediaType === 'image' ? (
-                <div className="w-full h-40 bg-gray-200 rounded-md flex items-center justify-center text-gray-500 text-sm">
-                  Sin imagen
-                </div>
-              ) : null}
-              {mediaType === 'video' && formData.videoUrl && (
-                <video
-                  src={formData.videoUrl}
-                  controls
-                  className="w-full max-h-56 rounded-md bg-black"
-                />
-              )}
-              {mediaType === 'video' && !formData.videoUrl && (
-                <div className="w-full h-40 bg-gray-200 rounded-md flex items-center justify-center text-gray-500 text-sm">
-                  Sin video
-                </div>
-              )}
-              <div>
-                <p className="text-xs uppercase tracking-wide text-gray-500">
-                  {formData.campaignName || 'Nombre de campaña'}
-                </p>
-                <h4 className="text-xl font-bold text-gray-900">{formData.title || 'Título del anuncio'}</h4>
-                <p className="text-gray-700 mt-1">
-                  {formData.description || 'Aquí verás la descripción de tu anuncio.'}
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2 text-xs text-gray-600">
-                <span className="px-2 py-1 bg-white border border-gray-200 rounded-full">
-                  {formData.type}
-                </span>
-                <span className="px-2 py-1 bg-white border border-gray-200 rounded-full">
-                  {formData.placement}
-                </span>
-                <span className="px-2 py-1 bg-white border border-gray-200 rounded-full">
-                  {formData.durationDays} días
-                </span>
-                <span className="px-2 py-1 bg-white border border-gray-200 rounded-full">
-                  ${price.toFixed(2)}
-                </span>
-              </div>
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+              <AdPlacementPreview
+                placement={formData.placement as AdPlacement}
+                mediaType={mediaType}
+                imageUrl={formData.imageUrl}
+                videoUrl={formData.videoUrl}
+                title={formData.title}
+                description={formData.description}
+                campaignName={formData.campaignName}
+              />
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs text-gray-600">
+              <span className="px-2 py-1 bg-white border border-gray-200 rounded-full">{formData.type}</span>
+              <span className="px-2 py-1 bg-white border border-gray-200 rounded-full">{formData.placement}</span>
+              <span className="px-2 py-1 bg-white border border-gray-200 rounded-full">{formData.durationDays} días</span>
+              <span className="px-2 py-1 bg-white border border-gray-200 rounded-full">${price.toFixed(2)}</span>
             </div>
           </div>
 
@@ -654,7 +474,7 @@ function CreateAdPageContent() {
                   type="url"
                   value={formData.imageUrl}
                   onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="https://..."
                 />
                 <div className="flex items-center gap-3">
@@ -670,15 +490,13 @@ function CreateAdPageContent() {
                   {uploadingImage && <span className="text-sm text-gray-600">Subiendo...</span>}
                 </div>
                 <p className="text-xs text-gray-600">
-                  Formatos: JPG/PNG/WebP. Máx: 10MB. Se mostrará el tamaño original.
+                  Formatos: JPG/PNG/WebP. Máx. {placementSpec.maxUploadMb}MB. Puedes subir cualquier tamaño; al guardar
+                  se optimiza para {placementSpec.label} sin recortar la imagen.
                 </p>
                 {formData.imageName && (
                   <p className="text-xs text-gray-700">Archivo: {formData.imageName}</p>
                 )}
               </div>
-              {formData.imageUrl && (
-                <img src={formData.imageUrl} alt="Preview" className="mt-2 w-32 h-32 object-cover rounded" />
-              )}
             </div>
           )}
 
@@ -692,7 +510,7 @@ function CreateAdPageContent() {
                   type="url"
                   value={formData.videoUrl}
                   onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="https://..."
                 />
                 <div className="flex items-center gap-3">
@@ -717,35 +535,61 @@ function CreateAdPageContent() {
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                URL de Destino *
-              </label>
-              <input
-                type="url"
-                value={formData.linkUrl}
-                onChange={(e) => setFormData({ ...formData, linkUrl: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="https://..."
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Tipo de Enlace *
+                Tipo de enlace *
               </label>
               <select
                 value={formData.linkType}
-                onChange={(e) => setFormData({ ...formData, linkType: e.target.value as any })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  const linkType = e.target.value as AdLinkType;
+                  setFormData((prev) => ({
+                    ...prev,
+                    linkType,
+                    linkUrl:
+                      requiresDestinationUrl(linkType) || showsOptionalDestinationUrl(linkType)
+                        ? prev.linkUrl
+                        : '',
+                  }));
+                }}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 required
               >
-                <option value="external">Externo</option>
-                <option value="landing_page">Landing Page</option>
+                {AD_LINK_TYPE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
               </select>
+              <p className="text-xs text-gray-500 mt-1">
+                {AD_LINK_TYPE_OPTIONS.find((o) => o.value === formData.linkType)?.description}
+              </p>
             </div>
+
+            {(requiresDestinationUrl(formData.linkType) ||
+              showsOptionalDestinationUrl(formData.linkType)) && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  URL de destino
+                  {requiresDestinationUrl(formData.linkType) ? ' *' : ' (opcional)'}
+                </label>
+                <input
+                  type="text"
+                  inputMode="url"
+                  value={formData.linkUrl}
+                  onChange={(e) => setFormData({ ...formData, linkUrl: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="https://tusitio.com o tusitio.com"
+                  required={requiresDestinationUrl(formData.linkType)}
+                />
+                {showsOptionalDestinationUrl(formData.linkType) && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Si no indicas URL, usamos el sitio web de tu perfil de anunciante.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
@@ -762,7 +606,7 @@ function CreateAdPageContent() {
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-indigo-700 font-semibold transition-all disabled:opacity-50"
+              className="flex-1 bg-gradient-to-r from-primary-600 to-primary-600 text-white px-6 py-3 rounded-lg hover:from-primary-700 hover:to-primary-700 font-semibold transition-all disabled:opacity-50"
             >
               {loading ? 'Creando...' : 'Crear Anuncio'}
             </button>
@@ -778,7 +622,7 @@ function CreateAdPageContent() {
 
         {/* Formulario de Pago Integrado */}
         {showPayment && paymentData && (
-          <div className="mt-8 bg-white rounded-xl shadow-xl p-8 border-2 border-blue-200">
+          <div className="mt-8 bg-white rounded-xl shadow-xl p-8 border-2 border-primary-200">
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Completa el Pago</h2>
@@ -798,6 +642,8 @@ function CreateAdPageContent() {
             </div>
 
             <StripePaymentForm
+              publishableKeyUrl="/api/advertiser/stripe/publishable-key"
+              clientSecret={paymentData.clientSecret}
               amount={paymentData.amount}
               currency="usd"
               description={paymentData.description}

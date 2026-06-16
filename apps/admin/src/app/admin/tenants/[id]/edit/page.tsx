@@ -26,8 +26,8 @@ export default function EditTenantPage() {
     contactPhone: '',
     approvedByAdmin: false,
     branding: {
-      primaryColor: '#2563EB',
-      secondaryColor: '#1E40AF',
+      primaryColor: '#E10600',
+      secondaryColor: '#0A0A0A',
       logo: '',
       favicon: '',
     },
@@ -64,8 +64,8 @@ export default function EditTenantPage() {
         contactPhone: (t.contactPhone as string) || '',
         approvedByAdmin: !!t.approvedByAdmin,
         branding: {
-          primaryColor: t.branding?.primaryColor || '#2563EB',
-          secondaryColor: t.branding?.secondaryColor || '#1E40AF',
+          primaryColor: t.branding?.primaryColor || '#E10600',
+          secondaryColor: t.branding?.secondaryColor || '#0A0A0A',
           logo: (t.branding?.logo || t.branding?.logoUrl || '') as string,
           favicon: (t.branding?.favicon || t.branding?.faviconUrl || '') as string,
         },

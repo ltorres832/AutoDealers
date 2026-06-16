@@ -54,7 +54,7 @@ export default function AppointmentsPage() {
           ? '#10B981'
           : apt.status === 'completed'
           ? '#6B7280'
-          : '#3B82F6',
+          : '#E10600',
     };
   });
 

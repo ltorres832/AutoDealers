@@ -2,7 +2,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { createTenant, createUser, getTenants } from '@autodealers/core';
+import { createTenant, createUser, getTenants, finalizeUserRegistration } from '@autodealers/core';
+import { sendWelcomeEmailForRole } from '@/lib/send-welcome-email';
+import { getDashboardLoginUrl } from '@/lib/dashboard-login-urls';
 import { getFirestore } from '@autodealers/core';
 import { getAuth } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
@@ -185,7 +187,9 @@ export async function POST(request: NextRequest) {
           ...(wa ? { whatsapp: wa } : {}),
           platformTermsAcceptedAt: admin.firestore.FieldValue.serverTimestamp(),
           createdByAdmin: true,
+          mustChangePassword: true,
           adminCreatorUserId: auth.userId,
+          adminMembershipSelectionRequired: true,
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
 
@@ -194,6 +198,8 @@ export async function POST(request: NextRequest) {
           phone: phoneNorm,
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
+
+        await finalizeUserRegistration(user.id);
       } catch (updErr) {
         console.error('Post-create user updates failed, rolling back:', updErr);
         try {
@@ -214,7 +220,22 @@ export async function POST(request: NextRequest) {
         throw updErr;
       }
 
-      return NextResponse.json({ tenant, owner: { id: user.id, email } }, { status: 201 });
+      const welcome = await sendWelcomeEmailForRole({
+        email,
+        name: displayName,
+        role: type as 'dealer' | 'seller',
+      });
+
+      return NextResponse.json(
+        {
+          tenant,
+          owner: { id: user.id, email },
+          welcomeEmailSent: welcome.sent,
+          loginUrl: getDashboardLoginUrl(type as 'dealer' | 'seller'),
+          ...(welcome.error && !welcome.sent ? { welcomeEmailError: welcome.error } : {}),
+        },
+        { status: 201 }
+      );
     } catch (userErr: unknown) {
       console.error('Error creating owner user after tenant:', userErr);
       try {

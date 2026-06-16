@@ -20,3 +20,11 @@ export function getAdvertiserLoginForCreateUrl(): string {
   const next = '/dashboard/ads/create';
   return `${getAdvertiserAppOrigin()}/login?next=${encodeURIComponent(next)}`;
 }
+
+export function getAdvertiserRegisterUrl(): string {
+  return `${getAdvertiserAppOrigin()}/register`;
+}
+
+export function getAdvertiserLoginUrl(): string {
+  return `${getAdvertiserAppOrigin()}/login`;
+}

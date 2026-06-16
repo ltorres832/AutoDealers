@@ -126,7 +126,7 @@ export default function PurchaseIntentsPage() {
       {/* Lista de Intents */}
       {loading ? (
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
         </div>
       ) : intents.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
@@ -139,7 +139,7 @@ export default function PurchaseIntentsPage() {
             return (
               <div
                 key={intent.id}
-                className="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500"
+                className="bg-white rounded-lg shadow p-6 border-l-4 border-primary-500"
               >
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1">

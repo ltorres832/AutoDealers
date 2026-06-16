@@ -97,9 +97,9 @@ export default function AdminAllIntegrationsPage() {
                     <SocialIcon platform={integration.platform as any} size={20} />
                     <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${
                       integration.platform === 'facebook'
-                        ? 'bg-blue-50 text-blue-700'
+                        ? 'bg-primary-50 text-primary-700'
                         : integration.platform === 'instagram'
-                        ? 'bg-gradient-to-r from-purple-50 to-pink-50 text-purple-700'
+                        ? 'bg-gradient-to-r from-primary-50 to-brand-red-bright50 text-primary-700'
                         : integration.platform === 'whatsapp'
                         ? 'bg-green-50 text-green-700'
                         : 'bg-gray-100 text-gray-700'

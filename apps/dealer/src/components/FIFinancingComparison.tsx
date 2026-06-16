@@ -130,7 +130,7 @@ export default function FIFinancingComparison({
         <h2 className="text-xl font-bold">Comparación de Opciones de Financiamiento</h2>
         <button
           onClick={() => setShowAddOption(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
         >
           + Agregar Opción
         </button>
@@ -220,7 +220,7 @@ export default function FIFinancingComparison({
                             onOptionSelected(opt.id);
                           }
                         }}
-                        className="text-blue-600 hover:text-blue-800"
+                        className="text-primary-600 hover:text-primary-800"
                       >
                         Seleccionar
                       </button>
@@ -321,7 +321,7 @@ export default function FIFinancingComparison({
               </button>
               <button
                 onClick={handleAddOption}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
               >
                 Agregar
               </button>

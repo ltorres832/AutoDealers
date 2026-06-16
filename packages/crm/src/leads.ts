@@ -32,6 +32,11 @@ export interface CreateLeadExtras {
   tags?: string[];
   /** Estado inicial (por defecto `new`). Ej. `lost` para prospectos muy fríos si el negocio lo desea. */
   initialStatus?: LeadStatus;
+  /**
+   * Lead del vendedor (publicidad/redes/formulario propio). Va directo a `assignedTo` y
+   * no aparece en el CRM general del concesionario.
+   */
+  sellerOwned?: boolean;
 }
 
 /**
@@ -56,7 +61,11 @@ export async function createLead(
       : undefined;
 
   let assignedTo = assignedToFromExtras;
-  if (!assignedTo) {
+  const sellerOwned = extras?.sellerOwned === true;
+
+  if (sellerOwned) {
+    assignedTo = assignedToFromExtras || (typeof extras?.createdBy === 'string' ? extras.createdBy.trim() : undefined);
+  } else if (!assignedTo) {
     try {
       const { pickNextAssignedSellerForNewLead } = await import('./lead-routing');
       const auto = await pickNextAssignedSellerForNewLead(tenantId, source);
@@ -67,7 +76,7 @@ export async function createLead(
       console.warn('[crm] lead routing skipped:', error);
     }
   }
-  if (!assignedTo) {
+  if (!sellerOwned && !assignedTo) {
     try {
       const { getUsersByTenant } = await import('@autodealers/core');
       const users = await getUsersByTenant(tenantId);
@@ -167,6 +176,7 @@ export async function createLead(
     ...(Array.isArray(extras?.tags) && extras.tags.length > 0
       ? { tags: extras.tags.filter((t): t is string => typeof t === 'string' && t.trim().length > 0).slice(0, 24) }
       : {}),
+    ...(sellerOwned ? { sellerOwned: true } : {}),
   };
 
   const db = getDb();
@@ -272,26 +282,21 @@ export async function createLead(
   // Notificar al vendedor asignado (incl. email / SMS / WhatsApp según preferencias)
   if (assignedTo) {
     try {
-      const { createNotification } = await import('@autodealers/core');
-      const { resolveUserNotificationChannels } = await import('./user-notification-channels');
-      const channels = await resolveUserNotificationChannels(assignedTo);
-      await createNotification({
-        tenantId,
-        userId: assignedTo,
-        type: 'lead_created',
+      const { notifyUser } = await import('@autodealers/core');
+      await notifyUser(tenantId, assignedTo, {
+        type: extras?.tags?.includes('catalogo_web') ? 'catalog_interest' : 'lead_created',
         title: extras?.tags?.includes('catalogo_web')
           ? 'Interés en vehículo (web)'
           : 'Nuevo lead asignado a ti',
         message: extras?.tags?.includes('catalogo_web')
           ? `${contact.name} (${contact.phone}) dejó sus datos en la ficha de un vehículo. Revisa Leads para dar seguimiento.`
           : `Lead de ${contact.name} (${contact.phone}) — origen: ${source}. ${notes ? `Notas: ${notes.substring(0, 200)}${notes.length > 200 ? '…' : ''}` : ''}`,
-        channels,
         metadata: {
           leadId: newLead.id,
           contactName: contact.name,
           contactPhone: contact.phone,
           source,
-          route: '/leads',
+          route: `/leads?leadId=${newLead.id}`,
         },
       });
     } catch (error) {
@@ -340,6 +345,8 @@ export async function getLeads(
     assignedTo?: string;
     source?: LeadSource;
     limit?: number;
+    /** Excluir leads del vendedor (CRM del concesionario). */
+    dealerVisibleOnly?: boolean;
   }
 ): Promise<Lead[]> {
   const db = getDb();
@@ -368,7 +375,7 @@ export async function getLeads(
 
   const snapshot = await query.get();
 
-  return snapshot.docs.map((doc) => {
+  let rows = snapshot.docs.map((doc) => {
     const data = doc.data();
     return {
       id: doc.id,
@@ -377,6 +384,13 @@ export async function getLeads(
       updatedAt: data?.updatedAt?.toDate() || new Date(),
     } as Lead;
   });
+
+  if (filters?.dealerVisibleOnly) {
+    const { filterDealerVisibleLeads } = await import('./seller-owned-leads');
+    rows = filterDealerVisibleLeads(rows);
+  }
+
+  return rows;
 }
 
 /**
@@ -433,23 +447,47 @@ export async function assignLead(
   const sellerDoc = await db.collection('users').doc(userId).get();
   const sellerName = sellerDoc.data()?.name || 'Vendedor';
 
-  // Notificar a gerentes y administradores sobre la asignación (asíncrono, no bloquea)
+  const contactLabel = `${leadData?.contact?.name || 'Cliente'} (${leadData?.contact?.phone || ''})`;
+
+  // Notificar al vendedor asignado
   try {
-    const { notifyManagersAndAdmins } = await import('@autodealers/core');
-    await notifyManagersAndAdmins(tenantId, {
+    const { notifyUser } = await import('@autodealers/core');
+    await notifyUser(tenantId, userId, {
       type: 'lead_assigned',
-      title: 'Lead Asignado',
-      message: `El lead de ${leadData?.contact?.name || 'Cliente'} (${leadData?.contact?.phone || ''}) ha sido asignado a ${sellerName}.`,
+      title: 'Lead asignado a ti',
+      message: `Te asignaron el lead de ${contactLabel}.`,
       metadata: {
         leadId,
-        assignedTo: userId,
-        assignedToName: sellerName,
+        route: `/leads?leadId=${leadId}`,
         contactName: leadData?.contact?.name,
         contactPhone: leadData?.contact?.phone,
       },
     });
   } catch (error) {
-    // No fallar si las notificaciones no están disponibles
+    console.warn('Seller notification skipped for lead assignment:', error);
+  }
+
+  // Notificar a gerentes y administradores sobre la asignación
+  try {
+    const { notifyManagersAndAdmins } = await import('@autodealers/core');
+    await notifyManagersAndAdmins(
+      tenantId,
+      {
+        type: 'lead_assigned',
+        title: 'Lead Asignado',
+        message: `El lead de ${contactLabel} ha sido asignado a ${sellerName}.`,
+        metadata: {
+          leadId,
+          assignedTo: userId,
+          assignedToName: sellerName,
+          route: `/leads?leadId=${leadId}`,
+          contactName: leadData?.contact?.name,
+          contactPhone: leadData?.contact?.phone,
+        },
+      },
+      { excludeUserIds: [userId] }
+    );
+  } catch (error) {
     console.warn('Manager notification skipped for lead assignment:', error);
   }
 }
@@ -502,6 +540,19 @@ export async function updateLead(
       ...updates,
       updatedAt: getFirestoreFieldValue().serverTimestamp(),
     } as any);
+}
+
+/**
+ * Elimina un lead del tenant (borrado permanente).
+ */
+export async function deleteLead(tenantId: string, leadId: string): Promise<void> {
+  const db = getDb();
+  const ref = db.collection('tenants').doc(tenantId).collection('leads').doc(leadId);
+  const snap = await ref.get();
+  if (!snap.exists) {
+    throw new Error('Lead not found');
+  }
+  await ref.delete();
 }
 
 /**

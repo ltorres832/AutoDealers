@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getSubscriptionByTenantId } from '@autodealers/billing';
+import { getSubscriptionByTenantId, isDealerManagedSeller } from '@autodealers/billing';
 import { getStripeInstance } from '@autodealers/core';
 import { getFirestore } from '@autodealers/core';
 import * as admin from 'firebase-admin';
@@ -12,6 +12,16 @@ export async function POST(request: NextRequest) {
     const auth = await verifyAuth(request);
     if (!auth || !auth.tenantId || auth.role !== 'seller') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (isDealerManagedSeller(auth.dealerId)) {
+      return NextResponse.json(
+        {
+          error: 'dealer_managed',
+          message: 'La membresía la gestiona tu concesionario. Contacta a tu dealer si necesitas cambios.',
+        },
+        { status: 403 }
+      );
     }
 
     const body = await request.json();

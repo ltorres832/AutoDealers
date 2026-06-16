@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { useRealtimeMemberships } from '@/hooks/useRealtimeMemberships';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
+import { useRealtimeMemberships } from '@/hooks/useRealtimeMemberships';
+import { MembershipOnboardingNotice } from '@autodealers/shared/client';
 
 interface Membership {
   id: string;
@@ -39,8 +40,24 @@ export default function MembershipPage() {
 
   const [isMultiDealer, setIsMultiDealer] = useState<boolean | null>(null);
   const { subscription, loading: subscriptionLoading } = useRealtimeSubscription(tenantId);
-  const [availableMemberships, setAvailableMemberships] = useState<Membership[]>([]);
-  const [membershipsLoading, setMembershipsLoading] = useState(true);
+  const { memberships: allMemberships, loading: membershipsLoading, emptyReason: baseEmptyReason } =
+    useRealtimeMemberships('dealer');
+
+  const availableMemberships = useMemo(() => {
+    if (isMultiDealer === null) return [];
+    return isMultiDealer
+      ? allMemberships.filter((m) => m.features?.multiDealerEnabled === true)
+      : allMemberships.filter((m) => !m.features?.multiDealerEnabled);
+  }, [allMemberships, isMultiDealer]);
+
+  const membershipsEmptyReason = useMemo(() => {
+    if (isMultiDealer === null) return null;
+    if (availableMemberships.length > 0) return null;
+    if (allMemberships.length === 0) {
+      return 'No hay planes de concesionario en el catálogo. Créalos y actívalos en Admin → Membresías.';
+    }
+    return baseEmptyReason || 'Hay planes de concesionario pero ninguno está activo para tu tipo de cuenta.';
+  }, [availableMemberships.length, allMemberships.length, baseEmptyReason, isMultiDealer]);
 
   // Obtener tenantId del usuario y determinar si es multi-dealer
   useEffect(() => {
@@ -88,46 +105,6 @@ export default function MembershipPage() {
       setIsMultiDealer(false);
     }
   }, [subscription, subscriptionLoading]);
-
-  // Cargar membresías desde el API (ya filtradas según tipo de cuenta)
-  useEffect(() => {
-    async function fetchMemberships() {
-      if (isMultiDealer === null) {
-        // Esperar a determinar el tipo de cuenta
-        return;
-      }
-
-      setMembershipsLoading(true);
-      try {
-        const { fetchWithAuth } = await import('@/lib/fetch-with-auth');
-        const response = await fetchWithAuth('/api/settings/membership/available', {});
-        
-        if (response.ok) {
-          const data = await response.json();
-          console.log('✅ [MEMBERSHIP PAGE] Membresías obtenidas:', data.memberships?.length || 0);
-          
-          if (data.memberships && Array.isArray(data.memberships)) {
-            setAvailableMemberships(data.memberships);
-          } else {
-            console.warn('⚠️ [MEMBERSHIP PAGE] Respuesta no contiene array de membresías');
-            setAvailableMemberships([]);
-          }
-        } else {
-          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-          console.error('❌ [MEMBERSHIP PAGE] Error en respuesta:', response.status, errorData);
-          setAvailableMemberships([]);
-        }
-      } catch (error: any) {
-        console.error('❌ [MEMBERSHIP PAGE] Error obteniendo membresías desde API:', error);
-        console.error('❌ [MEMBERSHIP PAGE] Error details:', error.message, error.stack);
-        setAvailableMemberships([]);
-      } finally {
-        setMembershipsLoading(false);
-      }
-    }
-    
-    fetchMemberships();
-  }, [isMultiDealer]);
 
   // Obtener membresía actual directamente desde el API (no depende de availableMemberships)
   // CRÍTICO: Verificar TANTO subscription.membershipId COMO user.membershipId
@@ -194,7 +171,7 @@ export default function MembershipPage() {
     fetchCurrentMembership();
   }, [subscription?.membershipId, user?.membershipId, availableMemberships]);
 
-  const loading = membershipsLoading || subscriptionLoading;
+  const loading = (membershipsLoading && isMultiDealer !== null) || subscriptionLoading;
 
   async function handleCancelMembership() {
     if (!confirm('¿Estás seguro de que quieres cancelar tu membresía? Se cancelará al final del período actual y podrás seguir usando el servicio hasta entonces.')) {
@@ -336,6 +313,7 @@ export default function MembershipPage() {
 
   return (
     <div className="max-w-6xl mx-auto">
+      <MembershipOnboardingNotice accountLabel="concesionario" />
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Configuración</h1>
         <p className="text-gray-600">
@@ -401,19 +379,19 @@ export default function MembershipPage() {
           
           if (!membershipToShow) {
             return (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+              <div className="bg-primary-50 border border-primary-200 rounded-lg p-6">
                 <div className="flex items-start gap-4">
                   <div className="flex-shrink-0">
                     <span className="text-3xl">📋</span>
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-blue-900 mb-2">
+                    <h3 className="text-lg font-semibold text-primary-900 mb-2">
                       No tienes una membresía activa
                     </h3>
-                    <p className="text-blue-700 mb-4">
+                    <p className="text-primary-700 mb-4">
                       Selecciona un plan de membresía para comenzar a usar todas las funcionalidades de la plataforma.
                     </p>
-                    <p className="text-sm text-blue-600 mb-4">
+                    <p className="text-sm text-primary-600 mb-4">
                       Puedes elegir entre los planes disponibles a continuación. Una vez seleccionado, podrás gestionar tu membresía desde aquí.
                     </p>
                     {user?.status === 'active' && !user?.membershipId && (
@@ -477,8 +455,8 @@ export default function MembershipPage() {
             </div>
 
             {subscription?.statusReason && (
-              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-800">
+              <div className="mb-4 p-3 bg-primary-50 border border-primary-200 rounded-lg">
+                <p className="text-sm text-primary-800">
                   <strong>Motivo del estado:</strong> {subscription.statusReason}
                 </p>
               </div>
@@ -665,8 +643,8 @@ export default function MembershipPage() {
               </div>
               {(membershipToShow.features.maxInventory === null && 
                 membershipToShow.features.maxStorageGB === null) && (
-                <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                  <p className="text-sm text-purple-800 font-medium">
+                <div className="mt-4 p-3 bg-primary-50 border border-primary-200 rounded-lg">
+                  <p className="text-sm text-primary-800 font-medium">
                     🎉 Todo Ilimitado - Sin Restricciones
                   </p>
                 </div>
@@ -789,8 +767,8 @@ export default function MembershipPage() {
                 </div>
                 {(membership.features.maxInventory === null && 
                   membership.features.maxStorageGB === null) && (
-                  <div className="mt-2 p-2 bg-purple-50 border border-purple-200 rounded">
-                    <p className="text-xs text-purple-800 font-medium">
+                  <div className="mt-2 p-2 bg-primary-50 border border-primary-200 rounded">
+                    <p className="text-xs text-primary-800 font-medium">
                       🎉 Todo Ilimitado - Sin Restricciones
                     </p>
                   </div>
@@ -823,7 +801,9 @@ export default function MembershipPage() {
 
         {availableMemberships.length === 0 && !membershipsLoading && (
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
-            <p className="text-gray-600 mb-4">No hay membresías disponibles</p>
+            <p className="text-gray-600 mb-4">
+              {membershipsEmptyReason || 'No hay membresías disponibles'}
+            </p>
             <button
               onClick={async () => {
                 try {

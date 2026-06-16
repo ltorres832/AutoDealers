@@ -231,8 +231,8 @@ export default function WebsiteSettingsPage() {
         </div>
       </div>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-        <p className="text-blue-900 text-sm leading-relaxed">
+      <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 mb-6">
+        <p className="text-primary-900 text-sm leading-relaxed">
           <strong>Tu catálogo para clientes</strong> es la página{' '}
           <code className="rounded bg-white/80 px-1 text-xs">/seller/…</code> del sitio público (botón
           &quot;Abrir mi catálogo público&quot;). Ahí ven tu foto, contacto, redes e inventario. Hero,
@@ -257,7 +257,7 @@ export default function WebsiteSettingsPage() {
           ) : null}
         </p>
         {primaryPublicUrl ? (
-          <p className="text-blue-800 text-xs mt-2">
+          <p className="text-primary-800 text-xs mt-2">
             URL pública:{' '}
             <a href={primaryPublicUrl} target="_blank" rel="noopener noreferrer" className="underline">
               {primaryPublicUrl.replace(/^https?:\/\//, '')}
@@ -682,8 +682,8 @@ function WebsitePreview({
     setPreviewChatOpen(settings.chat?.enabled !== false);
   }, [settings.chat?.enabled]);
 
-  const primaryColor = branding?.primaryColor || '#2563EB';
-  const secondaryColor = branding?.secondaryColor || '#1E40AF';
+  const primaryColor = branding?.primaryColor || '#E10600';
+  const secondaryColor = branding?.secondaryColor || '#0A0A0A';
   const tenantName = profile?.name || profile?.businessName || 'Nombre del Vendedor';
   const roleLine =
     (profile?.title && String(profile.title).trim()) ||

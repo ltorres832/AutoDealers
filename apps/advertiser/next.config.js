@@ -1,8 +1,30 @@
 /** @type {import('next').NextConfig} */
+const path = require('path');
+
 const nextConfig = {
   reactStrictMode: true,
   turbopack: {},
   output: 'standalone',
+  outputFileTracingRoot: path.join(__dirname, '../../'),
+  outputFileTracingIncludes: {
+    '/**': [
+      '../../node_modules/firebase-admin/**',
+      '../../node_modules/google-auth-library/**',
+      '../../node_modules/gcp-metadata/**',
+      '../../node_modules/google-gax/**',
+      '../../node_modules/@google-cloud/**',
+      '../../node_modules/@grpc/**',
+      '../../node_modules/sharp/**',
+    ],
+  },
+  serverExternalPackages: [
+    'firebase-admin',
+    'google-auth-library',
+    '@google-cloud/firestore',
+    '@google-cloud/storage',
+    'stripe',
+    'sharp',
+  ],
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -21,6 +43,12 @@ const nextConfig = {
   webpack: (config, { isServer }) => {
     // Resolver alias para los paquetes del monorepo
     const path = require('path');
+    config.resolve.extensionAlias = {
+      '.js': ['.ts', '.tsx', '.js', '.jsx'],
+      '.jsx': ['.tsx', '.jsx'],
+      '.mjs': ['.mts', '.mjs'],
+      '.cjs': ['.cts', '.cjs'],
+    };
     config.resolve.alias = {
       ...config.resolve.alias,
       '@autodealers/core': path.resolve(__dirname, '../../packages/core/src'),

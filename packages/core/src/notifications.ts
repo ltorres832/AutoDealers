@@ -3,7 +3,6 @@
 import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
 import { EmailService } from '@autodealers/messaging';
 import { SMSService } from '@autodealers/messaging';
-import { WhatsAppService } from '@autodealers/messaging';
 
 // Lazy initialization - solo se inicializa cuando se necesita
 function getDb() {
@@ -14,15 +13,25 @@ export type NotificationType =
   | 'lead_created'
   | 'lead_assigned'
   | 'message_received'
+  | 'public_chat'
+  | 'internal_chat'
+  | 'document_uploaded'
+  | 'document_signed'
+  | 'task_assigned'
+  | 'task_due'
   | 'appointment_created'
   | 'appointment_confirmed'
   | 'appointment_reminder'
   | 'sale_completed'
   | 'reminder_due'
   | 'payment_failed'
+  | 'promotion'
+  | 'announcement'
+  | 'fi_request'
+  | 'catalog_interest'
   | 'system_alert';
 
-export type NotificationChannel = 'system' | 'email' | 'sms' | 'whatsapp';
+export type NotificationChannel = 'system' | 'push' | 'email' | 'sms' | 'whatsapp';
 
 export interface Notification {
   id: string;
@@ -87,6 +96,9 @@ async function sendNotificationChannels(
 
     try {
       switch (channel) {
+        case 'push':
+          await sendPushNotification(notification);
+          break;
         case 'email':
           await sendEmailNotification(notification);
           break;
@@ -102,6 +114,38 @@ async function sendNotificationChannels(
       console.error(`Error sending ${channel} notification:`, error);
     }
   }
+}
+
+/**
+ * Envía notificación push (FCM)
+ */
+async function sendPushNotification(
+  notification: Omit<Notification, 'id' | 'createdAt' | 'read'>
+): Promise<void> {
+  const { sendPushToUser } = await import('./fcm-tokens');
+  const route =
+    typeof notification.metadata?.route === 'string'
+      ? notification.metadata.route
+      : notification.metadata?.leadId
+        ? `/leads?leadId=${notification.metadata.leadId}`
+        : notification.metadata?.messageId
+          ? '/messages'
+          : '/';
+
+  await sendPushToUser(notification.userId, {
+    title: notification.title,
+    body: notification.message,
+    data: {
+      type: notification.type,
+      tenantId: notification.tenantId,
+      route,
+      ...(notification.metadata
+        ? Object.fromEntries(
+            Object.entries(notification.metadata).map(([k, v]) => [k, String(v ?? '')])
+          )
+        : {}),
+    },
+  });
 }
 
 /**
@@ -204,20 +248,19 @@ async function sendWhatsAppNotification(
     return;
   }
 
-  // Obtener credenciales de WhatsApp desde Firestore
-  const { getWhatsAppCredentials } = await import('./credentials');
-  const whatsappCreds = await getWhatsAppCredentials();
+  const { createWhatsAppServiceForTenant } = await import('./messaging-outbound');
+  const wa = await createWhatsAppServiceForTenant(notification.tenantId);
 
-  const whatsappService = new WhatsAppService(
-    whatsappCreds.accessToken || '',
-    whatsappCreds.phoneNumberId || ''
-  );
+  if (!wa) {
+    console.warn('WhatsApp not configured for tenant', notification.tenantId);
+    return;
+  }
 
-  await whatsappService.sendMessage({
+  await wa.service.sendMessage({
     tenantId: notification.tenantId,
     channel: 'whatsapp',
     direction: 'outbound',
-    from: whatsappCreds.phoneNumberId || '',
+    from: wa.phoneNumberId,
     to: phone,
     content: `${notification.title}\n\n${notification.message}`,
   });
@@ -358,6 +401,9 @@ export async function getNotificationChannelsForUser(userId: string): Promise<No
   }
   const userNotificationSettings = userData?.settings?.notifications || {};
   const channels: NotificationChannel[] = ['system'];
+  if (userNotificationSettings.push !== false) {
+    channels.push('push');
+  }
   if (userNotificationSettings.email !== false) {
     channels.push('email');
   }
@@ -370,6 +416,33 @@ export async function getNotificationChannelsForUser(userId: string): Promise<No
     }
   }
   return channels;
+}
+
+/**
+ * Notifica a un usuario con todos los canales según sus preferencias.
+ */
+export async function notifyUser(
+  tenantId: string,
+  userId: string,
+  notification: {
+    type: NotificationType;
+    title: string;
+    message: string;
+    metadata?: Record<string, any>;
+    channels?: NotificationChannel[];
+  }
+): Promise<Notification> {
+  const channels =
+    notification.channels || (await getNotificationChannelsForUser(userId));
+  return createNotification({
+    tenantId,
+    userId,
+    type: notification.type,
+    title: notification.title,
+    message: notification.message,
+    channels,
+    metadata: notification.metadata,
+  });
 }
 
 /**
@@ -413,19 +486,27 @@ export async function notifyManagersAndAdmins(
 ): Promise<void> {
   try {
     const db = getDb();
+    const tenantDoc = await db.collection('tenants').doc(tenantId).get();
+    const tenantType = tenantDoc.data()?.type as string | undefined;
 
-    // Gerentes, admins y titulares dealer del tenant (evitar que solo managers reciban todo)
-    const managersSnapshot = await getDb().collection('users')
+    // Vendedor independiente: tenant type seller → notificar al titular (role seller).
+    // Concesionario: gerentes, dealer_admin, dealer, master_dealer.
+    const recipientRoles =
+      tenantType === 'seller'
+        ? ['seller']
+        : ['manager', 'dealer_admin', 'dealer', 'master_dealer', 'fi_manager'];
+
+    const managersSnapshot = await db
+      .collection('users')
       .where('tenantId', '==', tenantId)
-      .where('role', 'in', ['manager', 'dealer_admin', 'dealer', 'master_dealer'])
+      .where('role', 'in', recipientRoles)
       .where('status', '==', 'active')
       .get();
 
     if (managersSnapshot.empty) {
-      return; // No hay gerentes o administradores para notificar
+      return;
     }
 
-    // Enviar notificación a cada gerente/administrador
     const notificationPromises = managersSnapshot.docs.map(async (doc) => {
       const userData = doc.data();
       const userId = doc.id;
@@ -445,7 +526,18 @@ export async function notifyManagersAndAdmins(
           shouldNotify = businessNotifications.newLeads !== false;
           break;
         case 'message_received':
+        case 'public_chat':
+        case 'internal_chat':
           shouldNotify = businessNotifications.newMessages !== false;
+          break;
+        case 'document_uploaded':
+        case 'document_signed':
+        case 'fi_request':
+          shouldNotify = businessNotifications.documents !== false;
+          break;
+        case 'task_assigned':
+        case 'task_due':
+          shouldNotify = businessNotifications.tasks !== false;
           break;
         case 'appointment_created':
         case 'appointment_confirmed':
@@ -454,6 +546,9 @@ export async function notifyManagersAndAdmins(
           break;
         case 'sale_completed':
           shouldNotify = businessNotifications.newSales !== false;
+          break;
+        case 'catalog_interest':
+          shouldNotify = businessNotifications.catalogInterest !== false;
           break;
         case 'system_alert':
           shouldNotify = businessNotifications.systemAlerts !== false;
@@ -468,12 +563,14 @@ export async function notifyManagersAndAdmins(
 
       // Determinar canales según configuración del usuario
       const userNotificationSettings = userData?.settings?.notifications || {};
-      const channels: NotificationChannel[] = ['system']; // Siempre notificar en sistema
+      const channels: NotificationChannel[] = ['system'];
 
+      if (userNotificationSettings.push !== false) {
+        channels.push('push');
+      }
       if (userNotificationSettings.email !== false) {
         channels.push('email');
       }
-
       if (userData.phone) {
         if (userNotificationSettings.sms !== false) {
           channels.push('sms');
@@ -499,6 +596,81 @@ export async function notifyManagersAndAdmins(
   } catch (error) {
     console.error('Error notifying managers and admins:', error);
     // No lanzar error para no interrumpir el flujo principal
+  }
+}
+
+/**
+ * Notifica a todos los usuarios admin de plataforma (sin tenant operativo).
+ * Se almacenan en tenants/_platform/notifications.
+ */
+export async function notifyPlatformAdmins(notification: {
+  type: NotificationType;
+  title: string;
+  message: string;
+  metadata?: Record<string, any>;
+}): Promise<void> {
+  try {
+    const { PLATFORM_ADMIN_TENANT_ID } = await import('./platform-social');
+    const db = getDb();
+    const adminsSnapshot = await db
+      .collection('users')
+      .where('role', '==', 'admin')
+      .get();
+
+    if (adminsSnapshot.empty) return;
+
+    await Promise.all(
+      adminsSnapshot.docs.map(async (doc) => {
+        const userData = doc.data();
+        const channels = await getNotificationChannelsForUser(doc.id);
+        await createNotification({
+          tenantId: PLATFORM_ADMIN_TENANT_ID,
+          userId: doc.id,
+          type: notification.type,
+          title: notification.title,
+          message: notification.message,
+          channels,
+          metadata: notification.metadata,
+        });
+        void userData;
+      })
+    );
+  } catch (error) {
+    console.error('Error notifying platform admins:', error);
+  }
+}
+
+/** Marca como leídas las notificaciones de admin de plataforma que coinciden con metadata. */
+export async function markPlatformAdminNotificationsRead(
+  metadataFilter: Record<string, string>
+): Promise<void> {
+  try {
+    const { PLATFORM_ADMIN_TENANT_ID } = await import('./platform-social');
+    const db = getDb();
+    const entries = Object.entries(metadataFilter);
+    if (entries.length === 0) return;
+
+    let q: any = db
+      .collection('tenants')
+      .doc(PLATFORM_ADMIN_TENANT_ID)
+      .collection('notifications')
+      .where('read', '==', false);
+
+    for (const [key, value] of entries) {
+      q = q.where(`metadata.${key}`, '==', value);
+    }
+
+    const snapshot = await q.get();
+    if (snapshot.empty) return;
+
+    const batch = db.batch();
+    const readAt = getFirestoreFieldValue().serverTimestamp();
+    snapshot.docs.forEach((doc) => {
+      batch.update(doc.ref, { read: true, readAt } as any);
+    });
+    await batch.commit();
+  } catch (error) {
+    console.error('Error marking platform admin notifications read:', error);
   }
 }
 

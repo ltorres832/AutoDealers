@@ -181,12 +181,12 @@ export default function PreQualifyPage() {
 
             {result.result.status === 'manual_review' && (
               <div className="text-center mb-8">
-                <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-12 h-12 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-20 h-20 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-12 h-12 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                 </div>
-                <h2 className="text-3xl font-bold text-blue-600 mb-2">Revisión Manual Requerida</h2>
+                <h2 className="text-3xl font-bold text-primary-600 mb-2">Revisión Manual Requerida</h2>
                 <p className="text-gray-600">Tu solicitud será revisada por nuestro equipo</p>
               </div>
             )}
@@ -275,7 +275,7 @@ export default function PreQualifyPage() {
                 <>
                   <Link
                     href={`/${subdomain}/appointment`}
-                    className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 text-center"
+                    className="flex-1 bg-primary-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-700 text-center"
                   >
                     📅 Agendar Cita
                   </Link>
@@ -291,7 +291,7 @@ export default function PreQualifyPage() {
                 <>
                   <Link
                     href={`/${subdomain}`}
-                    className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 text-center"
+                    className="flex-1 bg-primary-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-700 text-center"
                   >
                     Ver Inventario
                   </Link>
@@ -326,7 +326,7 @@ export default function PreQualifyPage() {
               {result.result.status === 'manual_review' && (
                 <Link
                   href={`/${subdomain}/appointment`}
-                  className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 text-center"
+                  className="flex-1 bg-primary-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-700 text-center"
                 >
                   Contactar con un Asesor
                 </Link>
@@ -357,7 +357,7 @@ export default function PreQualifyPage() {
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div
-              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+              className="bg-primary-600 h-2 rounded-full transition-all duration-300"
               style={{ width: `${(step / 3) * 100}%` }}
             />
           </div>
@@ -582,7 +582,7 @@ export default function PreQualifyPage() {
               <button
                 type="button"
                 onClick={nextStep}
-                className="ml-auto px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="ml-auto px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
               >
                 Siguiente →
               </button>

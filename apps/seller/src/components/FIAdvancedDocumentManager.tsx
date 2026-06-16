@@ -246,6 +246,47 @@ export default function FIAdvancedDocumentManager({
     }
   };
 
+  async function revalidateDocument(doc: Document) {
+    setValidating(doc.id);
+    try {
+      const validateResponse = await fetch('/api/fi/documents/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          documentId: doc.id,
+          documentUrl: doc.url,
+          documentType: doc.type,
+          clientId,
+        }),
+      });
+
+      if (!validateResponse.ok) {
+        throw new Error('Error al re-validar documento');
+      }
+
+      const validationResult = await validateResponse.json();
+      setDocuments((prev) => {
+        const updated = prev.map((item) =>
+          item.id === doc.id
+            ? {
+                ...item,
+                status: validationResult.isValid ? ('valid' as const) : ('needs_review' as const),
+                validation: validationResult,
+              }
+            : item
+        );
+        onDocumentsChange?.(updated);
+        return updated;
+      });
+    } catch (error) {
+      console.error('Error re-validating document:', error);
+      alert('No se pudo re-validar el documento');
+    } finally {
+      setValidating(null);
+    }
+  };
+
   const detectDocumentType = (file: File): DocumentType => {
     const fileName = file.name.toLowerCase();
     
@@ -342,8 +383,8 @@ export default function FIAdvancedDocumentManager({
   return (
     <div className="space-y-6">
       {/* Estado de Documentos Requeridos */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h3 className="font-semibold text-blue-900 mb-3">Documentos Requeridos</h3>
+      <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+        <h3 className="font-semibold text-primary-900 mb-3">Documentos Requeridos</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {getRequiredDocumentsStatus().map(({ type, uploaded, valid }) => (
             <div
@@ -374,7 +415,7 @@ export default function FIAdvancedDocumentManager({
         onDrop={handleDrop}
         className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
           dragActive
-            ? 'border-blue-500 bg-blue-50'
+            ? 'border-primary-500 bg-primary-50'
             : 'border-gray-300 hover:border-gray-400'
         }`}
       >
@@ -399,7 +440,7 @@ export default function FIAdvancedDocumentManager({
           </div>
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
           >
             Seleccionar Archivos
           </button>
@@ -498,13 +539,11 @@ export default function FIAdvancedDocumentManager({
                     Ver
                   </a>
                   <button
-                    onClick={() => {
-                      // Re-validar documento
-                      // TODO: Implementar re-validación
-                    }}
-                    className="flex-1 px-3 py-2 bg-blue-100 text-blue-700 rounded text-sm hover:bg-blue-200"
+                    onClick={() => revalidateDocument(doc)}
+                    disabled={validating === doc.id}
+                    className="flex-1 px-3 py-2 bg-primary-100 text-primary-700 rounded text-sm hover:bg-primary-200 disabled:opacity-50"
                   >
-                    Re-validar
+                    {validating === doc.id ? 'Validando…' : 'Re-validar'}
                   </button>
                 </div>
               </div>
@@ -515,10 +554,10 @@ export default function FIAdvancedDocumentManager({
 
       {/* Indicadores de Carga */}
       {uploading && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
           <div className="flex items-center space-x-3">
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-            <span className="text-blue-700">Subiendo documento...</span>
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600"></div>
+            <span className="text-primary-700">Subiendo documento...</span>
           </div>
         </div>
       )}

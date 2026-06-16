@@ -1,9 +1,8 @@
 'use client';
 
-import '@/lib/fetch-interceptor';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { TenantLogo } from '@/components/TenantLogo';
 import NotificationsPanel from '@/components/NotificationsPanel';
 import { cleanupInvalidTokens } from '@/lib/cleanup-invalid-tokens';
@@ -12,12 +11,17 @@ import { MaintenanceScreen } from '@/components/MaintenanceScreen';
 import { MaintenanceBanner } from '@/components/MaintenanceBanner';
 import { AnnouncementsBanner } from '@/components/AnnouncementsBanner';
 import { PolicyAcceptanceModal } from '@/components/PolicyAcceptanceModal';
+import { NotificationAlertsBootstrap } from '@autodealers/shared/client';
+import { BillingAccessGuard } from '@/components/BillingAccessGuard';
+import { MustChangePasswordGate } from '@/components/MustChangePasswordGate';
+import { DealerInviteBanner } from '@/components/DealerInviteBanner';
 
 // Rutas que no deben usar el layout wrapper
 const publicRoutes = ['/login'];
 
 const navigationItems = [
   { name: 'Dashboard', href: '/dashboard', icon: '📊', featureKey: null },
+  { name: '📸 Fotos página pública', href: '/settings/seller-public-page', icon: '📸', featureKey: null },
   { name: 'Leads', href: '/leads', icon: '📞', featureKey: null },
   { name: 'Interés catálogo web', href: '/catalog-interest', icon: '👁️', featureKey: null },
   { name: 'Pipeline Kanban', href: '/leads/kanban', icon: '📋', featureKey: 'crm_kanban' },
@@ -48,9 +52,13 @@ export default function SellerLayoutWrapper({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const visibleNavigationItems = navigationItems.filter(
+    (item) => !(user?.dealerId && item.href === '/referrals')
+  );
   const [maintenanceActive, setMaintenanceActive] = useState(false);
   const [showPolicyModal, setShowPolicyModal] = useState(false);
   const fetchingUserRef = React.useRef(false);
@@ -67,6 +75,37 @@ export default function SellerLayoutWrapper({
       const profile = await loadCurrentSellerUser();
       if (profile) {
         setUser(profile);
+
+        if (
+          !profile.dealerId &&
+          !profile.mustChangePassword &&
+          pathname &&
+          !pathname.startsWith('/settings/membership') &&
+          !pathname.startsWith('/settings/dealer-link') &&
+          !pathname.startsWith('/join-dealer') &&
+          pathname !== '/login'
+        ) {
+          try {
+            const { fetchWithAuth } = await import('@/lib/fetch-with-auth');
+            if (profile.adminMembershipAccess === 'granted') {
+              return;
+            }
+            const subResponse = await fetchWithAuth('/api/settings/membership/subscription', {});
+            if (subResponse.ok) {
+              const subData = await subResponse.json();
+              if (
+                subData.subscription &&
+                (subData.subscription.status === 'active' ||
+                  subData.subscription.status === 'trialing')
+              ) {
+                return;
+              }
+            }
+            router.replace('/settings/membership?onboarding=required');
+          } catch {
+            router.replace('/settings/membership?onboarding=required');
+          }
+        }
         return;
       }
 
@@ -102,6 +141,11 @@ export default function SellerLayoutWrapper({
     checkingPoliciesRef.current = true;
     
     try {
+      void fetch('/api/policies/notify-updates', {
+        method: 'POST',
+        credentials: 'include',
+      });
+
       const response = await fetch(
         `/api/policies/required?userId=${user.id}&role=seller${user.tenantId ? `&tenantId=${user.tenantId}` : ''}`,
         { credentials: 'include' }
@@ -138,6 +182,7 @@ export default function SellerLayoutWrapper({
   }, [pathname]);
 
   useEffect(() => {
+    void import('@/lib/fetch-interceptor');
     checkMaintenanceMode();
     
     // Verificar mantenimiento cada 60 segundos (reducido de 30)
@@ -219,7 +264,9 @@ export default function SellerLayoutWrapper({
 
   async function handleLogout() {
     try {
-      // Si hay Firebase auth, cerrar sesión ahí también
+      const { unregisterWebPushToken } = await import('@autodealers/shared/client');
+      await unregisterWebPushToken('/api/notifications/fcm-token');
+
       const { auth } = await import('@/lib/firebase-client');
       if (auth) {
         const { signOut } = await import('firebase/auth');
@@ -261,6 +308,7 @@ export default function SellerLayoutWrapper({
   return React.createElement(
     'div',
     null,
+    React.createElement(NotificationAlertsBootstrap),
     showPolicyModal && user && user.id && React.createElement(PolicyAcceptanceModal, {
       userId: user.id,
       role: 'seller',
@@ -344,7 +392,7 @@ export default function SellerLayoutWrapper({
             'nav',
             { className: 'flex-1 px-4 py-6 space-y-1 overflow-y-auto custom-scrollbar' },
             React.createElement(NavigationWithFeatureFlags, {
-              items: navigationItems,
+              items: visibleNavigationItems,
               sidebarCollapsed: sidebarCollapsed,
               onNavigate: () => setMobileNavOpen(false),
             })
@@ -367,6 +415,19 @@ export default function SellerLayoutWrapper({
               React.createElement('span', { className: 'text-xl' }, '⚙️'),
               !sidebarCollapsed && React.createElement('span', { className: 'ml-3' }, 'Configuración')
             ),
+            !sidebarCollapsed && React.createElement(
+              'div',
+              { className: 'mt-2 ml-4 space-y-1' },
+              React.createElement(Link, {
+                href: '/settings/seller-public-page',
+                onClick: () => setMobileNavOpen(false),
+                className: `block px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  pathname === '/settings/seller-public-page'
+                    ? 'bg-primary-100 text-primary-700'
+                    : 'text-primary-700 hover:bg-primary-50'
+                }`,
+              }, '📸 Fotos y videos'),
+            ),
             !sidebarCollapsed && pathname?.startsWith('/settings') && React.createElement(
               'div',
               { className: 'mt-2 ml-4 space-y-1' },
@@ -377,8 +438,17 @@ export default function SellerLayoutWrapper({
                   pathname === '/settings/branding'
                     ? 'bg-primary-100 text-primary-700 font-medium'
                     : 'text-gray-600 hover:bg-gray-50'
-                }`
+                }`,
               }, 'Branding'),
+              React.createElement(Link, {
+                href: '/settings/document-branding',
+                onClick: () => setMobileNavOpen(false),
+                className: `block px-4 py-2 rounded-lg text-sm transition-colors ${
+                  pathname === '/settings/document-branding'
+                    ? 'bg-primary-100 text-primary-700 font-medium'
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`,
+              }, 'PDF F&I (documentos)'),
               React.createElement(Link, {
                 href: '/settings/profile',
                 onClick: () => setMobileNavOpen(false),
@@ -386,7 +456,7 @@ export default function SellerLayoutWrapper({
                   pathname === '/settings/profile'
                     ? 'bg-primary-100 text-primary-700 font-medium'
                     : 'text-gray-600 hover:bg-gray-50'
-                }`
+                }`,
               }, 'Perfil'),
               React.createElement(Link, {
                 href: '/settings/seller-public-page',
@@ -395,8 +465,8 @@ export default function SellerLayoutWrapper({
                   pathname === '/settings/seller-public-page'
                     ? 'bg-primary-100 text-primary-700 font-medium'
                     : 'text-gray-600 hover:bg-gray-50'
-                }`
-              }, 'Video catálogo web'),
+                }`,
+              }, 'Fotos y videos (página pública)'),
               React.createElement(Link, {
                 href: '/settings/integrations',
                 onClick: () => setMobileNavOpen(false),
@@ -404,7 +474,7 @@ export default function SellerLayoutWrapper({
                   pathname === '/settings/integrations'
                     ? 'bg-primary-100 text-primary-700 font-medium'
                     : 'text-gray-600 hover:bg-gray-50'
-                }`
+                }`,
               }, 'Integraciones'),
               React.createElement(Link, {
                 href: '/settings/templates',
@@ -413,7 +483,7 @@ export default function SellerLayoutWrapper({
                   pathname === '/settings/templates'
                     ? 'bg-primary-100 text-primary-700 font-medium'
                     : 'text-gray-600 hover:bg-gray-50'
-                }`
+                }`,
               }, 'Templates'),
               React.createElement(Link, {
                 href: '/settings/website',
@@ -422,17 +492,18 @@ export default function SellerLayoutWrapper({
                   pathname === '/settings/website'
                     ? 'bg-primary-100 text-primary-700 font-medium'
                     : 'text-gray-600 hover:bg-gray-50'
-                }`
+                }`,
               }, 'Página Web'),
-              React.createElement(Link, {
-                href: '/settings/membership',
-                onClick: () => setMobileNavOpen(false),
-                className: `block px-4 py-2 rounded-lg text-sm transition-colors ${
-                  pathname === '/settings/membership'
-                    ? 'bg-primary-100 text-primary-700 font-medium'
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`
-              }, 'Membresía'),
+              !user?.dealerId &&
+                React.createElement(Link, {
+                  href: '/settings/membership',
+                  onClick: () => setMobileNavOpen(false),
+                  className: `block px-4 py-2 rounded-lg text-sm transition-colors ${
+                    pathname === '/settings/membership'
+                      ? 'bg-primary-100 text-primary-700 font-medium'
+                      : 'text-gray-600 hover:bg-gray-50'
+                  }`,
+                }, 'Membresía'),
               React.createElement(Link, {
                 href: '/settings/policies',
                 onClick: () => setMobileNavOpen(false),
@@ -440,17 +511,8 @@ export default function SellerLayoutWrapper({
                   pathname === '/settings/policies'
                     ? 'bg-primary-100 text-primary-700 font-medium'
                     : 'text-gray-600 hover:bg-gray-50'
-                }`
+                }`,
               }, 'Políticas'),
-              React.createElement(Link, {
-                href: '/settings/document-branding',
-                onClick: () => setMobileNavOpen(false),
-                className: `block px-4 py-2 rounded-lg text-sm transition-colors ${
-                  pathname === '/settings/document-branding'
-                    ? 'bg-primary-100 text-primary-700 font-medium'
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`
-              }, 'Branding en Documentos')
             )
           ),
           user && React.createElement(
@@ -551,7 +613,23 @@ export default function SellerLayoutWrapper({
           React.createElement(
             'div',
             { className: 'mx-auto max-w-7xl px-3 py-6 sm:px-6 lg:px-8' },
-            children
+            React.createElement(DealerInviteBanner, {
+              userId: user?.id,
+              dealerId: user?.dealerId,
+            }),
+            React.createElement(
+              MustChangePasswordGate,
+              {
+                user,
+                children: React.createElement(BillingAccessGuard, {
+                  tenantId: user?.tenantId,
+                  dealerId: user?.dealerId,
+                  adminMembershipAccess: user?.adminMembershipAccess,
+                  userReady: Boolean(user?.id),
+                  children,
+                }),
+              }
+            )
           )
         )
       )

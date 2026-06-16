@@ -1,66 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth, isDealerPortalRole } from '@/lib/auth';
 import { requireTenantFeature } from '@/lib/membership-middleware';
-import { getFirestore } from '@autodealers/core';
+import {
+  generateAndStoreFIDocument,
+  generateFIDocumentPdf,
+  fiTemplateFilename,
+  type FIDocumentTemplate,
+  TEMPLATE_TITLES,
+} from '@autodealers/core';
+import { getFIRequestById, getFIClientById } from '@autodealers/crm';
 
-const db = getFirestore();
-
-// Implementación directa para evitar problemas de webpack
-async function getFIRequestByIdDirect(tenantId: string, requestId: string) {
-  const requestDoc = await db
-    .collection('tenants')
-    .doc(tenantId)
-    .collection('fi_requests')
-    .doc(requestId)
-    .get();
-
-  if (!requestDoc.exists) {
-    return null;
-  }
-
-  const data = requestDoc.data();
-  return {
-    id: requestDoc.id,
-    ...data,
-    history: (data?.history || []).map((h: any) => ({
-      ...h,
-      timestamp: h.timestamp?.toDate() || new Date(),
-    })),
-    createdAt: data?.createdAt?.toDate() || new Date(),
-    updatedAt: data?.updatedAt?.toDate() || new Date(),
-    submittedAt: data?.submittedAt?.toDate() || undefined,
-    reviewedAt: data?.reviewedAt?.toDate() || undefined,
-  };
-}
-
-async function getFIClientByIdDirect(tenantId: string, clientId: string) {
-  const clientDoc = await db
-    .collection('tenants')
-    .doc(tenantId)
-    .collection('fi_clients')
-    .doc(clientId)
-    .get();
-
-  if (!clientDoc.exists) {
-    return null;
-  }
-
-  const data = clientDoc.data();
-  return {
-    id: clientDoc.id,
-    ...data,
-    createdAt: data?.createdAt?.toDate() || new Date(),
-    updatedAt: data?.updatedAt?.toDate() || new Date(),
-  };
-}
-
-type DocumentTemplate = 
-  | 'credit_application'
-  | 'pre_approval_letter'
-  | 'rejection_letter'
-  | 'financing_contract'
-  | 'terms_agreement'
-  | 'cosigner_agreement';
+const VALID_TEMPLATES: FIDocumentTemplate[] = [
+  'credit_application',
+  'pre_approval_letter',
+  'rejection_letter',
+  'financing_summary',
+  'lender_package',
+  'terms_agreement',
+  'cosigner_agreement',
+];
 
 export async function POST(request: NextRequest) {
   try {
@@ -72,11 +30,12 @@ export async function POST(request: NextRequest) {
     if (!auth.tenantId) {
       return NextResponse.json({ error: 'Tenant ID is required' }, { status: 400 });
     }
+
     const fiGate = await requireTenantFeature(auth.tenantId, 'useFIModule');
     if (fiGate) return fiGate;
 
     const body = await request.json();
-    const { requestId, template, customData } = body;
+    const { requestId, template, downloadOnly } = body;
 
     if (!requestId || !template) {
       return NextResponse.json(
@@ -85,55 +44,60 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const fiRequest = await getFIRequestByIdDirect(auth.tenantId!, requestId);
+    if (!VALID_TEMPLATES.includes(template)) {
+      return NextResponse.json({ error: 'Plantilla no válida' }, { status: 400 });
+    }
+
+    const fiRequest = await getFIRequestById(auth.tenantId, requestId);
     if (!fiRequest) {
-      return NextResponse.json(
-        { error: 'Solicitud F&I no encontrada' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Solicitud F&I no encontrada' }, { status: 404 });
     }
 
-    const fiRequestAny = fiRequest as any;
-    const client = await getFIClientByIdDirect(auth.tenantId!, fiRequestAny.clientId);
+    const client = await getFIClientById(auth.tenantId, fiRequest.clientId);
     if (!client) {
-      return NextResponse.json(
-        { error: 'Cliente F&I no encontrado' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Cliente F&I no encontrado' }, { status: 404 });
     }
 
-    // TODO: Implementar generación real de PDF usando una librería como pdfkit o puppeteer
-    // Por ahora retornamos un placeholder
-    const clientAny = client as any;
-    const documentData = {
-      template: template as DocumentTemplate,
-      requestId,
-      clientName: clientAny.name,
-      clientEmail: clientAny.email,
-      clientPhone: clientAny.phone,
-      vehiclePrice: clientAny.vehiclePrice,
-      downPayment: clientAny.downPayment,
-      monthlyIncome: fiRequestAny.employment?.monthlyIncome,
-      creditRange: fiRequestAny.creditInfo?.creditRange,
-      status: fiRequestAny.status,
-      ...customData,
-    };
+    if (downloadOnly) {
+      const pdfBuffer = await generateFIDocumentPdf({
+        tenantId: auth.tenantId,
+        userId: auth.userId,
+        template,
+        client,
+        request: fiRequest,
+      });
+      const filename = fiTemplateFilename(template, client.name);
+      return new NextResponse(new Uint8Array(pdfBuffer), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `attachment; filename="${filename}"`,
+        },
+      });
+    }
 
-    // En producción, aquí se generaría el PDF real
-    const pdfUrl = `/api/fi/documents/generated/${requestId}/${template}.pdf`; // Placeholder
+    const stored = await generateAndStoreFIDocument({
+      tenantId: auth.tenantId,
+      userId: auth.userId,
+      requestId,
+      template,
+      client,
+      request: fiRequest,
+    });
 
     return NextResponse.json({
-      documentId: `${requestId}-${template}-${Date.now()}`,
-      pdfUrl,
-      documentData,
-      message: 'Documento generado exitosamente (placeholder - requiere implementación de generación de PDF)',
+      success: true,
+      document: stored,
+      title: TEMPLATE_TITLES[template],
+      message: 'Documento PDF generado correctamente.',
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error generating document:', error);
     return NextResponse.json(
-      { error: error.message || 'Error al generar documento' },
+      {
+        error: error instanceof Error ? error.message : 'Error al generar documento',
+      },
       { status: 500 }
     );
   }
 }
-

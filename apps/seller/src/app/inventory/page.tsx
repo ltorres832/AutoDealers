@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { useState, useEffect, useMemo } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { useRealtimeInventory, type RealtimeInventoryVehicle } from '@/hooks/useRealtimeInventory';
 import VehicleInventoryCard from '@/components/VehicleInventoryCard';
 import { VEHICLE_TYPES, TRANSMISSION_OPTIONS, FUEL_TYPE_OPTIONS, DRIVE_TYPE_OPTIONS } from '@autodealers/inventory/client';
 import AdvancedMarkAsSoldModal from '@/components/AdvancedMarkAsSoldModal';
@@ -13,40 +15,17 @@ import {
   type PublishSocialVehicle,
 } from '@autodealers/shared/client';
 
-interface Vehicle {
-  id: string;
-  make: string;
-  model: string;
-  year: number;
-  price: number;
-  currency: string;
-  status: string;
-  photos: string[];
-  publishedOnPublicPage?: boolean;
-  sellerCommissionType?: 'percentage' | 'fixed';
-  sellerCommissionRate?: number;
-  sellerCommissionFixed?: number;
-  insuranceCommissionType?: 'percentage' | 'fixed';
-  insuranceCommissionRate?: number;
-  insuranceCommissionFixed?: number;
-  accessoriesCommissionType?: 'percentage' | 'fixed';
-  accessoriesCommissionRate?: number;
-  accessoriesCommissionFixed?: number;
-  stockNumber?: string;
-  specifications?: {
-    stockNumber?: string;
-    [key: string]: any;
-  };
-  showSoldBadge?: boolean;
-  showPublicSoldBadge?: boolean;
-  deleted?: boolean;
-}
+type Vehicle = RealtimeInventoryVehicle;
 
 type InventoryFilter = 'all' | 'available' | 'sold' | 'hidden';
 
 export default function InventoryPage() {
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { user, loading: authLoading } = useAuth();
+  const { vehicles, loading: inventoryLoading, error: inventoryError } = useRealtimeInventory({
+    tenantId: user?.tenantId,
+    limit: 200,
+  });
+  const loading = authLoading || inventoryLoading;
   const [inventoryFilter, setInventoryFilter] = useState<InventoryFilter>('all');
   const [showMarkAsSoldModal, setShowMarkAsSoldModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -57,36 +36,6 @@ export default function InventoryPage() {
     mode: ScheduleFromInventoryMode;
   } | null>(null);
   const [socialPublishVehicle, setSocialPublishVehicle] = useState<PublishSocialVehicle | null>(null);
-
-  useEffect(() => {
-    fetchVehicles();
-  }, []);
-
-  async function fetchVehicles() {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/vehicles');
-      const data = await response.json();
-      const vehiclesData = data.vehicles || [];
-      
-      // Logging para debugging
-      console.log('📋 Vehículos obtenidos:', vehiclesData.length);
-      vehiclesData.forEach((vehicle: Vehicle) => {
-        console.log(`🚗 ${vehicle.year} ${vehicle.make} ${vehicle.model}:`, {
-          id: vehicle.id,
-          photosCount: vehicle.photos?.length || 0,
-          photos: vehicle.photos,
-          publishedOnPublicPage: vehicle.publishedOnPublicPage,
-        });
-      });
-      
-      setVehicles(vehiclesData);
-    } catch (error) {
-      console.error('Error fetching vehicles:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
 
   function handleMarkAsSold(vehicle: Vehicle) {
     setSelectedVehicle(vehicle);
@@ -115,9 +64,7 @@ export default function InventoryPage() {
         }),
       });
 
-      if (response.ok) {
-        fetchVehicles(); // Recargar vehículos
-      } else {
+      if (!response.ok) {
         const error = await response.json();
         alert(error.error || 'Error al actualizar publicación');
       }
@@ -131,6 +78,23 @@ export default function InventoryPage() {
     return (
       <div className="flex justify-center p-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
+
+  if (!user?.tenantId) {
+    return (
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-6 text-amber-900">
+        <p className="font-medium">No hay tenant asignado a tu usuario.</p>
+      </div>
+    );
+  }
+
+  if (inventoryError) {
+    return (
+      <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-red-800">
+        <p className="font-medium">Error al cargar inventario en tiempo real.</p>
+        <p className="text-sm mt-1">{inventoryError}</p>
       </div>
     );
   }
@@ -194,7 +158,7 @@ export default function InventoryPage() {
             <VehicleInventoryCard
               key={vehicle.id}
               vehicle={vehicle}
-              onRefresh={fetchVehicles}
+              onRefresh={() => {}}
               onSchedule={(v, mode) => setSchedule({ vehicle: v as Vehicle, mode })}
               onEdit={(v) => {
                 setSelectedVehicle(v as Vehicle);
@@ -214,7 +178,6 @@ export default function InventoryPage() {
           }}
           onSuccess={(created) => {
             setShowCreateModal(false);
-            fetchVehicles();
             if (created?.photos?.length) {
               setSocialPublishVehicle(created);
             }
@@ -241,7 +204,6 @@ export default function InventoryPage() {
           onSuccess={() => {
             setShowMarkAsSoldModal(false);
             setSelectedVehicle(null);
-            fetchVehicles();
           }}
         />
       )}
@@ -256,7 +218,6 @@ export default function InventoryPage() {
           onSuccess={() => {
             setShowEditModal(false);
             setSelectedVehicle(null);
-            fetchVehicles();
           }}
         />
       )}
@@ -756,7 +717,7 @@ function MarkAsSoldModal({
             <h3 className="font-bold mb-4">Cálculo de Comisión</h3>
             
             {vehicleCommissionRate > 0 && (
-              <div className="mb-3 p-3 bg-blue-50 rounded">
+              <div className="mb-3 p-3 bg-primary-50 rounded">
                 <div className="flex justify-between mb-1">
                   <span className="text-sm text-gray-600">Comisión Vehículo ({vehicleCommissionRate}%):</span>
                   <span className="font-medium">{vehicle.currency} {vehicleCommission.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
@@ -780,7 +741,7 @@ function MarkAsSoldModal({
             )}
 
             {accessoriesCommissionRate > 0 && parseFloat(formData.accessories || '0') > 0 && (
-              <div className="mb-3 p-3 bg-purple-50 rounded">
+              <div className="mb-3 p-3 bg-primary-50 rounded">
                 <div className="flex justify-between mb-1">
                   <span className="text-sm text-gray-600">Comisión Accesorios ({accessoriesCommissionRate}%):</span>
                   <span className="font-medium">{vehicle.currency} {accessoriesCommission.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>

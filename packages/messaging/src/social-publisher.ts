@@ -1,6 +1,7 @@
 // Servicio para publicar posts en Facebook e Instagram usando credenciales del tenant
 
 import { getFirestore } from '@autodealers/shared';
+import * as admin from 'firebase-admin';
 
 const GRAPH_RETRIES = 3;
 const GRAPH_BASE_DELAY_MS = 1200;
@@ -105,21 +106,69 @@ export interface PublishResult {
   url?: string;
 }
 
+type TenantIntegrationRecord = {
+  docId: string;
+  accessToken: string;
+  pageId?: string;
+  instagramId?: string;
+  pageName?: string;
+  userAccessToken?: string;
+};
+
 export class SocialPublisherService {
   private db = getFirestore();
 
   /**
-   * Obtiene las credenciales de integración del tenant
+   * Renueva el token de la página desde Meta (evita tokens viejos o incorrectos).
+   */
+  /** Token de página desde /me/accounts (método oficial de Meta). */
+  private async fetchPageAccessTokenFromAccounts(
+    pageId: string,
+    userAccessToken: string
+  ): Promise<string> {
+    const url =
+      `https://graph.facebook.com/v21.0/me/accounts?fields=id,name,access_token` +
+      `&access_token=${encodeURIComponent(userAccessToken)}`;
+    const res = await fetchGraphWithRetry(url, { method: 'GET' });
+    const data = (await res.json()) as {
+      data?: Array<{ id?: string; access_token?: string }>;
+      error?: { message?: string };
+    };
+    if (!res.ok) {
+      throw new Error(data.error?.message || 'No se pudo listar páginas de Meta');
+    }
+    const page = data.data?.find((p) => String(p.id) === String(pageId));
+    if (!page?.access_token?.trim()) {
+      throw new Error(
+        `No se encontró token para la página ${pageId}. Reconecta Meta y elige la página correcta.`
+      );
+    }
+    return page.access_token.trim();
+  }
+
+  private async persistPageAccessToken(
+    tenantId: string,
+    docId: string,
+    pageAccessToken: string
+  ): Promise<void> {
+    await this.db
+      .collection('tenants')
+      .doc(tenantId)
+      .collection('integrations')
+      .doc(docId)
+      .update({
+        'credentials.pageAccessToken': pageAccessToken,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+  }
+
+  /**
+   * Obtiene credenciales activas del tenant.
    */
   private async getTenantIntegration(
     tenantId: string,
     type: 'facebook' | 'instagram'
-  ): Promise<{
-    accessToken: string;
-    pageId?: string;
-    instagramId?: string;
-    pageName?: string;
-  } | null> {
+  ): Promise<TenantIntegrationRecord | null> {
     try {
       const integrationSnapshot = await this.db
         .collection('tenants')
@@ -133,22 +182,30 @@ export class SocialPublisherService {
         return null;
       }
 
-      const integrationData = integrationSnapshot.docs[0].data();
-      const credentials = integrationData.credentials;
+      const doc = integrationSnapshot.docs[0];
+      const credentials = doc.data().credentials ?? {};
 
-      const accessToken =
-        typeof credentials?.pageAccessToken === 'string' && credentials.pageAccessToken.trim()
+      const pageAccessToken =
+        typeof credentials.pageAccessToken === 'string' && credentials.pageAccessToken.trim()
           ? credentials.pageAccessToken.trim()
-          : typeof credentials?.accessToken === 'string' && credentials.accessToken.trim()
-            ? credentials.accessToken.trim()
-            : '';
+          : '';
 
-      if (!accessToken) {
+      const userAccessToken =
+        typeof credentials.accessToken === 'string' && credentials.accessToken.trim()
+          ? credentials.accessToken.trim()
+          : '';
+
+      if (!pageAccessToken && !userAccessToken) {
+        console.warn(
+          `[social-publisher] Tenant ${tenantId} ${type}: sin tokens; reconectar Meta en Integraciones`
+        );
         return null;
       }
 
       return {
-        accessToken,
+        docId: doc.id,
+        accessToken: pageAccessToken || userAccessToken,
+        userAccessToken: userAccessToken || undefined,
         pageId: credentials.pageId,
         instagramId: credentials.instagramId,
         pageName: credentials.pageName,
@@ -157,6 +214,35 @@ export class SocialPublisherService {
       console.error(`Error getting ${type} integration for tenant ${tenantId}:`, error);
       return null;
     }
+  }
+
+  /** Token de página listo para publicar (renovado si hay token de usuario). */
+  private async resolvePageAccessToken(
+    tenantId: string,
+    integration: TenantIntegrationRecord
+  ): Promise<string> {
+    const pageId = integration.pageId?.trim();
+    if (!pageId) {
+      throw new Error('Falta pageId de Facebook. Reconecta Meta en Integraciones.');
+    }
+
+    if (integration.userAccessToken) {
+      try {
+        const fresh = await this.fetchPageAccessTokenFromAccounts(
+          pageId,
+          integration.userAccessToken
+        );
+        await this.persistPageAccessToken(tenantId, integration.docId, fresh);
+        return fresh;
+      } catch (e) {
+        console.warn('[social-publisher] /me/accounts falló, usando pageAccessToken guardado:', e);
+      }
+    }
+
+    if (!integration.accessToken?.trim()) {
+      throw new Error('Falta token de página. Reconecta Meta en Integraciones.');
+    }
+    return integration.accessToken.trim();
   }
 
   /**
@@ -173,7 +259,8 @@ export class SocialPublisherService {
         return {
           success: false,
           platform: 'facebook',
-          error: 'Facebook no está conectado o no tiene página configurada',
+          error:
+            'Facebook no está conectado o falta el token de la página. Ve a Integraciones y reconecta Meta.',
         };
       }
 
@@ -184,38 +271,75 @@ export class SocialPublisherService {
         message = `${message}\n\n${hashtagsStr}`;
       }
 
-      // Preparar el payload
-      const payload: any = {
-        message,
-      };
+      const pageId = integration.pageId!.trim();
+      const pageToken = await this.resolvePageAccessToken(tenantId, integration);
 
-      // Si hay imagen, subirla primero
       if (content.imageUrl) {
-        payload.attached_media = [
-          {
-            media_fbid: await this.uploadImageToFacebook(
-              integration.accessToken,
-              integration.pageId,
-              content.imageUrl
-            ),
-          },
-        ];
+        const photoBase =
+          `https://graph.facebook.com/v21.0/${pageId}/photos` +
+          `?access_token=${encodeURIComponent(pageToken)}`;
+
+        // 1) URL pública + message (sin published=false ni feed+attached_media)
+        const urlBody = new URLSearchParams();
+        urlBody.set('url', content.imageUrl);
+        urlBody.set('message', message);
+
+        let photoResponse = await fetchGraphWithRetry(photoBase, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: urlBody.toString(),
+        });
+
+        let photoData = (await photoResponse.json()) as {
+          id?: string;
+          post_id?: string;
+          error?: { message?: string };
+        };
+
+        // 2) Fallback: subir binario (sin campo published)
+        if (!photoResponse.ok) {
+          const imageBlob = await fetchRemoteImageBlobWithRetry(content.imageUrl);
+          const formData = new FormData();
+          formData.append('source', imageBlob, 'vehicle.jpg');
+          formData.append('message', message);
+
+          photoResponse = await fetchGraphWithRetry(photoBase, {
+            method: 'POST',
+            body: formData,
+          });
+          photoData = (await photoResponse.json()) as typeof photoData;
+        }
+
+        if (!photoResponse.ok) {
+          throw new Error(photoData.error?.message || 'Error al publicar foto en Facebook');
+        }
+
+        const postId = photoData.post_id || photoData.id;
+        return {
+          success: true,
+          platform: 'facebook',
+          postId,
+          url: postId ? `https://www.facebook.com/${postId}` : undefined,
+        };
       }
 
-      // Publicar en la página
-      const response = await fetchGraphWithRetry(
-        `https://graph.facebook.com/v18.0/${integration.pageId}/feed`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${integration.accessToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        }
-      );
+      // Solo texto en el feed de la página
+      const feedUrl =
+        `https://graph.facebook.com/v21.0/${pageId}/feed` +
+        `?access_token=${encodeURIComponent(pageToken)}`;
+      const feedBody = new URLSearchParams();
+      feedBody.set('message', message);
 
-      const data = await response.json() as any;
+      const response = await fetchGraphWithRetry(feedUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: feedBody.toString(),
+      });
+
+      const data = (await response.json()) as {
+        id?: string;
+        error?: { message?: string };
+      };
 
       if (!response.ok) {
         throw new Error(data.error?.message || 'Error al publicar en Facebook');
@@ -225,7 +349,7 @@ export class SocialPublisherService {
         success: true,
         platform: 'facebook',
         postId: data.id,
-        url: `https://www.facebook.com/${data.id}`,
+        url: data.id ? `https://www.facebook.com/${data.id}` : undefined,
       };
     } catch (error) {
       console.error('Error publishing to Facebook:', error);
@@ -271,26 +395,25 @@ export class SocialPublisherService {
         caption = `${caption}\n\n${hashtagsStr}`;
       }
 
-      // Subir imagen a Instagram
+      const pageToken = await this.resolvePageAccessToken(tenantId, integration);
+
       const imageContainerId = await this.createInstagramImageContainer(
-        integration.accessToken,
-        integration.instagramId,
+        pageToken,
+        integration.instagramId!,
         content.imageUrl,
         caption
       );
 
-      // Publicar en Instagram
+      const publishBody = new URLSearchParams();
+      publishBody.set('access_token', pageToken);
+      publishBody.set('creation_id', imageContainerId);
+
       const response = await fetchGraphWithRetry(
         `https://graph.facebook.com/v18.0/${integration.instagramId}/media_publish`,
         {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${integration.accessToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            creation_id: imageContainerId,
-          }),
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: publishBody.toString(),
         }
       );
 
@@ -361,18 +484,17 @@ export class SocialPublisherService {
     imageUrl: string,
     caption: string
   ): Promise<string> {
+    const mediaBody = new URLSearchParams();
+    mediaBody.set('access_token', accessToken);
+    mediaBody.set('image_url', imageUrl);
+    mediaBody.set('caption', caption);
+
     const response = await fetchGraphWithRetry(
       `https://graph.facebook.com/v18.0/${instagramId}/media`,
       {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          image_url: imageUrl,
-          caption: caption,
-        }),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: mediaBody.toString(),
       }
     );
 

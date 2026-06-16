@@ -82,7 +82,7 @@ export default function AdminFIPage() {
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { color: string; label: string }> = {
       draft: { color: 'bg-gray-500', label: 'Borrador' },
-      submitted: { color: 'bg-blue-500', label: 'Enviado' },
+      submitted: { color: 'bg-primary-500', label: 'Enviado' },
       under_review: { color: 'bg-yellow-500', label: 'En Revisión' },
       pre_approved: { color: 'bg-green-500', label: 'Pre-Aprobado' },
       approved: { color: 'bg-green-600', label: 'Aprobado' },
@@ -118,7 +118,7 @@ export default function AdminFIPage() {
           </div>
           <Link
             href="/admin/fi/webhook-config"
-            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm font-medium"
+            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 text-sm font-medium"
           >
             ⚙️ Configurar Webhook
           </Link>
@@ -126,7 +126,7 @@ export default function AdminFIPage() {
       </div>
 
       {/* Filtros */}
-      <div className="mb-6 flex space-x-4">
+      <div className="mb-6 filter-chip-row">
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
@@ -151,7 +151,7 @@ export default function AdminFIPage() {
         </div>
         <div className="bg-white rounded-lg shadow p-4">
           <div className="text-sm text-gray-500">Pendientes</div>
-          <div className="text-2xl font-bold text-blue-600">
+          <div className="text-2xl font-bold text-primary-600">
             {requests.filter((r) => r.status === 'submitted' || r.status === 'under_review').length}
           </div>
         </div>
@@ -219,7 +219,7 @@ export default function AdminFIPage() {
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <Link
                     href={`/admin/tenants/${request.tenantId}`}
-                    className="text-blue-600 hover:text-blue-900"
+                    className="text-primary-600 hover:text-primary-900"
                   >
                     Ver Tenant
                   </Link>

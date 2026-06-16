@@ -116,3 +116,14 @@ exports.nextjsServer = onRequest({
   }
 });
 
+// Cron programado (TypeScript → lib/). Requiere `npm run build` en functions/ antes del deploy.
+try {
+  const { confirmReferralRewardsDaily } = require('./lib/referrals/confirmation-cron');
+  exports.confirmReferralRewardsDaily = confirmReferralRewardsDaily;
+} catch (err) {
+  console.warn(
+    'confirmReferralRewardsDaily no cargado (ejecuta npm run build en functions/):',
+    err && err.message ? err.message : err
+  );
+}
+

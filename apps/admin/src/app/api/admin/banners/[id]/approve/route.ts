@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getFirestore } from '@autodealers/core';
+import { getFirestore, markPlatformAdminNotificationsRead } from '@autodealers/core';
 import * as admin from 'firebase-admin';
 
 const db = getFirestore();
@@ -75,15 +75,16 @@ export async function POST(
       priority: activeBannersSnapshot.size + 1,
     });
 
-    // Eliminar notificación de aprobación si existe
-    const notificationsSnapshot = await db
+    await markPlatformAdminNotificationsRead({ bannerId: id, tenantId });
+
+    const legacySnapshot = await db
       .collection('admin_notifications')
       .where('type', '==', 'banner_approval')
       .where('bannerId', '==', id)
       .where('tenantId', '==', tenantId)
       .get();
 
-    for (const notificationDoc of notificationsSnapshot.docs) {
+    for (const notificationDoc of legacySnapshot.docs) {
       await notificationDoc.ref.delete();
     }
 

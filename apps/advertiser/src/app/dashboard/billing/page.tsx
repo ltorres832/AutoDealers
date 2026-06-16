@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import DashboardLayout from '../../../components/DashboardLayout';
 
 interface PaymentMethod {
@@ -16,15 +17,22 @@ interface PaymentMethod {
   isDefault?: boolean;
 }
 
-export default function BillingPage() {
+function BillingPageContent() {
+  const searchParams = useSearchParams();
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [adding, setAdding] = useState<'card' | 'us_bank_account' | null>(null);
 
   useEffect(() => {
+    if (searchParams.get('canceled') === 'true') {
+      setNotice('No se agregó el método de pago. Puedes intentarlo de nuevo cuando quieras.');
+    } else if (searchParams.get('success') === 'true') {
+      setNotice('Método de pago agregado correctamente.');
+    }
     fetchMethods();
-  }, []);
+  }, [searchParams]);
 
   async function fetchMethods() {
     try {
@@ -110,6 +118,12 @@ export default function BillingPage() {
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-900 mb-6">Métodos de Pago</h1>
 
+        {notice && (
+          <div className="bg-amber-50 border border-amber-200 text-amber-900 px-4 py-3 rounded-lg mb-4">
+            {notice}
+          </div>
+        )}
+
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
             {error}
@@ -122,14 +136,14 @@ export default function BillingPage() {
             <button
               onClick={() => handleAdd('card')}
               disabled={adding === 'card'}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold disabled:opacity-50"
+              className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-semibold disabled:opacity-50"
             >
               {adding === 'card' ? 'Abriendo...' : 'Agregar tarjeta'}
             </button>
             <button
               onClick={() => handleAdd('us_bank_account')}
               disabled={adding === 'us_bank_account'}
-              className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 font-semibold disabled:opacity-50"
+              className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-semibold disabled:opacity-50"
             >
               {adding === 'us_bank_account' ? 'Abriendo...' : 'Agregar cuenta bancaria'}
             </button>
@@ -143,7 +157,7 @@ export default function BillingPage() {
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Tus métodos</h2>
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600"></div>
             </div>
           ) : methods.length === 0 ? (
             <p className="text-gray-600">No tienes métodos de pago guardados.</p>
@@ -183,7 +197,7 @@ export default function BillingPage() {
                     {!pm.isDefault && (
                       <button
                         onClick={() => handleDefault(pm.id)}
-                        className="text-blue-600 hover:text-blue-700 font-semibold"
+                        className="text-primary-600 hover:text-primary-700 font-semibold"
                       >
                         Hacer predeterminado
                       </button>
@@ -205,4 +219,11 @@ export default function BillingPage() {
   );
 }
 
+export default function BillingPage() {
+  return (
+    <Suspense fallback={<DashboardLayout><div className="p-8 text-center">Cargando...</div></DashboardLayout>}>
+      <BillingPageContent />
+    </Suspense>
+  );
+}
 

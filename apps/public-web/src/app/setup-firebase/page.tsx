@@ -17,7 +17,7 @@ export default function SetupFirebasePage() {
           <div className="mb-6">
             <div className="flex items-center gap-2 mb-2">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
-                step >= 1 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
+                step >= 1 ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-600'
               }`}>
                 1
               </div>
@@ -25,7 +25,7 @@ export default function SetupFirebasePage() {
             </div>
             <div className="ml-10 mb-4">
               <p className="text-gray-700 mb-2">
-                1. Ve a: <a href="https://console.firebase.google.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">https://console.firebase.google.com</a>
+                1. Ve a: <a href="https://console.firebase.google.com" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">https://console.firebase.google.com</a>
               </p>
               <p className="text-gray-700">
                 2. Inicia sesión con tu cuenta de Google
@@ -33,7 +33,7 @@ export default function SetupFirebasePage() {
             </div>
             <button
               onClick={() => setStep(2)}
-              className="ml-10 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+              className="ml-10 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700"
             >
               Siguiente
             </button>
@@ -43,7 +43,7 @@ export default function SetupFirebasePage() {
             <div className="mb-6 border-t pt-6">
               <div className="flex items-center gap-2 mb-2">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
-                  step >= 2 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
+                  step >= 2 ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-600'
                 }`}>
                   2
                 </div>
@@ -59,7 +59,7 @@ export default function SetupFirebasePage() {
               </div>
               <button
                 onClick={() => setStep(3)}
-                className="ml-10 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                className="ml-10 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700"
               >
                 Siguiente
               </button>
@@ -70,7 +70,7 @@ export default function SetupFirebasePage() {
             <div className="mb-6 border-t pt-6">
               <div className="flex items-center gap-2 mb-2">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
-                  step >= 3 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
+                  step >= 3 ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-600'
                 }`}>
                   3
                 </div>
@@ -85,7 +85,7 @@ export default function SetupFirebasePage() {
               </div>
               <button
                 onClick={() => setStep(4)}
-                className="ml-10 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                className="ml-10 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700"
               >
                 Siguiente
               </button>
@@ -96,7 +96,7 @@ export default function SetupFirebasePage() {
             <div className="mb-6 border-t pt-6">
               <div className="flex items-center gap-2 mb-2">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
-                  step >= 4 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
+                  step >= 4 ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-600'
                 }`}>
                   4
                 </div>
@@ -116,7 +116,7 @@ export default function SetupFirebasePage() {
               </div>
               <button
                 onClick={() => setStep(5)}
-                className="ml-10 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                className="ml-10 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700"
               >
                 Siguiente
               </button>
@@ -127,7 +127,7 @@ export default function SetupFirebasePage() {
             <div className="mb-6 border-t pt-6">
               <div className="flex items-center gap-2 mb-2">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
-                  step >= 5 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
+                  step >= 5 ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-600'
                 }`}>
                   5
                 </div>
@@ -167,8 +167,8 @@ export default function SetupFirebasePage() {
                   </div>
                 </div>
 
-                <div className="bg-blue-50 p-4 rounded-lg mb-4">
-                  <p className="text-sm font-medium text-blue-900 mb-2">
+                <div className="bg-primary-50 p-4 rounded-lg mb-4">
+                  <p className="text-sm font-medium text-primary-900 mb-2">
                     📝 Crea un archivo llamado <code className="bg-white px-2 py-1 rounded">.env.local</code> en:
                   </p>
                   <code className="text-sm bg-white p-2 rounded border block">
@@ -200,7 +200,7 @@ export default function SetupFirebasePage() {
             <h3 className="text-lg font-semibold mb-4">✅ Después de crear .env.local:</h3>
             <ol className="list-decimal list-inside space-y-2 text-gray-700">
               <li>Reinicia el servidor Next.js</li>
-              <li>Accede a: <Link href="/demo" className="text-blue-600 hover:underline">http://localhost:3000/demo</Link></li>
+              <li>Accede a: <Link href="/demo" className="text-primary-600 hover:underline">http://localhost:3000/demo</Link></li>
               <li>El tenant demo se creará automáticamente</li>
             </ol>
           </div>

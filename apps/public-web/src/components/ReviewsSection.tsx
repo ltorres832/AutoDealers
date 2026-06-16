@@ -11,7 +11,7 @@ export default function ReviewsSection() {
       <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
           </div>
         </div>
       </section>
@@ -21,11 +21,11 @@ export default function ReviewsSection() {
   if (reviews.length === 0) {
     // Mostrar placeholder si no hay reseñas
     return (
-      <section className="py-16 bg-gradient-to-br from-gray-50 via-white to-purple-50">
+      <section className="py-16 bg-gradient-to-br from-gray-50 via-white to-primary-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-purple-100 rounded-full mb-4">
-              <span className="text-purple-600 font-semibold text-sm">⭐ RESEÑAS</span>
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary-100 rounded-full mb-4">
+              <span className="text-primary-600 font-semibold text-sm">⭐ RESEÑAS</span>
             </div>
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
               Lo Que Dicen Nuestros Clientes
@@ -49,11 +49,11 @@ export default function ReviewsSection() {
   }
 
   return (
-    <section className="py-16 bg-gradient-to-br from-gray-50 via-white to-purple-50">
+    <section className="py-16 bg-gradient-to-br from-gray-50 via-white to-primary-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-purple-100 rounded-full mb-4">
-            <span className="text-purple-600 font-semibold text-sm">⭐ RESEÑAS</span>
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary-100 rounded-full mb-4">
+            <span className="text-primary-600 font-semibold text-sm">⭐ RESEÑAS</span>
           </div>
           <h2 className="text-4xl font-bold text-gray-900 mb-4">
             Lo Que Dicen Nuestros Clientes
@@ -71,7 +71,7 @@ export default function ReviewsSection() {
             >
               {/* Header del Review */}
               <div className="flex items-start gap-4 mb-4">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-500 to-primary-500 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
                   {review.customerPhoto ? (
                     <img
                       src={review.customerPhoto}
@@ -88,7 +88,7 @@ export default function ReviewsSection() {
                       {review.customerName}
                     </h4>
                     {review.verified && (
-                      <span className="text-blue-500" title="Verificado">
+                      <span className="text-primary-500" title="Verificado">
                         ✓
                       </span>
                     )}
@@ -128,13 +128,13 @@ export default function ReviewsSection() {
         <div className="text-center mt-8 space-x-4">
           <a
             href="/reviews"
-            className="inline-block bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-8 py-3 rounded-lg hover:from-purple-700 hover:to-indigo-700 font-semibold transition-all transform hover:scale-105 shadow-lg"
+            className="inline-block bg-gradient-to-r from-primary-600 to-primary-600 text-white px-8 py-3 rounded-lg hover:from-primary-700 hover:to-primary-700 font-semibold transition-all transform hover:scale-105 shadow-lg"
           >
             Ver Todas las Reseñas →
           </a>
           <a
             href="/review/submit"
-            className="inline-block bg-white border-2 border-purple-600 text-purple-600 px-8 py-3 rounded-lg hover:bg-purple-50 font-semibold transition-all transform hover:scale-105 shadow-lg"
+            className="inline-block bg-white border-2 border-primary-600 text-primary-600 px-8 py-3 rounded-lg hover:bg-primary-50 font-semibold transition-all transform hover:scale-105 shadow-lg"
           >
             Dejar una Reseña
           </a>

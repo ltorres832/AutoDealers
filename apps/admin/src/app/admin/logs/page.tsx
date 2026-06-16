@@ -137,7 +137,7 @@ export default function AdminLogsPage() {
                       {log.userId || '-'}
                     </td>
                     <td className="px-6 py-4">
-                      <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                      <span className="px-2 py-1 bg-primary-100 text-primary-700 rounded text-xs">
                         {log.action}
                       </span>
                     </td>

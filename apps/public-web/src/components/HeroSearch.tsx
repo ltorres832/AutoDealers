@@ -92,7 +92,7 @@ export default function HeroSearch({ vehicles, onSearch }: HeroSearchProps) {
                 key={type.value}
                 className={`cursor-pointer px-6 py-2.5 rounded-full font-semibold text-sm transition-all ${
                   searchType === type.value
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30'
+                    ? 'bg-primary-600 text-white shadow-md shadow-primary-500/30'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
@@ -117,7 +117,7 @@ export default function HeroSearch({ vehicles, onSearch }: HeroSearchProps) {
                   setSelectedMake(e.target.value);
                   setSelectedModel('');
                 }}
-                className="w-full h-14 px-4 text-base bg-gray-50 border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-blue-600 font-medium text-gray-900"
+                className="w-full h-14 px-4 text-base bg-gray-50 border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-primary-600 font-medium text-gray-900"
               >
                 <option value="">Todas las marcas</option>
                 {makes.map((make) => (
@@ -131,7 +131,7 @@ export default function HeroSearch({ vehicles, onSearch }: HeroSearchProps) {
                 value={selectedModel}
                 onChange={(e) => setSelectedModel(e.target.value)}
                 disabled={!selectedMake}
-                className="w-full h-14 px-4 text-base bg-gray-50 border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-blue-600 font-medium text-gray-900 disabled:opacity-50"
+                className="w-full h-14 px-4 text-base bg-gray-50 border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-primary-600 font-medium text-gray-900 disabled:opacity-50"
               >
                 <option value="">Todos los modelos</option>
                 {modelsForMake.map((model) => (
@@ -144,7 +144,7 @@ export default function HeroSearch({ vehicles, onSearch }: HeroSearchProps) {
               <select
                 value={selectedPrice}
                 onChange={(e) => setSelectedPrice(e.target.value)}
-                className="w-full h-14 px-4 text-base bg-gray-50 border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-blue-600 font-medium text-gray-900"
+                className="w-full h-14 px-4 text-base bg-gray-50 border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-primary-600 font-medium text-gray-900"
               >
                 <option value="">Precio máximo</option>
                 <option value="10000">$10,000</option>
@@ -188,7 +188,7 @@ export default function HeroSearch({ vehicles, onSearch }: HeroSearchProps) {
                     condition: searchType !== 'all' ? searchType : undefined,
                   })
                 }
-                className="px-4 py-1.5 border border-gray-200 hover:border-blue-400 text-gray-600 hover:text-blue-600 text-sm rounded-full font-medium transition-all hover:bg-blue-50"
+                className="px-4 py-1.5 border border-gray-200 hover:border-primary-400 text-gray-600 hover:text-primary-600 text-sm rounded-full font-medium transition-all hover:bg-primary-50"
               >
                 {tag.label}
               </button>

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getFirestore } from '@autodealers/core';
-import { getPromotionPrice, getPromotionDurations } from '@autodealers/core';
+import { getFirestore, getPromotionPrice, getPromotionDurations, notifyUser } from '@autodealers/core';
 import * as admin from 'firebase-admin';
 
 const db = getFirestore();
@@ -133,11 +132,8 @@ export async function POST(request: NextRequest) {
       requestedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    // Notificar al usuario asignado
-    await db.collection('notifications').add({
-      userId: assignedToUserId,
-      tenantId: assignedToTenantId,
-      type: 'promotion_assigned',
+    await notifyUser(assignedToTenantId, assignedToUserId, {
+      type: 'promotion',
       title: 'Promoción Asignada',
       message: `Se te ha asignado una promoción ${promotionScope}: "${name || `Promoción ${promotionScope} - ${duration} días`}". Realiza el pago para activarla.`,
       metadata: {
@@ -146,8 +142,6 @@ export async function POST(request: NextRequest) {
         price,
         duration,
       },
-      read: false,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
     return NextResponse.json({

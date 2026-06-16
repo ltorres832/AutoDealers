@@ -116,7 +116,7 @@ export default function AdvertiserDetailPage() {
           <h1 className="text-3xl font-bold text-gray-900">Detalle del anunciante</h1>
           <p className="text-gray-600">Información y acciones disponibles</p>
         </div>
-        <Link href="/admin/advertisers" className="text-blue-600 hover:text-blue-700 text-sm font-semibold">
+        <Link href="/admin/advertisers" className="text-primary-600 hover:text-primary-700 text-sm font-semibold">
           ← Volver
         </Link>
       </div>
@@ -165,7 +165,7 @@ export default function AdvertiserDetailPage() {
               {advertiser.website && (
                 <div>
                   <dt className="text-gray-500">Sitio web</dt>
-                  <dd className="text-blue-600">
+                  <dd className="text-primary-600">
                     <a href={advertiser.website} target="_blank" rel="noopener noreferrer">
                       {advertiser.website}
                     </a>
@@ -226,13 +226,13 @@ export default function AdvertiserDetailPage() {
               </button>
               <Link
                 href={`/admin/advertisers/${advertiser.id}/ads/create`}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold"
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-semibold"
               >
                 Crear anuncio
               </Link>
               <Link
                 href={`/admin/advertisers/${advertiser.id}/billing`}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-semibold"
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-semibold"
               >
                 Billing y métodos de pago
               </Link>

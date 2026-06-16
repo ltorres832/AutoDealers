@@ -191,10 +191,10 @@ export default function PublicReviewsPage() {
                   })}
                 </p>
                 {review.response && (
-                  <div className="mt-4 pt-4 border-t border-gray-200 bg-blue-50 rounded p-3">
-                    <p className="text-xs text-blue-600 mb-1 font-medium">Respuesta del concesionario:</p>
-                    <p className="text-sm text-blue-800">{review.response.text}</p>
-                    <p className="text-xs text-blue-600 mt-2">
+                  <div className="mt-4 pt-4 border-t border-gray-200 bg-primary-50 rounded p-3">
+                    <p className="text-xs text-primary-600 mb-1 font-medium">Respuesta del concesionario:</p>
+                    <p className="text-sm text-primary-800">{review.response.text}</p>
+                    <p className="text-xs text-primary-600 mt-2">
                       Por {review.response.respondedBy} el{' '}
                       {new Date(review.response.respondedAt).toLocaleDateString('es-ES')}
                     </p>

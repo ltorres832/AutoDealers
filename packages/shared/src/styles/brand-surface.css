@@ -1,0 +1,89 @@
+/**
+ * Capa visual de marca — acentos visibles en toda la plataforma.
+ * Importar en layout.tsx después de globals.css (sin @layer; CSS plano).
+ */
+
+/* Banda roja superior fija */
+.brand-top-accent::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #050505 0%, #e10600 25%, #ff1a1a 50%, #e10600 75%, #050505 100%);
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.btn-brand,
+a.btn-brand,
+button.btn-brand {
+  background-color: #e10600;
+  color: #ffffff;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.btn-brand:hover,
+a.btn-brand:hover,
+button.btn-brand:hover {
+  background-color: #b80500;
+}
+
+.brand-login-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-login-header {
+  background-color: #e10600;
+  color: #ffffff;
+  padding: 1.5rem 1rem;
+  text-align: center;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.brand-login-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: linear-gradient(135deg, #fff1f1 0%, #ffffff 50%, #f9fafb 100%);
+}
+
+.brand-nav-active {
+  background-color: #e10600 !important;
+  color: #ffffff !important;
+  font-weight: 600;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  border-left: 4px solid #ff1a1a;
+}
+
+.brand-dark-section {
+  background-color: #050505;
+  position: relative;
+  overflow: hidden;
+}
+
+.brand-dark-section::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 30% 0%, rgba(225, 6, 0, 0.35) 0%, transparent 55%),
+    radial-gradient(ellipse at 70% 100%, rgba(225, 6, 0, 0.2) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+/* CTAs slate-900 → rojo marca */
+a.bg-slate-900.text-white,
+button.bg-slate-900.text-white {
+  background-color: #e10600 !important;
+}
+
+a.bg-slate-900.text-white:hover,
+button.bg-slate-900.text-white:hover {
+  background-color: #b80500 !important;
+}

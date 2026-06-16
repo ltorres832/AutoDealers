@@ -69,7 +69,7 @@ export default function StripeCustomersPage() {
           />
           <button
             type="submit"
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+            className="bg-primary-600 text-white px-6 py-2 rounded-lg hover:bg-primary-700"
           >
             🔍 Buscar
           </button>
@@ -109,7 +109,7 @@ export default function StripeCustomersPage() {
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white font-bold">
                         {customer.name
                           ? customer.name.charAt(0).toUpperCase()
                           : customer.email
@@ -130,7 +130,7 @@ export default function StripeCustomersPage() {
 
                     {/* Información del Tenant */}
                     {customer.tenantInfo && (
-                      <div className="mt-3 inline-flex items-center gap-2 bg-blue-50 px-3 py-1 rounded-full text-sm">
+                      <div className="mt-3 inline-flex items-center gap-2 bg-primary-50 px-3 py-1 rounded-full text-sm">
                         <span className="font-medium">🏢 {customer.tenantInfo.name}</span>
                         <span className="text-gray-600">
                           ({customer.tenantInfo.type})
@@ -173,14 +173,14 @@ export default function StripeCustomersPage() {
                     href={`https://dashboard.stripe.com/customers/${customer.id}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm text-blue-600 hover:text-blue-800"
+                    className="text-sm text-primary-600 hover:text-primary-800"
                   >
                     Ver en Stripe ↗
                   </a>
                   {customer.tenantInfo && (
                     <Link
                       href={`/admin/tenants/${customer.tenantInfo.id}`}
-                      className="text-sm text-blue-600 hover:text-blue-800"
+                      className="text-sm text-primary-600 hover:text-primary-800"
                     >
                       Ver Tenant →
                     </Link>

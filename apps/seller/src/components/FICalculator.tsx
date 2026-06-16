@@ -189,34 +189,34 @@ export default function FICalculator({
       )}
 
       {calculation && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h3 className="font-semibold text-blue-900 mb-3">📊 Resultado del Cálculo</h3>
+        <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+          <h3 className="font-semibold text-primary-900 mb-3">📊 Resultado del Cálculo</h3>
           
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
-              <span className="text-sm text-blue-700">Pago Mensual:</span>
-              <p className="text-2xl font-bold text-blue-900">
+              <span className="text-sm text-primary-700">Pago Mensual:</span>
+              <p className="text-2xl font-bold text-primary-900">
                 ${calculation.monthlyPayment.toLocaleString('es-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             </div>
             
             <div>
-              <span className="text-sm text-blue-700">Total a Pagar:</span>
-              <p className="text-xl font-semibold text-blue-900">
+              <span className="text-sm text-primary-700">Total a Pagar:</span>
+              <p className="text-xl font-semibold text-primary-900">
                 ${calculation.totalAmount.toLocaleString('es-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             </div>
             
             <div>
-              <span className="text-sm text-blue-700">Total de Intereses:</span>
-              <p className="text-lg text-blue-800">
+              <span className="text-sm text-primary-700">Total de Intereses:</span>
+              <p className="text-lg text-primary-800">
                 ${calculation.totalInterest.toLocaleString('es-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             </div>
             
             {calculation.dtiRatio && (
               <div>
-                <span className="text-sm text-blue-700">DTI Ratio:</span>
+                <span className="text-sm text-primary-700">DTI Ratio:</span>
                 <p className={`text-lg font-semibold ${
                   calculation.affordability === 'affordable' ? 'text-green-700' :
                   calculation.affordability === 'tight' ? 'text-yellow-700' :
@@ -228,8 +228,8 @@ export default function FICalculator({
             )}
           </div>
           
-          <div className="border-t border-blue-200 pt-3">
-            <p className="text-sm text-blue-700 mb-2">Desglose:</p>
+          <div className="border-t border-primary-200 pt-3">
+            <p className="text-sm text-primary-700 mb-2">Desglose:</p>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div>Principal: ${calculation.breakdown.principal.toLocaleString()}</div>
               <div>Intereses: ${calculation.breakdown.interest.toLocaleString()}</div>

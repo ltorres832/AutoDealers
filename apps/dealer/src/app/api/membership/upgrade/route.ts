@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getMembershipById } from '@autodealers/billing';
+import { getMembershipById, assertSelfServiceMembership } from '@autodealers/billing';
 import { getFirestore, getStripeService } from '@autodealers/core';
 
 const db = getFirestore();
@@ -30,6 +30,11 @@ export async function POST(request: NextRequest) {
         { error: 'Invalid plan or Stripe not configured' },
         { status: 400 }
       );
+    }
+
+    const selfServiceCheck = assertSelfServiceMembership(plan);
+    if (!selfServiceCheck.ok) {
+      return NextResponse.json({ error: selfServiceCheck.error }, { status: 403 });
     }
 
     // Obtener email del usuario

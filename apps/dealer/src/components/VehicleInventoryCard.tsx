@@ -147,7 +147,7 @@ export default function VehicleInventoryCard({
         <div className="flex items-start justify-between mb-2">
           <h3 className="font-bold text-lg">{label}</h3>
           {stockLabel(vehicle) ? (
-            <span className="text-xs font-semibold bg-blue-100 text-blue-800 px-2 py-1 rounded whitespace-nowrap">
+            <span className="text-xs font-semibold bg-primary-100 text-primary-800 px-2 py-1 rounded whitespace-nowrap">
               #{stockLabel(vehicle)}
             </span>
           ) : null}
@@ -158,6 +158,10 @@ export default function VehicleInventoryCard({
         <span className={`inline-block mt-2 px-2 py-1 text-xs rounded ${statusClass}`}>
           {vehicleStatusLabel(vehicle.status)}
         </span>
+
+        <p className="mt-2 text-xs text-gray-500">
+          👁️ {(vehicle.views ?? 0).toLocaleString()} vista{(vehicle.views ?? 0) === 1 ? '' : 's'} en la web
+        </p>
 
         <div className="mt-4 space-y-2">
           {onEdit ? (
@@ -182,7 +186,7 @@ export default function VehicleInventoryCard({
               <button
                 type="button"
                 onClick={() => onSchedule(vehicle, 'test_drive_request')}
-                className="w-full bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 font-medium text-sm"
+                className="w-full bg-primary-600 text-white px-4 py-2 rounded hover:bg-primary-700 font-medium text-sm"
               >
                 🚗 Prueba de manejo
               </button>
@@ -196,7 +200,7 @@ export default function VehicleInventoryCard({
               className={`w-full px-4 py-2 rounded font-medium text-sm ${
                 vehicle.publishedOnPublicPage
                   ? 'bg-green-600 text-white hover:bg-green-700'
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-primary-600 text-white hover:bg-primary-700'
               }`}
             >
               {vehicle.publishedOnPublicPage ? '🌐 Publicado en web' : '🌐 Publicar en web'}
@@ -207,7 +211,7 @@ export default function VehicleInventoryCard({
             <button
               type="button"
               onClick={() => onPublishSocial(vehicle)}
-              className="w-full px-4 py-2 rounded font-medium text-sm bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-700 hover:to-indigo-700"
+              className="w-full px-4 py-2 rounded font-medium text-sm bg-gradient-to-r from-primary-600 to-primary-600 text-white hover:from-primary-700 hover:to-primary-700"
             >
               📱 Publicar en redes
             </button>

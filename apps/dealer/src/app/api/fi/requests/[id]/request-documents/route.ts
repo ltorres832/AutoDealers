@@ -101,7 +101,7 @@ export async function POST(
                 ${documentsList}
               </ul>
               <p>Por favor, haz clic en el siguiente link para subir los documentos:</p>
-              <p><a href="${publicUrl}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 16px 0;">Subir Documentos</a></p>
+              <p><a href="${publicUrl}" style="background-color: #E10600; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 16px 0;">Subir Documentos</a></p>
               <p>O copia y pega este link en tu navegador:</p>
               <p style="word-break: break-all;">${publicUrl}</p>
               <p><strong>Esta solicitud expira el:</strong> ${new Date(docRequest.expiresAt).toLocaleDateString()}</p>

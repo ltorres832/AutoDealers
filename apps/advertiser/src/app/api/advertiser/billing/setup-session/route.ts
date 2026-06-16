@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
+import { advertiserBillingReturnUrl } from '@/lib/app-origin';
 import { getAdvertiserById, getFirestore, getStripeInstance } from '@autodealers/core';
-import * as admin from 'firebase-admin';
+import { getFirestoreFieldValue } from '@autodealers/shared';
 
 const db = getFirestore();
 
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
       customerId = customer.id;
       await db.collection('advertisers').doc(advertiser.id).update({
         stripeCustomerId: customerId,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: getFirestoreFieldValue().serverTimestamp(),
       });
     }
 
@@ -41,8 +42,8 @@ export async function POST(request: NextRequest) {
       mode: 'setup',
       payment_method_types: [paymentMethodType],
       customer: customerId,
-      success_url: `${process.env.NEXT_PUBLIC_ADVERTISER_URL || 'http://localhost:3004'}/dashboard/billing?success=true`,
-      cancel_url: `${process.env.NEXT_PUBLIC_ADVERTISER_URL || 'http://localhost:3004'}/dashboard/billing?canceled=true`,
+      success_url: advertiserBillingReturnUrl(request, 'success=true'),
+      cancel_url: advertiserBillingReturnUrl(request, 'canceled=true'),
       metadata: {
         advertiserId: advertiser.id,
         action: 'add_payment_method',

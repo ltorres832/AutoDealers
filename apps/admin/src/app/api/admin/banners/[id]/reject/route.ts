@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getFirestore } from '@autodealers/core';
+import { getFirestore, getTenantById, sendOutboundEmail, markPlatformAdminNotificationsRead } from '@autodealers/core';
 import * as admin from 'firebase-admin';
 
 const db = getFirestore();
@@ -54,19 +54,38 @@ export async function POST(
       rejectionReason: reason.trim(),
     });
 
-    // Eliminar notificación de aprobación si existe
-    const notificationsSnapshot = await db
+    await markPlatformAdminNotificationsRead({ bannerId: id, tenantId });
+
+    const legacySnapshot = await db
       .collection('admin_notifications')
       .where('type', '==', 'banner_approval')
       .where('bannerId', '==', id)
       .where('tenantId', '==', tenantId)
       .get();
 
-    for (const notificationDoc of notificationsSnapshot.docs) {
+    for (const notificationDoc of legacySnapshot.docs) {
       await notificationDoc.ref.delete();
     }
 
-    // TODO: Enviar email al dealer notificando el rechazo
+    const bannerData = bannerDoc.data();
+    const tenant = await getTenantById(tenantId);
+    const recipientEmail =
+      tenant?.contactEmail?.trim() ||
+      (typeof bannerData?.submittedByEmail === 'string' ? bannerData.submittedByEmail.trim() : '');
+
+    if (recipientEmail) {
+      const bannerTitle = bannerData?.title || bannerData?.name || 'Banner premium';
+      await sendOutboundEmail(
+        recipientEmail,
+        `Banner rechazado — ${bannerTitle}`,
+        `<p>Hola,</p>
+<p>Tu solicitud de banner premium <strong>${bannerTitle}</strong> fue rechazada.</p>
+<p><strong>Motivo:</strong> ${reason.trim()}</p>
+<p>Puedes editar el banner y volver a enviarlo desde tu panel.</p>
+<p>Equipo AutoDealers</p>`,
+        tenantId
+      ).catch((err) => console.warn('Banner rejection email failed:', err));
+    }
 
     console.log(`❌ Banner ${id} rechazado por admin ${auth.userId}`);
 

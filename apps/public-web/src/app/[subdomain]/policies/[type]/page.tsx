@@ -96,7 +96,7 @@ export default function PolicyPage() {
     );
   }
 
-  const primaryColor = tenant?.branding?.primaryColor || '#2563EB';
+  const primaryColor = tenant?.branding?.primaryColor || '#E10600';
   const policyInfo = POLICY_INFO[type];
 
   return (

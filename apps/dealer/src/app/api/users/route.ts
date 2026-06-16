@@ -114,10 +114,11 @@ export async function POST(request: NextRequest) {
       membershipType: 'dealer',
       settings: {
         notifications: {
-          system: true,
+          push: true,
           email: true,
           sms: phone ? true : false,
           whatsapp: phone ? true : false,
+          sound: true,
         },
         // Configuración para recibir notificaciones del negocio
         businessNotifications: {
@@ -125,7 +126,9 @@ export async function POST(request: NextRequest) {
           newMessages: true,
           newAppointments: true,
           newSales: true,
-          newRequests: true,
+          documents: true,
+          tasks: true,
+          catalogInterest: true,
           systemAlerts: true,
         },
       },

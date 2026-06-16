@@ -54,6 +54,11 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_VAPID_KEY
+    secret: NEXT_PUBLIC_FIREBASE_VAPID_KEY
+    availability:
+      - BUILD
+      - RUNTIME
   - variable: FIREBASE_PROJECT_ID
     value: autodealers-7f62e
     availability:

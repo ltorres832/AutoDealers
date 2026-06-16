@@ -121,8 +121,8 @@ export default function AdvertiserPricingPage() {
 
               {isEditing ? (
                 <div className="space-y-4">
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <p className="text-sm text-blue-800">
+                  <div className="bg-primary-50 border border-primary-200 rounded-lg p-3">
+                    <p className="text-sm text-primary-800">
                       💡 <strong>Automático:</strong> El sistema creará/actualizará el producto y precio en Stripe automáticamente al guardar.
                     </p>
                   </div>
@@ -137,7 +137,7 @@ export default function AdvertiserPricingPage() {
                       onChange={(e) =>
                         setFormData({ ...formData!, amount: parseInt(e.target.value) || 0 })
                       }
-                      className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                     <p className="mt-1 text-xs text-gray-500">
                       Ejemplo: 9900 = $99.00
@@ -153,7 +153,7 @@ export default function AdvertiserPricingPage() {
                       onChange={(e) =>
                         setFormData({ ...formData!, currency: e.target.value })
                       }
-                      className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     >
                       <option value="usd">USD ($)</option>
                       <option value="eur">EUR (€)</option>
@@ -171,7 +171,7 @@ export default function AdvertiserPricingPage() {
                       onChange={(e) =>
                         setFormData({ ...formData!, name: e.target.value })
                       }
-                      className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                   </div>
 
@@ -179,7 +179,7 @@ export default function AdvertiserPricingPage() {
                     <button
                       onClick={handleSave}
                       disabled={saving}
-                      className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50"
+                      className="flex-1 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 font-medium disabled:opacity-50"
                     >
                       {saving ? 'Guardando...' : 'Guardar'}
                     </button>
@@ -217,7 +217,7 @@ export default function AdvertiserPricingPage() {
                           href={`https://dashboard.stripe.com/prices/${plan.priceId}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-xs text-blue-600 hover:text-blue-700 underline"
+                          className="text-xs text-primary-600 hover:text-primary-700 underline"
                         >
                           Ver en Stripe Dashboard →
                         </a>
@@ -253,7 +253,7 @@ export default function AdvertiserPricingPage() {
 
                   <button
                     onClick={() => handleEdit(planKey)}
-                    className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium"
+                    className="w-full bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 font-medium"
                   >
                     Editar Configuración
                   </button>

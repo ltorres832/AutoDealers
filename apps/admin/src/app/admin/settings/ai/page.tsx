@@ -142,7 +142,7 @@ export default function AISettingsPage() {
             <select
               value={config.provider}
               onChange={(e) => setConfig(prev => ({ ...prev, provider: e.target.value as 'openai' | 'anthropic' | 'none' }))}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             >
               <option value="none">Sin IA (desactivado)</option>
               <option value="openai">OpenAI (GPT-4, GPT-3.5)</option>
@@ -159,7 +159,7 @@ export default function AISettingsPage() {
                 type="password"
                 value={config.openaiApiKey}
                 onChange={(e) => setConfig(prev => ({ ...prev, openaiApiKey: e.target.value }))}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 placeholder={config.openaiApiKey.includes('•') ? '••••••••••••••••' : 'sk-...'}
               />
               <p className="text-xs text-gray-500 mt-1">
@@ -168,7 +168,7 @@ export default function AISettingsPage() {
                   href="https://platform.openai.com/api-keys"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline"
+                  className="text-primary-600 hover:underline"
                 >
                   platform.openai.com/api-keys
                 </a>
@@ -185,7 +185,7 @@ export default function AISettingsPage() {
                 type="password"
                 value={config.anthropicApiKey}
                 onChange={(e) => setConfig(prev => ({ ...prev, anthropicApiKey: e.target.value }))}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 placeholder={config.anthropicApiKey.includes('•') ? '••••••••••••••••' : 'sk-ant-...'}
               />
               <p className="text-xs text-gray-500 mt-1">
@@ -194,7 +194,7 @@ export default function AISettingsPage() {
                   href="https://console.anthropic.com/settings/keys"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline"
+                  className="text-primary-600 hover:underline"
                 >
                   console.anthropic.com/settings/keys
                 </a>
@@ -209,7 +209,7 @@ export default function AISettingsPage() {
                 <select
                   value={config.model}
                   onChange={(e) => setConfig(prev => ({ ...prev, model: e.target.value }))}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 >
                   {config.provider === 'openai' ? (
                     <>
@@ -234,7 +234,7 @@ export default function AISettingsPage() {
                     type="number"
                     value={config.maxTokens}
                     onChange={(e) => setConfig(prev => ({ ...prev, maxTokens: parseInt(e.target.value) || 1000 }))}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     min="100"
                     max="4000"
                   />
@@ -245,7 +245,7 @@ export default function AISettingsPage() {
                     type="number"
                     value={config.temperature}
                     onChange={(e) => setConfig(prev => ({ ...prev, temperature: parseFloat(e.target.value) || 0.7 }))}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     min="0"
                     max="2"
                     step="0.1"
@@ -269,16 +269,16 @@ export default function AISettingsPage() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-primary-600 text-white py-2 px-4 rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? 'Guardando...' : 'Guardar Configuración'}
           </button>
         </div>
       </div>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h3 className="font-semibold text-blue-900 mb-2">ℹ️ ¿Para qué se usa la IA?</h3>
-        <ul className="list-disc list-inside space-y-2 text-sm text-blue-800">
+      <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+        <h3 className="font-semibold text-primary-900 mb-2">ℹ️ ¿Para qué se usa la IA?</h3>
+        <ul className="list-disc list-inside space-y-2 text-sm text-primary-800">
           <li><strong>Generación de contenido:</strong> Crea automáticamente textos, hashtags y CTAs para posts en redes sociales</li>
           <li><strong>Clasificación de leads:</strong> Analiza y clasifica automáticamente los leads según su probabilidad de compra</li>
           <li><strong>Respuestas automáticas:</strong> Genera respuestas sugeridas para mensajes de clientes</li>

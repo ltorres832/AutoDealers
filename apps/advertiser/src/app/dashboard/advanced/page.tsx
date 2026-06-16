@@ -154,7 +154,7 @@ export default function AdvancedDashboardPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
       </div>
     );
   }
@@ -167,7 +167,10 @@ export default function AdvancedDashboardPage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Dashboard Avanzado</h1>
             {advertiser && (
-              <p className="text-sm text-gray-600">{advertiser.companyName} - Plan {advertiser.plan}</p>
+              <p className="text-sm text-gray-600">
+                {advertiser.companyName}
+                {advertiser.plan ? ` · Plan ${advertiser.plan}` : ' · Pago por anuncio'}
+              </p>
             )}
           </div>
           <div className="flex gap-4">
@@ -197,7 +200,7 @@ export default function AdvancedDashboardPage() {
                 onClick={() => setSelectedPeriod(period)}
                 className={`px-4 py-2 text-sm font-medium ${
                   selectedPeriod === period
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-primary-600 text-white'
                     : 'bg-white text-gray-700 hover:bg-gray-50'
                 }`}
               >
@@ -221,7 +224,7 @@ export default function AdvancedDashboardPage() {
               </div>
               <div className="bg-white rounded-lg shadow p-6">
                 <div className="text-sm text-gray-600 mb-1">Total Clics</div>
-                <div className="text-3xl font-bold text-blue-600">{stats.totalClicks.toLocaleString()}</div>
+                <div className="text-3xl font-bold text-primary-600">{stats.totalClicks.toLocaleString()}</div>
                 <div className="text-xs text-gray-500 mt-2">
                   {getPercentageChange(stats.monthlyComparison.current.clicks, stats.monthlyComparison.previous.clicks) > 0 ? '↑' : '↓'}{' '}
                   {Math.abs(getPercentageChange(stats.monthlyComparison.current.clicks, stats.monthlyComparison.previous.clicks)).toFixed(1)}% vs mes anterior
@@ -234,7 +237,7 @@ export default function AdvancedDashboardPage() {
               </div>
               <div className="bg-white rounded-lg shadow p-6">
                 <div className="text-sm text-gray-600 mb-1">Tasa de Conversión</div>
-                <div className="text-3xl font-bold text-purple-600">{stats.conversionRate.toFixed(2)}%</div>
+                <div className="text-3xl font-bold text-primary-600">{stats.conversionRate.toFixed(2)}%</div>
                 <div className="text-xs text-gray-500 mt-2">
                   {stats.totalConversions} conversiones de {stats.totalClicks} clics
                 </div>
@@ -252,7 +255,7 @@ export default function AdvancedDashboardPage() {
                     return (
                       <div key={index} className="flex-1 flex flex-col items-center">
                         <div
-                          className="w-full bg-blue-500 rounded-t transition-all hover:bg-blue-600"
+                          className="w-full bg-primary-500 rounded-t transition-all hover:bg-primary-600"
                           style={{ height: `${height}%` }}
                           title={`${point.date}: ${point.value.toLocaleString()}`}
                         />

@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import type { MembershipFeatures } from '@autodealers/billing/types';
 import { fetchWithAuth } from '@/lib/fetch-with-auth';
+import { coerceMembershipNumber } from '@/lib/membership-number-utils';
 
 export default function EditMembershipPage() {
   const router = useRouter();
@@ -144,7 +145,10 @@ export default function EditMembershipPage() {
       
       if (data.membership) {
         console.log('✅ Membership found:', data.membership.id, data.membership.name);
-        setMembership(data.membership);
+        setMembership({
+          ...data.membership,
+          price: coerceMembershipNumber(data.membership.price),
+        });
         setFeatures(data.membership.features || features);
         setError(null);
       } else {
@@ -193,7 +197,13 @@ export default function EditMembershipPage() {
         headers,
         credentials: 'include',
         body: JSON.stringify({
-          ...membership,
+          name: membership.name,
+          type: membership.type,
+          price: coerceMembershipNumber(membership.price),
+          currency: membership.currency,
+          billingCycle: membership.billingCycle,
+          isActive: membership.isActive,
+          stripePriceId: membership.stripePriceId,
           features,
         }),
       });
@@ -203,7 +213,11 @@ export default function EditMembershipPage() {
       if (response.ok) {
         const data = await response.json();
         console.log('✅ Membership updated successfully:', data);
-        alert('Membresía actualizada exitosamente. Las features se sincronizarán automáticamente.');
+        alert(
+          data.syncWarning
+            ? `Membresía guardada.\n\nAviso: ${data.syncWarning}`
+            : 'Membresía actualizada exitosamente. Las features se sincronizarán automáticamente.'
+        );
         router.replace('/admin/memberships');
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
@@ -888,7 +902,7 @@ export default function EditMembershipPage() {
                     <h3 className="text-sm font-semibold text-gray-900">{feature.name}</h3>
                     <p className="text-xs text-gray-500">{feature.description}</p>
                   </div>
-                  <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                  <span className="text-xs px-2 py-1 bg-primary-100 text-primary-700 rounded">
                     {feature.type}
                   </span>
                 </div>

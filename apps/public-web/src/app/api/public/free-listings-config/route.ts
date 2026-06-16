@@ -25,7 +25,7 @@ export async function GET() {
       {
         enabled: false,
         maxActiveFreeVehiclesPerSeller: 0,
-        durationDays: 14,
+        durationDays: 7,
         ctaTitle: '',
         ctaSubtitle: '',
         ctaButtonLabel: '',

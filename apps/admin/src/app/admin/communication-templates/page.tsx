@@ -153,7 +153,7 @@ export default function CommunicationTemplatesPage() {
                   }
                 }
               }}
-              className="bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 font-medium"
+              className="bg-primary-600 text-white px-4 py-3 rounded-lg hover:bg-primary-700 font-medium"
             >
               🚀 Crear Todos los Templates
             </button>
@@ -261,7 +261,7 @@ export default function CommunicationTemplatesPage() {
                 </div>
                 <div className="flex flex-col gap-1">
                   {template.isDefault && (
-                    <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                    <span className="px-2 py-1 bg-primary-100 text-primary-700 rounded text-xs">
                       Por Defecto
                     </span>
                   )}

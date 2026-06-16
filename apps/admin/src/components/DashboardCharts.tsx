@@ -8,7 +8,7 @@ interface DashboardChartsProps {
   sourceData: Array<{ name: string; value: number }>;
 }
 
-const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+const COLORS = ['#E10600', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 
 export function LeadsTrendChart({ data }: { data: Array<{ date: string; count: number }> }) {
   return (
@@ -19,7 +19,7 @@ export function LeadsTrendChart({ data }: { data: Array<{ date: string; count: n
         <YAxis />
         <Tooltip />
         <Legend />
-        <Line type="monotone" dataKey="count" stroke="#3B82F6" strokeWidth={2} name="Leads" />
+        <Line type="monotone" dataKey="count" stroke="#E10600" strokeWidth={2} name="Leads" />
       </LineChart>
     </ResponsiveContainer>
   );

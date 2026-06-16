@@ -88,7 +88,7 @@ export default function QuickListingsSection({ quickListingPath }: { quickListin
           </div>
           <Link
             href={quickListingPath || '/publicar-gratis'}
-            className="px-4 py-2 bg-slate-900 text-white text-sm rounded-xl font-semibold hover:bg-blue-600"
+            className="px-4 py-2 bg-primary-600 text-white text-sm rounded-xl font-semibold hover:bg-primary-700"
           >
             Publicar el mío
           </Link>
@@ -103,7 +103,7 @@ export default function QuickListingsSection({ quickListingPath }: { quickListin
                 key={it.id}
                 className="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col"
               >
-                <Link href={`/anuncio/${it.id}`} className="block flex-1 min-h-0 group focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-t-2xl">
+                <Link href={`/anuncio/${it.id}`} className="block flex-1 min-h-0 group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded-t-2xl">
                   <div className="relative aspect-[16/10] bg-slate-100">
                     {cover ? (
                       /* eslint-disable-next-line @next/next/no-img-element */
@@ -124,7 +124,7 @@ export default function QuickListingsSection({ quickListingPath }: { quickListin
                     <h3 className="font-bold text-slate-900 truncate">
                       {it.year} {it.make} {it.model}
                     </h3>
-                    <div className="text-xl font-extrabold text-blue-700 mb-2">
+                    <div className="text-xl font-extrabold text-primary-700 mb-2">
                       {formatPrice(it.price, it.currency)}
                     </div>
                     <ul className="text-xs text-slate-500 space-y-0.5 mb-2">
@@ -138,7 +138,7 @@ export default function QuickListingsSection({ quickListingPath }: { quickListin
                     {it.description && (
                       <p className="text-xs text-slate-600 line-clamp-2 mb-2">{truncateText(it.description, 160)}</p>
                     )}
-                    <span className="text-blue-600 text-xs font-semibold group-hover:underline">
+                    <span className="text-primary-600 text-xs font-semibold group-hover:underline">
                       Ver detalle y todas las fotos →
                     </span>
                   </div>
@@ -147,7 +147,7 @@ export default function QuickListingsSection({ quickListingPath }: { quickListin
                   {phoneDigits ? (
                     <a
                       href={`tel:+${phoneDigits}`}
-                      className="flex-1 py-2 bg-blue-600 text-white text-xs font-bold rounded-lg text-center hover:bg-blue-700"
+                      className="flex-1 py-2 bg-primary-600 text-white text-xs font-bold rounded-lg text-center hover:bg-primary-700"
                     >
                       Llamar
                     </a>

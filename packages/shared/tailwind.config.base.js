@@ -3,17 +3,25 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        brand: {
+          black: '#0A0A0A',
+          'black-deep': '#050505',
+          red: '#E10600',
+          'red-bright': '#FF1A1A',
+          silver: '#C0C0C0',
+          white: '#FFFFFF',
+        },
         primary: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          200: '#bfdbfe',
-          300: '#93c5fd',
-          400: '#60a5fa',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-          800: '#1e40af',
-          900: '#1e3a8a',
+          50: '#fff1f1',
+          100: '#ffe0df',
+          200: '#ffb8b6',
+          300: '#ff8a86',
+          400: '#FF1A1A',
+          500: '#f01510',
+          600: '#E10600',
+          700: '#b80500',
+          800: '#8a0400',
+          900: '#5c0300',
         },
       },
       fontFamily: {
@@ -26,14 +34,9 @@ module.exports = {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
       },
       boxShadow: {
-        'elegant': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+        elegant: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
         'elegant-lg': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
       },
     },
   },
 };
-
-
-
-
-

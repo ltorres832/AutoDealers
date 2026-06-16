@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { getUserById } from '@autodealers/core';
+import { resolveIndependentSellerWorkspace } from '@/lib/seller-workspace';
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,15 +17,26 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    const isIndependentWorkspace = await resolveIndependentSellerWorkspace({
+      tenantId: user.tenantId,
+      userId: user.id,
+      dealerId: user.dealerId,
+    });
+
     return NextResponse.json({
       user: {
-        id: user.id, // Este es el userId que se usa en createdBy
-        userId: user.id, // También incluir como userId para compatibilidad
+        id: user.id,
+        userId: user.id,
         name: user.name,
         email: user.email,
         role: user.role,
         tenantId: user.tenantId,
         dealerId: user.dealerId,
+        isIndependentWorkspace,
+        mustChangePassword: user.mustChangePassword === true,
+        createdByAdmin: user.createdByAdmin === true,
+        adminMembershipSelectionRequired: user.adminMembershipSelectionRequired === true,
+        adminMembershipAccess: user.adminMembershipAccess,
       },
     });
   } catch (error) {

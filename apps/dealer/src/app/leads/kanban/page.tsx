@@ -7,7 +7,7 @@ import { fetchWithAuth } from '@/lib/fetch-with-auth';
 import { isDealerPortalRole } from '@/lib/dealer-portal-roles';
 
 export default function LeadsKanbanPage() {
-  const [user, setUser] = useState<{ tenantId?: string; role?: string } | null>(null);
+  const [user, setUser] = useState<{ id?: string; tenantId?: string; role?: string } | null>(null);
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
 
   useEffect(() => {
@@ -62,6 +62,9 @@ export default function LeadsKanbanPage() {
       <LeadsKanban
         tenantId={user.tenantId}
         canReassign={Boolean(user.role && isDealerPortalRole(user.role))}
+        userId={user.id}
+        userRole={user.role}
+        dealerVisibleOnly={Boolean(user.role && isDealerPortalRole(user.role))}
       />
     </div>
   );

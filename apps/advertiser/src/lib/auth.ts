@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import * as admin from 'firebase-admin';
+import { getAuth } from '@autodealers/core';
 
 export interface AuthContext {
   userId: string;
@@ -22,7 +22,7 @@ export async function verifyAuth(request: NextRequest): Promise<AuthContext | nu
 
     // 1) Intentar como ID token
     try {
-      const decoded = await admin.auth().verifyIdToken(token);
+      const decoded = await getAuth().verifyIdToken(token);
       if (!decoded.uid) return null;
       return {
         userId: decoded.uid,

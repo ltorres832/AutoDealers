@@ -7,6 +7,7 @@ function getDb() {
   return getFirestore();
 }
 import { createUser } from './users';
+import { finalizeUserRegistration } from './user-auth-sync';
 import * as admin from 'firebase-admin';
 
 const db = getFirestore();
@@ -190,6 +191,15 @@ export async function createSubUser(
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
+
+    if (sellerTenantId) {
+      await getDb().collection('tenants').doc(sellerTenantId).update({
+        ownerId: userRecord.uid,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    await finalizeUserRegistration(userRecord.uid);
   } catch (error) {
     console.error('Error creating user document in Firestore:', error);
     // Limpiar: eliminar usuario de Auth y tenant si existe

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import PublicBackButton from '@/components/PublicBackButton';
+import { PublicMarketingNav } from '@/components/PublicMarketingNav';
 
 export default function FAQPage() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
@@ -21,7 +22,7 @@ export default function FAQPage() {
         },
         {
           q: '¿Puedo probar antes de comprar?',
-          a: 'Sí, ofrecemos una prueba gratuita de 14 días sin necesidad de tarjeta de crédito. Puedes explorar todas las características durante este período.',
+          a: 'Sí, ofrecemos una prueba gratuita de 7 días. Después del período de prueba, el cobro mensual se activa según el plan elegido.',
         },
       ],
     },
@@ -87,28 +88,8 @@ export default function FAQPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
-      {/* Header */}
-      <nav className="bg-white/95 backdrop-blur-sm shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-xl">AD</span>
-              </div>
-              <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                AutoDealers
-              </span>
-            </Link>
-            <Link
-              href="/login"
-              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-lg hover:shadow-lg transition-all"
-            >
-              Iniciar Sesión
-            </Link>
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-gray-50">
+      <PublicMarketingNav showDefaultLinks />
 
       <div className="max-w-4xl mx-auto px-4 py-16">
         <div className="mb-8 flex flex-wrap items-center gap-3 gap-y-2">
@@ -119,7 +100,7 @@ export default function FAQPage() {
             Volver
           </PublicBackButton>
           <span className="text-gray-300 hidden sm:inline">|</span>
-          <Link href="/" className="text-sm text-gray-500 hover:text-purple-600">
+          <Link href="/" className="text-sm text-gray-500 hover:text-primary-600">
             Inicio
           </Link>
         </div>
@@ -127,7 +108,7 @@ export default function FAQPage() {
         <div className="text-center mb-12">
           <h1 className="text-5xl font-bold mb-4">
             Preguntas{' '}
-            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-primary-600 to-primary-600 bg-clip-text text-transparent">
               Frecuentes
             </span>
           </h1>
@@ -148,7 +129,7 @@ export default function FAQPage() {
                     <div key={qIndex} className="border-b border-gray-200 last:border-0 pb-4 last:pb-0">
                       <button
                         onClick={() => setOpenIndex(isOpen ? null : parseInt(index))}
-                        className="w-full text-left flex justify-between items-center py-4 hover:text-blue-600 transition-colors"
+                        className="w-full text-left flex justify-between items-center py-4 hover:text-primary-600 transition-colors"
                       >
                         <h3 className="font-semibold text-lg pr-8">{faq.q}</h3>
                         <svg
@@ -172,12 +153,12 @@ export default function FAQPage() {
         </div>
 
         {/* CTA */}
-        <div className="mt-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white text-center">
+        <div className="mt-12 bg-gradient-to-r from-primary-600 to-primary-600 rounded-2xl p-8 text-white text-center">
           <h2 className="text-2xl font-bold mb-4">¿No encontraste tu respuesta?</h2>
           <p className="mb-6 opacity-90">Nuestro equipo está listo para ayudarte</p>
           <Link
             href="/contacto"
-            className="inline-block bg-white text-blue-600 px-8 py-3 rounded-lg hover:shadow-xl transition-all font-semibold"
+            className="inline-block bg-white text-primary-600 px-8 py-3 rounded-lg hover:shadow-xl transition-all font-semibold"
           >
             Contactar Soporte
           </Link>

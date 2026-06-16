@@ -12,8 +12,8 @@ import { type PublicReviewItem } from '@/components/PublicReviewsList';
 import { filterVerifiablePublicReviews } from '@/lib/public-review-filters';
 
 const DEFAULT_BRANDING: SellerPublicWebsiteBranding = {
-  primaryColor: '#2563EB',
-  secondaryColor: '#1E40AF',
+  primaryColor: '#E10600',
+  secondaryColor: '#0A0A0A',
 };
 
 /** Página web azul del vendedor en su subdominio (no el catálogo /seller/…). */
@@ -94,7 +94,7 @@ export default function SubdomainSellerWebsite({ sellerId }: { sellerId: string 
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600" />
       </div>
     );
   }

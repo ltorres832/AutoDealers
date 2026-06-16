@@ -335,7 +335,7 @@ export default function AnnouncementsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-primary-100 text-primary-800">
                         {announcement.contentType === 'text' ? 'Texto' : 
                          announcement.contentType === 'image' ? 'Imagen' : 'Video'}
                       </span>

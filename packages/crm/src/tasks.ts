@@ -65,6 +65,24 @@ export async function createTask(
     updatedAt: getFirestoreFieldValue().serverTimestamp(),
   } as any);
 
+  if (taskData.assignedTo && taskData.assignedTo !== taskData.createdBy) {
+    try {
+      const { notifyUser } = await import('@autodealers/core');
+      await notifyUser(tenantId, taskData.assignedTo, {
+        type: 'task_assigned',
+        title: 'Nueva tarea asignada',
+        message: `${taskData.title} — vence ${task.dueDate.toLocaleDateString('es-PR')}`,
+        metadata: {
+          taskId: docRef.id,
+          leadId: taskData.leadId,
+          route: taskData.leadId ? `/leads?leadId=${taskData.leadId}` : '/tasks',
+        },
+      });
+    } catch (e) {
+      console.warn('Task assignment notification skipped:', e);
+    }
+  }
+
   return task;
 }
 

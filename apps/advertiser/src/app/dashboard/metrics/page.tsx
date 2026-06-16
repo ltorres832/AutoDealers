@@ -90,7 +90,7 @@ export default function MetricsPage() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
         </div>
       </DashboardLayout>
     );
@@ -113,7 +113,7 @@ export default function MetricsPage() {
                   onClick={() => setPeriod('custom')}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                     period === 'custom'
-                      ? 'bg-blue-600 text-white'
+                      ? 'bg-primary-600 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
@@ -123,7 +123,7 @@ export default function MetricsPage() {
                   onClick={() => setPeriod('monthly')}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                     period === 'monthly'
-                      ? 'bg-blue-600 text-white'
+                      ? 'bg-primary-600 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
@@ -133,7 +133,7 @@ export default function MetricsPage() {
                   onClick={() => setPeriod('weekly')}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                     period === 'weekly'
-                      ? 'bg-blue-600 text-white'
+                      ? 'bg-primary-600 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
@@ -198,7 +198,7 @@ export default function MetricsPage() {
               </div>
               <div className="bg-white rounded-lg shadow p-6">
                 <div className="text-sm text-gray-600 mb-1">Total Clics</div>
-                <div className="text-3xl font-bold text-blue-600">
+                <div className="text-3xl font-bold text-primary-600">
                   {metrics.totalClicks.toLocaleString()}
                 </div>
               </div>
@@ -210,7 +210,7 @@ export default function MetricsPage() {
               </div>
               <div className="bg-white rounded-lg shadow p-6">
                 <div className="text-sm text-gray-600 mb-1">Conversiones</div>
-                <div className="text-3xl font-bold text-purple-600">
+                <div className="text-3xl font-bold text-primary-600">
                   {metrics.totalConversions.toLocaleString()}
                 </div>
               </div>
@@ -242,7 +242,7 @@ export default function MetricsPage() {
                         </div>
                         <div>
                           <span className="text-gray-600">Clics: </span>
-                          <span className="font-semibold text-blue-600">{metric.clicks.toLocaleString()}</span>
+                          <span className="font-semibold text-primary-600">{metric.clicks.toLocaleString()}</span>
                         </div>
                         <div>
                           <span className="text-gray-600">Conversiones: </span>
@@ -257,7 +257,7 @@ export default function MetricsPage() {
                         </div>
                         <div className="bg-gray-200 rounded-full h-3 overflow-hidden">
                           <div
-                            className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-300"
+                            className="bg-gradient-to-r from-primary-500 to-primary-600 h-3 rounded-full transition-all duration-300"
                             style={{
                               width: `${Math.min((metric.clicks / Math.max(metric.impressions, 1)) * 100, 100)}%`,
                             }}

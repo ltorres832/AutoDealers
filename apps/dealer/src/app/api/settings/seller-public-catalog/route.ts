@@ -6,6 +6,10 @@ import {
   resolvePromoVideoUrlsFromBody,
   sellerPromoVideoFields,
 } from '@autodealers/shared/promo-video-urls';
+import {
+  normalizePublicTrustGalleryPhotos,
+  resolveTrustGalleryFromBody,
+} from '@autodealers/shared/public-trust-gallery';
 import * as admin from 'firebase-admin';
 
 export const dynamic = 'force-dynamic';
@@ -32,6 +36,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       publicPromoVideoUrls: urls,
       publicPromoVideoUrl: urls[0] || '',
+      publicTrustGalleryPhotos: normalizePublicTrustGalleryPhotos(
+        userData.publicTrustGalleryPhotos
+      ),
       sellerId: auth.userId,
     });
   } catch (error: unknown) {
@@ -50,12 +57,14 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const urls = resolvePromoVideoUrlsFromBody(body as Record<string, unknown>);
     const fields = sellerPromoVideoFields(urls);
+    const galleryPhotos = resolveTrustGalleryFromBody(body as Record<string, unknown>);
 
     await getFirestore()
       .collection('users')
       .doc(auth.userId)
       .update({
         ...fields,
+        publicTrustGalleryPhotos: galleryPhotos,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
@@ -63,6 +72,7 @@ export async function PUT(request: NextRequest) {
       success: true,
       publicPromoVideoUrls: urls,
       publicPromoVideoUrl: fields.publicPromoVideoUrl,
+      publicTrustGalleryPhotos: galleryPhotos,
     });
   } catch (error: unknown) {
     console.error('seller-public-catalog PUT:', error);

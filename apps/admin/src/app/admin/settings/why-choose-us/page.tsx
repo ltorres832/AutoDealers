@@ -113,7 +113,7 @@ export default function WhyChooseUsSettingsPage() {
       <h1 className="text-2xl font-bold mb-2">¿Por qué elegirnos? (home pública)</h1>
       <p className="text-sm text-gray-600 mb-8">
         Por defecto la sección está <strong>desactivada</strong>. El título puede partirse en tres fragmentos; el del
-        medio se muestra en <strong className="text-blue-600">azul</strong> (ej.: “¿Por Qué ” + “Elegirnos” + “?”).
+        medio se muestra en <strong className="text-primary-600">azul</strong> (ej.: “¿Por Qué ” + “Elegirnos” + “?”).
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-8">
@@ -278,7 +278,7 @@ export default function WhyChooseUsSettingsPage() {
           <button
             type="submit"
             disabled={saving}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
           >
             {saving ? 'Guardando...' : 'Guardar'}
           </button>

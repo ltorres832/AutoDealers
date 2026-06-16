@@ -74,11 +74,11 @@ export default function SearchPage() {
       {/* Header */}
       <nav className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4 flex flex-wrap items-center gap-3">
-          <PublicBackButton className="text-purple-600 hover:underline font-medium">
+          <PublicBackButton className="text-primary-600 hover:underline font-medium">
             ← Volver
           </PublicBackButton>
           <span className="text-gray-300">|</span>
-          <Link href="/" className="text-sm text-gray-500 hover:text-purple-600">
+          <Link href="/" className="text-sm text-gray-500 hover:text-primary-600">
             Inicio
           </Link>
         </div>
@@ -86,7 +86,7 @@ export default function SearchPage() {
 
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-4">Buscar Vendedor o Dealer</h1>
+          <h1 className="text-3xl sm:text-4xl font-bold mb-4">Buscar Vendedor o Dealer</h1>
           <p className="text-gray-600">
             Encuentra vendedores y dealers por nombre
           </p>
@@ -94,18 +94,18 @@ export default function SearchPage() {
 
         {/* Buscador */}
         <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
-          <div className="flex gap-4 mb-4">
+          <div className="flex flex-col sm:flex-row gap-4 mb-4">
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Buscar por nombre..."
-              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
             <select
               value={searchType}
               onChange={(e) => setSearchType(e.target.value as any)}
-              className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+              className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
             >
               <option value="all">Todos</option>
               <option value="seller">Vendedores</option>
@@ -115,7 +115,7 @@ export default function SearchPage() {
 
           {loading && (
             <div className="text-center py-4">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
             </div>
           )}
         </div>
@@ -137,7 +137,7 @@ export default function SearchPage() {
                       className="bg-white rounded-lg shadow hover:shadow-lg transition p-6"
                     >
                       <div className="flex items-center gap-4 mb-4">
-                        <div className="w-16 h-16 rounded-full bg-purple-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                        <div className="w-16 h-16 rounded-full bg-primary-100 flex items-center justify-center overflow-hidden flex-shrink-0">
                           {seller.photo ? (
                             <img
                               src={seller.photo}
@@ -151,7 +151,7 @@ export default function SearchPage() {
                               }}
                             />
                           ) : (
-                            <span className="text-2xl text-purple-600">
+                            <span className="text-2xl text-primary-600">
                               {seller.name.charAt(0).toUpperCase()}
                             </span>
                           )}

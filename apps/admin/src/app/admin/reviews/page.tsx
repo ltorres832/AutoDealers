@@ -176,7 +176,7 @@ export default function AdminReviewsPage() {
                     {review.tenantName && (
                       <Link
                         href={`/admin/tenants/${review.tenantId}`}
-                        className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded hover:bg-blue-200"
+                        className="px-2 py-1 bg-primary-100 text-primary-800 text-xs font-medium rounded hover:bg-primary-200"
                       >
                         {review.tenantName}
                         {review.tenantCompanyName && ` (${review.tenantCompanyName})`}
@@ -205,15 +205,15 @@ export default function AdminReviewsPage() {
               </div>
 
               {review.response && (
-                <div className="mt-4 pt-4 border-t border-gray-200 bg-blue-50 rounded p-4">
+                <div className="mt-4 pt-4 border-t border-gray-200 bg-primary-50 rounded p-4">
                   <div className="flex justify-between items-start mb-2">
-                    <div className="font-medium text-blue-900">Respuesta del concesionario:</div>
-                    <div className="text-xs text-blue-600">
+                    <div className="font-medium text-primary-900">Respuesta del concesionario:</div>
+                    <div className="text-xs text-primary-600">
                       {new Date(review.response.respondedAt).toLocaleDateString('es-ES')}
                     </div>
                   </div>
-                  <p className="text-blue-800">{review.response.text}</p>
-                  <p className="text-xs text-blue-600 mt-2">Por: {review.response.respondedBy}</p>
+                  <p className="text-primary-800">{review.response.text}</p>
+                  <p className="text-xs text-primary-600 mt-2">Por: {review.response.respondedBy}</p>
                 </div>
               )}
             </div>

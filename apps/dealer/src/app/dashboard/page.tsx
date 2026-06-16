@@ -1,126 +1,22 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
-
-interface DashboardData {
-  stats: {
-    totalLeads: number;
-    activeLeads: number;
-    totalVehicles: number;
-    availableVehicles: number;
-    totalSales: number;
-    monthlyRevenue: number;
-    appointmentsToday: number;
-    unreadMessages: number;
-    totalSellers: number;
-    sellersSales: number;
-  };
-  recentLeads: any[];
-  recentSales: any[];
-  topSellers: Array<{ id: string; name: string; sales: number; revenue: number }>;
-}
-
-const emptyData: DashboardData = {
-  stats: {
-    totalLeads: 0,
-    activeLeads: 0,
-    totalVehicles: 0,
-    availableVehicles: 0,
-    totalSales: 0,
-    monthlyRevenue: 0,
-    appointmentsToday: 0,
-    unreadMessages: 0,
-    totalSellers: 0,
-    sellersSales: 0,
-  },
-  recentLeads: [],
-  recentSales: [],
-  topSellers: [],
-};
+import { useAuth } from '@/hooks/useAuth';
+import { useRealtimeDashboard } from '@/hooks/useRealtimeDashboard';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
+import { useRealtimeMemberships } from '@/hooks/useRealtimeMemberships';
+import { useRealtimeProfile } from '@/hooks/useRealtimeProfile';
 
 export default function DealerDashboardPage() {
-  const [data, setData] = useState<DashboardData>(emptyData);
-  const [loading, setLoading] = useState(false);
-  const [membershipInfo, setMembershipInfo] = useState<any>(null);
-  const [subscriptionInfo, setSubscriptionInfo] = useState<any>(null);
-  const [profileInfo, setProfileInfo] = useState<any>(null);
-
-  useEffect(() => {
-    async function loadDashboard() {
-      try {
-        // Usar fetchWithAuth que automáticamente renueva el token
-        const { fetchWithAuth } = await import('@/lib/fetch-with-auth');
-        const response = await fetchWithAuth('/api/dashboard', {});
-        
-        if (response.ok) {
-          const dashboardData = await response.json();
-          
-          if (dashboardData.stats) {
-            setData({
-              stats: {
-                totalLeads: dashboardData.stats.totalLeads || 0,
-                activeLeads: dashboardData.stats.activeLeads || 0,
-                totalVehicles: dashboardData.stats.totalVehicles || 0,
-                availableVehicles: dashboardData.stats.availableVehicles || 0,
-                totalSales: dashboardData.stats.totalSales || 0,
-                monthlyRevenue: dashboardData.stats.monthlyRevenue || 0,
-                appointmentsToday: dashboardData.stats.appointmentsToday || 0,
-                unreadMessages: dashboardData.stats.unreadMessages || 0,
-                totalSellers: dashboardData.stats.totalSellers || 0,
-                sellersSales: dashboardData.stats.sellersSales || 0,
-              },
-              recentLeads: dashboardData.recentLeads || [],
-              recentSales: dashboardData.recentSales || [],
-              topSellers: dashboardData.topSellers || [],
-            });
-          }
-        }
-      } catch (error) {
-        // Silently handle
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadDashboard();
-    
-    async function fetchMembershipInfo() {
-      try {
-        const [membershipRes, subscriptionRes] = await Promise.all([
-          fetch('/api/settings/membership'),
-          fetch('/api/settings/membership/subscription'),
-        ]);
-
-        if (membershipRes.ok) {
-          const membershipData = await membershipRes.json();
-          setMembershipInfo(membershipData.membership);
-        }
-
-        if (subscriptionRes.ok) {
-          const subscriptionData = await subscriptionRes.json();
-          setSubscriptionInfo(subscriptionData.subscription);
-        }
-      } catch (error) {
-        // Silently handle
-      }
-    }
-
-    async function fetchProfileInfo() {
-      try {
-        const response = await fetch('/api/settings/profile');
-        if (response.ok) {
-          const data = await response.json();
-          setProfileInfo(data.profile);
-        }
-      } catch (error) {
-        // Silently handle
-      }
-    }
-
-    fetchMembershipInfo();
-    fetchProfileInfo();
-  }, []);
+  const { user, loading: authLoading } = useAuth();
+  const { data, loading: dashboardLoading } = useRealtimeDashboard(user?.tenantId);
+  const { subscription: subscriptionInfo } = useRealtimeSubscription(user?.tenantId);
+  const { memberships } = useRealtimeMemberships('dealer');
+  const membershipInfo = subscriptionInfo?.membershipId
+    ? memberships.find((m) => m.id === subscriptionInfo.membershipId) ?? null
+    : null;
+  const { profile: profileInfo } = useRealtimeProfile(user?.tenantId, user?.userId);
+  const loading = authLoading || dashboardLoading;
 
   function getStatusColor(status: string) {
     switch (status) {
@@ -209,7 +105,14 @@ export default function DealerDashboardPage() {
                 </p>
               )}
               <p className="text-sm mt-1">
-                Próximo pago: {new Date(subscriptionInfo.currentPeriodEnd).toLocaleDateString()}
+                Próximo pago:{' '}
+                {(() => {
+                  const end = subscriptionInfo.currentPeriodEnd as unknown;
+                  if (end && typeof end === 'object' && 'toDate' in end) {
+                    return (end as { toDate: () => Date }).toDate().toLocaleDateString();
+                  }
+                  return new Date(end as string | number | Date).toLocaleDateString();
+                })()}
               </p>
             </div>
             <Link
@@ -233,7 +136,7 @@ export default function DealerDashboardPage() {
         <div className="bg-white rounded-lg shadow p-6">
           <p className="text-sm text-gray-600 mb-2">Vehículos en Inventario</p>
           <p className="text-3xl font-bold text-gray-900">{data.stats.totalVehicles}</p>
-          <p className="text-sm text-blue-600 mt-1">
+          <p className="text-sm text-primary-600 mt-1">
             {data.stats.availableVehicles} disponibles
           </p>
         </div>
@@ -329,7 +232,7 @@ export default function DealerDashboardPage() {
                   <span
                     className={`px-2 py-1 rounded text-xs ${
                       lead.status === 'new'
-                        ? 'bg-blue-100 text-blue-700'
+                        ? 'bg-primary-100 text-primary-700'
                         : lead.status === 'qualified'
                         ? 'bg-green-100 text-green-700'
                         : 'bg-gray-100 text-gray-700'

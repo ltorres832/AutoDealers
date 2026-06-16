@@ -565,7 +565,7 @@ export default function PricingConfigPage() {
           <h3 className="text-lg font-semibold mb-3">Límites por Tipo de Usuario</h3>
           <div className="grid grid-cols-2 gap-6">
             <div>
-              <h4 className="font-medium mb-3 text-blue-600">Dealers</h4>
+              <h4 className="font-medium mb-3 text-primary-600">Dealers</h4>
               <div className="space-y-3">
                 <div>
                   <label className="block text-sm font-medium mb-2">Máximo de Promociones</label>

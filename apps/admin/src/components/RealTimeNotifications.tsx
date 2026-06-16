@@ -188,7 +188,7 @@ export function RealTimeNotifications({ userId, tenantId }: RealTimeNotification
               {unreadCount > 0 && (
                 <button
                   onClick={markAllAsRead}
-                  className="text-xs text-blue-600 hover:text-blue-800"
+                  className="text-xs text-primary-600 hover:text-primary-800"
                 >
                   Marcar todas como leídas
                 </button>
@@ -208,7 +208,7 @@ export function RealTimeNotifications({ userId, tenantId }: RealTimeNotification
                     <div
                       key={notification.id}
                       className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors ${
-                        !notification.isRead ? 'bg-blue-50' : ''
+                        !notification.isRead ? 'bg-primary-50' : ''
                       }`}
                       onClick={() => {
                         markAsRead(notification.id);
@@ -225,7 +225,7 @@ export function RealTimeNotifications({ userId, tenantId }: RealTimeNotification
                               {notification.title}
                             </h4>
                             {!notification.isRead && (
-                              <span className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0" />
+                              <span className="w-2 h-2 bg-primary-500 rounded-full flex-shrink-0" />
                             )}
                           </div>
                           <p className="text-sm text-gray-600 line-clamp-2">

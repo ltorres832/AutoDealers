@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import PublicBackButton from '../../../../components/PublicBackButton';
 import { PublicSiteNavbarBrand } from '../../../../components/PublicSiteNavbarBrand';
@@ -128,9 +128,11 @@ function getColorCode(colorName: string): string {
 
 export default function VehicleDetailPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   // Aceptar tanto subdomain como tenantId (Next.js usa 'subdomain' como nombre del parámetro dinámico)
   const tenantId = (params.subdomain || params.tenantId) as string;
   const vehicleId = params.id as string;
+  const sellerId = searchParams.get('sellerId');
   
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [loading, setLoading] = useState(true);
@@ -189,7 +191,7 @@ export default function VehicleDetailPage() {
     if (tenantId && vehicleId) {
       fetchVehicle();
     }
-  }, [tenantId, vehicleId]);
+  }, [tenantId, vehicleId, sellerId]);
 
   useEffect(() => {
     if (!vehicle?.id || !vehicle.tenantId || catalogViewSent.current) return;
@@ -213,52 +215,23 @@ export default function VehicleDetailPage() {
       setLoading(true);
       setError(null);
       
-      console.log('🔍 Buscando vehículo:', { vehicleId, tenantId });
-      
-      // Intentar obtener el vehículo directamente por ID
-      let response = await fetch(`/api/public/vehicles/${vehicleId}?tenantId=${tenantId}`);
-      let foundVehicle: Vehicle | null = null;
-      let cleanedPhotos: string[] = [];
-      
-      // Si no existe endpoint directo, buscar en la lista
+      const qs = new URLSearchParams({ tenantId });
+      if (sellerId) qs.set('sellerId', sellerId);
+
+      const response = await fetch(`/api/public/vehicles/${vehicleId}?${qs.toString()}`);
       if (!response.ok) {
-        console.log('⚠️ Endpoint directo falló, buscando en lista...');
-        response = await fetch('/api/public/vehicles?status=available');
-        if (!response.ok) {
-          throw new Error('Error al cargar vehículos');
-        }
-        
-        const data = await response.json();
-        console.log('📦 Datos recibidos de lista:', data);
-        foundVehicle = data.vehicles?.find((v: Vehicle) => 
-          v.id === vehicleId && v.tenantId === tenantId
-        );
-        
-        if (!foundVehicle) {
-          console.error('❌ Vehículo no encontrado en lista');
-          setError('Vehículo no encontrado');
-          return;
-        }
-      } else {
-        const responseData = await response.json();
-        console.log('📦 Respuesta del API:', responseData);
-        // El API devuelve { vehicle: {...} }
-        foundVehicle = responseData.vehicle || responseData;
-        console.log('✅ Vehículo encontrado:', foundVehicle);
-      }
-      
-      if (!foundVehicle) {
-        console.error('❌ Vehículo es null');
         setError('Vehículo no encontrado');
         return;
       }
-      
-      console.log('📸 Fotos del vehículo:', foundVehicle.photos);
-      console.log('💰 Precio del vehículo:', foundVehicle.price);
-      console.log('📝 Descripción del vehículo:', foundVehicle.description);
 
-      // Usar helper para normalizar photos/images y filtrar URLs inválidas
-      cleanedPhotos = getVehiclePhotos(foundVehicle);
+      const responseData = await response.json();
+      const foundVehicle = (responseData.vehicle || responseData) as Vehicle | null;
+      if (!foundVehicle) {
+        setError('Vehículo no encontrado');
+        return;
+      }
+
+      let cleanedPhotos: string[] = getVehiclePhotos(foundVehicle);
       
       console.log('📸 Fotos después del filtro:', cleanedPhotos.length, cleanedPhotos);
       
@@ -378,8 +351,8 @@ export default function VehicleDetailPage() {
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
         <div className="text-center">
           <div className="relative w-16 h-16 mx-auto mb-6">
-            <div className="absolute inset-0 border-4 border-blue-200 rounded-full"></div>
-            <div className="absolute inset-0 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
+            <div className="absolute inset-0 border-4 border-primary-200 rounded-full"></div>
+            <div className="absolute inset-0 border-4 border-primary-600 rounded-full border-t-transparent animate-spin"></div>
           </div>
           <p className="text-gray-600 text-lg font-medium">Cargando vehículo...</p>
         </div>
@@ -396,7 +369,7 @@ export default function VehicleDetailPage() {
           <p className="text-gray-600 mb-8 text-lg">{error || 'El vehículo que buscas no está disponible'}</p>
           <PublicBackButton
             fallbackHref={`/${tenantId}`}
-            className="inline-flex items-center gap-2 bg-blue-600 text-white px-8 py-4 rounded-xl hover:bg-blue-700 font-semibold text-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5"
+            className="inline-flex items-center gap-2 bg-primary-600 text-white px-8 py-4 rounded-xl hover:bg-primary-700 font-semibold text-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -526,7 +499,7 @@ export default function VehicleDetailPage() {
                       }}
                       className={`aspect-square rounded-lg overflow-hidden border-2 transition-all transform hover:scale-105 ${
                         index === currentPhotoIndex 
-                          ? 'border-blue-600 ring-2 ring-blue-200 shadow-md' 
+                          ? 'border-primary-600 ring-2 ring-primary-200 shadow-md' 
                           : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
@@ -547,7 +520,7 @@ export default function VehicleDetailPage() {
             {/* Descripción mejorada */}
             <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
               <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 Descripción
@@ -560,7 +533,7 @@ export default function VehicleDetailPage() {
             {/* Features & Specs mejorado */}
             <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
               <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
                 Features & Specs
@@ -579,7 +552,7 @@ export default function VehicleDetailPage() {
                 {((vehicle as any).stockNumber || vehicle.specifications?.stockNumber) && (
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-gray-600">Número de Control:</span>
-                    <span className="font-semibold text-sm text-gray-900 bg-blue-50 text-blue-800 px-3 py-1 rounded-lg border border-blue-200">
+                    <span className="font-semibold text-sm text-gray-900 bg-primary-50 text-primary-800 px-3 py-1 rounded-lg border border-primary-200">
                       #{(vehicle as any).stockNumber || vehicle.specifications?.stockNumber}
                     </span>
                   </div>
@@ -628,8 +601,8 @@ export default function VehicleDetailPage() {
                   </div>
                 )}
                 {vehicle.specifications?.engine && (
-                  <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl border border-blue-200">
-                    <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-primary-50 to-primary-50 rounded-xl border border-primary-200">
+                    <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                     </svg>
                     <div>
@@ -639,8 +612,8 @@ export default function VehicleDetailPage() {
                   </div>
                 )}
                 {(vehicle.specifications?.mpgCity || vehicle.specifications?.mpgHighway) && (
-                  <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200">
-                    <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-primary-50 to-brand-red-bright50 rounded-xl border border-primary-200">
+                    <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
                     <div>
@@ -679,9 +652,9 @@ export default function VehicleDetailPage() {
 
               {/* Well-equipped Section mejorada */}
               {vehicle.specifications?.features && vehicle.specifications.features.length > 0 && (
-                <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-xl p-6 mb-6 border border-blue-200">
+                <div className="bg-gradient-to-br from-primary-50 via-primary-50 to-primary-50 rounded-xl p-6 mb-6 border border-primary-200">
                   <div className="flex items-center gap-3 mb-4">
-                    <svg className="w-7 h-7 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-7 h-7 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
                     </svg>
                     <h3 className="font-bold text-xl text-gray-900">Well-equipped</h3>
@@ -693,7 +666,7 @@ export default function VehicleDetailPage() {
                     {vehicle.specifications.features.slice(0, 6).map((feature, index) => (
                       <span
                         key={index}
-                        className="bg-white px-4 py-2 rounded-full text-sm font-medium text-gray-800 border border-blue-200 shadow-sm hover:shadow-md transition-shadow"
+                        className="bg-white px-4 py-2 rounded-full text-sm font-medium text-gray-800 border border-primary-200 shadow-sm hover:shadow-md transition-shadow"
                       >
                         {feature}
                       </span>
@@ -765,7 +738,7 @@ export default function VehicleDetailPage() {
             {vehicle.videos && vehicle.videos.length > 0 && (
               <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                   </svg>
                   Videos
@@ -797,17 +770,17 @@ export default function VehicleDetailPage() {
                     {vehicle.year} {vehicle.make} {vehicle.model}
                   </h1>
                   {((vehicle as any).stockNumber || vehicle.specifications?.stockNumber) && (
-                    <span className="text-sm font-bold bg-blue-100 text-blue-800 px-3 py-1 rounded-lg border border-blue-200 whitespace-nowrap ml-4">
+                    <span className="text-sm font-bold bg-primary-100 text-primary-800 px-3 py-1 rounded-lg border border-primary-200 whitespace-nowrap ml-4">
                       #{(vehicle as any).stockNumber || vehicle.specifications?.stockNumber}
                     </span>
                   )}
                 </div>
 
                 {sellerDisplayName ? (
-                  <p className="text-base font-medium text-blue-800 mb-2">
+                  <p className="text-base font-medium text-primary-800 mb-2">
                     Vendedor:{' '}
                     {vehicle.sellerId ? (
-                      <Link href={`/seller/${vehicle.sellerId}`} className="underline hover:text-blue-600">
+                      <Link href={`/seller/${vehicle.sellerId}`} className="underline hover:text-primary-600">
                         {sellerDisplayName}
                       </Link>
                     ) : (
@@ -843,14 +816,14 @@ export default function VehicleDetailPage() {
                   }
                   
                   return (
-                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="mb-4 p-3 bg-primary-50 border border-primary-200 rounded-lg">
                       <div className="flex items-center gap-2">
-                        <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <div>
-                          <div className="text-xs text-blue-600 font-medium">Tiempo en la plataforma</div>
-                          <div className="text-sm font-semibold text-blue-900">{timeText}</div>
+                          <div className="text-xs text-primary-600 font-medium">Tiempo en la plataforma</div>
+                          <div className="text-sm font-semibold text-primary-900">{timeText}</div>
                         </div>
                       </div>
                     </div>
@@ -873,7 +846,7 @@ export default function VehicleDetailPage() {
                   </Link>
                   <Link
                     href={`/${tenantId}/appointment?vehicleId=${vehicle.id}&intent=test_drive_request`}
-                    className="text-center bg-indigo-600 text-white px-3 py-3 rounded-xl font-semibold text-sm hover:bg-indigo-700 shadow-md transition-colors"
+                    className="text-center bg-primary-600 text-white px-3 py-3 rounded-xl font-semibold text-sm hover:bg-primary-700 shadow-md transition-colors"
                   >
                     🚗 Prueba de manejo
                   </Link>
@@ -924,7 +897,7 @@ export default function VehicleDetailPage() {
                     <button
                       type="submit"
                       disabled={interestSubmitting}
-                      className="w-full py-2.5 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 disabled:opacity-50"
+                      className="w-full py-2.5 rounded-lg bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 disabled:opacity-50"
                     >
                       {interestSubmitting ? 'Enviando…' : 'Enviar mis datos al vendedor'}
                     </button>
@@ -938,16 +911,16 @@ export default function VehicleDetailPage() {
 
                 {/* Información del vendedor */}
                 {sellerDisplayName && vehicle.sellerId && (
-                  <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
+                  <div className="mb-6 p-4 bg-gradient-to-r from-primary-50 to-primary-50 rounded-xl border border-primary-200">
                     <Link
                       href={`/seller/${vehicle.sellerId}`}
                       className="group flex items-center gap-3 mb-3"
                     >
-                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md group-hover:shadow-lg transition-shadow">
+                      <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md group-hover:shadow-lg transition-shadow">
                         {sellerDisplayName.charAt(0).toUpperCase()}
                       </div>
                       <div className="flex-1">
-                        <div className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                        <div className="font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">
                           {sellerDisplayName}
                         </div>
                         {vehicle.sellerTitle ? (
@@ -956,9 +929,9 @@ export default function VehicleDetailPage() {
                         {vehicle.tenantName && vehicle.tenantName !== sellerDisplayName ? (
                           <div className="text-xs text-gray-500 mt-0.5">{vehicle.tenantName}</div>
                         ) : null}
-                        <div className="text-sm text-blue-600 mt-1">Ver perfil completo</div>
+                        <div className="text-sm text-primary-600 mt-1">Ver perfil completo</div>
                       </div>
-                      <svg className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5 text-gray-400 group-hover:text-primary-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
                     </Link>
@@ -1060,7 +1033,7 @@ export default function VehicleDetailPage() {
                             // Disparar evento para abrir el chat
                             window.dispatchEvent(new CustomEvent('openChat'));
                           }}
-                          className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-4 rounded-xl hover:from-purple-700 hover:to-pink-700 font-semibold text-lg text-center block shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
+                          className="w-full bg-gradient-to-r from-primary-600 to-brand-red-bright600 text-white px-6 py-4 rounded-xl hover:from-primary-700 hover:to-brand-red-bright700 font-semibold text-lg text-center block shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
                         >
                           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -1081,7 +1054,7 @@ export default function VehicleDetailPage() {
                   </a>
                   <a
                     href={`tel:+1234567890`}
-                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-4 rounded-xl hover:from-blue-700 hover:to-indigo-700 font-semibold text-lg text-center block shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
+                    className="w-full bg-gradient-to-r from-primary-600 to-primary-600 text-white px-6 py-4 rounded-xl hover:from-primary-700 hover:to-primary-700 font-semibold text-lg text-center block shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
                   >
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />

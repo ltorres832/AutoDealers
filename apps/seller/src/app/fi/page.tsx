@@ -106,7 +106,7 @@ export default function FIPage() {
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { color: string; label: string }> = {
       draft: { color: 'bg-gray-500', label: 'Borrador' },
-      submitted: { color: 'bg-blue-500', label: 'Enviado' },
+      submitted: { color: 'bg-primary-500', label: 'Enviado' },
       under_review: { color: 'bg-yellow-500', label: 'En Revisión' },
       pre_approved: { color: 'bg-green-500', label: 'Pre-Aprobado' },
       approved: { color: 'bg-green-600', label: 'Aprobado' },
@@ -136,12 +136,12 @@ export default function FIPage() {
 
       {/* Tabs */}
       <div className="border-b border-gray-200 mb-6">
-        <nav className="-mb-px flex space-x-8">
+        <nav className="-mb-px flex overflow-x-auto filter-chip-row">
           <button
             onClick={() => setActiveTab('clients')}
             className={`${
               activeTab === 'clients'
-                ? 'border-blue-500 text-blue-600'
+                ? 'border-primary-500 text-primary-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
           >
@@ -151,7 +151,7 @@ export default function FIPage() {
             onClick={() => setActiveTab('requests')}
             className={`${
               activeTab === 'requests'
-                ? 'border-blue-500 text-blue-600'
+                ? 'border-primary-500 text-primary-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
           >
@@ -168,13 +168,13 @@ export default function FIPage() {
             <div className="flex flex-wrap gap-2">
               <Link
                 href="/fi/clients/new"
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium"
+                className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 text-sm font-medium"
               >
                 + Nuevo cliente
               </Link>
               <Link
                 href="/fi/clients/advanced"
-                className="border border-indigo-600 text-indigo-700 bg-white px-4 py-2 rounded-lg hover:bg-indigo-50 text-sm font-medium"
+                className="border border-primary-600 text-primary-700 bg-white px-4 py-2 rounded-lg hover:bg-primary-50 text-sm font-medium"
               >
                 + Avanzado
               </Link>
@@ -185,11 +185,11 @@ export default function FIPage() {
             <div className="text-center py-12 bg-gray-50 rounded-lg">
               <p className="text-gray-500 mb-4">No hay clientes registrados</p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
-                <Link href="/fi/clients/new" className="text-blue-600 hover:text-blue-700 font-medium">
+                <Link href="/fi/clients/new" className="text-primary-600 hover:text-primary-700 font-medium">
                   Crear primer cliente (rápido) →
                 </Link>
                 <span className="text-gray-300 hidden sm:inline">|</span>
-                <Link href="/fi/clients/advanced" className="text-indigo-600 hover:text-indigo-700 font-medium">
+                <Link href="/fi/clients/advanced" className="text-primary-600 hover:text-primary-700 font-medium">
                   Formulario avanzado →
                 </Link>
               </div>
@@ -218,10 +218,16 @@ export default function FIPage() {
                       )}
                     </div>
                   )}
-                  <div className="mt-4">
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <Link
+                      href={`/fi/clients/${client.id}/edit`}
+                      className="text-primary-600 hover:text-primary-700 text-sm font-medium"
+                    >
+                      Editar cliente / SSN →
+                    </Link>
                     <Link
                       href={`/fi/clients/${client.id}/request`}
-                      className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                      className="text-primary-600 hover:text-primary-700 text-sm font-medium"
                     >
                       Crear Solicitud F&I →
                     </Link>
@@ -285,14 +291,14 @@ export default function FIPage() {
                             setDebugInfo({ error: err.message });
                           }
                         }}
-                        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 font-semibold"
+                        className="px-4 py-2 bg-primary-500 text-white rounded hover:bg-primary-600 font-semibold"
                       >
                         🔍 Consultar Firestore Directamente
                       </button>
                       
                       {debugInfo && (
-                        <div className="mt-4 bg-blue-50 border border-blue-200 rounded p-4">
-                          <p className="font-semibold text-blue-900 mb-2">Resultados de Firestore:</p>
+                        <div className="mt-4 bg-primary-50 border border-primary-200 rounded p-4">
+                          <p className="font-semibold text-primary-900 mb-2">Resultados de Firestore:</p>
                           {debugInfo.error ? (
                             <p className="text-red-600">Error: {debugInfo.error}</p>
                           ) : (
@@ -357,6 +363,7 @@ export default function FIPage() {
             </div>
           ) : (
             <div className="bg-white shadow rounded-lg overflow-hidden">
+              <div className="table-scroll">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -401,7 +408,7 @@ export default function FIPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <Link
                             href={`/fi/requests/${request.id}`}
-                            className="text-blue-600 hover:text-blue-900"
+                            className="text-primary-600 hover:text-primary-900"
                           >
                             Ver Detalles
                           </Link>
@@ -411,6 +418,7 @@ export default function FIPage() {
                   })}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
         </div>

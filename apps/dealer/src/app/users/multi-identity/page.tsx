@@ -208,16 +208,16 @@ export default function MultiIdentityUserPage() {
         </div>
       </div>
 
-      <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h3 className="font-semibold text-blue-900 mb-2">Nota importante:</h3>
-        <p className="text-sm text-blue-800">
+      <div className="mt-6 bg-primary-50 border border-primary-200 rounded-lg p-4">
+        <h3 className="font-semibold text-primary-900 mb-2">Nota importante:</h3>
+        <p className="text-sm text-primary-800">
           Este usuario tendrá dos identidades completamente separadas:
         </p>
-        <ul className="text-sm text-blue-800 mt-2 list-disc list-inside space-y-1">
+        <ul className="text-sm text-primary-800 mt-2 list-disc list-inside space-y-1">
           <li><strong>Identidad de Vendedor:</strong> {formData.email || 'email'}+seller - Acceso al dashboard de vendedor</li>
           <li><strong>Identidad de Admin:</strong> {formData.email || 'email'}+admin - Acceso al dashboard de administrador</li>
         </ul>
-        <p className="text-sm text-blue-800 mt-2">
+        <p className="text-sm text-primary-800 mt-2">
           Cada identidad tiene su propia contraseña y credenciales independientes.
         </p>
       </div>

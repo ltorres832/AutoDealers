@@ -198,8 +198,16 @@ export async function POST(
         {
           vehicleId,
           vehicleStockSnapshot: buildVehicleStockSnapshot(vehicle),
-          ...(sellerId ? { assignedTo: sellerId } : {}),
-          tags: ['catalogo_web', 'ficha_vehiculo', 'interes_explicito'],
+          ...(sellerId
+            ? {
+                assignedTo: sellerId,
+                createdBy: sellerId,
+                sellerOwned: true,
+              }
+            : {}),
+          tags: sellerId
+            ? ['catalogo_web', 'ficha_vehiculo', 'interes_explicito', 'vendedor_propio']
+            : ['catalogo_web', 'ficha_vehiculo', 'interes_explicito'],
           initialStatus: 'new',
         }
       );
@@ -230,6 +238,31 @@ export async function POST(
       ...sigBase,
       surface: sigBase.surface === 'unknown' ? 'catalog_anonymous' : sigBase.surface,
     });
+
+    const sellerId =
+      (vehicle as { sellerId?: string }).sellerId || (vehicle as { assignedTo?: string }).assignedTo;
+    const vehicleLabel = `${vehicle.year ?? ''} ${vehicle.make ?? ''} ${vehicle.model ?? ''}`.trim();
+
+    try {
+      const { notifyUser, notifyManagersAndAdmins } = await import('@autodealers/core');
+      const payload = {
+        type: 'catalog_interest' as const,
+        title: 'Interés en tu vehículo (catálogo)',
+        message: `Alguien está viendo ${vehicleLabel || 'un vehículo'} en tu catálogo web.`,
+        metadata: {
+          vehicleId,
+          route: sellerId ? '/catalog-interest' : '/inventory',
+        },
+      };
+      if (sellerId) {
+        await notifyUser(resolvedTenantId, sellerId, payload);
+      }
+      await notifyManagersAndAdmins(resolvedTenantId, payload, {
+        excludeUserIds: sellerId ? [sellerId] : undefined,
+      });
+    } catch (notifyErr) {
+      console.warn('[catalog_interest notify]', notifyErr);
+    }
 
     return NextResponse.json({
       success: true,

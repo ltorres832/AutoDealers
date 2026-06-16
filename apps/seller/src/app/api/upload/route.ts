@@ -200,6 +200,25 @@ export async function POST(request: NextRequest) {
 
       await fileRef.makePublic();
       url = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+    } else if (type === 'seller_public_trust_gallery') {
+      if (auth.role !== 'seller' && auth.role !== 'dealer') {
+        return NextResponse.json({ error: 'No autorizado para este tipo de subida' }, { status: 403 });
+      }
+      if (!file.type.startsWith('image/')) {
+        return NextResponse.json({ error: 'Solo se permiten imágenes' }, { status: 400 });
+      }
+      const { getStorage } = await import('@autodealers/core');
+      const { uploadBufferToAccessibleUrl } = await import('@autodealers/shared/firebase-storage-upload');
+      const storage = getStorage();
+      const bucket = storage.bucket();
+      const timestamp = Date.now();
+      const sanitizedFilename = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const filePath = `tenants/${auth.tenantId}/public-trust-gallery/${auth.userId}/${timestamp}_${sanitizedFilename}`;
+      url = await uploadBufferToAccessibleUrl(bucket, filePath, buffer, file.type, {
+        tenantId: auth.tenantId,
+        userId: auth.userId,
+        type: 'seller_public_trust_gallery',
+      });
     } else if (type === 'seller_public_promo') {
       if (auth.role !== 'seller') {
         return NextResponse.json({ error: 'Solo vendedores pueden usar este tipo de subida' }, { status: 403 });
@@ -208,27 +227,17 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Solo se permiten archivos de video' }, { status: 400 });
       }
       const { getStorage } = await import('@autodealers/core');
+      const { uploadBufferToAccessibleUrl } = await import('@autodealers/shared/firebase-storage-upload');
       const storage = getStorage();
       const bucket = storage.bucket();
       const timestamp = Date.now();
       const sanitizedFilename = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
       const filePath = `tenants/${auth.tenantId}/seller-public/${auth.userId}/${timestamp}_${sanitizedFilename}`;
-      const fileRef = bucket.file(filePath);
-
-      await fileRef.save(buffer, {
-        metadata: {
-          contentType: file.type,
-          metadata: {
-            tenantId: auth.tenantId,
-            userId: auth.userId,
-            type: 'seller_public_promo',
-            uploadedAt: new Date().toISOString(),
-          },
-        },
+      url = await uploadBufferToAccessibleUrl(bucket, filePath, buffer, file.type, {
+        tenantId: auth.tenantId,
+        userId: auth.userId,
+        type: 'seller_public_promo',
       });
-
-      await fileRef.makePublic();
-      url = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
     } else {
       return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
     }

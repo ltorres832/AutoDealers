@@ -70,7 +70,7 @@ export default function FIWorkflowsManager() {
         <h2 className="text-xl font-bold">Workflows Automatizados F&I</h2>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700"
         >
           + Nuevo Workflow
         </button>
@@ -91,7 +91,7 @@ export default function FIWorkflowsManager() {
                     <p className="text-sm text-gray-600 mt-1">{workflow.description}</p>
                   )}
                   <div className="mt-2 flex gap-2">
-                    <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                    <span className="px-2 py-1 bg-primary-100 text-primary-700 rounded text-xs">
                       Trigger: {workflow.trigger}
                     </span>
                     <span className={`px-2 py-1 rounded text-xs ${
@@ -161,7 +161,7 @@ export default function FIWorkflowsManager() {
               </button>
               <button
                 onClick={handleCreate}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
               >
                 Crear Workflow
               </button>

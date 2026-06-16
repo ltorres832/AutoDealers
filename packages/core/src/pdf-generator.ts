@@ -1,14 +1,7 @@
 // Generador de PDFs con Branding Configurable
 
-import { getDocumentTypeBranding, getOrderedBrandingElements } from './document-branding';
-import { getFirestore } from '@autodealers/shared';
-
-// Lazy initialization - solo se inicializa cuando se necesita
-function getDb() {
-  return getFirestore();
-}
-
-const db = getFirestore();
+import { ProfessionalPdfBuilder, formatDate } from './pdf-layout';
+import { uploadFile } from './storage';
 
 export interface PDFDocumentOptions {
   tenantId: string;
@@ -17,7 +10,7 @@ export interface PDFDocumentOptions {
   content: {
     title: string;
     body: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   };
   includeQR?: boolean;
   qrData?: string;
@@ -25,201 +18,125 @@ export interface PDFDocumentOptions {
 
 export interface PDFGenerationResult {
   pdfBuffer: Buffer;
-  pdfUrl?: string; // Si se guarda en Storage
+  pdfUrl?: string;
 }
 
-/**
- * Genera un PDF con la configuración de branding aplicada
- * 
- * NOTA: Esta es una función placeholder que debe integrarse con una librería de PDF real
- * como pdfkit, jspdf, pdf-lib, o puppeteer.
- */
 export async function generatePDFWithBranding(
   options: PDFDocumentOptions
 ): Promise<PDFGenerationResult> {
-  const { tenantId, userId, documentType, content, includeQR, qrData } = options;
+  const { tenantId, userId, documentType, content } = options;
 
-  // Obtener configuración de branding
-  const brandingConfig = await getDocumentTypeBranding(tenantId, documentType, userId);
-  const brandingElements = await getOrderedBrandingElements(tenantId, documentType, userId);
+  const builder = await ProfessionalPdfBuilder.create({
+    tenantId,
+    userId,
+    documentType,
+  });
 
-  // Obtener información del tenant y usuario
-  const tenantDoc = await getDb().collection('tenants').doc(tenantId).get();
-  const tenantData = tenantDoc.exists ? tenantDoc.data() : null;
+  builder.setHeader(content.title, formatDate());
 
-  let userData: any = null;
-  if (userId) {
-    const userDoc = await getDb().collection('users').doc(userId).get();
-    userData = userDoc.exists ? userDoc.data() : null;
+  const paragraphs = content.body.split(/\n+/).map((p) => p.trim()).filter(Boolean);
+  for (const p of paragraphs) {
+    builder.drawParagraph(p);
   }
 
-  // Construir datos para el PDF
-  const pdfData = {
-    logos: brandingElements.logos.map(logo => ({
-      type: logo.type,
-      url: logo.url,
-      name: logo.name,
-    })),
-    names: brandingElements.names.map(name => ({
-      type: name.type,
-      text: name.text,
-    })),
-    content: {
-      title: content.title,
-      body: content.body,
-      metadata: content.metadata || {},
-    },
-    qr: includeQR && qrData ? {
-      data: qrData,
-      size: 100,
-    } : null,
-    tenant: tenantData ? {
-      name: tenantData.name,
-      companyName: tenantData.companyName,
-      logoUrl: tenantData.logoUrl,
-    } : null,
-    user: userData ? {
-      name: userData.name,
-    } : null,
-  };
+  if (content.metadata && Object.keys(content.metadata).length > 0) {
+    builder.drawSection('Información adicional');
+    builder.drawFieldGrid(
+      Object.entries(content.metadata).map(([label, value]) => ({
+        label,
+        value: value == null ? '—' : String(value),
+      }))
+    );
+  }
 
-  // TODO: Integrar con librería de PDF real
-  // Ejemplo con pdfkit:
-  // const PDFDocument = require('pdfkit');
-  // const doc = new PDFDocument();
-  // 
-  // // Agregar logos según configuración
-  // for (const logo of pdfData.logos) {
-  //   if (logo.url) {
-  //     // Cargar imagen y agregar al PDF
-  //     doc.image(logo.url, { width: 100, height: 100 });
-  //   }
-  // }
-  // 
-  // // Agregar nombres según configuración
-  // for (const name of pdfData.names) {
-  //   doc.text(name.text, { fontSize: 12 });
-  // }
-  // 
-  // // Agregar contenido
-  // doc.text(pdfData.content.title, { fontSize: 18 });
-  // doc.text(pdfData.content.body, { fontSize: 12 });
-  // 
-  // // Agregar QR si está habilitado
-  // if (pdfData.qr) {
-  //   // Generar código QR y agregarlo
-  // }
-  // 
-  // // Generar buffer
-  // const buffers: Buffer[] = [];
-  // doc.on('data', buffers.push.bind(buffers));
-  // doc.on('end', () => {
-  //   const pdfBuffer = Buffer.concat(buffers);
-  //   return { pdfBuffer };
-  // });
-  // doc.end();
-
-  // Por ahora, retornar un placeholder
-  // En producción, esto debe generar un PDF real
-  const placeholderPDF = Buffer.from('PDF placeholder - debe integrarse con librería de PDF');
-
-  return {
-    pdfBuffer: placeholderPDF,
-  };
+  const pdfBuffer = await builder.finalize();
+  return { pdfBuffer };
 }
 
-/**
- * Genera un certificado de compra con branding
- */
+export async function generatePDFWithBrandingUrl(
+  options: PDFDocumentOptions & { folder?: string; fileName?: string }
+): Promise<PDFGenerationResult> {
+  const { pdfBuffer } = await generatePDFWithBranding(options);
+  const fileName = options.fileName || `${options.documentType}-${Date.now()}.pdf`;
+  const pdfUrl = await uploadFile(
+    options.tenantId,
+    pdfBuffer,
+    fileName,
+    'application/pdf',
+    options.folder || 'documents'
+  );
+  return { pdfBuffer, pdfUrl };
+}
+
+/** @deprecated Usar generateAndStoreFIDocument para documentos F&I */
+export { generateAndStoreFIDocument, type FIDocumentTemplate } from './fi-pdf-service';
+
 export async function generatePurchaseCertificate(
   tenantId: string,
   purchaseId: string,
   userId?: string
 ): Promise<PDFGenerationResult> {
-  // Obtener información de la compra
-  const purchaseDoc = await getDb().collection('purchase_intents').doc(purchaseId).get();
+  const { getFirestore } = await import('@autodealers/shared');
+  const db = getFirestore();
+  const purchaseDoc = await db.collection('purchase_intents').doc(purchaseId).get();
   if (!purchaseDoc.exists) {
     throw new Error('Purchase intent no encontrado');
   }
-
   const purchaseData = purchaseDoc.data();
-  
-  // Obtener información del vehículo
-  const vehicleDoc = await getDb().collection('vehicles').doc(purchaseData?.vehicle_id).get();
+  const vehicleDoc = await db.collection('vehicles').doc(purchaseData?.vehicle_id).get();
   const vehicleData = vehicleDoc.exists ? vehicleDoc.data() : null;
-
-  // Obtener información del cliente
-  const clientDoc = await getDb().collection('clients').doc(purchaseData?.client_id).get();
+  const clientDoc = await db.collection('clients').doc(purchaseData?.client_id).get();
   const clientData = clientDoc.exists ? clientDoc.data() : null;
-
-  const content = {
-    title: 'Certificado de Compra',
-    body: `
-      Este certificado confirma la compra verificada del vehículo:
-      
-      VIN: ${vehicleData?.vin || 'N/A'}
-      Marca: ${vehicleData?.make || 'N/A'}
-      Modelo: ${vehicleData?.model || 'N/A'}
-      Año: ${vehicleData?.year || 'N/A'}
-      
-      Comprador: ${clientData?.name || 'N/A'}
-      Purchase ID: ${purchaseId}
-      Fecha: ${new Date().toLocaleDateString('es-ES')}
-      
-      Certificado por AutoDealersPR
-    `,
-    metadata: {
-      purchaseId,
-      vehicleId: purchaseData?.vehicle_id,
-      clientId: purchaseData?.client_id,
-      date: new Date().toISOString(),
-    },
-  };
 
   return generatePDFWithBranding({
     tenantId,
     userId,
     documentType: 'certificate',
-    content,
-    includeQR: true,
-    qrData: `https://autodealers-7f62e.web.app/verify/${purchaseId}`,
+    content: {
+      title: 'Certificado de Compra',
+      body: [
+        'Este certificado confirma la compra verificada del vehículo descrito a continuación.',
+        '',
+        `VIN: ${vehicleData?.vin || 'N/A'}`,
+        `Marca: ${vehicleData?.make || 'N/A'}`,
+        `Modelo: ${vehicleData?.model || 'N/A'}`,
+        `Año: ${vehicleData?.year || 'N/A'}`,
+        '',
+        `Comprador: ${clientData?.name || 'N/A'}`,
+        `Referencia: ${purchaseId}`,
+      ].join('\n'),
+      metadata: {
+        'ID compra': purchaseId,
+        Fecha: formatDate(),
+      },
+    },
   });
 }
 
-/**
- * Genera un contrato con branding
- */
 export async function generateContract(
   tenantId: string,
   contractId: string,
   userId?: string
 ): Promise<PDFGenerationResult> {
-  // Obtener información del contrato
-  const contractDoc = await getDb().collection('contracts').doc(contractId).get();
+  const { getFirestore } = await import('@autodealers/shared');
+  const db = getFirestore();
+  const contractDoc = await db.collection('contracts').doc(contractId).get();
   if (!contractDoc.exists) {
     throw new Error('Contrato no encontrado');
   }
-
   const contractData = contractDoc.data();
-
-  const content = {
-    title: 'Contrato de Venta',
-    body: contractData?.content || 'Contenido del contrato...',
-    metadata: {
-      contractId,
-      leadId: contractData?.leadId,
-      vehicleId: contractData?.vehicleId,
-      date: new Date().toISOString(),
-    },
-  };
 
   return generatePDFWithBranding({
     tenantId,
     userId,
     documentType: 'contract',
-    content,
-    includeQR: false,
+    content: {
+      title: 'Contrato de Venta',
+      body: String(contractData?.content || 'Contenido del contrato.'),
+      metadata: {
+        'ID contrato': contractId,
+        Fecha: formatDate(),
+      },
+    },
   });
 }
-
-

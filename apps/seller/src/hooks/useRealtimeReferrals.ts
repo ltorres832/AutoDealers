@@ -2,14 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase-client';
-import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 
-interface Referral {
+export interface ReferralRow {
   id: string;
-  referrerId: string;
-  referredId: string;
   referredEmail: string;
-  referralCode: string;
   membershipType: string;
   userType: string;
   status: string;
@@ -21,49 +18,80 @@ interface Referral {
     promotionsUsed: number;
     bannersUsed: number;
   };
-  createdAt: any;
-  confirmedAt?: any;
-  rewardsGrantedAt?: any;
+  createdAt: string;
+  confirmedAt?: string;
+  rewardsGrantedAt?: string;
 }
 
-export function useRealtimeReferrals(referrerId: string) {
-  const [referrals, setReferrals] = useState<Referral[]>([]);
+function toIso(v: unknown): string | undefined {
+  if (!v) return undefined;
+  if (v instanceof Date) return v.toISOString();
+  if (typeof v === 'string') return v;
+  if (v && typeof v === 'object' && 'toDate' in v) {
+    return (v as { toDate: () => Date }).toDate().toISOString();
+  }
+  return undefined;
+}
+
+export function useRealtimeReferrals(userId: string) {
+  const [referrals, setReferrals] = useState<ReferralRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!referrerId || !db) {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+
+    if (!db) {
       setLoading(false);
       return;
     }
 
     const q = query(
       collection(db, 'referrals'),
-      where('referrerId', '==', referrerId),
+      where('referrerId', '==', userId),
       orderBy('createdAt', 'desc')
     );
 
     const unsubscribe = onSnapshot(
       q,
-      (snapshot: any) => {
-        const referralsData = snapshot.docs.map((doc: any) => ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt?.toDate()?.toISOString() || new Date().toISOString(),
-          confirmedAt: doc.data().confirmedAt?.toDate()?.toISOString(),
-          rewardsGrantedAt: doc.data().rewardsGrantedAt?.toDate()?.toISOString(),
-        })) as Referral[];
-        setReferrals(referralsData);
+      (snapshot) => {
+        const rows: ReferralRow[] = snapshot.docs.map((doc) => {
+          const d = doc.data();
+          return {
+            id: doc.id,
+            referredEmail: (d.referredEmail as string) || '',
+            membershipType: (d.membershipType as string) || '',
+            userType: (d.userType as string) || '',
+            status: (d.status as string) || '',
+            rewardStatus: (d.rewardStatus as ReferralRow['rewardStatus']) || {
+              discountApplied: false,
+              freeMonthApplied: false,
+              promotionsAvailable: 0,
+              bannersAvailable: 0,
+              promotionsUsed: 0,
+              bannersUsed: 0,
+            },
+            createdAt: toIso(d.createdAt) || new Date().toISOString(),
+            confirmedAt: toIso(d.confirmedAt),
+            rewardsGrantedAt: toIso(d.rewardsGrantedAt),
+          };
+        });
+        setReferrals(rows);
         setLoading(false);
+        setError(null);
       },
-      (error) => {
-        console.error('Error listening to referrals:', error);
+      (err) => {
+        console.error('Error en listener referrals:', err);
+        setError(err.message);
         setLoading(false);
       }
     );
 
     return () => unsubscribe();
-  }, [referrerId]);
+  }, [userId]);
 
-  return { referrals, loading };
+  return { referrals, loading, error };
 }
-

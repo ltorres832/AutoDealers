@@ -9,6 +9,30 @@ import * as admin from 'firebase-admin';
 
 const db = getFirestore();
 
+async function getAdvertiserByStripeCustomerId(customerId: string) {
+  const snapshot = await db
+    .collection('advertisers')
+    .where('stripeCustomerId', '==', customerId)
+    .limit(1)
+    .get();
+
+  if (snapshot.empty) {
+    return null;
+  }
+
+  const doc = snapshot.docs[0];
+  return { id: doc.id, ref: doc.ref, data: doc.data() };
+}
+
+/** Anunciantes sin suscripción: solo pagan por anuncio individual. */
+function isPayAsYouGoAdvertiser(data: FirebaseFirestore.DocumentData): boolean {
+  return (
+    data.plan === null ||
+    data.plan === undefined ||
+    data.billingModel === 'pay_per_ad'
+  );
+}
+
 export async function POST(request: NextRequest) {
   const body = await request.text();
   const signature = request.headers.get('stripe-signature');
@@ -68,14 +92,22 @@ export async function POST(request: NextRequest) {
               paidAt: admin.firestore.FieldValue.serverTimestamp(),
             });
           } else if (session.subscription) {
-            // Nueva suscripción
-            await db.collection('advertisers').doc(advertiserId).update({
-              plan: plan || 'starter',
-              stripeSubscriptionId: session.subscription as string,
-              stripeCustomerId: session.customer as string,
-              status: 'active',
-              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            });
+            const advertiserSnap = await db.collection('advertisers').doc(advertiserId).get();
+            const advertiserData = advertiserSnap.data();
+            if (advertiserData && isPayAsYouGoAdvertiser(advertiserData)) {
+              await db.collection('advertisers').doc(advertiserId).update({
+                stripeCustomerId: session.customer as string,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+              });
+            } else {
+              await db.collection('advertisers').doc(advertiserId).update({
+                plan: plan || 'starter',
+                stripeSubscriptionId: session.subscription as string,
+                stripeCustomerId: session.customer as string,
+                status: 'active',
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+              });
+            }
           }
         }
         break;
@@ -85,28 +117,20 @@ export async function POST(request: NextRequest) {
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
 
-        // Buscar anunciante por customerId
-        const advertisersSnapshot = await db
-          .collection('advertisers')
-          .where('stripeCustomerId', '==', customerId)
-          .limit(1)
-          .get();
-
-        if (!advertisersSnapshot.empty) {
-          const advertiserDoc = advertisersSnapshot.docs[0];
-          
+        const advertiser = await getAdvertiserByStripeCustomerId(customerId);
+        if (advertiser && !isPayAsYouGoAdvertiser(advertiser.data)) {
           if (subscription.status === 'active') {
-            await advertiserDoc.ref.update({
+            await advertiser.ref.update({
               status: 'active',
               updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             });
           } else if (subscription.status === 'past_due' || subscription.status === 'unpaid') {
-            await advertiserDoc.ref.update({
+            await advertiser.ref.update({
               status: 'suspended',
               updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             });
           } else if (subscription.status === 'canceled') {
-            await advertiserDoc.ref.update({
+            await advertiser.ref.update({
               status: 'cancelled',
               updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             });
@@ -119,15 +143,9 @@ export async function POST(request: NextRequest) {
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
 
-        const advertisersSnapshot = await db
-          .collection('advertisers')
-          .where('stripeCustomerId', '==', customerId)
-          .limit(1)
-          .get();
-
-        if (!advertisersSnapshot.empty) {
-          const advertiserDoc = advertisersSnapshot.docs[0];
-          await advertiserDoc.ref.update({
+        const advertiser = await getAdvertiserByStripeCustomerId(customerId);
+        if (advertiser && !isPayAsYouGoAdvertiser(advertiser.data)) {
+          await advertiser.ref.update({
             status: 'cancelled',
             stripeSubscriptionId: null,
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),

@@ -16,7 +16,13 @@ interface Ad {
   imageUrl: string;
   videoUrl?: string;
   linkUrl: string;
-  linkType?: 'external' | 'landing_page';
+  linkType?:
+    | 'external'
+    | 'landing_page'
+    | 'marketplace'
+    | 'inventory'
+    | 'contact'
+    | 'none';
   status: 'pending' | 'approved' | 'active' | 'paused' | 'expired' | 'rejected' | 'payment_pending';
   impressions: number;
   clicks: number;

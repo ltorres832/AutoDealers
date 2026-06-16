@@ -6,15 +6,15 @@ export default function MultiDealerSuccessPage() {
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center py-20 px-4 relative overflow-hidden">
       {/* Background Decor */}
-      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-blue-100/30 rounded-full blur-[120px] pointer-events-none"></div>
+      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary-100/30 rounded-full blur-[120px] pointer-events-none"></div>
 
       <div className="max-w-2xl w-full bg-white rounded-[4rem] shadow-[0_50px_100px_-30px_rgba(0,0,0,0.12)] p-12 md:p-16 relative z-10 border border-slate-100 text-center">
-        <div className="w-24 h-24 bg-blue-600 rounded-[2.5rem] flex items-center justify-center mx-auto mb-10 shadow-2xl shadow-blue-600/20 animate-pulse">
+        <div className="w-24 h-24 bg-primary-600 rounded-[2.5rem] flex items-center justify-center mx-auto mb-10 shadow-2xl shadow-primary-600/20 animate-pulse">
           <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
         </div>
 
         <h1 className="text-4xl font-black text-slate-900 mb-4 tracking-tighter uppercase leading-none">
-          Solicitud <span className="text-blue-600">Enviada</span>
+          Solicitud <span className="text-primary-600">Enviada</span>
         </h1>
 
         <p className="text-slate-500 font-medium text-lg mb-10 leading-relaxed">
@@ -41,7 +41,7 @@ export default function MultiDealerSuccessPage() {
           </Link>
           <Link
             href="/login"
-            className="h-20 bg-slate-900 text-white rounded-[2rem] flex items-center justify-center font-black text-[10px] uppercase tracking-[0.3em] hover:bg-blue-600 transition-all shadow-xl shadow-slate-900/10"
+            className="h-20 bg-primary-600 text-white rounded-[2rem] flex items-center justify-center font-black text-[10px] uppercase tracking-[0.3em] hover:bg-primary-700 transition-all shadow-xl shadow-slate-900/10"
           >
             Ir a Login
           </Link>
@@ -49,7 +49,7 @@ export default function MultiDealerSuccessPage() {
 
         <div className="mt-12 pt-10 border-t border-slate-50">
           <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest leading-loose">
-            Explora mientras tanto nuestro <Link href="/blog" className="text-blue-600/50 hover:text-blue-600">blog de estrategias automotrices</Link>
+            Explora mientras tanto nuestro <Link href="/blog" className="text-primary-600/50 hover:text-primary-600">blog de estrategias automotrices</Link>
           </p>
         </div>
       </div>

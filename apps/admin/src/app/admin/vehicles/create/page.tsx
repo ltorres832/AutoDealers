@@ -248,7 +248,7 @@ export default function CreateVehiclePage() {
                   type="text"
                   value={formData.make}
                   onChange={(e) => setFormData({ ...formData, make: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
                   placeholder="Toyota"
                   required
                 />
@@ -262,7 +262,7 @@ export default function CreateVehiclePage() {
                   type="text"
                   value={formData.model}
                   onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
                   placeholder="Camry"
                   required
                 />
@@ -276,7 +276,7 @@ export default function CreateVehiclePage() {
                   type="number"
                   value={formData.year}
                   onChange={(e) => setFormData({ ...formData, year: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
                   min="1900"
                   max={new Date().getFullYear() + 1}
                   required
@@ -291,7 +291,7 @@ export default function CreateVehiclePage() {
                   type="text"
                   value={formData.vin}
                   onChange={(e) => setFormData({ ...formData, vin: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
                   placeholder="1HGBH41JXMN109186"
                 />
               </div>
@@ -304,7 +304,7 @@ export default function CreateVehiclePage() {
                   type="number"
                   value={formData.price}
                   onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
                   placeholder="25000"
                   min="0"
                   step="0.01"
@@ -320,7 +320,7 @@ export default function CreateVehiclePage() {
                   type="number"
                   value={formData.mileage}
                   onChange={(e) => setFormData({ ...formData, mileage: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
                   placeholder="0 para nuevo"
                   min="0"
                 />
@@ -342,7 +342,7 @@ export default function CreateVehiclePage() {
                 <select
                   value={formData.condition}
                   onChange={(e) => setFormData({ ...formData, condition: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="new">Nuevo</option>
                   <option value="used">Usado</option>
@@ -358,7 +358,7 @@ export default function CreateVehiclePage() {
                   type="text"
                   value={formData.color}
                   onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
                   placeholder="Blanco"
                 />
               </div>
@@ -370,7 +370,7 @@ export default function CreateVehiclePage() {
                 <select
                   value={formData.transmission}
                   onChange={(e) => setFormData({ ...formData, transmission: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="automatic">Automática</option>
                   <option value="manual">Manual</option>
@@ -385,7 +385,7 @@ export default function CreateVehiclePage() {
                 <select
                   value={formData.fuelType}
                   onChange={(e) => setFormData({ ...formData, fuelType: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="gasoline">Gasolina</option>
                   <option value="diesel">Diésel</option>
@@ -402,7 +402,7 @@ export default function CreateVehiclePage() {
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
                 rows={3}
                 placeholder="Descripción del vehículo..."
               />
@@ -419,7 +419,7 @@ export default function CreateVehiclePage() {
                   value={newFeature}
                   onChange={(e) => setNewFeature(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addFeature())}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
                   placeholder="Ej: Cámara trasera"
                 />
                 <button
@@ -435,13 +435,13 @@ export default function CreateVehiclePage() {
                   {formData.features.map((feature, index) => (
                     <span
                       key={index}
-                      className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm flex items-center gap-2"
+                      className="bg-primary-100 text-primary-800 px-3 py-1 rounded-full text-sm flex items-center gap-2"
                     >
                       {feature}
                       <button
                         type="button"
                         onClick={() => removeFeature(index)}
-                        className="text-blue-600 hover:text-blue-800"
+                        className="text-primary-600 hover:text-primary-800"
                       >
                         ✕
                       </button>
@@ -469,7 +469,7 @@ export default function CreateVehiclePage() {
                   multiple
                   accept="image/*"
                   onChange={handlePhotoChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
                 />
                 {photos.length > 0 && (
                   <div className="mt-2 space-y-2">
@@ -499,7 +499,7 @@ export default function CreateVehiclePage() {
                   multiple
                   accept="video/*"
                   onChange={handleVideoChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
                 />
                 {videos.length > 0 && (
                   <div className="mt-2 space-y-2">
@@ -527,8 +527,8 @@ export default function CreateVehiclePage() {
               🎯 Asignación (Dealer y/o Vendedor)
             </h2>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-              <p className="text-sm text-blue-800">
+            <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 mb-4">
+              <p className="text-sm text-primary-800">
                 <strong>💡 Asignación Flexible:</strong> Puedes asignar el vehículo solo al
                 dealer, solo al vendedor, o a AMBOS simultáneamente.
               </p>
@@ -543,7 +543,7 @@ export default function CreateVehiclePage() {
                 <select
                   value={formData.dealerId}
                   onChange={(e) => setFormData({ ...formData, dealerId: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="">-- Sin dealer específico --</option>
                   {dealers.map((dealer) => (
@@ -563,7 +563,7 @@ export default function CreateVehiclePage() {
                 <select
                   value={formData.sellerId}
                   onChange={(e) => setFormData({ ...formData, sellerId: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
                   disabled={!formData.dealerId && filteredSellers.length === 0}
                 >
                   <option value="">-- Sin vendedor específico --</option>
@@ -622,7 +622,7 @@ export default function CreateVehiclePage() {
             <button
               type="submit"
               disabled={loading || uploading || (!formData.dealerId && !formData.sellerId)}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               {uploading ? 'Subiendo archivos...' : loading ? 'Creando...' : 'Crear Vehículo'}
             </button>

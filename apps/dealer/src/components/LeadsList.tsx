@@ -12,12 +12,12 @@ import {
 import { LeadRowExtras } from '@/components/LeadProfileSections';
 import { useRealtimeLeads } from '@/hooks/useRealtimeLeads';
 import { fetchWithAuth } from '@/lib/fetch-with-auth';
-import { isDealerPortalRole } from '@/lib/dealer-portal-roles';
+import { isDealerPortalRole, isSellerRole } from '@/lib/dealer-portal-roles';
 import { LeadAssignmentModal } from '@/components/LeadAssignmentModal';
 import { getDealerActiveTenantId } from '@/lib/dealer-tenant-storage';
 
 export default function LeadsList() {
-  const [user, setUser] = useState<{ tenantId?: string; role?: string } | null>(null);
+  const [user, setUser] = useState<{ id?: string; tenantId?: string; role?: string } | null>(null);
   const [filters, setFilters] = useState({
     status: '',
     source: '',
@@ -25,6 +25,7 @@ export default function LeadsList() {
   });
   const [sla, setSla] = useState<CrmSlaConfig>(DEFAULT_CRM_SLA);
   const [reassignLead, setReassignLead] = useState<{ id: string; name: string } | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     void fetchWithAuth('/api/user', {})
@@ -48,9 +49,39 @@ export default function LeadsList() {
     status: filters.status || undefined,
     source: filters.source || undefined,
     search: filters.search || undefined,
+    dealerVisibleOnly: Boolean(user?.role && isDealerPortalRole(user.role)),
   });
 
   const canReassign = user?.role && isDealerPortalRole(user.role);
+
+  function canDeleteLead(lead: (typeof leads)[0]) {
+    return (
+      isDealerPortalRole(user?.role) ||
+      (isSellerRole(user?.role) && lead.assignedTo === user?.id)
+    );
+  }
+
+  async function handleDeleteLead(leadId: string, leadName: string) {
+    if (
+      !window.confirm(
+        `¿Eliminar permanentemente a ${leadName}? Esta acción no se puede deshacer.`
+      )
+    ) {
+      return;
+    }
+    setDeletingId(leadId);
+    try {
+      const res = await fetchWithAuth(`/api/leads/${leadId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error || 'No se pudo eliminar');
+      }
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Error al eliminar');
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   const slaCounts = useMemo(() => {
     let warning = 0;
@@ -65,10 +96,10 @@ export default function LeadsList() {
 
   function getStatusColor(status: string) {
     const colors: Record<string, string> = {
-      new: 'bg-blue-100 text-blue-700',
+      new: 'bg-primary-100 text-primary-700',
       contacted: 'bg-yellow-100 text-yellow-700',
       qualified: 'bg-green-100 text-green-700',
-      appointment: 'bg-purple-100 text-purple-700',
+      appointment: 'bg-primary-100 text-primary-700',
       closed: 'bg-gray-100 text-gray-700',
       lost: 'bg-red-100 text-red-700',
     };
@@ -231,17 +262,29 @@ export default function LeadsList() {
                   <LeadRowExtras lead={lead as unknown as Lead} />
                 </div>
               </Link>
-              {canReassign && (
-                <div className="flex shrink-0 flex-col justify-center border-l border-gray-100 bg-white px-2 py-2">
-                  <button
-                    type="button"
-                    className="rounded-md border border-primary-200 px-2 py-1.5 text-xs font-medium text-primary-800 hover:bg-primary-50"
-                    onClick={() =>
-                      setReassignLead({ id: lead.id, name: lead.contact.name || 'Cliente' })
-                    }
-                  >
-                    Reasignar
-                  </button>
+              {(canReassign || canDeleteLead(lead)) && (
+                <div className="flex shrink-0 flex-col justify-center gap-1 border-l border-gray-100 bg-white px-2 py-2">
+                  {canReassign ? (
+                    <button
+                      type="button"
+                      className="rounded-md border border-primary-200 px-2 py-1.5 text-xs font-medium text-primary-800 hover:bg-primary-50"
+                      onClick={() =>
+                        setReassignLead({ id: lead.id, name: lead.contact.name || 'Cliente' })
+                      }
+                    >
+                      Reasignar
+                    </button>
+                  ) : null}
+                  {canDeleteLead(lead) ? (
+                    <button
+                      type="button"
+                      className="rounded-md border border-red-200 px-2 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                      disabled={deletingId === lead.id}
+                      onClick={() => handleDeleteLead(lead.id, lead.contact.name || 'Cliente')}
+                    >
+                      {deletingId === lead.id ? '…' : 'Eliminar'}
+                    </button>
+                  ) : null}
                 </div>
               )}
             </div>

@@ -1,10 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as admin from 'firebase-admin';
 import { randomBytes } from 'crypto';
+import { getFirebaseWebClientConfig, AUTODEALERS_FIREBASE_WEB_DEFAULTS } from '@autodealers/shared/firebase-web-client-config';
 
 // Importación dinámica para evitar problemas de inicialización
 let getAuth: any;
 let getFirestore: any;
+
+async function signInWithEmailPassword(
+  email: string,
+  password: string
+): Promise<{ uid: string } | { error: 'invalid_credentials' | 'config' }> {
+  const apiKeys = [
+    getFirebaseWebClientConfig().apiKey,
+    AUTODEALERS_FIREBASE_WEB_DEFAULTS.apiKey,
+  ].filter((key, index, all) => key && all.indexOf(key) === index);
+
+  if (apiKeys.length === 0) {
+    return { error: 'config' };
+  }
+
+  for (const apiKey of apiKeys) {
+    const res = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${encodeURIComponent(apiKey)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, returnSecureToken: true }),
+      }
+    );
+
+    const data = (await res.json()) as {
+      localId?: string;
+      error?: { message?: string };
+    };
+
+    if (res.ok && data.localId) {
+      return { uid: data.localId };
+    }
+  }
+
+  return { error: 'invalid_credentials' };
+}
 
 async function initializeCore() {
   if (!getAuth || !getFirestore) {
@@ -92,16 +129,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verificar credenciales
-    if (email !== 'admin@autodealers.com' || password !== 'Admin123456') {
-      console.log('❌ Credenciales inválidas');
+    const signIn = await signInWithEmailPassword(email, password);
+    if ('error' in signIn) {
+      if (signIn.error === 'config') {
+        return NextResponse.json(
+          { error: 'Error de configuración del servidor' },
+          { status: 500 }
+        );
+      }
       return NextResponse.json(
         { error: 'Credenciales inválidas' },
         { status: 401 }
       );
     }
 
-    console.log('✅ Credenciales correctas');
+    console.log('✅ Credenciales Firebase correctas');
 
     // Inicializar core modules
     await initializeCore();
@@ -126,8 +168,22 @@ export async function POST(request: NextRequest) {
 
     let user;
     try {
-      user = await auth.getUserByEmail(email);
+      user = await auth.getUser(signIn.uid);
       console.log(`✅ Usuario encontrado: ${user.uid}`);
+
+      const adminDoc = await db.collection('admin_users').doc(user.uid).get();
+      const userDoc = await db.collection('users').doc(user.uid).get();
+      const isAdmin =
+        (adminDoc.exists && adminDoc.data()?.isActive !== false) ||
+        userDoc.data()?.role === 'admin' ||
+        user.customClaims?.role === 'admin';
+
+      if (!isAdmin) {
+        return NextResponse.json(
+          { error: 'Esta cuenta no tiene acceso de administrador' },
+          { status: 403 }
+        );
+      }
 
       // Verificar si el usuario está deshabilitado
       if (user.disabled) {
@@ -136,13 +192,12 @@ export async function POST(request: NextRequest) {
         console.log('✅ Usuario habilitado');
       }
 
-      // Verificar si existe en admin_users, si no, crearlo
-      const adminDoc = await db.collection('admin_users').doc(user.uid).get();
+      // Crear admin_users si falta (usuarios admin legacy en users)
       if (!adminDoc.exists) {
         console.log('📝 Usuario no existe en admin_users, creándolo...');
         await db.collection('admin_users').doc(user.uid).set({
-          email,
-          name: 'Administrador',
+          email: user.email,
+          name: user.displayName || 'Administrador',
           role: 'super_admin',
           permissions: ['super_admin'],
           isActive: true,
@@ -154,69 +209,13 @@ export async function POST(request: NextRequest) {
       }
     } catch (error: any) {
       console.error('❌ Error buscando usuario:', error.message);
-      console.error('❌ Error code:', error.code);
-      console.error('❌ Error stack:', error.stack);
-
-      // Si el error es que el usuario no existe, crear el usuario automáticamente
-      if (error.code === 'auth/user-not-found') {
-        console.log('📝 Usuario no existe, creándolo automáticamente...');
-        try {
-          user = await auth.createUser({
-            email,
-            password,
-            displayName: 'Administrador',
-          });
-
-          // Crear documento en admin_users (colección específica para admins)
-          await db.collection('admin_users').doc(user.uid).set({
-            email,
-            name: 'Administrador',
-            role: 'super_admin',
-            permissions: ['super_admin'],
-            isActive: true,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            createdBy: 'system',
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          });
-
-          // También crear en users para compatibilidad (opcional)
-          await db.collection('users').doc(user.uid).set({
-            email,
-            name: 'Administrador',
-            role: 'admin',
-            status: 'active',
-            membershipId: '',
-            membershipType: 'dealer',
-            settings: {},
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          });
-
-          // Establecer custom claims
-          await auth.setCustomUserClaims(user.uid, {
-            role: 'admin',
-          });
-
-          console.log(`✅ Usuario creado automáticamente: ${user.uid}`);
-        } catch (createError: any) {
-          console.error('❌ Error creando usuario:', createError.message);
-          return NextResponse.json(
-            {
-              error: 'Error al crear usuario',
-              details: createError.message
-            },
-            { status: 500 }
-          );
-        }
-      } else {
-        return NextResponse.json(
-          {
-            error: 'Error al buscar usuario',
-            details: error.message
-          },
-          { status: 500 }
-        );
-      }
+      return NextResponse.json(
+        {
+          error: 'Error al buscar usuario',
+          details: error.message
+        },
+        { status: 500 }
+      );
     }
 
     // Generar un sessionId único y seguro

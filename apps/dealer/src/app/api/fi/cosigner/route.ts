@@ -1,9 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth, isDealerPortalRole } from '@/lib/auth';
 import { requireTenantFeature } from '@/lib/membership-middleware';
-import { addCosignerToRequest, updateCosignerStatus, calculateCombinedScore, getFIRequestById } from '@autodealers/crm';
-import { getFirestore } from '@autodealers/core';
+import { addCosignerToRequest, updateCosignerOnRequest, updateCosignerStatus, calculateCombinedScore, getFIRequestById } from '@autodealers/crm';
+import { getFirestore, isValidSsn } from '@autodealers/core';
 import * as admin from 'firebase-admin';
+
+async function syncCombinedScore(tenantId: string, requestId: string, cosignerCreditRange: string) {
+  const fiRequest = await getFIRequestById(tenantId, requestId);
+  if (fiRequest?.approvalScore && cosignerCreditRange) {
+    const combinedScore = calculateCombinedScore(
+      fiRequest.approvalScore,
+      cosignerCreditRange as any
+    );
+    const db = getFirestore();
+    await db
+      .collection('tenants')
+      .doc(tenantId)
+      .collection('fi_requests')
+      .doc(requestId)
+      .update({
+        combinedScore,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+  }
+}
+
+function validateCosignerSsn(cosignerData: { ssn?: string }) {
+  if (cosignerData.ssn && !isValidSsn(cosignerData.ssn)) {
+    throw new Error('SSN inválido. Use el formato XXX-XX-XXXX (9 dígitos).');
+  }
+  if (!cosignerData.ssn) {
+    throw new Error('El SSN completo del codeudor es requerido.');
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,39 +58,61 @@ export async function POST(request: NextRequest) {
     const fiGatePost = await requireTenantFeature(auth.tenantId, 'useFIModule');
     if (fiGatePost) return fiGatePost;
 
+    validateCosignerSsn(cosignerData);
+
     const cosigner = await addCosignerToRequest(
       auth.tenantId,
       requestId,
       cosignerData
     );
 
-    // Calcular score combinado si hay approvalScore
-    const fiRequest = await getFIRequestById(auth.tenantId, requestId);
-    if (fiRequest?.approvalScore && cosigner.creditInfo.creditRange) {
-      const combinedScore = calculateCombinedScore(
-        fiRequest.approvalScore,
-        cosigner.creditInfo.creditRange
-      );
-
-      // Actualizar solicitud con score combinado
-      const db = getFirestore();
-      const requestRef = db
-        .collection('tenants')
-        .doc(auth.tenantId)
-        .collection('fi_requests')
-        .doc(requestId);
-
-      await requestRef.update({
-        combinedScore,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-    }
+    await syncCombinedScore(auth.tenantId, requestId, cosigner.creditInfo.creditRange);
 
     return NextResponse.json({ cosigner });
   } catch (error: any) {
     console.error('Error adding cosigner:', error);
     return NextResponse.json(
       { error: error.message || 'Error al agregar co-signer' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const auth = await verifyAuth(request);
+    if (!auth || (!isDealerPortalRole(auth.role) && auth.role !== 'seller')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { requestId, cosignerData } = body;
+
+    if (!requestId || !cosignerData) {
+      return NextResponse.json(
+        { error: 'requestId y cosignerData son requeridos' },
+        { status: 400 }
+      );
+    }
+
+    if (!auth.tenantId) {
+      return NextResponse.json({ error: 'Tenant ID is required' }, { status: 400 });
+    }
+
+    const fiGatePut = await requireTenantFeature(auth.tenantId, 'useFIModule');
+    if (fiGatePut) return fiGatePut;
+
+    validateCosignerSsn(cosignerData);
+
+    const cosigner = await updateCosignerOnRequest(auth.tenantId, requestId, cosignerData);
+
+    await syncCombinedScore(auth.tenantId, requestId, cosigner.creditInfo.creditRange);
+
+    return NextResponse.json({ cosigner });
+  } catch (error: any) {
+    console.error('Error updating cosigner:', error);
+    return NextResponse.json(
+      { error: error.message || 'Error al actualizar codeudor' },
       { status: 500 }
     );
   }

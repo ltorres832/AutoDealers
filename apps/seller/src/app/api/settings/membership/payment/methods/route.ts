@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { getStripeInstance } from '@autodealers/core';
 import { getSubscriptionByTenantId } from '@autodealers/billing';
+import { dealerManagedBillingResponse } from '@/lib/dealer-managed-guard';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,6 +12,9 @@ export async function GET(request: NextRequest) {
     if (!auth || !auth.tenantId || auth.role !== 'seller') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const dealerBlock = dealerManagedBillingResponse(auth);
+    if (dealerBlock) return dealerBlock;
 
     const stripe = await getStripeInstance();
     const subscription = await getSubscriptionByTenantId(auth.tenantId);
@@ -59,6 +63,9 @@ export async function DELETE(request: NextRequest) {
     if (!auth || !auth.tenantId || auth.role !== 'seller') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const dealerBlock = dealerManagedBillingResponse(auth);
+    if (dealerBlock) return dealerBlock;
 
     const { searchParams } = new URL(request.url);
     const paymentMethodId = searchParams.get('id');

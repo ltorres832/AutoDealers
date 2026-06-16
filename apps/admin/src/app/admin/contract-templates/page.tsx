@@ -60,7 +60,7 @@ export default function ContractTemplatesPage() {
           </div>
           <button
             onClick={() => router.push('/admin/contract-templates/create')}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
           >
             + Crear Plantilla
           </button>
@@ -69,14 +69,14 @@ export default function ContractTemplatesPage() {
 
       {loading ? (
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
         </div>
       ) : templates.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
           <p className="text-gray-500 mb-4">No hay plantillas aún</p>
           <button
             onClick={() => router.push('/admin/contract-templates/create')}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
           >
             Crear Primera Plantilla
           </button>
@@ -119,7 +119,7 @@ export default function ContractTemplatesPage() {
               <div className="flex space-x-2">
                 <button
                   onClick={() => router.push(`/admin/contract-templates/${template.id}/edit`)}
-                  className="flex-1 px-3 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm"
+                  className="flex-1 px-3 py-2 bg-primary-100 text-primary-700 rounded hover:bg-primary-200 text-sm"
                 >
                   Editar
                 </button>

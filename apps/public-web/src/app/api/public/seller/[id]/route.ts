@@ -9,7 +9,12 @@ import {
   filterVehiclesForSellerPublicCatalog,
   vehicleBelongsToSeller,
 } from '@/lib/seller-public-catalog';
+import {
+  collectTenantIdsForPublicSeller,
+  resolveTenantPrimarySellerId,
+} from '@/lib/seller-tenant-scope';
 import { normalizePromoVideoUrls } from '@autodealers/shared/promo-video-urls';
+import { normalizePublicTrustGalleryPhotos } from '@autodealers/shared/public-trust-gallery';
 import { resolveBusinessHours } from '@/lib/resolve-business-hours';
 
 // Exportar configuración de runtime
@@ -28,38 +33,7 @@ function pickSocialMedia(source: unknown): Record<string, string> {
   return out;
 }
 
-async function collectTenantIdsForPublicSeller(
-  db: ReturnType<typeof getFirestore>,
-  sellerId: string,
-  sellerData: Record<string, unknown>,
-  primaryTenantId: string
-): Promise<string[]> {
-  const ids = new Set<string>([primaryTenantId]);
-
-  const addRef = async (ref: unknown) => {
-    if (typeof ref !== 'string' || !ref.trim()) return;
-    const r = ref.trim();
-    const tenantDoc = await db.collection('tenants').doc(r).get();
-    if (tenantDoc.exists) {
-      ids.add(r);
-      return;
-    }
-    const userDoc = await db.collection('users').doc(r).get();
-    const tid = userDoc.data()?.tenantId;
-    if (typeof tid === 'string' && tid.trim()) ids.add(tid.trim());
-  };
-
-  await addRef(sellerData.dealerId);
-  if (Array.isArray(sellerData.associatedDealers)) {
-    for (const d of sellerData.associatedDealers) {
-      await addRef(d);
-    }
-  }
-
-  return [...ids];
-}
-
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   return Promise.race([
     promise,
     new Promise<T>((_, reject) =>
@@ -148,16 +122,20 @@ export async function GET(
 
     console.log(`📦 Fetching vehicles from tenants: ${[...tenantIds].join(', ')}...`);
 
-    const vehicleDocs: Array<{ id: string; data: () => Record<string, unknown> }> = [];
+    const vehicleDocs: Array<{
+      id: string;
+      tenantId: string;
+      doc: { data: () => Record<string, unknown> };
+    }> = [];
     try {
       for (const tid of tenantIds) {
         const snap = (await withTimeout(
           db.collection('tenants').doc(tid).collection('vehicles').limit(120).get(),
           15000
-        )) as { docs: Array<{ id: string }> };
+        )) as { docs: Array<{ id: string; data: () => Record<string, unknown> }> };
         for (const doc of snap.docs) {
           if (!vehicleDocs.some((x) => x.id === doc.id)) {
-            vehicleDocs.push(doc);
+            vehicleDocs.push({ id: doc.id, tenantId: tid, doc });
           }
         }
       }
@@ -166,16 +144,15 @@ export async function GET(
       console.error('❌ Error fetching vehicles:', vehiclesError);
     }
 
-    const allVehiclesSnapshot = { docs: vehicleDocs, size: vehicleDocs.length };
-
     console.log(`👤 Looking for vehicles with sellerId=${sellerId}`);
 
     // Mapear todos los vehículos de forma segura
-    const allVehicles = allVehiclesSnapshot.docs.map((doc: any) => {
+    const allVehicles = vehicleDocs.map((entry) => {
       try {
-        const data = doc.data();
+        const data = entry.doc.data();
         const vehicle = {
-          id: doc.id,
+          id: entry.id,
+          tenantId: entry.tenantId,
           ...data,
           // Asegurar que las fechas se conviertan correctamente
           createdAt: data.createdAt?.toDate?.() || data.createdAt || new Date(),
@@ -184,7 +161,7 @@ export async function GET(
         };
 
         // Log detallado de cada vehículo para debugging
-        console.log(`🚗 Vehicle ${doc.id}:`, {
+        console.log(`🚗 Vehicle ${entry.id}:`, {
           make: vehicle.make,
           model: vehicle.model,
           status: vehicle.status,
@@ -195,12 +172,12 @@ export async function GET(
 
         return vehicle;
       } catch (mapError: any) {
-        console.error(`❌ Error mapping vehicle ${doc.id}:`, mapError);
+        console.error(`❌ Error mapping vehicle ${entry.id}:`, mapError);
         return null;
       }
     }).filter((v: any) => v !== null);
 
-    console.log(`📊 Total vehicles mapped: ${allVehicles.length} of ${allVehiclesSnapshot.size}`);
+    console.log(`📊 Total vehicles mapped: ${allVehicles.length} of ${vehicleDocs.length}`);
 
     const tenantPrimarySellerId =
       tenantData?.sellerInfo &&
@@ -303,6 +280,9 @@ export async function GET(
         publicPromoVideoUrl:
           normalizePromoVideoUrls(sellerData.publicPromoVideoUrls, sellerData.publicPromoVideoUrl)[0] ||
           '',
+        publicTrustGalleryPhotos: normalizePublicTrustGalleryPhotos(
+          sellerData.publicTrustGalleryPhotos
+        ),
         socialMedia: {
           ...pickSocialMedia(tenantData?.socialMedia),
           ...pickSocialMedia(sellerData.socialMedia),
@@ -313,9 +293,9 @@ export async function GET(
       ),
       branding: {
         primaryColor:
-          (tenantData?.branding as { primaryColor?: string })?.primaryColor || '#2563EB',
+          (tenantData?.branding as { primaryColor?: string })?.primaryColor || '#E10600',
         secondaryColor:
-          (tenantData?.branding as { secondaryColor?: string })?.secondaryColor || '#1E40AF',
+          (tenantData?.branding as { secondaryColor?: string })?.secondaryColor || '#0A0A0A',
       },
       profile: {
         bio: typeof sellerData.bio === 'string' ? sellerData.bio : '',

@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { createErrorResponse, createSuccessResponse } from '@/lib/api-error-handler';
 import { getFirestore } from '@autodealers/shared';
-import * as admin from 'firebase-admin';
 import { createLead, normalizeLeadSource } from '@autodealers/crm';
+import { notifyUser, notifyManagersAndAdmins } from '@autodealers/core';
 
 export const dynamic = 'force-dynamic';
 
@@ -100,50 +100,28 @@ export async function POST(request: NextRequest) {
       }
     );
 
-    const notificationRef = db.collection('notifications').doc();
-    await notificationRef.set({
-      type: 'lead_created' as any,
-      title: 'Nuevo Lead Asignado',
-      message:
-        assignmentType === 'dealer'
-          ? `El admin te asignó un nuevo lead: ${name}`
-          : `El admin te asignó un nuevo lead: ${name}`,
-      userId: assignedTo || null,
-      tenantId,
-      isRead: false,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      data: {
-        leadId: lead.id,
-        leadName: name,
-        assignedBy: 'admin',
-      },
-    });
-
-    if (assignmentType === 'dealer') {
-      const dealerAdmins = await db
-        .collection('users')
-        .where('tenantId', '==', tenantId)
-        .where('role', '==', 'dealer')
-        .get();
-
-      await Promise.all(
-        dealerAdmins.docs.map((doc) =>
-          db.collection('notifications').add({
-            type: 'lead_created' as any,
-            title: 'Nuevo Lead Asignado',
-            message: `El admin asignó un nuevo lead a tu concesionario: ${name}`,
-            userId: doc.id,
-            tenantId,
-            isRead: false,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            data: {
-              leadId: lead.id,
-              leadName: name,
-              assignedBy: 'admin',
-            },
-          })
-        )
-      );
+    if (assignmentType === 'seller' && assignedTo) {
+      await notifyUser(tenantId, assignedTo, {
+        type: 'lead_created',
+        title: 'Nuevo Lead Asignado',
+        message: `El admin te asignó un nuevo lead: ${name}`,
+        metadata: {
+          leadId: lead.id,
+          leadName: name,
+          assignedBy: 'admin',
+        },
+      });
+    } else {
+      await notifyManagersAndAdmins(tenantId, {
+        type: 'lead_created',
+        title: 'Nuevo Lead Asignado',
+        message: `El admin asignó un nuevo lead a tu concesionario: ${name}`,
+        metadata: {
+          leadId: lead.id,
+          leadName: name,
+          assignedBy: 'admin',
+        },
+      });
     }
 
     return createSuccessResponse(

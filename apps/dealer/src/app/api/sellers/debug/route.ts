@@ -8,6 +8,10 @@ export const dynamic = 'force-dynamic';
  * Endpoint de diagnóstico para ver qué vendedores hay en Firestore
  */
 export async function GET(request: NextRequest) {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
   try {
     const auth = await verifyAuth(request);
     if (!auth || !auth.tenantId || !isDealerPortalRole(auth.role)) {

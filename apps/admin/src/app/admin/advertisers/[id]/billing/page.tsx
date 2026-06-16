@@ -129,7 +129,7 @@ function AdvertiserBillingPage() {
           <h1 className="text-3xl font-bold text-gray-900">Billing del anunciante</h1>
           <p className="text-sm text-gray-600">ID: {advertiserId}</p>
         </div>
-        <Link href="/admin/advertisers" className="text-blue-600 hover:text-blue-700 text-sm font-semibold">
+        <Link href="/admin/advertisers" className="text-primary-600 hover:text-primary-700 text-sm font-semibold">
           ← Volver a anunciantes
         </Link>
       </div>
@@ -156,14 +156,14 @@ function AdvertiserBillingPage() {
           <button
             onClick={() => handleAdd('card')}
             disabled={adding === 'card'}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold disabled:opacity-50"
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-semibold disabled:opacity-50"
           >
             {adding === 'card' ? 'Abriendo...' : 'Agregar tarjeta'}
           </button>
           <button
             onClick={() => handleAdd('us_bank_account')}
             disabled={adding === 'us_bank_account'}
-            className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 font-semibold disabled:opacity-50"
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-semibold disabled:opacity-50"
           >
             {adding === 'us_bank_account' ? 'Abriendo...' : 'Agregar cuenta bancaria'}
           </button>
@@ -177,7 +177,7 @@ function AdvertiserBillingPage() {
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Métodos guardados</h2>
         {loading ? (
           <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600"></div>
           </div>
         ) : methods.length === 0 ? (
           <p className="text-gray-600">No hay métodos guardados.</p>
@@ -217,7 +217,7 @@ function AdvertiserBillingPage() {
                   {!pm.isDefault && (
                     <button
                       onClick={() => handleDefault(pm.id)}
-                      className="text-blue-600 hover:text-blue-700 font-semibold"
+                      className="text-primary-600 hover:text-primary-700 font-semibold"
                     >
                       Hacer predeterminado
                     </button>

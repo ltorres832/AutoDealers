@@ -119,12 +119,12 @@ export default function ZohoMailSettingsPage() {
         </p>
 
         {/* Información de ayuda */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <h3 className="font-semibold text-blue-900 mb-2">📚 Cómo obtener las credenciales:</h3>
-          <ol className="list-decimal list-inside text-sm text-blue-800 space-y-1">
+        <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 mb-6">
+          <h3 className="font-semibold text-primary-900 mb-2">📚 Cómo obtener las credenciales:</h3>
+          <ol className="list-decimal list-inside text-sm text-primary-800 space-y-1">
             <li>Ve a <a href="https://api-console.zoho.com" target="_blank" rel="noopener noreferrer" className="underline">Zoho API Console</a></li>
             <li>Crea una nueva aplicación OAuth 2.0</li>
-            <li>Configura los scopes: <code className="bg-blue-100 px-1 rounded">ZohoMail.accounts.READ, ZohoMail.accounts.WRITE</code></li>
+            <li>Configura los scopes: <code className="bg-primary-100 px-1 rounded">ZohoMail.accounts.READ, ZohoMail.accounts.WRITE</code></li>
             <li>Genera un Refresh Token usando el Authorization Code</li>
             <li>Obtén el Organization ID desde tu cuenta de Zoho Mail</li>
           </ol>

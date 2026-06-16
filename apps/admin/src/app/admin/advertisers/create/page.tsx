@@ -45,7 +45,7 @@ export default function CreateAdvertiserPage() {
     <div className="max-w-3xl mx-auto py-8 px-4">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Crear anunciante</h1>
-        <Link href="/admin/advertisers" className="text-blue-600 hover:text-blue-700 text-sm font-semibold">
+        <Link href="/admin/advertisers" className="text-primary-600 hover:text-primary-700 text-sm font-semibold">
           ← Volver
         </Link>
       </div>
@@ -153,7 +153,7 @@ export default function CreateAdvertiserPage() {
           <button
             type="submit"
             disabled={loading}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold disabled:opacity-50"
+            className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-semibold disabled:opacity-50"
           >
             {loading ? 'Creando...' : 'Crear anunciante'}
           </button>

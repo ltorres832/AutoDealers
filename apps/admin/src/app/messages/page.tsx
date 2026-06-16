@@ -157,7 +157,7 @@ export default function MessagesPage() {
         <div className="col-span-2 bg-white rounded-lg shadow flex flex-col">
           {selectedConversation ? (
             <>
-              <div className="p-4 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
+              <div className="p-4 border-b bg-gradient-to-r from-primary-50 to-primary-50">
                 <div className="flex items-center justify-between">
                   <h2 className="font-bold text-lg">{selectedConversation.leadName}</h2>
                   <RealtimeIndicator isActive={!messagesLoading} label="Sincronizado" />
@@ -183,7 +183,7 @@ export default function MessagesPage() {
                           <div
                             className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg shadow-sm transition-all duration-300 ${
                               message.direction === 'outbound'
-                                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white'
+                                ? 'bg-gradient-to-r from-primary-600 to-primary-600 text-white'
                                 : 'bg-white text-gray-900 border border-gray-200'
                             }`}
                           >
@@ -191,7 +191,7 @@ export default function MessagesPage() {
                             <p
                               className={`text-xs mt-1 ${
                                 message.direction === 'outbound'
-                                  ? 'text-blue-100'
+                                  ? 'text-primary-100'
                                   : 'text-gray-500'
                               }`}
                             >

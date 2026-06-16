@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import BackButton from '@/components/BackButton';
+import { AdminMembershipAccessPanel } from '@/components/AdminMembershipAccessPanel';
 
 type UserRecord = Record<string, unknown>;
 
@@ -14,6 +15,8 @@ export default function AdminEditUserPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [generatingPassword, setGeneratingPassword] = useState(false);
+  const [tempPassword, setTempPassword] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [authInfo, setAuthInfo] = useState<{
@@ -106,6 +109,35 @@ export default function AdminEditUserPage() {
       }
     })();
   }, [id]);
+
+  async function handleGenerateTemporaryPassword() {
+    if (!confirm('¿Generar una contraseña temporal? El usuario deberá cambiarla al iniciar sesión.')) {
+      return;
+    }
+    setGeneratingPassword(true);
+    setError(null);
+    setTempPassword(null);
+    try {
+      const res = await fetch(`/api/admin/users/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ generateTemporaryPassword: true }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(typeof data.error === 'string' ? data.error : 'No se pudo generar la contraseña');
+        return;
+      }
+      if (typeof data.temporaryPassword === 'string') {
+        setTempPassword(data.temporaryPassword);
+      }
+    } catch {
+      setError('Error de red al generar contraseña');
+    } finally {
+      setGeneratingPassword(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -225,6 +257,16 @@ export default function AdminEditUserPage() {
 
       {error && (
         <div className="mb-4 rounded-lg bg-red-50 border border-red-200 text-red-800 px-4 py-3 text-sm">{error}</div>
+      )}
+
+      {(form.role === 'seller' || form.role === 'dealer') && (
+        <div className="mb-6">
+          <AdminMembershipAccessPanel
+            userId={id}
+            role={form.role}
+            dealerId={form.dealerId}
+          />
+        </div>
       )}
 
       <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-6">
@@ -400,6 +442,25 @@ export default function AdminEditUserPage() {
               value={form.newPassword}
               onChange={(e) => setForm({ ...form, newPassword: e.target.value })}
             />
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                disabled={generatingPassword}
+                onClick={() => void handleGenerateTemporaryPassword()}
+                className="px-3 py-1.5 text-sm border border-amber-300 bg-amber-50 text-amber-900 rounded hover:bg-amber-100 disabled:opacity-50"
+              >
+                {generatingPassword ? 'Generando…' : 'Generar contraseña temporal'}
+              </button>
+              {tempPassword ? (
+                <span className="text-sm text-gray-700">
+                  Contraseña temporal:{' '}
+                  <code className="bg-gray-100 px-2 py-0.5 rounded select-all">{tempPassword}</code>
+                </span>
+              ) : null}
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              La contraseña temporal se muestra una sola vez; compártela con el usuario de forma segura.
+            </p>
           </div>
 
           <div className="md:col-span-2">

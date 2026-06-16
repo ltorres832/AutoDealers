@@ -117,10 +117,16 @@ export async function POST(request: NextRequest) {
       noteText,
       {
         ...(assignedTo ? { assignedTo } : {}),
+        ...(sellerId
+          ? {
+              sellerOwned: true,
+              createdBy: sellerId,
+              tags: ['pagina_vendedor', 'formulario_contacto', 'vendedor_propio'],
+            }
+          : { tags: ['formulario_contacto'] }),
         ...(vehicleInterestStr ? { vehicleInterest: vehicleInterestStr } : {}),
         ...(Object.keys(leadFormResponses).length > 0 ? { leadFormResponses } : {}),
         populateStandardContactFields: true,
-        tags: sellerId ? ['pagina_vendedor', 'formulario_contacto'] : ['formulario_contacto'],
       }
     );
 

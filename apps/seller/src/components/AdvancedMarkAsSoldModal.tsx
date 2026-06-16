@@ -584,7 +584,7 @@ export default function AdvancedMarkAsSoldModal({
                   index + 1 < currentStep
                     ? 'bg-green-500 text-white'
                     : index + 1 === currentStep
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-primary-600 text-white'
                     : 'bg-gray-200 text-gray-600'
                 }`}
               >
@@ -633,7 +633,7 @@ export default function AdvancedMarkAsSoldModal({
           }}
           onFocus={() => setShowLeadDropdown(true)}
           placeholder="Buscar por nombre, teléfono o email..."
-          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
         />
         
         {showLeadDropdown && filteredLeads.length > 0 && (
@@ -674,7 +674,7 @@ export default function AdvancedMarkAsSoldModal({
               value={formData.buyerFullName}
               onChange={(e) => setFormData(prev => ({ ...prev, buyerFullName: e.target.value }))}
               className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                errors.buyerFullName ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+                errors.buyerFullName ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary-500'
               }`}
             />
           </div>
@@ -689,7 +689,7 @@ export default function AdvancedMarkAsSoldModal({
               value={formData.buyerPhone}
               onChange={(e) => setFormData(prev => ({ ...prev, buyerPhone: e.target.value }))}
               className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                errors.buyerPhone ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+                errors.buyerPhone ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary-500'
               }`}
             />
           </div>
@@ -704,7 +704,7 @@ export default function AdvancedMarkAsSoldModal({
               value={formData.buyerEmail}
               onChange={(e) => setFormData(prev => ({ ...prev, buyerEmail: e.target.value }))}
               className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                errors.buyerEmail ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+                errors.buyerEmail ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary-500'
               }`}
             />
           </div>
@@ -717,7 +717,7 @@ export default function AdvancedMarkAsSoldModal({
               type="date"
               value={formData.buyerDateOfBirth}
               onChange={(e) => setFormData(prev => ({ ...prev, buyerDateOfBirth: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
           
@@ -731,7 +731,7 @@ export default function AdvancedMarkAsSoldModal({
               onChange={(e) => setFormData(prev => ({ ...prev, buyerSSN: e.target.value }))}
               placeholder="XXX-XX-XXXX"
               maxLength={11}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
           
@@ -743,7 +743,7 @@ export default function AdvancedMarkAsSoldModal({
               type="text"
               value={formData.buyerDriverLicense}
               onChange={(e) => setFormData(prev => ({ ...prev, buyerDriverLicense: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
           
@@ -755,7 +755,7 @@ export default function AdvancedMarkAsSoldModal({
               type="text"
               value={formData.buyerVehiclePlate}
               onChange={(e) => setFormData(prev => ({ ...prev, buyerVehiclePlate: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
         </div>
@@ -769,7 +769,7 @@ export default function AdvancedMarkAsSoldModal({
                 placeholder="Calle"
                 value={formData.buyerStreet}
                 onChange={(e) => setFormData(prev => ({ ...prev, buyerStreet: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             <input
@@ -777,28 +777,28 @@ export default function AdvancedMarkAsSoldModal({
               placeholder="Ciudad"
               value={formData.buyerCity}
               onChange={(e) => setFormData(prev => ({ ...prev, buyerCity: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
             <input
               type="text"
               placeholder="Estado/Provincia"
               value={formData.buyerState}
               onChange={(e) => setFormData(prev => ({ ...prev, buyerState: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
             <input
               type="text"
               placeholder="Código Postal"
               value={formData.buyerZipCode}
               onChange={(e) => setFormData(prev => ({ ...prev, buyerZipCode: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
             <input
               type="text"
               placeholder="País"
               value={formData.buyerCountry}
               onChange={(e) => setFormData(prev => ({ ...prev, buyerCountry: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
         </div>
@@ -822,7 +822,7 @@ export default function AdvancedMarkAsSoldModal({
             value={formData.vehiclePrice}
             onChange={(e) => setFormData(prev => ({ ...prev, vehiclePrice: e.target.value }))}
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-              errors.vehiclePrice ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+              errors.vehiclePrice ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary-500'
             }`}
           />
         </div>
@@ -838,7 +838,7 @@ export default function AdvancedMarkAsSoldModal({
             value={formData.salePrice}
             onChange={(e) => setFormData(prev => ({ ...prev, salePrice: e.target.value }))}
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-              errors.salePrice ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+              errors.salePrice ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary-500'
             }`}
           />
         </div>
@@ -850,7 +850,7 @@ export default function AdvancedMarkAsSoldModal({
             step="0.01"
             value={formData.bonus1}
             onChange={(e) => setFormData(prev => ({ ...prev, bonus1: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
         
@@ -861,7 +861,7 @@ export default function AdvancedMarkAsSoldModal({
             step="0.01"
             value={formData.bonus2}
             onChange={(e) => setFormData(prev => ({ ...prev, bonus2: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
         
@@ -872,7 +872,7 @@ export default function AdvancedMarkAsSoldModal({
             step="0.01"
             value={formData.rebate}
             onChange={(e) => setFormData(prev => ({ ...prev, rebate: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
         
@@ -883,7 +883,7 @@ export default function AdvancedMarkAsSoldModal({
             step="0.01"
             value={formData.tablilla}
             onChange={(e) => setFormData(prev => ({ ...prev, tablilla: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
         
@@ -894,7 +894,7 @@ export default function AdvancedMarkAsSoldModal({
             step="0.01"
             value={formData.insurance}
             onChange={(e) => setFormData(prev => ({ ...prev, insurance: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
         
@@ -905,7 +905,7 @@ export default function AdvancedMarkAsSoldModal({
             step="0.01"
             value={formData.accessories}
             onChange={(e) => setFormData(prev => ({ ...prev, accessories: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
         
@@ -916,7 +916,7 @@ export default function AdvancedMarkAsSoldModal({
             step="0.01"
             value={formData.warranty}
             onChange={(e) => setFormData(prev => ({ ...prev, warranty: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
         
@@ -927,7 +927,7 @@ export default function AdvancedMarkAsSoldModal({
             step="0.01"
             value={formData.servicePackage}
             onChange={(e) => setFormData(prev => ({ ...prev, servicePackage: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
         
@@ -938,7 +938,7 @@ export default function AdvancedMarkAsSoldModal({
             step="0.01"
             value={formData.other}
             onChange={(e) => setFormData(prev => ({ ...prev, other: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
       </div>
@@ -966,7 +966,7 @@ export default function AdvancedMarkAsSoldModal({
                   : undefined,
               }))
             }
-            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
           />
           <label htmlFor="hasTradeIn" className="ml-2 text-sm font-medium text-gray-700">
             Tiene Trade-In
@@ -984,7 +984,7 @@ export default function AdvancedMarkAsSoldModal({
                   ...prev,
                   tradeInDetails: { ...prev.tradeInDetails, make: e.target.value } as any,
                 }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             <div>
@@ -996,7 +996,7 @@ export default function AdvancedMarkAsSoldModal({
                   ...prev,
                   tradeInDetails: { ...prev.tradeInDetails, model: e.target.value } as any,
                 }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             <div>
@@ -1008,7 +1008,7 @@ export default function AdvancedMarkAsSoldModal({
                   ...prev,
                   tradeInDetails: { ...prev.tradeInDetails, year: e.target.value } as any,
                 }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             <div>
@@ -1020,7 +1020,7 @@ export default function AdvancedMarkAsSoldModal({
                   ...prev,
                   tradeInDetails: { ...prev.tradeInDetails, mileage: e.target.value } as any,
                 }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             <div>
@@ -1031,7 +1031,7 @@ export default function AdvancedMarkAsSoldModal({
                   ...prev,
                   tradeInDetails: { ...prev.tradeInDetails, condition: e.target.value as any } as any,
                 }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
                 <option value="excellent">Excelente</option>
                 <option value="good">Bueno</option>
@@ -1049,7 +1049,7 @@ export default function AdvancedMarkAsSoldModal({
                   ...prev,
                   tradeInDetails: { ...prev.tradeInDetails, value: e.target.value } as any,
                 }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             <div>
@@ -1061,7 +1061,7 @@ export default function AdvancedMarkAsSoldModal({
                   ...prev,
                   tradeInDetails: { ...prev.tradeInDetails, vin: e.target.value } as any,
                 }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             <div>
@@ -1073,7 +1073,7 @@ export default function AdvancedMarkAsSoldModal({
                   ...prev,
                   tradeInDetails: { ...prev.tradeInDetails, color: e.target.value } as any,
                 }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             <div>
@@ -1086,7 +1086,7 @@ export default function AdvancedMarkAsSoldModal({
                   ...prev,
                   tradeInDetails: { ...prev.tradeInDetails, payoffBalance: e.target.value } as any,
                 }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             <div>
@@ -1098,7 +1098,7 @@ export default function AdvancedMarkAsSoldModal({
                   ...prev,
                   tradeInDetails: { ...prev.tradeInDetails, lienholder: e.target.value } as any,
                 }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             <div>
@@ -1109,7 +1109,7 @@ export default function AdvancedMarkAsSoldModal({
                   ...prev,
                   tradeInDetails: { ...prev.tradeInDetails, titleStatus: e.target.value as any } as any,
                 }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
                 <option value="">—</option>
                 <option value="clean">Limpio</option>
@@ -1127,7 +1127,7 @@ export default function AdvancedMarkAsSoldModal({
                   ...prev,
                   tradeInDetails: { ...prev.tradeInDetails, accidentHistory: e.target.value } as any,
                 }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 placeholder="Ej. sin reportes / detallar"
               />
             </div>
@@ -1140,7 +1140,7 @@ export default function AdvancedMarkAsSoldModal({
                   ...prev,
                   tradeInDetails: { ...prev.tradeInDetails, notes: e.target.value } as any,
                 }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
           </div>
@@ -1161,7 +1161,7 @@ export default function AdvancedMarkAsSoldModal({
         )}
         <div className="flex justify-between items-center pt-2 border-t">
           <span className="font-bold text-lg">Total:</span>
-          <span className="font-bold text-2xl text-blue-600">
+          <span className="font-bold text-2xl text-primary-600">
             {vehicle.currency} {total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
         </div>
@@ -1172,7 +1172,7 @@ export default function AdvancedMarkAsSoldModal({
         <h4 className="font-semibold text-gray-900 mb-3">Cálculo de Comisión</h4>
         
         {commissions.vehicleCommission > 0 && (
-          <div className="mb-2 p-2 bg-blue-50 rounded text-sm">
+          <div className="mb-2 p-2 bg-primary-50 rounded text-sm">
             <div className="flex justify-between">
               <span>Comisión Vehículo:</span>
               <span className="font-medium">{vehicle.currency} {commissions.vehicleCommission.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
@@ -1190,7 +1190,7 @@ export default function AdvancedMarkAsSoldModal({
         )}
         
         {commissions.accessoriesCommission > 0 && (
-          <div className="mb-2 p-2 bg-purple-50 rounded text-sm">
+          <div className="mb-2 p-2 bg-primary-50 rounded text-sm">
             <div className="flex justify-between">
               <span>Comisión Accesorios:</span>
               <span className="font-medium">{vehicle.currency} {commissions.accessoriesCommission.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
@@ -1208,7 +1208,7 @@ export default function AdvancedMarkAsSoldModal({
         )}
         
         {commissions.servicePackageCommission > 0 && (
-          <div className="mb-2 p-2 bg-indigo-50 rounded text-sm">
+          <div className="mb-2 p-2 bg-primary-50 rounded text-sm">
             <div className="flex justify-between">
               <span>Comisión Paquete Servicio:</span>
               <span className="font-medium">{vehicle.currency} {commissions.servicePackageCommission.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
@@ -1217,10 +1217,10 @@ export default function AdvancedMarkAsSoldModal({
         )}
         
         {commissions.totalCommission > 0 && (
-          <div className="mt-3 p-3 bg-blue-100 rounded-lg border-2 border-blue-300">
+          <div className="mt-3 p-3 bg-primary-100 rounded-lg border-2 border-primary-300">
             <div className="flex justify-between items-center">
               <span className="font-bold text-lg">Comisión Total:</span>
-              <span className="font-bold text-xl text-blue-600">
+              <span className="font-bold text-xl text-primary-600">
                 {vehicle.currency} {commissions.totalCommission.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
@@ -1245,7 +1245,7 @@ export default function AdvancedMarkAsSoldModal({
         <select
           value={formData.paymentMethod}
           onChange={(e) => setFormData(prev => ({ ...prev, paymentMethod: e.target.value as any }))}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
         >
           <option value="cash">Efectivo</option>
           <option value="credit_card">Tarjeta de Crédito</option>
@@ -1270,7 +1270,7 @@ export default function AdvancedMarkAsSoldModal({
                   ...prev,
                   financingDetails: { ...prev.financingDetails, lender: e.target.value } as any,
                 }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             <div>
@@ -1283,7 +1283,7 @@ export default function AdvancedMarkAsSoldModal({
                   ...prev,
                   financingDetails: { ...prev.financingDetails, downPayment: parseFloat(e.target.value) || 0 } as any,
                 }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             <div>
@@ -1295,7 +1295,7 @@ export default function AdvancedMarkAsSoldModal({
                   ...prev,
                   financingDetails: { ...prev.financingDetails, loanTerm: parseInt(e.target.value) || 0 } as any,
                 }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             <div>
@@ -1308,7 +1308,7 @@ export default function AdvancedMarkAsSoldModal({
                   ...prev,
                   financingDetails: { ...prev.financingDetails, interestRate: parseFloat(e.target.value) || 0 } as any,
                 }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             <div>
@@ -1321,7 +1321,7 @@ export default function AdvancedMarkAsSoldModal({
                   ...prev,
                   financingDetails: { ...prev.financingDetails, monthlyPayment: parseFloat(e.target.value) || 0 } as any,
                 }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
           </div>
@@ -1336,7 +1336,7 @@ export default function AdvancedMarkAsSoldModal({
             id="hasFIRequest"
             checked={formData.hasFIRequest}
             onChange={(e) => setFormData(prev => ({ ...prev, hasFIRequest: e.target.checked }))}
-            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
           />
           <label htmlFor="hasFIRequest" className="ml-2 text-sm font-medium text-gray-700">
             Esta venta tiene una solicitud F&I asociada
@@ -1351,7 +1351,7 @@ export default function AdvancedMarkAsSoldModal({
               value={formData.fiRequestId || ''}
               onChange={(e) => setFormData(prev => ({ ...prev, fiRequestId: e.target.value }))}
               placeholder="ID de la solicitud F&I"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
         )}
@@ -1369,7 +1369,7 @@ export default function AdvancedMarkAsSoldModal({
           id="enableReminders"
           checked={formData.enableReminders}
           onChange={(e) => setFormData(prev => ({ ...prev, enableReminders: e.target.checked }))}
-          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+          className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
         />
         <label htmlFor="enableReminders" className="ml-2 text-sm font-medium text-gray-700">
           Habilitar recordatorios para este cliente
@@ -1407,7 +1407,7 @@ export default function AdvancedMarkAsSoldModal({
                         }));
                       }
                     }}
-                    className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    className="w-4 h-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                   />
                   <span className="text-sm">{reminder.label}</span>
                 </label>
@@ -1429,7 +1429,7 @@ export default function AdvancedMarkAsSoldModal({
                       updated[index].type = e.target.value;
                       setFormData(prev => ({ ...prev, customReminders: updated }));
                     }}
-                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                   <input
                     type="date"
@@ -1439,7 +1439,7 @@ export default function AdvancedMarkAsSoldModal({
                       updated[index].date = e.target.value;
                       setFormData(prev => ({ ...prev, customReminders: updated }));
                     }}
-                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                   <div className="flex space-x-2">
                     <input
@@ -1451,7 +1451,7 @@ export default function AdvancedMarkAsSoldModal({
                         updated[index].notes = e.target.value;
                         setFormData(prev => ({ ...prev, customReminders: updated }));
                       }}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                     <button
                       type="button"
@@ -1498,7 +1498,7 @@ export default function AdvancedMarkAsSoldModal({
           value={formData.notes}
           onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
           placeholder="Notas adicionales sobre la venta..."
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
         />
       </div>
       
@@ -1509,7 +1509,7 @@ export default function AdvancedMarkAsSoldModal({
           value={formData.internalNotes}
           onChange={(e) => setFormData(prev => ({ ...prev, internalNotes: e.target.value }))}
           placeholder="Notas internas (solo visibles para el equipo)..."
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
         />
       </div>
       
@@ -1519,7 +1519,7 @@ export default function AdvancedMarkAsSoldModal({
           type="date"
           value={formData.followUpDate}
           onChange={(e) => setFormData(prev => ({ ...prev, followUpDate: e.target.value }))}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
         />
       </div>
     </div>
@@ -1541,15 +1541,15 @@ export default function AdvancedMarkAsSoldModal({
             <button
               type="button"
               onClick={() => setShowContractUpload(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+              className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 text-sm"
             >
               + Subir Contrato
             </button>
           </div>
         </div>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <p className="text-blue-800 text-sm">
+        <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+          <p className="text-primary-800 text-sm">
             <strong>💡 Tip:</strong> Sube y gestiona todos los contratos relacionados con esta venta aquí. 
             Los contratos pueden ser firmados en persona o enviados al cliente para firma digital remota.
           </p>
@@ -1583,7 +1583,7 @@ export default function AdvancedMarkAsSoldModal({
         )}
 
         {showContractUpload && (
-          <div className="bg-white border-2 border-blue-200 rounded-lg p-6">
+          <div className="bg-white border-2 border-primary-200 rounded-lg p-6">
             <div className="flex justify-between items-center mb-4">
               <h4 className="font-semibold text-gray-900">Subir Nuevo Contrato</h4>
               <button
@@ -1604,7 +1604,7 @@ export default function AdvancedMarkAsSoldModal({
 
         {loadingContracts ? (
           <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
           </div>
         ) : contracts.length === 0 ? (
           <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
@@ -1613,7 +1613,7 @@ export default function AdvancedMarkAsSoldModal({
             <button
               type="button"
               onClick={() => setShowContractUpload(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
             >
               Subir Primer Contrato
             </button>
@@ -1643,7 +1643,7 @@ export default function AdvancedMarkAsSoldModal({
                             : contract.status === 'partially_signed'
                             ? 'bg-yellow-200 text-yellow-800'
                             : contract.status === 'pending_signatures'
-                            ? 'bg-blue-200 text-blue-800'
+                            ? 'bg-primary-200 text-primary-800'
                             : 'bg-gray-200 text-gray-800'
                         }`}>
                           {contract.status === 'fully_signed' || contract.status === 'completed'
@@ -1673,7 +1673,7 @@ export default function AdvancedMarkAsSoldModal({
                           <button
                             type="button"
                             onClick={() => handleSignInPerson(contract)}
-                            className="px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm"
+                            className="px-3 py-1 bg-primary-100 text-primary-700 rounded hover:bg-primary-200 text-sm"
                           >
                             Firmar
                           </button>
@@ -1839,7 +1839,7 @@ export default function AdvancedMarkAsSoldModal({
                 <button
                   type="button"
                   onClick={handleNext}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
                 >
                   Siguiente →
                 </button>

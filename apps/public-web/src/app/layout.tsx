@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
+import '../../../../packages/shared/src/styles/brand-surface.css';
 import { PlatformBrandingHead } from '@/components/PlatformBrandingHead';
+import { PublicWebNotificationBootstrap } from '@/components/PublicWebNotificationBootstrap';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -13,7 +15,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  themeColor: '#f9fafb',
+  themeColor: '#E10600',
 };
 
 /** Nombre nuevo = URL distinta → evita caché del PNG viejo en navegador/CDN */
@@ -101,8 +103,9 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${inter.className} min-h-[100dvh] overflow-x-hidden antialiased`}>
+      <body className={`${inter.className} brand-top-accent min-h-[100dvh] overflow-x-hidden antialiased`}>
         <PlatformBrandingHead />
+        <PublicWebNotificationBootstrap />
         {children}
       </body>
     </html>

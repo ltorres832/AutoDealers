@@ -1,9 +1,82 @@
 // Gestión de configuración de WhatsApp por tenant
 
-import { getFirestore } from '@autodealers/shared';
-import * as admin from 'firebase-admin';
+import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
+import { getWhatsAppCredentials } from './credentials';
 
 const db = getFirestore();
+
+export async function isPlatformWhatsAppConfigured(): Promise<boolean> {
+  const creds = await getWhatsAppCredentials();
+  return Boolean(creds.accessToken?.trim() && creds.phoneNumberId?.trim());
+}
+
+/**
+ * Vincula WhatsApp al tenant usando las credenciales globales del admin
+ * (system_settings.credentials), igual que Meta App ID/Secret.
+ */
+export async function provisionTenantWhatsAppFromPlatform(
+  tenantId: string,
+  leadOwnerUserId?: string
+): Promise<
+  | { ok: true; integrationId: string; platformManaged: true }
+  | { ok: false; reason: 'platform_not_configured' }
+> {
+  const creds = await getWhatsAppCredentials();
+  const phoneNumberId = creds.phoneNumberId?.trim();
+  const accessToken = creds.accessToken?.trim();
+  if (!phoneNumberId || !accessToken) {
+    return { ok: false, reason: 'platform_not_configured' };
+  }
+
+  const existingSnapshot = await db
+    .collection('tenants')
+    .doc(tenantId)
+    .collection('integrations')
+    .where('type', '==', 'whatsapp')
+    .limit(1)
+    .get();
+
+  const payload: Record<string, unknown> = {
+    type: 'whatsapp',
+    status: 'active',
+    platformManaged: true,
+    phoneNumberId,
+    accessToken,
+    credentials: { phoneNumberId, accessToken },
+    updatedAt: getFirestoreFieldValue().serverTimestamp(),
+  };
+  if (leadOwnerUserId?.trim()) {
+    payload.leadOwnerUserId = leadOwnerUserId.trim();
+  }
+
+  if (!existingSnapshot.empty) {
+    const ref = existingSnapshot.docs[0].ref;
+    await ref.update(payload);
+    return { ok: true, integrationId: ref.id, platformManaged: true };
+  }
+
+  const ref = db.collection('tenants').doc(tenantId).collection('integrations').doc();
+  await ref.set({
+    ...payload,
+    settings: {},
+    createdAt: getFirestoreFieldValue().serverTimestamp(),
+  });
+  return { ok: true, integrationId: ref.id, platformManaged: true };
+}
+
+async function readPlatformWhatsAppConfig(): Promise<WhatsAppConfig | null> {
+  const creds = await getWhatsAppCredentials();
+  const phoneNumberId = creds.phoneNumberId?.trim();
+  const accessToken = creds.accessToken?.trim();
+  if (!phoneNumberId || !accessToken) return null;
+  return {
+    enabled: true,
+    phoneNumberId,
+    accessToken,
+    verifyToken: creds.webhookVerifyToken,
+    autoRespond: false,
+  };
+}
 
 export interface WhatsAppConfig {
   enabled: boolean;
@@ -44,7 +117,7 @@ export async function getWhatsAppConfig(tenantId: string): Promise<WhatsAppConfi
       .get();
 
     if (integrationsSnapshot.empty) {
-      return null;
+      return readPlatformWhatsAppConfig();
     }
 
     const integration = integrationsSnapshot.docs[0].data();
@@ -109,7 +182,7 @@ export async function saveWhatsAppConfig(
       businessDescription: config.businessDescription,
       workingHours: config.workingHours,
       awayMessage: config.awayMessage,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: getFirestoreFieldValue().serverTimestamp(),
     };
 
     if (integrationsSnapshot.empty) {
@@ -121,7 +194,7 @@ export async function saveWhatsAppConfig(
         .doc()
         .set({
           ...integrationData,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          createdAt: getFirestoreFieldValue().serverTimestamp(),
         });
     } else {
       // Actualizar integración existente

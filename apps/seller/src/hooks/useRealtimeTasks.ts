@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase-client';
 import { collection, query, where, onSnapshot, orderBy, limit as firestoreLimit, Timestamp } from 'firebase/firestore';
-import { Task } from '@autodealers/crm';
+import type { Task } from '@autodealers/crm';
 
 interface UseRealtimeTasksOptions {
   tenantId?: string;

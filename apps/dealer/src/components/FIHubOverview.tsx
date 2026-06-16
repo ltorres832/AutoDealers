@@ -30,11 +30,11 @@ const steps = [
  */
 export default function FIHubOverview() {
   return (
-    <section className="mb-10 overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-slate-50 via-indigo-50/50 to-blue-50 shadow-sm">
-      <div className="border-b border-indigo-100/80 bg-white/70 px-5 py-5 md:px-8 md:py-6 backdrop-blur-sm">
+    <section className="mb-10 overflow-hidden rounded-2xl border border-primary-100 bg-gradient-to-br from-slate-50 via-primary-50/50 to-primary-50 shadow-sm">
+      <div className="border-b border-primary-100/80 bg-white/70 px-5 py-5 md:px-8 md:py-6 backdrop-blur-sm">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-2xl">
-            <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">Panel gerencia F&amp;I</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-primary-600">Panel gerencia F&amp;I</p>
             <h1 className="mt-1 text-2xl font-bold text-gray-900 md:text-3xl">
               Coordina ventas, cliente y cierre en un solo lugar
             </h1>
@@ -44,13 +44,13 @@ export default function FIHubOverview() {
               para subir archivos mientras defines condiciones y llevas el caso a la firma.
             </p>
             <ul className="mt-4 flex flex-wrap gap-2">
-              <li className="rounded-full bg-white px-3 py-1 text-xs font-medium text-indigo-800 shadow-sm ring-1 ring-indigo-100">
+              <li className="rounded-full bg-white px-3 py-1 text-xs font-medium text-primary-800 shadow-sm ring-1 ring-primary-100">
                 Misma base de datos que ventas
               </li>
-              <li className="rounded-full bg-white px-3 py-1 text-xs font-medium text-indigo-800 shadow-sm ring-1 ring-indigo-100">
+              <li className="rounded-full bg-white px-3 py-1 text-xs font-medium text-primary-800 shadow-sm ring-1 ring-primary-100">
                 Solicitudes en tiempo real
               </li>
-              <li className="rounded-full bg-white px-3 py-1 text-xs font-medium text-indigo-800 shadow-sm ring-1 ring-indigo-100">
+              <li className="rounded-full bg-white px-3 py-1 text-xs font-medium text-primary-800 shadow-sm ring-1 ring-primary-100">
                 Documentos centralizados
               </li>
             </ul>
@@ -58,7 +58,7 @@ export default function FIHubOverview() {
           <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto lg:flex-col lg:items-stretch">
             <Link
               href="/customer-files"
-              className="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow hover:bg-indigo-700"
+              className="inline-flex items-center justify-center rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow hover:bg-primary-700"
             >
               Casos de cliente
             </Link>
@@ -88,7 +88,7 @@ export default function FIHubOverview() {
               key={s.n}
               className="relative rounded-xl border border-white/80 bg-white/90 p-4 shadow-sm ring-1 ring-gray-100"
             >
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-sm font-bold text-white">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-600 text-sm font-bold text-white">
                 {s.n}
               </span>
               <h2 className="mt-3 text-sm font-semibold text-gray-900">{s.title}</h2>

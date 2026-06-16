@@ -1,8 +1,18 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { loadCurrentSellerUser } from '@/lib/current-seller-user';
 
 export default function SettingsPage() {
+  const [dealerManaged, setDealerManaged] = useState(false);
+
+  useEffect(() => {
+    void loadCurrentSellerUser().then((user) => {
+      setDealerManaged(Boolean(user?.dealerId));
+    });
+  }, []);
+
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="mb-8">
@@ -13,6 +23,38 @@ export default function SettingsPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Link
+          href="/settings/notifications"
+          className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+        >
+          <div className="flex items-center space-x-4">
+            <div className="h-12 w-12 rounded-lg bg-amber-100 flex items-center justify-center">
+              <span className="text-2xl">🔔</span>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Notificaciones</h3>
+              <p className="text-sm text-gray-600">Push, email, SMS, WhatsApp y sonido</p>
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          href="/settings/document-branding"
+          className="bg-white rounded-xl shadow-sm border-2 border-primary-200 p-6 hover:shadow-md transition-shadow md:col-span-2"
+        >
+          <div className="flex items-center space-x-4">
+            <div className="h-12 w-12 rounded-lg bg-primary-100 flex items-center justify-center">
+              <span className="text-2xl">📄</span>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">PDF F&I — Logo y marca en documentos</h3>
+              <p className="text-sm text-gray-600">
+                Qué logo y nombre salen en solicitudes de crédito, paquetes para banco y contratos PDF
+              </p>
+            </div>
+          </div>
+        </Link>
+
         <Link
           href="/settings/profile"
           className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
@@ -30,15 +72,17 @@ export default function SettingsPage() {
 
         <Link
           href="/settings/seller-public-page"
-          className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+          className="bg-white rounded-xl shadow-sm border-2 border-primary-200 p-6 hover:shadow-md transition-shadow md:col-span-2"
         >
           <div className="flex items-center space-x-4">
             <div className="h-12 w-12 rounded-lg bg-primary-100 flex items-center justify-center">
-              <span className="text-2xl">🎬</span>
+              <span className="text-2xl">📸</span>
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Videos en tu página pública</h3>
-              <p className="text-sm text-gray-600">Varios videos en filas de 2 — YouTube, Vimeo o subir MP4</p>
+              <h3 className="text-lg font-semibold text-gray-900">Fotos y videos — página pública</h3>
+              <p className="text-sm text-gray-600">
+                Sube fotos de entregas, clientes y eventos, más videos promocionales para tu catálogo web
+              </p>
             </div>
           </div>
         </Link>
@@ -74,6 +118,24 @@ export default function SettingsPage() {
         </Link>
 
         <Link
+          href="/settings/dealer-link"
+          className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+        >
+          <div className="flex items-center space-x-4">
+            <div className="h-12 w-12 rounded-lg bg-primary-100 flex items-center justify-center">
+              <span className="text-2xl">🏢</span>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Concesionario</h3>
+              <p className="text-sm text-gray-600">
+                {dealerManaged ? 'Plan heredado del dealer' : 'Invitaciones y vínculo'}
+              </p>
+            </div>
+          </div>
+        </Link>
+
+        {!dealerManaged && (
+        <Link
           href="/settings/membership"
           className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
         >
@@ -87,6 +149,7 @@ export default function SettingsPage() {
             </div>
           </div>
         </Link>
+        )}
 
         <Link
           href="/settings/corporate-email"
@@ -106,4 +169,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-

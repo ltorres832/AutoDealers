@@ -1,316 +1,158 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import PublicBackButton from '@/components/PublicBackButton';
+import { PublicMarketingNav } from '@/components/PublicMarketingNav';
+import {
+  getAdvertiserCreateAdUrl,
+  getAdvertiserLoginForCreateUrl,
+  getAdvertiserLoginUrl,
+  getAdvertiserRegisterUrl,
+} from '@/config/advertiser-links';
 
-interface Plan {
+interface PlacementPrice {
   id: string;
-  name: string;
-  price: number;
-  features: string[];
-  popular?: boolean;
-  stripePriceId?: string;
+  label: string;
+  prices: Record<string, number>;
+  fromPrice: number | null;
 }
 
-// Los planes se cargan dinámicamente desde la API
-
 export default function AdvertisePage() {
-  const [plans, setPlans] = useState<Plan[]>([]);
-  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({
-    companyName: '',
-    contactName: '',
-    email: '',
-    phone: '',
-    website: '',
-    industry: 'other' as 'automotive' | 'insurance' | 'banking' | 'finance' | 'other',
-    message: '',
-  });
-  const [loading, setLoading] = useState(false);
-  const [loadingPlans, setLoadingPlans] = useState(true);
+  const [placements, setPlacements] = useState<PlacementPrice[]>([]);
+  const [loadingPrices, setLoadingPrices] = useState(true);
 
   useEffect(() => {
-    fetchPlans();
+    fetch('/api/public/ad-pricing-config')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.placements) setPlacements(data.placements);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingPrices(false));
   }, []);
 
-  async function fetchPlans() {
-    try {
-      const response = await fetch('/api/public/advertiser-pricing');
-      if (response.ok) {
-        const data = await response.json();
-        const plansData: Plan[] = [
-          {
-            id: 'starter',
-            name: data.plans.starter.name,
-            price: data.plans.starter.amount / 100, // Convertir centavos a dólares
-            features: data.plans.starter.features,
-          },
-          {
-            id: 'professional',
-            name: data.plans.professional.name,
-            price: data.plans.professional.amount / 100,
-            features: data.plans.professional.features,
-            popular: true,
-          },
-          {
-            id: 'premium',
-            name: data.plans.premium.name,
-            price: data.plans.premium.amount / 100,
-            features: data.plans.premium.features,
-          },
-        ];
-        setPlans(plansData);
-      }
-    } catch (error) {
-      console.error('Error fetching plans:', error);
-    } finally {
-      setLoadingPlans(false);
-    }
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      const response = await fetch('/api/advertiser/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          plan: selectedPlan,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        // Redirigir a Stripe Checkout
-        if (data.checkoutUrl) {
-          window.location.href = data.checkoutUrl;
-        } else {
-          alert('Registro exitoso. Te contactaremos pronto.');
-        }
-      } else {
-        alert(`Error: ${data.error || 'Error al registrar'}`);
-      }
-    } catch (error: any) {
-      alert(`Error: ${error.message}`);
-    } finally {
-      setLoading(false);
-    }
-  }
+  const registerUrl = getAdvertiserRegisterUrl();
+  const loginUrl = getAdvertiserLoginUrl();
+  const createAdUrl = getAdvertiserCreateAdUrl();
+  const loginForCreateUrl = getAdvertiserLoginForCreateUrl();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-6 flex flex-wrap items-center gap-3">
-          <PublicBackButton className="text-blue-600 hover:text-blue-800 font-semibold hover:underline">
-            ← Volver
-          </PublicBackButton>
-          <span className="text-gray-300 hidden sm:inline">|</span>
-          <Link href="/" className="text-sm text-gray-500 hover:text-gray-800">
-            Ir al inicio
-          </Link>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gray-50">
+      <PublicMarketingNav backHref="/" backLabel="← Inicio" showDefaultLinks />
 
-      {/* Hero Section */}
       <section className="max-w-7xl mx-auto px-4 py-16">
-        <div className="text-center mb-16">
-          <h1 className="text-5xl font-bold text-gray-900 mb-4">
+        <div className="text-center mb-12">
+          <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">
             Anuncia en AutoDealers
           </h1>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Llega a miles de compradores de vehículos cada mes. Promociona tus servicios
-            de financiamiento, seguros, accesorios y más.
+          <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto">
+            Llega a miles de compradores de vehículos cada mes.{' '}
+            <strong className="font-semibold text-gray-800">Sin suscripción mensual</strong> — pagas
+            solo por cada anuncio que publiques.
+          </p>
+          <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
+            <a
+              href={registerUrl}
+              className="inline-block bg-gradient-to-r from-primary-600 to-brand-black-deep600 text-white px-8 py-3 rounded-lg hover:from-primary-700 hover:to-brand-black-deep-deep700 font-semibold transition-all"
+            >
+              Crear cuenta gratis
+            </a>
+            <a
+              href={loginForCreateUrl}
+              className="inline-block border-2 border-primary-600 text-primary-600 px-8 py-3 rounded-lg hover:bg-primary-50 font-semibold transition-all"
+            >
+              Ya tengo cuenta — crear anuncio
+            </a>
+          </div>
+          <p className="mt-4 text-sm text-gray-500">
+            ¿Ya estás registrado?{' '}
+            <a href={loginUrl} className="text-primary-600 hover:underline font-medium">
+              Inicia sesión
+            </a>
           </p>
         </div>
 
-        {/* Planes */}
-        {loadingPlans ? (
-          <div className="text-center py-12 mb-16">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            <p className="mt-4 text-gray-600">Cargando planes...</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-            {plans.map((plan) => (
-            <div
-              key={plan.id}
-              className={`bg-white rounded-xl shadow-lg p-8 border-2 ${
-                plan.popular ? 'border-blue-500 scale-105' : 'border-gray-200'
-              }`}
-            >
-              {plan.popular && (
-                <div className="bg-blue-500 text-white text-xs font-bold px-3 py-1 rounded-full inline-block mb-4">
-                  MÁS POPULAR
-                </div>
-              )}
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">{plan.name}</h3>
-              <div className="mb-6">
-                <span className="text-4xl font-bold text-gray-900">${plan.price}</span>
-                <span className="text-gray-600">/mes</span>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+          {[
+            {
+              step: '1',
+              title: 'Regístrate gratis',
+              text: 'Crea tu cuenta de anunciante en minutos. No necesitas elegir un plan mensual.',
+            },
+            {
+              step: '2',
+              title: 'Configura tu anuncio',
+              text: 'Elige ubicación, duración, imagen o video, y segmentación por audiencia.',
+            },
+            {
+              step: '3',
+              title: 'Paga y publica',
+              text: 'Pagas una sola vez con tarjeta. Tu anuncio se activa al confirmar el pago.',
+            },
+          ].map((item) => (
+            <div key={item.step} className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+              <div className="w-10 h-10 rounded-full bg-primary-100 text-primary-700 font-bold flex items-center justify-center mb-4">
+                {item.step}
               </div>
-              <ul className="space-y-3 mb-8">
-                {plan.features.map((feature, index) => (
-                  <li key={index} className="flex items-start gap-2">
-                    <span className="text-green-500 mt-1">✓</span>
-                    <span className="text-gray-700">{feature}</span>
-                  </li>
-                ))}
-              </ul>
-              <button
-                onClick={() => {
-                  setSelectedPlan(plan.id);
-                  setShowForm(true);
-                }}
-                className={`w-full py-3 rounded-lg font-semibold transition-all ${
-                  plan.popular
-                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700'
-                    : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
-                }`}
-              >
-                Seleccionar Plan
-              </button>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">{item.title}</h3>
+              <p className="text-gray-600 text-sm">{item.text}</p>
             </div>
           ))}
-          </div>
-        )}
+        </div>
 
-        {/* Formulario de Registro */}
-        {showForm && (
-          <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-lg p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">
-              Registro - Plan {plans.find((p) => p.id === selectedPlan)?.name}
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nombre de la Empresa *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.companyName}
-                    onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nombre de Contacto *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.contactName}
-                    onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-              </div>
+        <div className="mb-16">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2 text-center">
+            Precios por anuncio
+          </h2>
+          <p className="text-center text-gray-600 mb-8">
+            Tarifas según ubicación y duración (7, 15 o 30 días). Impuestos aplicables al pagar.
+          </p>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email *
-                  </label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Teléfono
-                  </label>
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Sitio Web
-                  </label>
-                  <input
-                    type="url"
-                    value={formData.website}
-                    onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="https://..."
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Industria *
-                  </label>
-                  <select
-                    value={formData.industry}
-                    onChange={(e) => setFormData({ ...formData, industry: e.target.value as any })}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  >
-                    <option value="automotive">Automotriz</option>
-                    <option value="insurance">Seguros</option>
-                    <option value="banking">Bancos</option>
-                    <option value="finance">Financieras</option>
-                    <option value="other">Otro</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Mensaje (Opcional)
-                </label>
-                <textarea
-                  value={formData.message}
-                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows={4}
-                  placeholder="Cuéntanos sobre tu empresa y objetivos de publicidad..."
-                />
-              </div>
-
-              <div className="flex gap-4 pt-4">
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-indigo-700 font-semibold transition-all disabled:opacity-50"
+          {loadingPrices ? (
+            <div className="text-center py-8">
+              <div className="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600" />
+            </div>
+          ) : placements.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {placements.map((placement) => (
+                <div
+                  key={placement.id}
+                  className="bg-white rounded-xl shadow p-6 border border-gray-100 text-center"
                 >
-                  {loading ? 'Procesando...' : 'Continuar al Pago'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowForm(false);
-                    setSelectedPlan(null);
-                  }}
-                  className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
+                  <h3 className="font-semibold text-gray-900 mb-2">{placement.label}</h3>
+                  {placement.fromPrice != null && (
+                    <p className="text-2xl font-bold text-primary-600 mb-3">
+                      desde ${placement.fromPrice.toFixed(0)}
+                    </p>
+                  )}
+                  <ul className="text-sm text-gray-600 space-y-1">
+                    {Object.entries(placement.prices).map(([days, price]) => (
+                      <li key={days}>
+                        {days} días — ${Number(price).toFixed(2)}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-center text-gray-500">
+              Consulta precios al crear tu anuncio en el panel de anunciante.
+            </p>
+          )}
 
-        {/* Beneficios */}
-        <div className="mt-16 bg-white rounded-xl shadow-lg p-8">
+          <div className="text-center mt-8">
+            <a
+              href={createAdUrl}
+              className="text-primary-600 hover:text-primary-800 font-semibold hover:underline"
+            >
+              Ir al panel para crear anuncio →
+            </a>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-lg p-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
             ¿Por qué anunciar en AutoDealers?
           </h2>
@@ -342,4 +184,3 @@ export default function AdvertisePage() {
     </div>
   );
 }
-

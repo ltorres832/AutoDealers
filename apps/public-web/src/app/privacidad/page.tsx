@@ -11,16 +11,16 @@ export default function PrivacidadPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <Link href="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-primary-600 to-primary-600 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-xl">AD</span>
               </div>
-              <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              <span className="text-2xl font-bold bg-gradient-to-r from-primary-600 to-primary-600 bg-clip-text text-transparent">
                 AutoDealers
               </span>
             </Link>
             <Link
               href="/login"
-              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-lg hover:shadow-lg transition-all"
+              className="bg-gradient-to-r from-primary-600 to-primary-600 text-white px-6 py-2 rounded-lg hover:shadow-lg transition-all"
             >
               Iniciar Sesión
             </Link>
@@ -37,7 +37,7 @@ export default function PrivacidadPage() {
             Volver
           </PublicBackButton>
           <span className="text-gray-300 hidden sm:inline">|</span>
-          <Link href="/" className="text-sm text-gray-500 hover:text-purple-600">
+          <Link href="/" className="text-sm text-gray-500 hover:text-primary-600">
             Inicio
           </Link>
         </div>
@@ -152,14 +152,14 @@ export default function PrivacidadPage() {
             <h2 className="text-2xl font-bold mb-4">11. Contacto</h2>
             <p>
               Para ejercer tus derechos o hacer preguntas sobre esta política, contáctanos en:{' '}
-              <a href="mailto:privacidad@autodealers.com" className="text-blue-600 hover:text-blue-700">
+              <a href="mailto:privacidad@autodealers.com" className="text-primary-600 hover:text-primary-700">
                 privacidad@autodealers.com
               </a>
             </p>
           </section>
         </div>
 
-        <div className="mt-12 p-6 bg-blue-50 rounded-lg border border-blue-200">
+        <div className="mt-12 p-6 bg-primary-50 rounded-lg border border-primary-200">
           <p className="text-sm text-gray-700">
             <strong>Nota importante:</strong> Esta política de privacidad describe cómo manejamos tu información. 
             Al usar AutoDealers, aceptas esta política. Si no estás de acuerdo, no uses nuestros servicios.

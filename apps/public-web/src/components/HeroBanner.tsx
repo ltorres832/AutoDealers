@@ -3,6 +3,8 @@
 import { useRealtimeSponsoredContent } from '../hooks/useRealtimeSponsoredContent';
 import { useState, useEffect, useRef } from 'react';
 import { getAdvertiserLoginForCreateUrl } from '@/config/advertiser-links';
+import { SponsoredAdShell } from '@/components/SponsoredAdShell';
+import { SPONSORED_CTA_LABEL } from '@/lib/sponsored-content-href';
 
 export default function HeroBanner() {
   const { content, loading } = useRealtimeSponsoredContent('hero', 5);
@@ -57,7 +59,7 @@ export default function HeroBanner() {
   // Si está cargando o no hay contenido, mostrar banner promocional atractivo
   if (loading || content.length === 0) {
     return (
-      <div className="relative w-full h-64 md:h-80 lg:h-96 rounded-xl overflow-hidden mb-8 shadow-2xl border-2 border-blue-500/30 bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600">
+      <div className="relative w-full h-64 md:h-80 lg:h-96 rounded-xl overflow-hidden mb-8 shadow-2xl border-2 border-primary-500/40 bg-gradient-to-br from-brand-black via-primary-700 to-primary-600">
         <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-black/20 to-transparent flex items-center z-10">
           <div className="px-6 md:px-12 text-white max-w-4xl relative z-10">
             <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-5 py-2 rounded-full text-xs font-bold mb-4 border border-white/30">
@@ -69,7 +71,7 @@ export default function HeroBanner() {
             <h3 className="text-4xl md:text-5xl lg:text-6xl font-black mb-4 leading-tight drop-shadow-2xl">
               Destaca Tu Negocio
               <br />
-              <span className="bg-gradient-to-r from-yellow-300 to-orange-300 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-primary-400 to-brand-red-bright bg-clip-text text-transparent">
                 Llega a Miles de Clientes
               </span>
             </h3>
@@ -80,7 +82,7 @@ export default function HeroBanner() {
               href={getAdvertiserLoginForCreateUrl()}
               target="_blank"
               rel="noopener noreferrer"
-              className="relative z-20 inline-flex items-center gap-3 bg-gradient-to-r from-white to-blue-50 text-blue-700 px-8 py-4 rounded-xl font-bold text-lg hover:from-blue-50 hover:to-white transition-all shadow-2xl hover:shadow-white/50 hover:scale-105 transform pointer-events-auto"
+              className="relative z-20 inline-flex items-center gap-3 bg-gradient-to-r from-white to-primary-50 text-primary-700 px-8 py-4 rounded-xl font-bold text-lg hover:from-primary-50 hover:to-white transition-all shadow-2xl hover:shadow-white/50 hover:scale-105 transform pointer-events-auto"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -125,23 +127,18 @@ export default function HeroBanner() {
             className={`absolute inset-0 transition-all duration-1000 ease-in-out ${index === currentIndex ? 'opacity-100 scale-100 z-10' : 'opacity-0 scale-105 z-0'
               }`}
           >
-            <a
-              href={banner.linkUrl}
-              target={banner.linkType === 'external' ? '_blank' : '_self'}
-              rel={banner.linkType === 'external' ? 'noopener noreferrer' : undefined}
-              onClick={() => {
-                fetch(`/api/public/sponsored-content/${banner.id}/click`, {
-                  method: 'POST',
-                }).catch(console.error);
-              }}
-              className="block w-full h-full relative group cursor-pointer overflow-hidden"
+            <SponsoredAdShell
+              contentId={banner.id}
+              linkType={banner.linkType}
+              linkUrl={banner.linkUrl}
+              className={`block w-full h-full relative group overflow-hidden ${banner.linkType !== 'none' && banner.linkUrl ? 'cursor-pointer' : ''}`}
             >
               {banner.imageUrl ? (
                 <>
                   <img
                     src={banner.imageUrl}
                     alt={banner.title}
-                    className="w-full h-full object-cover transition-transform duration-[10000ms] ease-linear group-hover:scale-125"
+                    className="w-full h-full object-contain bg-brand-black-deep transition-transform duration-[10000ms] ease-linear group-hover:scale-105"
                     referrerPolicy="no-referrer"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
@@ -154,7 +151,7 @@ export default function HeroBanner() {
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent"></div>
                 </>
               ) : (
-                <div className="w-full h-full bg-gradient-to-br from-indigo-900 via-slate-900 to-slate-950 flex items-center justify-center">
+                <div className="w-full h-full bg-gradient-to-br from-brand-black-deep via-slate-900 to-slate-950 flex items-center justify-center">
                   <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '40px 40px' }}></div>
                   <div className="text-center z-10">
                     <div className="text-7xl mb-6 animate-pulse">✨</div>
@@ -164,7 +161,7 @@ export default function HeroBanner() {
 
               {/* Premium Floating Label */}
               <div className="absolute top-8 left-8 z-30 flex items-center gap-3">
-                <span className="bg-blue-600/90 text-white px-4 py-1.5 rounded-full text-[10px] font-black tracking-[0.2em] shadow-lg backdrop-blur-md uppercase border border-blue-400/30">
+                <span className="bg-primary-600/90 text-white px-4 py-1.5 rounded-full text-[10px] font-black tracking-[0.2em] shadow-lg backdrop-blur-md uppercase border border-primary-400/30">
                   Exclusivo
                 </span>
                 <span className="bg-white/10 text-white/80 px-4 py-1.5 rounded-full text-[10px] font-bold tracking-widest backdrop-blur-md border border-white/10 uppercase">
@@ -177,7 +174,7 @@ export default function HeroBanner() {
                 <div className="px-8 md:px-16 lg:px-24 text-white max-w-4xl">
                   <h3 className="text-5xl md:text-6xl lg:text-7xl font-black mb-6 leading-[1.1] tracking-tight drop-shadow-2xl">
                     {banner.title.split(' ').map((word, i) => (
-                      <span key={i} className={i % 2 === 1 ? "text-blue-400" : ""}> {word}</span>
+                      <span key={i} className={i % 2 === 1 ? "text-primary-400" : ""}> {word}</span>
                     ))}
                   </h3>
                   <p className="text-xl md:text-2xl text-slate-200/90 line-clamp-2 mb-10 font-medium max-w-2xl leading-relaxed">
@@ -186,7 +183,7 @@ export default function HeroBanner() {
 
                   <div className="flex flex-col sm:flex-row gap-5 items-start">
                     <div className="group/btn relative inline-flex items-center justify-center gap-3 bg-white text-slate-950 px-10 py-5 rounded-2xl font-black text-lg transition-all shadow-[0_20px_50px_rgba(255,255,255,0.2)] hover:shadow-[0_20px_50px_rgba(255,255,255,0.4)] hover:scale-105 transform active:scale-95">
-                      <span>Ver Detalles</span>
+                      <span>{SPONSORED_CTA_LABEL}</span>
                       <svg className="w-6 h-6 group-hover/btn:translate-x-1.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                       </svg>
@@ -204,7 +201,7 @@ export default function HeroBanner() {
                 <div className="w-px h-4 bg-white/20"></div>
                 <div>Garantía Oficial</div>
               </div>
-            </a>
+            </SponsoredAdShell>
           </div>
         ))}
       </div>
@@ -222,7 +219,7 @@ export default function HeroBanner() {
                   className="group relative h-10 w-2 flex items-center overflow-hidden"
                   aria-label={`Slide ${index + 1}`}
                 >
-                  <div className={`h-full w-full rounded-full transition-all duration-500 ${index === currentIndex ? 'bg-blue-500' : 'bg-white/20 group-hover:bg-white/40'
+                  <div className={`h-full w-full rounded-full transition-all duration-500 ${index === currentIndex ? 'bg-primary-500' : 'bg-white/20 group-hover:bg-white/40'
                     }`} />
                 </button>
               ))}

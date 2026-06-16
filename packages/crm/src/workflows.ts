@@ -138,6 +138,61 @@ export async function getWorkflows(
 }
 
 /**
+ * Actualiza un workflow existente
+ */
+export async function updateWorkflow(
+  tenantId: string,
+  workflowId: string,
+  updates: Partial<
+    Pick<
+      Workflow,
+      | 'name'
+      | 'description'
+      | 'enabled'
+      | 'trigger'
+      | 'triggerConfig'
+      | 'conditions'
+      | 'actions'
+    >
+  >
+): Promise<Workflow> {
+  const ref = getDb()
+    .collection('tenants')
+    .doc(tenantId)
+    .collection('workflows')
+    .doc(workflowId);
+
+  const existing = await ref.get();
+  if (!existing.exists) {
+    throw new Error('Workflow not found');
+  }
+
+  const payload: Record<string, unknown> = {
+    updatedAt: getFirestoreFieldValue().serverTimestamp(),
+  };
+
+  if (updates.name !== undefined) payload.name = updates.name;
+  if (updates.description !== undefined) payload.description = updates.description;
+  if (updates.enabled !== undefined) payload.enabled = updates.enabled;
+  if (updates.trigger !== undefined) payload.trigger = updates.trigger;
+  if (updates.triggerConfig !== undefined) payload.triggerConfig = updates.triggerConfig;
+  if (updates.conditions !== undefined) payload.conditions = updates.conditions;
+  if (updates.actions !== undefined) payload.actions = updates.actions;
+
+  await ref.update(payload);
+
+  const data = (await ref.get()).data()!;
+  return {
+    id: workflowId,
+    tenantId,
+    ...data,
+    lastExecutedAt: data.lastExecutedAt?.toDate?.(),
+    createdAt: data.createdAt?.toDate?.() || new Date(),
+    updatedAt: data.updatedAt?.toDate?.() || new Date(),
+  } as Workflow;
+}
+
+/**
  * Ejecuta un workflow
  */
 export async function executeWorkflow(
@@ -286,17 +341,66 @@ async function executeAction(
       } as any);
       break;
 
-    case 'send_email':
-      // TODO: Implementar envío de email
-      break;
+    case 'send_email': {
+      const { getLeadById } = await import('./leads');
+      const { sendOutboundEmail } = await import('@autodealers/core');
+      const lead = triggerData.leadId
+        ? await getLeadById(tenantId, triggerData.leadId)
+        : null;
+      const to = action.config.to || lead?.contact?.email;
+      if (!to) break;
 
-    case 'send_whatsapp':
-      // TODO: Implementar envío de WhatsApp
-      break;
+      const subject =
+        action.config.subject ||
+        action.config.title ||
+        'Mensaje de seguimiento';
+      const content =
+        action.config.content ||
+        action.config.body ||
+        action.config.message ||
+        '';
 
-    case 'send_sms':
-      // TODO: Implementar envío de SMS
+      await sendOutboundEmail(String(to), String(subject), String(content), tenantId);
       break;
+    }
+
+    case 'send_whatsapp': {
+      const { getLeadById } = await import('./leads');
+      const { sendOutboundWhatsApp } = await import('@autodealers/core');
+      const lead = triggerData.leadId
+        ? await getLeadById(tenantId, triggerData.leadId)
+        : null;
+      const phone = action.config.phone || lead?.contact?.phone;
+      if (!phone) break;
+
+      const content =
+        action.config.content ||
+        action.config.body ||
+        action.config.message ||
+        '';
+
+      await sendOutboundWhatsApp(String(phone), String(content), tenantId);
+      break;
+    }
+
+    case 'send_sms': {
+      const { getLeadById } = await import('./leads');
+      const { sendOutboundSms } = await import('@autodealers/core');
+      const lead = triggerData.leadId
+        ? await getLeadById(tenantId, triggerData.leadId)
+        : null;
+      const phone = action.config.phone || lead?.contact?.phone;
+      if (!phone) break;
+
+      const content =
+        action.config.content ||
+        action.config.body ||
+        action.config.message ||
+        '';
+
+      await sendOutboundSms(String(phone), String(content), tenantId);
+      break;
+    }
 
     case 'create_task':
       const { createTask } = await import('./tasks');

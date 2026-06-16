@@ -29,3 +29,16 @@ export function campaignContentToPostContent(
       : undefined;
   return { text, imageUrl: firstImage };
 }
+
+export function campaignContentLink(contentObj: unknown): string | undefined {
+  if (
+    typeof contentObj === 'object' &&
+    contentObj &&
+    'link' in contentObj &&
+    (contentObj as { link?: unknown }).link != null
+  ) {
+    const s = String((contentObj as { link?: unknown }).link).trim();
+    return s || undefined;
+  }
+  return undefined;
+}

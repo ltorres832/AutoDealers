@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
+const COLORS = ['#E10600', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
 
 interface ReportData {
   leads: Array<{ date: string; count: number }>;
@@ -110,7 +110,7 @@ export default function ReportsPage() {
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Line type="monotone" dataKey="count" stroke="#3B82F6" strokeWidth={2} name="Leads" />
+                  <Line type="monotone" dataKey="count" stroke="#E10600" strokeWidth={2} name="Leads" />
                 </LineChart>
               </ResponsiveContainer>
             </div>

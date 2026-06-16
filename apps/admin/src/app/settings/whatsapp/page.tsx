@@ -285,9 +285,9 @@ export default function WhatsAppSettingsPage() {
         </div>
 
         {/* Instrucciones */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h3 className="font-bold text-blue-900 mb-2">📋 Cómo obtener tus credenciales:</h3>
-          <ol className="list-decimal list-inside space-y-2 text-sm text-blue-800">
+        <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+          <h3 className="font-bold text-primary-900 mb-2">📋 Cómo obtener tus credenciales:</h3>
+          <ol className="list-decimal list-inside space-y-2 text-sm text-primary-800">
             <li>Ve a Meta Business Suite</li>
             <li>Selecciona tu cuenta de WhatsApp Business</li>
             <li>Ve a Configuración → API Setup</li>

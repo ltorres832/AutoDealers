@@ -173,12 +173,12 @@ export default function CustomerFilesPage() {
       </div>
 
       <div
-        className="mb-6 rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-4 text-sm text-blue-950 shadow-sm"
+        className="mb-6 rounded-xl border border-primary-200 bg-gradient-to-r from-primary-50 to-primary-50 px-4 py-4 text-sm text-primary-950 shadow-sm"
         role="region"
         aria-label="Colaboración del equipo en casos"
       >
-        <p className="font-semibold text-blue-950">Expediente compartido: ventas, gerencia F&amp;I y cliente</p>
-        <p className="mt-1 leading-relaxed text-blue-900/90">
+        <p className="font-semibold text-primary-950">Expediente compartido: ventas, gerencia F&amp;I y cliente</p>
+        <p className="mt-1 leading-relaxed text-primary-900/90">
           Los documentos que subes aquí son los mismos que el equipo ve en F&amp;I. Copia el enlace de subida para el
           cliente o abre F&amp;I para enviar la solicitud completa — todo queda alineado para el cierre sin perder
           versiones.
@@ -282,7 +282,7 @@ export default function CustomerFilesPage() {
                           file.status === 'active'
                             ? 'bg-green-100 text-green-800'
                             : file.status === 'completed'
-                            ? 'bg-blue-100 text-blue-800'
+                            ? 'bg-primary-100 text-primary-800'
                             : 'bg-gray-100 text-gray-800'
                         }`}
                       >
@@ -296,7 +296,7 @@ export default function CustomerFilesPage() {
                       {file.linkedFiRequestId ? (
                         <Link
                           href={`/fi/requests/${file.linkedFiRequestId}`}
-                          className="text-blue-600 hover:text-blue-900 font-medium"
+                          className="text-primary-600 hover:text-primary-900 font-medium"
                         >
                           Ver solicitud
                         </Link>
@@ -317,13 +317,13 @@ export default function CustomerFilesPage() {
                       <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
                         <Link
                           href={`/fi/clients/new?${buildFiPrefillQuery(file, vehicles[file.vehicleId])}&customerFileId=${encodeURIComponent(file.id)}`}
-                          className="text-blue-600 hover:text-blue-900"
+                          className="text-primary-600 hover:text-primary-900"
                         >
                           Crear F&amp;I
                         </Link>
                         <Link
                           href={`/fi/clients/advanced?${buildFiPrefillQuery(file, vehicles[file.vehicleId])}&customerFileId=${encodeURIComponent(file.id)}`}
-                          className="text-indigo-600 hover:text-indigo-900 text-sm"
+                          className="text-primary-600 hover:text-primary-900 text-sm"
                         >
                           Avanzado
                         </Link>
@@ -416,7 +416,7 @@ export default function CustomerFilesPage() {
                       alert('⚠️ No se pudo copiar. Selecciona el texto manualmente.');
                     });
                   }}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  className="flex-1 px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700"
                 >
                   📋 Copiar Error
                 </button>
@@ -511,11 +511,11 @@ function CustomerFileModal({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-5xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-        <div className="p-6 border-b bg-gradient-to-r from-blue-600 to-indigo-600">
+        <div className="p-6 border-b bg-gradient-to-r from-primary-600 to-primary-600">
           <div className="flex justify-between items-center">
             <div>
               <h2 className="text-2xl font-bold text-white">📁 Caso de Cliente</h2>
-              <p className="text-blue-100 text-sm mt-1">ID: {file.id}</p>
+              <p className="text-primary-100 text-sm mt-1">ID: {file.id}</p>
             </div>
             <button onClick={onClose} className="text-white hover:text-gray-200 text-2xl font-bold">
               ×
@@ -531,14 +531,14 @@ function CustomerFileModal({
               <div className="flex flex-wrap gap-2">
                 <Link
                   href={`/fi/clients/new?${buildFiPrefillQuery(file, vehicle ?? null)}`}
-                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm font-medium"
+                  className="bg-primary-600 text-white px-4 py-2 rounded hover:bg-primary-700 text-sm font-medium"
                   onClick={onClose}
                 >
                   💰 Crear F&amp;I
                 </Link>
                 <Link
                   href={`/fi/clients/advanced?${buildFiPrefillQuery(file, vehicle ?? null)}`}
-                  className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 text-sm font-medium"
+                  className="bg-primary-600 text-white px-4 py-2 rounded hover:bg-primary-700 text-sm font-medium"
                   onClick={onClose}
                 >
                   📋 F&amp;I avanzado
@@ -603,8 +603,8 @@ function CustomerFileModal({
             </div>
 
             {showRequestForm && (
-              <form onSubmit={handleRequestDocument} className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <h4 className="font-semibold text-blue-900 mb-3">Nueva Solicitud de Documento</h4>
+              <form onSubmit={handleRequestDocument} className="mb-4 p-4 bg-primary-50 border border-primary-200 rounded-lg">
+                <h4 className="font-semibold text-primary-900 mb-3">Nueva Solicitud de Documento</h4>
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <div>
                     <label className="block text-sm font-medium mb-1 text-gray-700">Nombre del Documento *</label>
@@ -612,7 +612,7 @@ function CustomerFileModal({
                       type="text"
                       value={requestForm.name}
                       onChange={(e) => setRequestForm({ ...requestForm, name: e.target.value })}
-                      className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500"
+                      className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-primary-500"
                       placeholder="Ej: Licencia de Conducir"
                       required
                     />
@@ -622,7 +622,7 @@ function CustomerFileModal({
                     <select
                       value={requestForm.type}
                       onChange={(e) => setRequestForm({ ...requestForm, type: e.target.value })}
-                      className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500"
+                      className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-primary-500"
                     >
                       <option value="license">Licencia de Conducir</option>
                       <option value="insurance">Seguro</option>
@@ -641,7 +641,7 @@ function CustomerFileModal({
                   <textarea
                     value={requestForm.description}
                     onChange={(e) => setRequestForm({ ...requestForm, description: e.target.value })}
-                    className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500"
+                    className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-primary-500"
                     rows={2}
                     placeholder="Instrucciones adicionales para el cliente..."
                   />
@@ -652,7 +652,7 @@ function CustomerFileModal({
                       type="checkbox"
                       checked={requestForm.required}
                       onChange={(e) => setRequestForm({ ...requestForm, required: e.target.checked })}
-                      className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                      className="w-4 h-4 text-primary-600 focus:ring-primary-500"
                     />
                     <span className="text-sm text-gray-700">Documento requerido</span>
                   </label>
@@ -771,7 +771,7 @@ function CustomerFileModal({
                       href={doc.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm font-medium"
+                      className="bg-primary-600 text-white px-4 py-2 rounded hover:bg-primary-700 text-sm font-medium"
                     >
                       Ver →
                     </a>
@@ -784,9 +784,9 @@ function CustomerFileModal({
 
         {/* Información Adicional */}
         {file.notes && (
-          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-            <h3 className="text-lg font-semibold mb-2 text-purple-900">📝 Notas del Caso</h3>
-            <p className="text-purple-800 whitespace-pre-wrap">{file.notes}</p>
+          <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+            <h3 className="text-lg font-semibold mb-2 text-primary-900">📝 Notas del Caso</h3>
+            <p className="text-primary-800 whitespace-pre-wrap">{file.notes}</p>
           </div>
         )}
 
@@ -819,7 +819,7 @@ function CustomerFileModal({
             <span className="font-medium">Estado:</span>{' '}
             <span className={`px-2 py-1 rounded text-xs font-medium ${
               file.status === 'active' ? 'bg-green-100 text-green-800' :
-              file.status === 'completed' ? 'bg-blue-100 text-blue-800' :
+              file.status === 'completed' ? 'bg-primary-100 text-primary-800' :
               'bg-gray-100 text-gray-800'
             }`}>
               {file.status === 'active' ? 'Activo' : file.status === 'completed' ? 'Completado' : 'Archivado'}

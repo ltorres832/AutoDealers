@@ -1,20 +1,23 @@
 // Sistema de envío automático de comunicaciones
 
-import * as admin from 'firebase-admin';
-import { getFirestore } from '@autodealers/shared';
-import { 
-  getActiveTemplateForEvent, 
+import {
+  getActiveTemplateForEvent,
   replaceTemplateVariables,
   replaceTemplateSubject,
   TemplateType,
-  TemplateEvent 
+  TemplateEvent,
 } from './communication-templates';
 import { getUserById } from './users';
 import { getTenantById } from './tenants';
 import { logCommunication } from './communication-logs';
+import {
+  sendOutboundEmail,
+  sendOutboundSms,
+  sendOutboundWhatsApp,
+} from './messaging-outbound';
 
 /**
- * Envía una comunicación automática según el evento
+ * Envía una comunicación automática según el evento y plantilla activa.
  */
 export async function sendAutomaticCommunication(
   event: TemplateEvent,
@@ -23,43 +26,36 @@ export async function sendAutomaticCommunication(
   additionalVariables?: Record<string, string | number>
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
-    // Obtener template activo para el evento
     const template = await getActiveTemplateForEvent(event, type);
-    
+
     if (!template) {
       console.warn(`No template found for event ${event} and type ${type}`);
       return { success: false, error: 'Template not found' };
     }
 
-    // Obtener datos de la suscripción (import dinámico para evitar dependencia circular)
-    const { getSubscriptionById } = await import('@autodealers/billing');
+    const { getSubscriptionById, getMembershipById } = await import('@autodealers/billing');
     const subscription = await getSubscriptionById(subscriptionId);
     if (!subscription) {
       return { success: false, error: 'Subscription not found' };
     }
 
-    // Obtener datos del usuario
     const user = await getUserById(subscription.userId);
     if (!user) {
       return { success: false, error: 'User not found' };
     }
 
-    // Obtener datos del tenant
     const tenant = await getTenantById(subscription.tenantId);
     if (!tenant) {
       return { success: false, error: 'Tenant not found' };
     }
 
-    // Obtener datos de la membresía (import dinámico para evitar dependencia circular)
-    const { getMembershipById } = await import('@autodealers/billing');
     const membership = await getMembershipById(subscription.membershipId);
     if (!membership) {
       return { success: false, error: 'Membership not found' };
     }
 
-    // Preparar variables
     const variables: Record<string, string | number> = {
-      userName: user.name,
+      userName: user.name || user.email,
       userEmail: user.email,
       tenantName: tenant.name,
       membershipName: membership.name,
@@ -71,30 +67,42 @@ export async function sendAutomaticCommunication(
       ...additionalVariables,
     };
 
-    // Reemplazar variables en el template
     const processedContent = replaceTemplateVariables(template, variables);
-    const processedSubject = template.subject 
+    const processedSubject = template.subject
       ? replaceTemplateSubject(template, variables)
       : undefined;
 
-    // Enviar según el tipo
+    const phone = user.phone?.trim();
     let result: { success: boolean; messageId?: string; error?: string };
-    
+
     switch (type) {
       case 'email':
-        result = await sendEmail(user.email, processedSubject || '', processedContent);
+        if (!user.email?.trim()) {
+          return { success: false, error: 'User has no email' };
+        }
+        result = await sendOutboundEmail(
+          user.email,
+          processedSubject || template.name,
+          processedContent,
+          subscription.tenantId
+        );
         break;
       case 'sms':
-        result = await sendSMS(user.email, processedContent);
+        if (!phone) {
+          return { success: false, error: 'User has no phone for SMS' };
+        }
+        result = await sendOutboundSms(phone, processedContent, subscription.tenantId);
         break;
       case 'whatsapp':
-        result = await sendWhatsApp(user.email, processedContent);
+        if (!phone) {
+          return { success: false, error: 'User has no phone for WhatsApp' };
+        }
+        result = await sendOutboundWhatsApp(phone, processedContent, subscription.tenantId);
         break;
       default:
         result = { success: false, error: 'Invalid communication type' };
     }
 
-    // Registrar en logs
     try {
       await logCommunication({
         templateId: template.id,
@@ -116,111 +124,56 @@ export async function sendAutomaticCommunication(
       });
     } catch (logError) {
       console.error('Error logging communication:', logError);
-      // No fallar el envío por error de logging
     }
 
     return result;
   } catch (error) {
     console.error('Error sending automatic communication:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
 }
 
 /**
- * Envía un email
+ * Envía comunicaciones de billing sin interrumpir el flujo principal.
  */
-async function sendEmail(
-  to: string,
-  subject: string,
-  content: string
-): Promise<{ success: boolean; messageId?: string; error?: string }> {
+export async function trySendBillingCommunication(
+  event: TemplateEvent,
+  type: TemplateType,
+  subscriptionId: string,
+  additionalVariables?: Record<string, string | number>
+): Promise<void> {
   try {
-    // TODO: Implementar con servicio de email (SendGrid, AWS SES, etc.)
-    // Por ahora, solo registrar
-    console.log(`[EMAIL] To: ${to}, Subject: ${subject}`);
-    console.log(`[EMAIL] Content: ${content}`);
-    
-    // Registrar en Firestore para tracking
-    const { getFirestore } = await import('./firebase');
-    const db = getFirestore();
-    await db.collection('communication_logs').add({
-      type: 'email',
-      to,
-      subject,
-      content,
-      status: 'sent',
-      sentAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    return { success: true, messageId: `email_${Date.now()}` };
+    const result = await sendAutomaticCommunication(
+      event,
+      type,
+      subscriptionId,
+      additionalVariables
+    );
+    if (!result.success) {
+      console.warn(`Billing communication ${event}/${type} skipped:`, result.error);
+    }
   } catch (error) {
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Email send failed' 
-    };
+    console.error(`Billing communication ${event}/${type} failed:`, error);
   }
 }
+
+const BILLING_CHANNELS: TemplateType[] = ['email', 'sms', 'whatsapp'];
 
 /**
- * Envía un SMS
+ * Intenta enviar la comunicación de billing por email, SMS y WhatsApp
+ * (cada canal solo si hay plantilla activa y datos del destinatario).
  */
-async function sendSMS(
-  to: string,
-  content: string
-): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  try {
-    // TODO: Implementar con servicio de SMS (Twilio, AWS SNS, etc.)
-    console.log(`[SMS] To: ${to}, Content: ${content}`);
-    
-    // Registrar en Firestore
-    const db = getFirestore();
-    await db.collection('communication_logs').add({
-      type: 'sms',
-      to,
-      content,
-      status: 'sent',
-      sentAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    return { success: true, messageId: `sms_${Date.now()}` };
-  } catch (error) {
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'SMS send failed' 
-    };
-  }
+export async function trySendBillingCommunicationAllChannels(
+  event: TemplateEvent,
+  subscriptionId: string,
+  additionalVariables?: Record<string, string | number>
+): Promise<void> {
+  await Promise.allSettled(
+    BILLING_CHANNELS.map((type) =>
+      trySendBillingCommunication(event, type, subscriptionId, additionalVariables)
+    )
+  );
 }
-
-/**
- * Envía un mensaje de WhatsApp
- */
-async function sendWhatsApp(
-  to: string,
-  content: string
-): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  try {
-    // TODO: Implementar con WhatsApp Business API
-    console.log(`[WHATSAPP] To: ${to}, Content: ${content}`);
-    
-    // Registrar en Firestore
-    const db = getFirestore();
-    await db.collection('communication_logs').add({
-      type: 'whatsapp',
-      to,
-      content,
-      status: 'sent',
-      sentAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    return { success: true, messageId: `whatsapp_${Date.now()}` };
-  } catch (error) {
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'WhatsApp send failed' 
-    };
-  }
-}
-

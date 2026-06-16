@@ -85,14 +85,16 @@ export default function AdsPage() {
 
   function getStatusBadge(status: string) {
     const styles = {
+      payment_pending: 'bg-orange-100 text-orange-800',
       pending: 'bg-yellow-100 text-yellow-800',
       approved: 'bg-green-100 text-green-800',
-      active: 'bg-blue-100 text-blue-800',
+      active: 'bg-primary-100 text-primary-800',
       paused: 'bg-gray-100 text-gray-800',
       expired: 'bg-red-100 text-red-800',
       rejected: 'bg-red-100 text-red-800',
     };
     const labels = {
+      payment_pending: 'Pago pendiente',
       pending: 'Pendiente',
       approved: 'Aprobado',
       active: 'Activo',
@@ -111,7 +113,7 @@ export default function AdsPage() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
         </div>
       </DashboardLayout>
     );
@@ -124,7 +126,7 @@ export default function AdsPage() {
           <h1 className="text-3xl font-bold text-gray-900">Mis Anuncios</h1>
           <Link
             href="/dashboard/ads/create"
-            className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-indigo-700 font-semibold transition-all"
+            className="bg-gradient-to-r from-primary-600 to-primary-600 text-white px-6 py-3 rounded-lg hover:from-primary-700 hover:to-primary-700 font-semibold transition-all"
           >
             + Crear Nuevo Anuncio
           </Link>
@@ -137,7 +139,7 @@ export default function AdsPage() {
             <p className="text-gray-600 mb-6">Crea tu primer anuncio para empezar a promocionar</p>
             <Link
               href="/dashboard/ads/create"
-              className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-semibold"
+              className="inline-block bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 font-semibold"
             >
               Crear Anuncio
             </Link>
@@ -186,7 +188,7 @@ export default function AdsPage() {
                         <div className="flex gap-2">
                           <Link
                             href={`/dashboard/ads/${ad.id}`}
-                            className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                            className="text-primary-600 hover:text-primary-700 text-sm font-medium"
                           >
                             Ver
                           </Link>

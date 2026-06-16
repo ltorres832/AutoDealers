@@ -1,3 +1,5 @@
+import { coerceMembershipNumber, repairMisserializedEpochNumber } from '@/lib/membership-number-utils';
+
 /**
  * Normalización de features al guardar desde el admin.
  * Debe conservar cualquier clave futura en `features` y solo normalizar campos conocidos.
@@ -78,8 +80,9 @@ const BOOLEAN_FEATURE_KEYS = [
 
 function normalizeNumeric(v: unknown): number | null {
   if (v === '' || v === null || v === undefined) return null;
-  const parsed = parseInt(String(v), 10);
-  return Number.isNaN(parsed) ? null : parsed;
+  const repaired = repairMisserializedEpochNumber(v);
+  const n = coerceMembershipNumber(repaired);
+  return n === 0 && repaired !== 0 && repaired !== '0' ? null : n;
 }
 
 export function mergeAndNormalizeMembershipFeatures(

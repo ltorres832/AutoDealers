@@ -5,10 +5,16 @@ import { MessagePayload, MessageResponse } from './types';
 export class EmailService {
   private apiKey: string;
   private provider: 'sendgrid' | 'resend' | 'zoho_smtp';
+  private defaultFrom: string;
 
-  constructor(apiKey: string, provider: 'sendgrid' | 'resend' = 'resend') {
+  constructor(
+    apiKey: string,
+    provider: 'sendgrid' | 'resend' = 'resend',
+    defaultFrom = 'noreply@autodealers.com'
+  ) {
     this.apiKey = apiKey;
     this.provider = provider;
+    this.defaultFrom = defaultFrom;
   }
 
   /**
@@ -17,11 +23,15 @@ export class EmailService {
   async sendEmail(payload: MessagePayload): Promise<MessageResponse> {
     if (this.provider === 'zoho_smtp') {
       return this.sendWithZohoSMTP(payload);
-    } else if (this.provider === 'resend') {
-      return this.sendWithResend(payload);
-    } else {
-      return this.sendWithSendGrid(payload);
     }
+    if (this.provider === 'resend') {
+      return this.sendWithResend(payload);
+    }
+    return this.sendWithSendGrid(payload);
+  }
+
+  private resolveFrom(payload: MessagePayload): string {
+    return payload.from?.trim() || this.defaultFrom;
   }
 
   /**
@@ -29,28 +39,37 @@ export class EmailService {
    */
   private async sendWithResend(payload: MessagePayload): Promise<MessageResponse> {
     try {
+      const body: Record<string, unknown> = {
+        from: this.resolveFrom(payload),
+        to: payload.to,
+        subject: payload.metadata?.subject || 'Mensaje de AutoDealers',
+        html: payload.content,
+      };
+
+      if (payload.emailAttachments?.length) {
+        body.attachments = payload.emailAttachments.map((a) => ({
+          filename: a.filename,
+          content: Buffer.from(a.content).toString('base64'),
+        }));
+      }
+
       const response = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
+          Authorization: `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          from: 'noreply@autodealers.com',
-          to: payload.to,
-          subject: payload.metadata?.subject || 'Mensaje de AutoDealers',
-          html: payload.content,
-        }),
+        body: JSON.stringify(body),
       });
 
-      const data = await response.json() as any;
+      const data = (await response.json()) as { id?: string; message?: string };
 
       if (!response.ok) {
         throw new Error(data.message || 'Failed to send email');
       }
 
       return {
-        id: data.id,
+        id: data.id || '',
         status: 'sent',
         externalId: data.id,
       };
@@ -67,11 +86,50 @@ export class EmailService {
    * Envía con SendGrid
    */
   private async sendWithSendGrid(payload: MessagePayload): Promise<MessageResponse> {
-    // TODO: Implementar SendGrid
-    return {
-      id: '',
-      status: 'sent',
-    };
+    try {
+      const sgBody: Record<string, unknown> = {
+        personalizations: [{ to: [{ email: payload.to }] }],
+        from: { email: this.resolveFrom(payload) },
+        subject: payload.metadata?.subject || 'Mensaje de AutoDealers',
+        content: [{ type: 'text/html', value: payload.content }],
+      };
+
+      if (payload.emailAttachments?.length) {
+        sgBody.attachments = payload.emailAttachments.map((a) => ({
+          content: Buffer.from(a.content).toString('base64'),
+          filename: a.filename,
+          type: a.contentType || 'application/pdf',
+          disposition: 'attachment',
+        }));
+      }
+
+      const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(sgBody),
+      });
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(text || `SendGrid error ${response.status}`);
+      }
+
+      const messageId = response.headers.get('x-message-id') || `sg_${Date.now()}`;
+      return {
+        id: messageId,
+        status: 'sent',
+        externalId: messageId,
+      };
+    } catch (error) {
+      return {
+        id: '',
+        status: 'failed',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
   }
 
   /**
@@ -96,8 +154,3 @@ export class EmailService {
     }
   }
 }
-
-
-
-
-

@@ -17,6 +17,17 @@ export interface PlanLimits {
   hasABTesting: boolean;
 }
 
+export const PAY_AS_YOU_GO_LIMITS: PlanLimits = {
+  maxImpressionsPerMonth: null,
+  maxBanners: 999,
+  allowedPlacements: ['hero', 'sidebar', 'sponsors_section', 'between_content'],
+  hasAdvancedDashboard: true,
+  hasAdvancedMetrics: true,
+  hasBasicTargeting: true,
+  hasAdvancedTargeting: true,
+  hasABTesting: false,
+};
+
 export const PLAN_LIMITS: Record<'starter' | 'professional' | 'premium', PlanLimits> = {
   starter: {
     maxImpressionsPerMonth: 10000,
@@ -59,7 +70,7 @@ export async function getAdvertiserPlanLimits(advertiserId: string): Promise<Pla
     throw new Error('Anunciante no encontrado');
   }
   if (!advertiser.plan) {
-    throw new Error('El anunciante no tiene un plan activo');
+    return PAY_AS_YOU_GO_LIMITS;
   }
   return PLAN_LIMITS[advertiser.plan];
 }

@@ -92,7 +92,7 @@ export default function ContractSigningPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
       </div>
     );
   }
@@ -104,7 +104,7 @@ export default function ContractSigningPage() {
           <p className="text-red-600 mb-4">Contrato no encontrado o token inválido</p>
           <button
             onClick={() => router.push('/')}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
           >
             Volver al Inicio
           </button>
@@ -123,10 +123,10 @@ export default function ContractSigningPage() {
               <p className="text-gray-600">Por favor, revisa el contrato antes de firmar</p>
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h3 className="font-semibold text-blue-900 mb-2">Información del Contrato</h3>
-              <p className="text-blue-800"><strong>Nombre:</strong> {contract.name}</p>
-              <p className="text-blue-800"><strong>Tipo:</strong> <span className="capitalize">{contract.type}</span></p>
+            <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+              <h3 className="font-semibold text-primary-900 mb-2">Información del Contrato</h3>
+              <p className="text-primary-800"><strong>Nombre:</strong> {contract.name}</p>
+              <p className="text-primary-800"><strong>Tipo:</strong> <span className="capitalize">{contract.type}</span></p>
             </div>
 
             <div>
@@ -154,7 +154,7 @@ export default function ContractSigningPage() {
             <div className="flex justify-end">
               <button
                 onClick={() => setStep('sign')}
-                className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
+                className="px-6 py-3 bg-primary-600 text-white rounded-md hover:bg-primary-700 font-medium"
               >
                 Continuar para Firmar
               </button>
@@ -177,7 +177,7 @@ export default function ContractSigningPage() {
                 type="text"
                 value={signerInfo.name}
                 onChange={(e) => setSignerInfo({ ...signerInfo, name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 placeholder="Ingresa tu nombre completo"
                 required
               />
@@ -229,7 +229,7 @@ export default function ContractSigningPage() {
             </p>
             <button
               onClick={() => router.push('/')}
-              className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
+              className="px-6 py-3 bg-primary-600 text-white rounded-md hover:bg-primary-700 font-medium"
             >
               Volver al Inicio
             </button>

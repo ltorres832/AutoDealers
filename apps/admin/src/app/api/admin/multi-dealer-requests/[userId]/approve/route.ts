@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { getFirestore, getAuth } from '@autodealers/shared';
+import { notifyUser } from '@autodealers/core';
 import * as admin from 'firebase-admin';
 
 const db = getFirestore();
@@ -65,19 +66,20 @@ export async function POST(
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    // Crear notificación para el usuario
-    await db.collection('notifications').add({
-      type: 'multi_dealer_approved',
-      title: 'Solicitud Multi Dealer Aprobada',
-      message: `Tu solicitud Multi Dealer ha sido aprobada. Tienes acceso por 48 horas hasta ${approvedUntil.toLocaleString('es-ES')}`,
-      userId,
-      read: false,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      data: {
-        approvedUntil: approvedUntil.toISOString(),
-        membershipId: requestData.membershipId,
-      },
-    });
+    const userDoc = await db.collection('users').doc(userId).get();
+    const userTenantId = userDoc.data()?.tenantId as string | undefined;
+
+    if (userTenantId) {
+      await notifyUser(userTenantId, userId, {
+        type: 'system_alert',
+        title: 'Solicitud Multi Dealer Aprobada',
+        message: `Tu solicitud Multi Dealer ha sido aprobada. Tienes acceso por 48 horas hasta ${approvedUntil.toLocaleString('es-ES')}`,
+        metadata: {
+          approvedUntil: approvedUntil.toISOString(),
+          membershipId: requestData.membershipId,
+        },
+      });
+    }
 
     // Enviar email de notificación (opcional, si tienes servicio de email configurado)
     // await sendEmail(...)

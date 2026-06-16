@@ -144,7 +144,7 @@ export default function AdminBannersPage() {
         </div>
         <Link
           href="/admin/banners/assign"
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium"
+          className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 font-medium"
         >
           ➕ Asignar Banner
         </Link>
@@ -170,11 +170,11 @@ export default function AdminBannersPage() {
         </div>
         <div className="bg-white rounded-lg shadow p-4">
           <div className="text-sm text-gray-600 mb-1">Vistas</div>
-          <div className="text-2xl font-bold text-blue-600">{stats.totalViews}</div>
+          <div className="text-2xl font-bold text-primary-600">{stats.totalViews}</div>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
           <div className="text-sm text-gray-600 mb-1">Clics</div>
-          <div className="text-2xl font-bold text-purple-600">{stats.totalClicks}</div>
+          <div className="text-2xl font-bold text-primary-600">{stats.totalClicks}</div>
         </div>
       </div>
 
@@ -338,11 +338,11 @@ function BannerCard({
           <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
             <div>
               <div className="text-gray-500">Vistas</div>
-              <div className="font-bold text-blue-600">{banner.views || 0}</div>
+              <div className="font-bold text-primary-600">{banner.views || 0}</div>
             </div>
             <div>
               <div className="text-gray-500">Clics</div>
-              <div className="font-bold text-purple-600">{banner.clicks || 0}</div>
+              <div className="font-bold text-primary-600">{banner.clicks || 0}</div>
             </div>
           </div>
 

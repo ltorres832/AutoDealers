@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getFirestore, decodeSocialOAuthState } from '@autodealers/core';
-import * as admin from 'firebase-admin';
+import { decodeSocialOAuthState, publishPendingTenantRegistrationFacebookPost } from '@autodealers/core';
+import { META_PAGES_GRAPH_FIELDS } from '@autodealers/core/meta-oauth-scopes';
+import { finalizeMetaUserAccessToken, type MetaTokenHealth } from '@autodealers/core/meta-token-health';
+import { buildAppRedirectUrl } from '@/lib/app-origin';
+import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
 
 const db = getFirestore();
 
@@ -26,8 +29,47 @@ function sanitizePagesForStorage(
 
 export const dynamic = 'force-dynamic';
 
-const META_PAGES_FIELDS =
-  'id,name,access_token,instagram_business_account{id,username}';
+function metaHealthQuery(health: MetaTokenHealth): string {
+  if (health.missingScopes.length > 0) return '&meta_warn=missing_scopes';
+  if (!health.readyForPaidAds) return '&meta_warn=ads_not_ready';
+  if (!health.readyForOrganic) return '&meta_warn=organic_not_ready';
+  return '';
+}
+
+function credentialsWithHealth(
+  creds: Record<string, unknown>,
+  health?: MetaTokenHealth
+): Record<string, unknown> {
+  if (!health) return creds;
+  return {
+    ...creds,
+    metaTokenHealth: health,
+    scopesGranted: health.grantedScopes,
+  };
+}
+
+async function enrichAccessTokenAndHealth(
+  clientId: string,
+  clientSecret: string,
+  shortLivedToken: string,
+  pageAccessToken?: string,
+  pageId?: string,
+  adAccountId?: string
+): Promise<{ accessToken: string; tokenHealth: MetaTokenHealth; adAccountId?: string }> {
+  const finalized = await finalizeMetaUserAccessToken({
+    appId: clientId,
+    appSecret: clientSecret,
+    shortLivedToken,
+    pageAccessToken,
+    pageId,
+    adAccountId,
+  });
+  return {
+    accessToken: finalized.accessToken,
+    tokenHealth: finalized.tokenHealth,
+    adAccountId: finalized.tokenHealth.adAccountId ?? adAccountId,
+  };
+}
 
 async function upsertTenantIntegration(
   tenantId: string,
@@ -64,7 +106,7 @@ async function upsertTenantIntegration(
         ...credentials,
         ...(nextAdAccountId ? { adAccountId: nextAdAccountId } : {}),
       },
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: getFirestoreFieldValue().serverTimestamp(),
     });
     return doc.ref.id;
   }
@@ -79,8 +121,8 @@ async function upsertTenantIntegration(
       ...(primaryAdAccountId ? { adAccountId: primaryAdAccountId } : {}),
     },
     settings: {},
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: getFirestoreFieldValue().serverTimestamp(),
+    updatedAt: getFirestoreFieldValue().serverTimestamp(),
   });
   return integrationRef.id;
 }
@@ -94,13 +136,13 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       return NextResponse.redirect(
-        new URL(`/settings/integrations?error=${encodeURIComponent(error)}`, request.url)
+        buildAppRedirectUrl(`/settings/integrations?error=${encodeURIComponent(error)}`, request)
       );
     }
 
     if (!code || !state) {
       return NextResponse.redirect(
-        new URL('/settings/integrations?error=missing_parameters', request.url)
+        buildAppRedirectUrl('/settings/integrations?error=missing_parameters', request)
       );
     }
 
@@ -116,13 +158,13 @@ export async function GET(request: NextRequest) {
       }
     } catch {
       return NextResponse.redirect(
-        new URL('/settings/integrations?error=invalid_state', request.url)
+        buildAppRedirectUrl('/settings/integrations?error=invalid_state', request)
       );
     }
 
     if (!type || !tenantId) {
       return NextResponse.redirect(
-        new URL('/settings/integrations?error=invalid_state', request.url)
+        buildAppRedirectUrl('/settings/integrations?error=invalid_state', request)
       );
     }
 
@@ -157,11 +199,11 @@ export async function GET(request: NextRequest) {
 
     if (!clientId || !clientSecret) {
       return NextResponse.redirect(
-        new URL(`/settings/integrations?error=meta_app_not_configured`, request.url)
+        buildAppRedirectUrl(`/settings/integrations?error=meta_app_not_configured`, request)
       );
     }
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3003';
-    const redirectUri = `${baseUrl}/api/settings/integrations/callback`;
+    const { getIntegrationsOAuthCallbackUrl } = await import('@/lib/app-origin');
+    const redirectUri = getIntegrationsOAuthCallbackUrl(request);
 
     const tokenResponse = await fetch(
       `https://graph.facebook.com/v18.0/oauth/access_token?` +
@@ -178,12 +220,13 @@ export async function GET(request: NextRequest) {
       const errorData = await tokenResponse.json();
       console.error('Token exchange error:', errorData);
       return NextResponse.redirect(
-        new URL(`/settings/integrations?error=${encodeURIComponent(errorData.error?.message || 'token_exchange_failed')}`, request.url)
+        buildAppRedirectUrl(`/settings/integrations?error=${encodeURIComponent(errorData.error?.message || 'token_exchange_failed')}`, request)
       );
     }
 
     const tokenData = await tokenResponse.json();
-    const accessToken = tokenData.access_token;
+    let accessToken = tokenData.access_token as string;
+    let tokenHealth: MetaTokenHealth | undefined;
 
     let primaryAdAccountId: string | undefined;
     if (type === 'facebook' || type === 'meta') {
@@ -213,7 +256,7 @@ export async function GET(request: NextRequest) {
       );
       if (!pagesResponse.ok) {
         return NextResponse.redirect(
-          new URL('/settings/integrations?error=no_facebook_page', request.url)
+          buildAppRedirectUrl('/settings/integrations?error=no_facebook_page', request)
         );
       }
       const pagesData = await pagesResponse.json();
@@ -224,7 +267,7 @@ export async function GET(request: NextRequest) {
       }>;
       if (rawList.length === 0) {
         return NextResponse.redirect(
-          new URL('/settings/integrations?error=no_facebook_page', request.url)
+          buildAppRedirectUrl('/settings/integrations?error=no_facebook_page', request)
         );
       }
       const firstPage = rawList[0];
@@ -233,7 +276,7 @@ export async function GET(request: NextRequest) {
       pageAccessToken = readPageAccessToken(firstPage);
       if (!pageAccessToken) {
         return NextResponse.redirect(
-          new URL('/settings/integrations?error=no_facebook_page_token', request.url)
+          buildAppRedirectUrl('/settings/integrations?error=no_facebook_page_token', request)
         );
       }
       pagesStored = sanitizePagesForStorage(rawList);
@@ -243,7 +286,7 @@ export async function GET(request: NextRequest) {
       );
       if (!pagesResponse.ok) {
         return NextResponse.redirect(
-          new URL('/settings/integrations?error=no_facebook_page', request.url)
+          buildAppRedirectUrl('/settings/integrations?error=no_facebook_page', request)
         );
       }
       const pagesData = await pagesResponse.json();
@@ -256,7 +299,10 @@ export async function GET(request: NextRequest) {
       const pageWithInstagram = rawList.find((page) => page.instagram_business_account?.id);
       if (!pageWithInstagram) {
         return NextResponse.redirect(
-          new URL('/settings/integrations?error=no_instagram_business', request.url)
+          buildAppRedirectUrl(
+            '/settings/integrations?success=meta&instagram=0&notice=no_instagram_business',
+            request.url
+          )
         );
       }
       pageId = String(pageWithInstagram.id ?? '');
@@ -264,18 +310,18 @@ export async function GET(request: NextRequest) {
       pageAccessToken = readPageAccessToken(pageWithInstagram);
       if (!pageAccessToken) {
         return NextResponse.redirect(
-          new URL('/settings/integrations?error=no_facebook_page_token', request.url)
+          buildAppRedirectUrl('/settings/integrations?error=no_facebook_page_token', request)
         );
       }
       instagramId = String(pageWithInstagram.instagram_business_account!.id);
       pagesStored = sanitizePagesForStorage([pageWithInstagram]);
     } else if (type === 'meta') {
       const pagesResponse = await fetch(
-        `https://graph.facebook.com/v18.0/me/accounts?access_token=${accessToken}&fields=${META_PAGES_FIELDS}`
+        `https://graph.facebook.com/v18.0/me/accounts?access_token=${accessToken}&fields=${META_PAGES_GRAPH_FIELDS}`
       );
       if (!pagesResponse.ok) {
         return NextResponse.redirect(
-          new URL('/settings/integrations?error=no_facebook_page', request.url)
+          buildAppRedirectUrl('/settings/integrations?error=no_facebook_page', request)
         );
       }
       const pagesData = await pagesResponse.json();
@@ -287,7 +333,7 @@ export async function GET(request: NextRequest) {
       }>;
       if (rawList.length === 0) {
         return NextResponse.redirect(
-          new URL('/settings/integrations?error=no_facebook_page', request.url)
+          buildAppRedirectUrl('/settings/integrations?error=no_facebook_page', request)
         );
       }
       const firstPage = rawList[0];
@@ -296,20 +342,34 @@ export async function GET(request: NextRequest) {
       const fbToken = readPageAccessToken(fbPage);
       if (!fbToken) {
         return NextResponse.redirect(
-          new URL('/settings/integrations?error=no_facebook_page_token', request.url)
+          buildAppRedirectUrl('/settings/integrations?error=no_facebook_page_token', request)
         );
       }
+      const enriched = await enrichAccessTokenAndHealth(
+        clientId,
+        clientSecret,
+        accessToken,
+        fbToken,
+        String(fbPage.id ?? ''),
+        primaryAdAccountId
+      );
+      accessToken = enriched.accessToken;
+      tokenHealth = enriched.tokenHealth;
+      primaryAdAccountId = enriched.adAccountId ?? primaryAdAccountId;
       await upsertTenantIntegration(
         tenantId,
         'facebook',
         leadOwnerUserId,
-        {
-          accessToken,
-          pageAccessToken: fbToken,
-          pageId: String(fbPage.id ?? ''),
-          pageName: String(fbPage.name ?? ''),
-          pages: sanitizePagesForStorage(rawList),
-        },
+        credentialsWithHealth(
+          {
+            accessToken,
+            pageAccessToken: fbToken,
+            pageId: String(fbPage.id ?? ''),
+            pageName: String(fbPage.name ?? ''),
+            pages: sanitizePagesForStorage(rawList),
+          },
+          tokenHealth
+        ),
         primaryAdAccountId
       );
 
@@ -321,50 +381,85 @@ export async function GET(request: NextRequest) {
             tenantId,
             'instagram',
             leadOwnerUserId,
-            {
-              accessToken,
-              pageAccessToken: igToken,
-              pageId: String(pageWithInstagram.id ?? ''),
-              pageName: String(pageWithInstagram.name ?? ''),
-              instagramId: String(pageWithInstagram.instagram_business_account.id),
-              pages: sanitizePagesForStorage([pageWithInstagram]),
-            },
+            credentialsWithHealth(
+              {
+                accessToken,
+                pageAccessToken: igToken,
+                pageId: String(pageWithInstagram.id ?? ''),
+                pageName: String(pageWithInstagram.name ?? ''),
+                instagramId: String(pageWithInstagram.instagram_business_account.id),
+                pages: sanitizePagesForStorage([pageWithInstagram]),
+              },
+              tokenHealth
+            ),
             undefined
           );
           instagramConnected = '1';
         }
       }
 
+      const warn = tokenHealth ? metaHealthQuery(tokenHealth) : '';
+      publishPendingTenantRegistrationFacebookPost(tenantId).catch((e) =>
+        console.warn('[oauth] pending registration FB post:', e)
+      );
       return NextResponse.redirect(
-        new URL(
-          `/settings/integrations?success=meta&facebook=1&instagram=${instagramConnected}`,
+        buildAppRedirectUrl(
+          `/settings/integrations?success=meta&facebook=1&instagram=${instagramConnected}${warn}`,
           request.url
         )
       );
+    }
+
+    if (pageAccessToken) {
+      const enriched = await enrichAccessTokenAndHealth(
+        clientId,
+        clientSecret,
+        accessToken,
+        pageAccessToken,
+        pageId,
+        primaryAdAccountId
+      );
+      accessToken = enriched.accessToken;
+      tokenHealth = enriched.tokenHealth;
+      primaryAdAccountId = enriched.adAccountId ?? primaryAdAccountId;
     }
 
     await upsertTenantIntegration(
       tenantId,
       type,
       leadOwnerUserId,
-      {
-        accessToken,
-        pageAccessToken,
-        pageId,
-        pageName,
-        instagramId,
-        pages: pagesStored,
-      },
+      credentialsWithHealth(
+        {
+          accessToken,
+          pageAccessToken,
+          pageId,
+          pageName,
+          instagramId,
+          pages: pagesStored,
+        },
+        tokenHealth
+      ),
       primaryAdAccountId
     );
 
+    const warn = tokenHealth ? metaHealthQuery(tokenHealth) : '';
+    if (type === 'facebook' || type === 'meta') {
+      publishPendingTenantRegistrationFacebookPost(tenantId).catch((e) =>
+        console.warn('[oauth] pending registration FB post:', e)
+      );
+    }
     return NextResponse.redirect(
-      new URL('/settings/integrations?success=connected', request.url)
+      buildAppRedirectUrl(
+        type === 'instagram'
+          ? `/settings/integrations?success=meta&instagram=1${warn}`
+          : `/settings/integrations?success=connected${warn}`,
+        request.url
+      )
     );
   } catch (error: any) {
     console.error('OAuth callback error:', error);
     return NextResponse.redirect(
-      new URL(`/settings/integrations?error=${encodeURIComponent(error.message)}`, request.url)
+      buildAppRedirectUrl(`/settings/integrations?error=${encodeURIComponent(error.message)}`, request)
     );
   }
 }

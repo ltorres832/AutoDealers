@@ -11,7 +11,7 @@ import {
   discountRequiresValue,
   PromotionDiscountType,
 } from '@autodealers/shared/discounts';
-import { StripePaymentForm } from '@autodealers/shared';
+import { StripePaymentForm } from '@autodealers/shared/client';
 
 interface Promotion {
   id: string;
@@ -330,11 +330,11 @@ export default function PromotionsPage() {
         </div>
         <div className="bg-white rounded-lg shadow p-4">
           <div className="text-sm text-gray-600 mb-1">Vistas</div>
-          <div className="text-2xl font-bold text-blue-600">{stats.totalViews}</div>
+          <div className="text-2xl font-bold text-primary-600">{stats.totalViews}</div>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
           <div className="text-sm text-gray-600 mb-1">Clics</div>
-          <div className="text-2xl font-bold text-purple-600">{stats.totalClicks}</div>
+          <div className="text-2xl font-bold text-primary-600">{stats.totalClicks}</div>
         </div>
       </div>
 
@@ -378,11 +378,11 @@ export default function PromotionsPage() {
                   <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
                     <div>
                       <div className="text-gray-500">Vistas</div>
-                      <div className="font-bold text-blue-600">{promotion.views || 0}</div>
+                      <div className="font-bold text-primary-600">{promotion.views || 0}</div>
                     </div>
                     <div>
                       <div className="text-gray-500">Clics</div>
-                      <div className="font-bold text-purple-600">{promotion.clicks || 0}</div>
+                      <div className="font-bold text-primary-600">{promotion.clicks || 0}</div>
                     </div>
                   </div>
                   {(promotion as any).expiresAt && (
@@ -474,7 +474,7 @@ export default function PromotionsPage() {
       {/* Modal de Pago Integrado */}
       {showPayment && paymentData && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl p-8 border-2 border-blue-200 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-xl p-8 border-2 border-primary-200 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Completa el Pago</h2>
@@ -546,6 +546,7 @@ export default function PromotionsPage() {
       {/* Modales */}
       {showCreateModal && (
         <CreatePromotionModal
+          dealerManaged={Boolean(user?.dealerId)}
           onClose={() => setShowCreateModal(false)}
           onSuccess={() => {
             setShowCreateModal(false);
@@ -684,11 +685,11 @@ function BuyPromotionModal({
             />
           </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
             <div className="flex justify-between items-center">
               <div>
                 <div className="text-sm text-gray-600">Precio Total</div>
-                <div className="text-3xl font-bold text-blue-600">${getPrice().toFixed(2)}</div>
+                <div className="text-3xl font-bold text-primary-600">${getPrice().toFixed(2)}</div>
               </div>
               <div className="text-right text-sm text-gray-600">
                 <div>Duración: {selectedDuration} días</div>
@@ -730,10 +731,12 @@ function BuyPromotionModal({
 
 // Modal para crear promoción (mantener el código existente)
 function CreatePromotionModal({
+  dealerManaged = false,
   onClose,
   onSuccess,
   onRequestNotification,
 }: {
+  dealerManaged?: boolean;
   onClose: () => void;
   onSuccess: () => void;
   onRequestNotification?: () => void;
@@ -770,14 +773,15 @@ function CreatePromotionModal({
 
   useEffect(() => {
     fetchVehicles();
-    // Cargar créditos disponibles al abrir el modal
+    if (dealerManaged) return;
     fetch('/api/referrals/my-rewards', { credentials: 'include' })
-      .then(res => res.json())
-      .then(data => {
+      .then(async (res) => {
+        if (res.status === 403) return;
+        const data = await res.json();
         setAvailableCredits(data.activeRewards?.promotionCredits || 0);
       })
       .catch(err => console.error('Error loading credits:', err));
-  }, []);
+  }, [dealerManaged]);
 
   async function fetchVehicles() {
     try {
@@ -1069,13 +1073,13 @@ function CreatePromotionModal({
 
           {/* Opción para usar crédito de referido */}
           {availableCredits > 0 && (
-            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+            <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
               <label className="flex items-start space-x-3 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={useCredit}
                   onChange={(e) => setUseCredit(e.target.checked)}
-                  className="w-5 h-5 text-purple-600 rounded mt-0.5"
+                  className="w-5 h-5 text-primary-600 rounded mt-0.5"
                 />
                 <div className="flex-1">
                   <span className="text-sm font-medium text-gray-900 block">
@@ -1086,7 +1090,7 @@ function CreatePromotionModal({
                     La promoción se activará inmediatamente sin costo adicional.
                   </p>
                   {useCredit && (
-                    <p className="text-xs text-purple-700 mt-2 font-medium">
+                    <p className="text-xs text-primary-700 mt-2 font-medium">
                       ✅ Se usará 1 crédito de promoción. Te quedarán {availableCredits - 1} crédito{availableCredits - 1 !== 1 ? 's' : ''}.
                     </p>
                   )}
@@ -1096,7 +1100,7 @@ function CreatePromotionModal({
           )}
 
           {/* Opción para publicar en Landing Page */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
             <label className="flex items-start space-x-3 cursor-pointer">
               <input
                 type="checkbox"
@@ -1116,12 +1120,12 @@ function CreatePromotionModal({
                   Requiere que tu membresía incluya esta característica.
                 </p>
                 {useCredit && (
-                  <p className="text-xs text-purple-700 mt-2 font-medium">
+                  <p className="text-xs text-primary-700 mt-2 font-medium">
                     ℹ️ Al usar crédito, la promoción se activa automáticamente como pagada.
                   </p>
                 )}
                 {formData.publishOnLandingPage && !useCredit && (
-                  <p className="text-xs text-blue-700 mt-2 font-medium">
+                  <p className="text-xs text-primary-700 mt-2 font-medium">
                     ✅ Esta promoción será visible en el landing page público
                   </p>
                 )}
@@ -1138,7 +1142,7 @@ function CreatePromotionModal({
               onChange={handleImageChange}
               className="w-full border rounded px-3 py-2"
             />
-            <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800">
+            <div className="mt-2 bg-primary-50 border border-primary-200 rounded-lg p-3 text-xs text-primary-800">
               <strong>📸 Especificaciones de Imágenes:</strong>
               <ul className="mt-1 ml-4 list-disc space-y-1">
                 <li><strong>Formatos permitidos:</strong> JPG, JPEG, PNG, WebP</li>
@@ -1180,7 +1184,7 @@ function CreatePromotionModal({
               onChange={handleVideoChange}
               className="w-full border rounded px-3 py-2"
             />
-            <div className="mt-2 bg-purple-50 border border-purple-200 rounded-lg p-3 text-xs text-purple-800">
+            <div className="mt-2 bg-primary-50 border border-primary-200 rounded-lg p-3 text-xs text-primary-800">
               <strong>🎥 Especificaciones de Videos:</strong>
               <ul className="mt-1 ml-4 list-disc space-y-1">
                 <li><strong>Formatos permitidos:</strong> MP4, WebM, MOV</li>
@@ -1215,7 +1219,7 @@ function CreatePromotionModal({
           </div>
 
           {/* Opción para publicar en Landing Page */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
             <label className="flex items-start space-x-3 cursor-pointer">
               <input
                 type="checkbox"
@@ -1235,12 +1239,12 @@ function CreatePromotionModal({
                   Requiere que tu membresía incluya esta característica.
                 </p>
                 {useCredit && (
-                  <p className="text-xs text-purple-700 mt-2 font-medium">
+                  <p className="text-xs text-primary-700 mt-2 font-medium">
                     ℹ️ Al usar crédito, la promoción se activa automáticamente como pagada.
                   </p>
                 )}
                 {formData.publishOnLandingPage && !useCredit && (
-                  <p className="text-xs text-blue-700 mt-2 font-medium">
+                  <p className="text-xs text-primary-700 mt-2 font-medium">
                     ✅ Esta promoción será visible en el landing page público
                   </p>
                 )}
@@ -1450,7 +1454,7 @@ function PromotionProgressSection({ promotions }: { promotions: any[] }) {
                     </div>
                     <button
                       onClick={() => setSelectedPromotion(selectedPromotion?.id === promotion.id ? null : promotion)}
-                      className="ml-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                      className="ml-4 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm"
                     >
                       {selectedPromotion?.id === promotion.id ? 'Ocultar' : 'Ver Detalles'}
                     </button>
@@ -1458,13 +1462,13 @@ function PromotionProgressSection({ promotions }: { promotions: any[] }) {
 
                   {/* Métricas Principales */}
                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-3">
-                    <div className="bg-blue-50 rounded p-3">
+                    <div className="bg-primary-50 rounded p-3">
                       <div className="text-xs text-gray-600 mb-1">👁️ Vistas Totales</div>
-                      <div className="text-xl font-bold text-blue-600">{metrics.totalViews}</div>
+                      <div className="text-xl font-bold text-primary-600">{metrics.totalViews}</div>
                     </div>
-                    <div className="bg-purple-50 rounded p-3">
+                    <div className="bg-primary-50 rounded p-3">
                       <div className="text-xs text-gray-600 mb-1">🖱️ Clics Totales</div>
-                      <div className="text-xl font-bold text-purple-600">{metrics.totalClicks}</div>
+                      <div className="text-xl font-bold text-primary-600">{metrics.totalClicks}</div>
                     </div>
                     <div className="bg-green-50 rounded p-3">
                       <div className="text-xs text-gray-600 mb-1">❤️ Likes</div>
@@ -1474,13 +1478,13 @@ function PromotionProgressSection({ promotions }: { promotions: any[] }) {
                       <div className="text-xs text-gray-600 mb-1">📤 Compartidos</div>
                       <div className="text-xl font-bold text-yellow-600">{metrics.totalShares}</div>
                     </div>
-                    <div className="bg-pink-50 rounded p-3">
+                    <div className="bg-primary-50 rounded p-3">
                       <div className="text-xs text-gray-600 mb-1">💬 Comentarios</div>
-                      <div className="text-xl font-bold text-pink-600">{metrics.totalComments}</div>
+                      <div className="text-xl font-bold text-primary-600">{metrics.totalComments}</div>
                     </div>
-                    <div className="bg-indigo-50 rounded p-3">
+                    <div className="bg-primary-50 rounded p-3">
                       <div className="text-xs text-gray-600 mb-1">📈 Conversión</div>
-                      <div className="text-xl font-bold text-indigo-600">{metrics.conversionRate}%</div>
+                      <div className="text-xl font-bold text-primary-600">{metrics.conversionRate}%</div>
                     </div>
                   </div>
 
@@ -1512,13 +1516,13 @@ function PromotionProgressSection({ promotions }: { promotions: any[] }) {
                                 href={`https://facebook.com/posts/${promotion.socialPostIds.facebook}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-blue-600 hover:underline text-xs"
+                                className="text-primary-600 hover:underline text-xs"
                               >
                                 Ver Post
                               </a>
                             )}
                           </h4>
-                          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm bg-blue-50 p-3 rounded">
+                          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm bg-primary-50 p-3 rounded">
                             <div>
                               <span className="text-gray-600">Vistas:</span>
                               <span className="ml-1 font-bold">{promotion.socialMetrics.facebook.views || 0}</span>
@@ -1553,13 +1557,13 @@ function PromotionProgressSection({ promotions }: { promotions: any[] }) {
                                 href={`https://instagram.com/p/${promotion.socialPostIds.instagram}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-pink-600 hover:underline text-xs"
+                                className="text-primary-600 hover:underline text-xs"
                               >
                                 Ver Post
                               </a>
                             )}
                           </h4>
-                          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm bg-pink-50 p-3 rounded">
+                          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm bg-primary-50 p-3 rounded">
                             <div>
                               <span className="text-gray-600">Vistas:</span>
                               <span className="ml-1 font-bold">{promotion.socialMetrics.instagram.views || 0}</span>

@@ -1,13 +1,11 @@
 /**
  * Acciones de listado en inventario (misma instancia Firestore que el resto del panel vendedor).
  */
-import { getFirestore } from '@autodealers/core';
-import * as admin from 'firebase-admin';
+import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
 import type { VehicleListingAction } from '@autodealers/inventory';
 
 function fieldValue() {
-  getFirestore();
-  return admin.firestore.FieldValue;
+  return getFirestoreFieldValue();
 }
 
 export async function applyVehicleListingActionForSeller(

@@ -233,7 +233,7 @@ export default function CreateSponsoredContentModal({
             <select
               value={selectedAdvertiser}
               onChange={(e) => setSelectedAdvertiser(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
               required
             >
               <option value="">Seleccionar anunciante...</option>
@@ -254,7 +254,7 @@ export default function CreateSponsoredContentModal({
               <select
                 value={formData.type}
                 onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 required
               >
                 <option value="banner">Banner</option>
@@ -275,7 +275,7 @@ export default function CreateSponsoredContentModal({
                   setImagePreview(null);
                   setVideoPreview(null);
                 }}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 required
               >
                 <option value="sponsors_section">Sección Patrocinadores</option>
@@ -287,11 +287,11 @@ export default function CreateSponsoredContentModal({
           </div>
 
           {/* Especificaciones */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h3 className="font-semibold text-blue-900 mb-2">📐 Especificaciones Requeridas:</h3>
-            <p className="text-sm text-blue-800 mb-1">{specs.image}</p>
+          <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+            <h3 className="font-semibold text-primary-900 mb-2">📐 Especificaciones Requeridas:</h3>
+            <p className="text-sm text-primary-800 mb-1">{specs.image}</p>
             {specs.video && (
-              <p className="text-sm text-blue-800">{specs.video}</p>
+              <p className="text-sm text-primary-800">{specs.video}</p>
             )}
           </div>
 
@@ -304,7 +304,7 @@ export default function CreateSponsoredContentModal({
               type="text"
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
               required
             />
           </div>
@@ -317,7 +317,7 @@ export default function CreateSponsoredContentModal({
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={3}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
               required
             />
           </div>
@@ -331,7 +331,7 @@ export default function CreateSponsoredContentModal({
               <select
                 value={formData.linkType}
                 onChange={(e) => setFormData({ ...formData, linkType: e.target.value as any })}
-                className="border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
                 <option value="external">URL Externa</option>
                 <option value="landing_page">Página de Aterrizaje</option>
@@ -341,7 +341,7 @@ export default function CreateSponsoredContentModal({
                 value={formData.linkUrl}
                 onChange={(e) => setFormData({ ...formData, linkUrl: e.target.value })}
                 placeholder="https://ejemplo.com"
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 required
               />
             </div>
@@ -359,7 +359,7 @@ export default function CreateSponsoredContentModal({
               type="file"
               accept="image/jpeg,image/jpg,image/png,image/webp"
               onChange={handleImageChange}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
             {imagePreview && (
               <div className="mt-4">
@@ -382,7 +382,7 @@ export default function CreateSponsoredContentModal({
                 type="file"
                 accept="video/mp4,video/webm"
                 onChange={handleVideoChange}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
               {videoPreview && (
                 <div className="mt-4">
@@ -408,13 +408,13 @@ export default function CreateSponsoredContentModal({
                   step="0.01"
                   value={formData.budget}
                   onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
-                  className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                   required
                 />
                 <select
                   value={formData.budgetType}
                   onChange={(e) => setFormData({ ...formData, budgetType: e.target.value as any })}
-                  className="border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="monthly">Mensual</option>
                   <option value="total">Total</option>
@@ -432,7 +432,7 @@ export default function CreateSponsoredContentModal({
                 type="datetime-local"
                 value={formData.startDate}
                 onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 required
               />
             </div>
@@ -444,7 +444,7 @@ export default function CreateSponsoredContentModal({
                 type="datetime-local"
                 value={formData.endDate}
                 onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 required
               />
             </div>
@@ -473,7 +473,7 @@ export default function CreateSponsoredContentModal({
                   }
                 }}
                 placeholder="Ej: Nueva York, Miami"
-                className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
               <button
                 type="button"
@@ -496,7 +496,7 @@ export default function CreateSponsoredContentModal({
                 {formData.targetLocation.map((loc, idx) => (
                   <span
                     key={idx}
-                    className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm flex items-center gap-2"
+                    className="px-3 py-1 bg-primary-100 text-primary-800 rounded-full text-sm flex items-center gap-2"
                   >
                     {loc}
                     <button
@@ -507,7 +507,7 @@ export default function CreateSponsoredContentModal({
                           targetLocation: formData.targetLocation.filter((_, i) => i !== idx),
                         });
                       }}
-                      className="text-purple-600 hover:text-purple-800"
+                      className="text-primary-600 hover:text-primary-800"
                     >
                       ×
                     </button>
@@ -529,7 +529,7 @@ export default function CreateSponsoredContentModal({
             <button
               type="submit"
               disabled={loading}
-              className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-semibold disabled:opacity-50"
+              className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-semibold disabled:opacity-50"
             >
               {loading ? 'Creando...' : 'Crear Contenido'}
             </button>

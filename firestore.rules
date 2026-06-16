@@ -50,6 +50,19 @@ service cloud.firestore {
              request.auth.token.role == 'seller' &&
              resource.data.assignedTo == request.auth.uid;
     }
+
+    function isSellerLinkedToDealer() {
+      return isAuthenticated() &&
+             request.auth.token.keys().hasAny(['dealerId']) &&
+             request.auth.token.dealerId != null &&
+             request.auth.token.dealerId != '';
+    }
+
+    function isIndependentSellerTenant(tenantId) {
+      return isSeller(tenantId) &&
+             !isSellerLinkedToDealer() &&
+             get(/databases/$(database)/documents/tenants/$(tenantId)).data.get('type', '') == 'seller';
+    }
     
     // Users collection
     match /users/{userId} {
@@ -74,6 +87,10 @@ service cloud.firestore {
                        (isAuthenticated() && 
                         request.auth.token.role == 'dealer_admin' &&
                         resource.data.tenantId == request.auth.token.tenantId);
+
+      match /fcmTokens/{tokenId} {
+        allow read, write: if isAuthenticated() && request.auth.uid == userId;
+      }
     }
     
     // Tenants collection
@@ -105,7 +122,9 @@ service cloud.firestore {
       allow read: if isOwner(tenantId) || (isSeller(tenantId) && isSellerAssignedLead());
       allow create: if isOwner(tenantId);
       allow update: if isOwner(tenantId) || (isSeller(tenantId) && isSellerAssignedLead());
-      allow delete: if isAdmin() || isDealer(tenantId) || isManagerOrAdmin(tenantId);
+      allow delete: if isAdmin() || isDealer(tenantId) || isManagerOrAdmin(tenantId) ||
+                       (isSeller(tenantId) && isSellerAssignedLead()) ||
+                       isIndependentSellerTenant(tenantId);
     }
 
     // Señales de interés en vehículos (clics catálogo público; sin PII). Escritura solo vía Admin SDK.
@@ -114,6 +133,35 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
     
+    // Notificaciones in-app (tiempo real en campana)
+    match /tenants/{tenantId}/notifications/{notificationId} {
+      allow read: if isAuthenticated() &&
+                     resource.data.userId == request.auth.uid &&
+                     (isAdmin() || request.auth.token.tenantId == tenantId);
+      allow update: if isAuthenticated() &&
+                       resource.data.userId == request.auth.uid &&
+                       (isAdmin() || request.auth.token.tenantId == tenantId);
+      allow create, delete: if false;
+    }
+
+    match /tenants/{tenantId}/corporate_emails/{emailId} {
+      allow read: if isAdmin() || isOwner(tenantId);
+      allow create, update, delete: if isAdmin() || canConfigureTenantSettings(tenantId);
+    }
+
+    match /tenants/{tenantId}/tasks/{taskId} {
+      allow read: if isAdmin() || isOwner(tenantId) || isSeller(tenantId);
+      allow create: if isAdmin() || isOwner(tenantId) || isSeller(tenantId);
+      allow update: if isAdmin() || isOwner(tenantId) || isSeller(tenantId);
+      allow delete: if isAdmin() || isDealer(tenantId) || isManagerOrAdmin(tenantId);
+    }
+
+    match /tenants/{tenantId}/promotions/{promotionId} {
+      allow read: if isAdmin() || isOwner(tenantId) || isSeller(tenantId);
+      allow create, update: if isAdmin() || isOwner(tenantId) || isSeller(tenantId);
+      allow delete: if isAdmin() || isDealer(tenantId) || isManagerOrAdmin(tenantId);
+    }
+
     // Messages collection
     match /tenants/{tenantId}/messages/{messageId} {
       allow read: if isOwner(tenantId) || isSeller(tenantId);
@@ -171,12 +219,17 @@ service cloud.firestore {
     
     // Subscriptions collection
     match /subscriptions/{subscriptionId} {
-      allow read: if isAuthenticated() && 
-                     (isAdmin() || 
+      allow read: if isAuthenticated() &&
+                     (isAdmin() ||
                       resource.data.tenantId == request.auth.token.tenantId);
       allow create: if isAuthenticated();
       allow update: if isAdmin();
       allow delete: if isAdmin();
+    }
+
+    // Idempotencia de webhooks Stripe (solo Admin SDK / servidor)
+    match /stripe_webhook_events/{eventId} {
+      allow read, write: if false;
     }
     
     // Memberships collection
@@ -186,21 +239,49 @@ service cloud.firestore {
       allow update: if isAdmin();
       allow delete: if isAdmin();
     }
+
+    // Invitaciones dealer ↔ vendedor (cuentas separadas). Escritura solo servidor.
+    match /dealer_seller_links/{linkId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        resource.data.sellerUserId == request.auth.uid ||
+        (request.auth.token.role in ['dealer', 'master_dealer', 'dealer_admin', 'manager'] &&
+         resource.data.dealerTenantId == request.auth.token.tenantId)
+      );
+      allow write: if false;
+    }
+
+    // Códigos/link de invitación dealer ↔ vendedor. Lectura permitida al dealer dueño (para tiempo real).
+    match /dealer_seller_invites/{inviteId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        (request.auth.token.role in ['dealer', 'master_dealer', 'dealer_admin', 'manager'] &&
+          resource.data.dealerTenantId == request.auth.token.tenantId)
+      );
+      allow write: if false;
+    }
+
+    // Códigos reutilizables de invitación dealer → seller. Lectura/escritura solo servidor.
+    match /dealer_seller_invite_codes/{dealerTenantId} {
+      allow read, write: if false;
+    }
     
     // Sub users collection (vendedores con tenant propio)
     match /sub_users/{subUserId} {
       allow read: if isAuthenticated() && 
                      (isAdmin() || 
                       resource.data.dealerTenantId == request.auth.token.tenantId ||
-                      resource.data.tenantId == request.auth.token.tenantId);
+                      resource.data.tenantId == request.auth.token.tenantId ||
+                      subUserId == request.auth.uid);
       allow create: if isAuthenticated() && 
                        (isAdmin() || 
                         request.auth.token.role == 'dealer' &&
                         request.resource.data.dealerTenantId == request.auth.token.tenantId);
       allow update: if isAdmin() || 
                        (isAuthenticated() && 
-                        request.auth.token.role == 'dealer' &&
-                        resource.data.dealerTenantId == request.auth.token.tenantId);
+                        (request.auth.token.role == 'dealer' &&
+                         resource.data.dealerTenantId == request.auth.token.tenantId) ||
+                        subUserId == request.auth.uid);
       allow delete: if isAdmin();
     }
     
@@ -283,8 +364,55 @@ service cloud.firestore {
       allow read: if docId == 'branding';
       allow write: if false;
     }
+
+    match /referrals/{referralId} {
+      allow read: if isAuthenticated() &&
+                     (resource.data.referrerId == request.auth.uid || isAdmin());
+      allow write: if false;
+    }
+
+    match /dealers/{dealerId} {
+      allow read: if isAdmin() || isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /email_aliases/{aliasId} {
+      allow read: if isAdmin() ||
+                     (isAuthenticated() && resource.data.dealerId == request.auth.token.tenantId);
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow read, update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create, delete: if false;
+    }
+
+    match /admin_notifications/{notificationId} {
+      allow read, update: if isAdmin() && resource.data.userId == request.auth.uid;
+      allow create, delete: if false;
+    }
+
+    match /admin_users/{adminUserId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /{path=**}/tasks/{taskId} {
+      allow read: if isAdmin();
+    }
+
+    match /{path=**}/corporate_emails/{emailId} {
+      allow read: if isAdmin();
+    }
+
+    match /reward_credits/{creditId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow write: if false;
+    }
+
+    // Formulario de contacto público — solo backend (Admin SDK)
+    match /contact_inquiries/{inquiryId} {
+      allow read, write: if false;
+    }
   }
 }
-
-
-

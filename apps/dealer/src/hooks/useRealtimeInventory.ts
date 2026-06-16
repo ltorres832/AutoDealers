@@ -24,6 +24,8 @@ export interface RealtimeInventoryVehicle {
   stockNumber?: string;
   specifications?: { stockNumber?: string };
   publishedOnPublicPage?: boolean;
+  views?: number;
+  lastViewedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }

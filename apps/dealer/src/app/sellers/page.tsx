@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/hooks/useAuth';
+import { DealerSellerLinksPanel } from '@/components/DealerSellerLinksPanel';
 
 interface Seller {
   id: string;
@@ -18,6 +20,7 @@ interface Seller {
 }
 
 export default function SellersPage() {
+  const { user } = useAuth();
   const [sellers, setSellers] = useState<Seller[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -113,6 +116,8 @@ export default function SellersPage() {
         </button>
       </div>
 
+      <DealerSellerLinksPanel dealerTenantId={user?.tenantId} />
+
       {sellers.length === 0 ? (
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-12 text-center">
           <div className="text-6xl mb-4">👥</div>
@@ -167,7 +172,7 @@ export default function SellersPage() {
 
               <div className="space-y-2">
                 {seller.tenantId && seller.tenantId !== seller.dealerId && (
-                  <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
+                  <div className="text-xs text-primary-600 bg-primary-50 p-2 rounded">
                     ✅ Tiene cuenta propia con página web
                   </div>
                 )}
@@ -347,7 +352,7 @@ function CreateSellerModal({
               Si no está marcado, solo tendrá acceso a tu cuenta como usuario adicional.
             </p>
             {formData.createOwnTenant && (
-              <div className="mt-2 ml-6 p-3 bg-blue-50 border border-blue-200 rounded">
+              <div className="mt-2 ml-6 p-3 bg-primary-50 border border-primary-200 rounded">
                 <label className="block text-sm font-medium mb-2">Subdominio para página web</label>
                 <input
                   type="text"
@@ -358,7 +363,7 @@ function CreateSellerModal({
                   pattern="[a-z0-9-]+"
                   required={formData.createOwnTenant}
                 />
-                <p className="text-xs text-blue-700 mt-1">
+                <p className="text-xs text-primary-700 mt-1">
                   ✅ El subdominio es del dominio de la plataforma (autodealers.com)
                   <br />
                   ✅ El vendedor tendrá su propia página web en: <strong>https://{formData.subdomain || 'subdomain'}.autodealers.com</strong>

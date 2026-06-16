@@ -67,8 +67,12 @@ export interface Campaign {
   /** IDs en Meta Ads Manager cuando metaDistribution es paid_ads y la creación en Graph tuvo éxito. */
   metaAdsCampaignId?: string;
   metaAdsAdSetId?: string;
+  metaAdsCreativeId?: string;
+  metaAdsAdId?: string;
   metaAdsPublishError?: string;
   metrics?: CampaignMetrics;
+  /** Usuario que creó la campaña (p. ej. vendedor con publicidad propia). */
+  createdBy?: string;
   createdAt: Date;
   updatedAt: Date;
   startedAt?: Date;

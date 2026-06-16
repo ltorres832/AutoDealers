@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase-client';
 import { collection, query, where, onSnapshot, orderBy, limit as firestoreLimit, Timestamp } from 'firebase/firestore';
+import { useNotificationAlerts } from '@autodealers/shared/client';
 
 interface Notification {
   id: string;
@@ -101,6 +102,18 @@ export function useRealtimeNotifications(options: UseRealtimeNotificationsOption
       setLoading(false);
     }
   }, [options.tenantId, options.userId, options.unreadOnly, options.limit]);
+
+  useNotificationAlerts(
+    notifications.map((n) => ({
+      id: n.id,
+      title: n.title,
+      message: n.message,
+      read: n.read,
+      type: n.type,
+      metadata: n.metadata,
+    })),
+    Boolean(options.tenantId && options.userId)
+  );
 
   return { notifications, unreadCount, loading, error };
 }

@@ -1,7 +1,10 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getActiveMemberships } from '@autodealers/billing';
+import { getSelfServiceActiveMemberships } from '@autodealers/billing';
+import { getFirestore } from '@autodealers/core';
+
+const db = getFirestore();
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,20 +13,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Obtener membresías disponibles del mismo tipo (dealer)
-    const plans = await getActiveMemberships('dealer');
+    const [userDoc, tenantDoc] = await Promise.all([
+      db.collection('users').doc(auth.userId).get(),
+      db.collection('tenants').doc(auth.tenantId).get(),
+    ]);
 
-    // Filtrar para no mostrar el plan actual
-    // TODO: Obtener el plan actual y filtrarlo
+    const currentMembershipId =
+      tenantDoc.data()?.membershipId || userDoc.data()?.membershipId || null;
 
-    return NextResponse.json({ plans });
-  } catch (error: any) {
+    const allPlans = await getSelfServiceActiveMemberships('dealer');
+    const plans = currentMembershipId
+      ? allPlans.filter((plan) => plan.id !== currentMembershipId)
+      : allPlans;
+
+    return NextResponse.json({ plans, currentMembershipId });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
     console.error('Error fetching available plans:', error);
-    return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-
-

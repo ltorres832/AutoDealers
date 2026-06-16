@@ -39,8 +39,8 @@ export default function InternalChatPage() {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const conversationsPollingRef = useRef<NodeJS.Timeout | null>(null);
+  const messagesUnsubRef = useRef<(() => void) | null>(null);
+  const conversationsUnsubRef = useRef<(() => void) | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const previousMessagesCountRef = useRef(0);
   const notificationPermissionRef = useRef<NotificationPermission | null>(null);
@@ -226,60 +226,61 @@ export default function InternalChatPage() {
     init();
   }, []);
 
-  // Polling para conversaciones
+  // Tiempo real: conversaciones
   useEffect(() => {
     if (!currentUser || !tenantId) return;
-
-    // Limpiar intervalo anterior
-    if (conversationsPollingRef.current) {
-      clearInterval(conversationsPollingRef.current);
-    }
-
-    // Cargar inmediatamente
-    fetchConversations();
-
-    // Polling cada 5 segundos (reducido para menos carga)
-    conversationsPollingRef.current = setInterval(() => {
-      fetchConversations();
-    }, 5000);
-
+    const userId = currentUser.id || currentUser.userId;
+    if (!userId) return;
+    const { subscribeToInternalConversations } = require('@/lib/firebase-client');
+    conversationsUnsubRef.current?.();
+    conversationsUnsubRef.current =
+      subscribeToInternalConversations(tenantId, userId, (list: Conversation[]) => {
+        setConversations(list);
+      }) || null;
     return () => {
-      if (conversationsPollingRef.current) {
-        clearInterval(conversationsPollingRef.current);
-      }
+      conversationsUnsubRef.current?.();
+      conversationsUnsubRef.current = null;
     };
-  }, [currentUser, tenantId, fetchConversations]);
+  }, [currentUser, tenantId]);
 
-  // Polling para mensajes cuando hay conversación seleccionada
+  // Tiempo real: mensajes
   useEffect(() => {
-    if (!selectedUserId || !currentUser) {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
-      }
+    if (!selectedUserId || !currentUser || !tenantId) {
+      messagesUnsubRef.current?.();
+      messagesUnsubRef.current = null;
       setMessages([]);
       return;
     }
-
-    // Limpiar intervalo anterior
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-    }
-
-    // Cargar mensajes inmediatamente
-    fetchMessages(selectedUserId);
-
-    // Polling cada 2 segundos para tiempo casi real (reducido para menos carga)
-    pollingIntervalRef.current = setInterval(() => {
-      fetchMessages(selectedUserId);
-    }, 2000);
-
+    const userId = currentUser.id || currentUser.userId;
+    if (!userId) return;
+    const { subscribeToInternalMessages } = require('@/lib/firebase-client');
+    messagesUnsubRef.current?.();
+    messagesUnsubRef.current =
+      subscribeToInternalMessages(tenantId, userId, selectedUserId, (processedMessages: InternalMessage[]) => {
+        setMessages(
+          processedMessages.map((msg) => ({
+            id: msg.id,
+            fromUserId: msg.fromUserId,
+            fromUserName: msg.fromUserName || 'Usuario',
+            toUserId: msg.toUserId,
+            toUserName: msg.toUserName || 'Usuario',
+            content: typeof msg.content === 'string' ? msg.content : String(msg.content || ''),
+            createdAt: msg.createdAt instanceof Date ? msg.createdAt : new Date(msg.createdAt),
+            read: msg.read || false,
+            readAt: msg.readAt
+              ? msg.readAt instanceof Date
+                ? msg.readAt
+                : new Date(msg.readAt)
+              : undefined,
+          }))
+        );
+        markMessagesAsRead(selectedUserId);
+      }) || null;
     return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-      }
+      messagesUnsubRef.current?.();
+      messagesUnsubRef.current = null;
     };
-  }, [selectedUserId, currentUser, fetchMessages, markMessagesAsRead]);
+  }, [selectedUserId, currentUser, tenantId, markMessagesAsRead]);
 
   // Scroll automático
   useEffect(() => {
@@ -419,7 +420,7 @@ export default function InternalChatPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
+      <div className="flex items-center justify-center min-h-[100dvh] bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Cargando chat...</p>
@@ -429,12 +430,12 @@ export default function InternalChatPage() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
+    <div className="flex h-[100dvh] min-h-0 flex-col bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b shadow-sm px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Chat Interno</h1>
+      <div className="bg-white border-b shadow-sm px-4 py-3 sm:px-6 sm:py-4 shrink-0">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">Chat Interno</h1>
             <p className="text-sm text-gray-500 mt-1">Comunícate con tu equipo</p>
           </div>
           {error && (
@@ -445,9 +446,13 @@ export default function InternalChatPage() {
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Lista de Conversaciones */}
-        <div className="w-80 bg-white border-r flex flex-col">
+        <div
+          className={`${
+            selectedUserId ? 'hidden md:flex' : 'flex'
+          } w-full md:w-80 shrink-0 bg-white border-r flex-col min-h-0`}
+        >
           <div className="p-4 border-b">
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-semibold text-gray-900">Conversaciones</h2>
@@ -540,17 +545,33 @@ export default function InternalChatPage() {
         </div>
 
         {/* Área de Chat */}
-        <div className="flex-1 flex flex-col bg-white">
+        <div
+          className={`${
+            selectedUserId ? 'flex' : 'hidden md:flex'
+          } flex-1 flex-col bg-white min-w-0 min-h-0`}
+        >
           {selectedUserId ? (
             <>
               {/* Header del chat */}
-              <div className="bg-white border-b px-6 py-4 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="font-semibold text-gray-900">{selectedUserName}</h2>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {messages.length > 0 ? `${messages.length} mensaje${messages.length !== 1 ? 's' : ''}` : 'Sin mensajes'}
-                    </p>
+              <div className="bg-white border-b px-4 py-3 sm:px-6 sm:py-4 shadow-sm shrink-0">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedUserId(null)}
+                      className="md:hidden shrink-0 p-2 -ml-1 text-gray-600 hover:bg-gray-100 rounded-lg"
+                      aria-label="Volver a conversaciones"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    <div className="min-w-0">
+                      <h2 className="font-semibold text-gray-900 truncate">{selectedUserName}</h2>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {messages.length > 0 ? `${messages.length} mensaje${messages.length !== 1 ? 's' : ''}` : 'Sin mensajes'}
+                      </p>
+                    </div>
                   </div>
                   <button
                     onClick={() => {

@@ -594,6 +594,42 @@ export default function GeneralSettingsPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">
+                  URL del webhook en Stripe (Admin)
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={
+                      typeof window !== 'undefined'
+                        ? `${window.location.origin}/api/webhooks/stripe`
+                        : '/api/webhooks/stripe'
+                    }
+                    className="flex-1 border rounded px-3 py-2 font-mono text-sm bg-gray-50"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const url =
+                        typeof window !== 'undefined'
+                          ? `${window.location.origin}/api/webhooks/stripe`
+                          : '';
+                      if (url) void navigator.clipboard.writeText(url);
+                    }}
+                    className="px-3 py-2 border rounded text-sm hover:bg-gray-50"
+                  >
+                    Copiar
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Stripe → Developers → Webhooks. Producción:{' '}
+                  <code className="text-xs break-all">
+                    https://admin-app--autodealers-7f62e.us-central1.hosted.app/api/webhooks/stripe
+                  </code>
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">
                   Webhook Secret
                 </label>
                 <input
@@ -629,11 +665,11 @@ export default function GeneralSettingsPage() {
                 </p>
               </div>
             </div>
-            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-800">
+            <div className="mt-4 p-3 bg-primary-50 border border-primary-200 rounded-lg">
+              <p className="text-sm text-primary-800">
                 ✅ <strong>Las credenciales se sincronizan automáticamente</strong> con toda la plataforma (admin, dealer, seller, advertiser, public-web) y se usan en tiempo real desde Firestore.
               </p>
-              <p className="text-xs text-blue-700 mt-1">
+              <p className="text-xs text-primary-700 mt-1">
                 Si no se configuran aquí, el sistema usará las variables de entorno como respaldo.
               </p>
             </div>
@@ -706,7 +742,7 @@ export default function GeneralSettingsPage() {
                       alert('Error al verificar: ' + error.message);
                     }
                   }}
-                  className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                  className="px-3 py-1 text-sm bg-primary-100 text-primary-700 rounded hover:bg-primary-200"
                 >
                   🔍 Verificar
                 </button>

@@ -3,6 +3,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { decodeSocialOAuthState, getFirestore, PLATFORM_SOCIAL_TENANT_ID } from '@autodealers/core';
 import * as admin from 'firebase-admin';
+import { PLATFORM_META_OAUTH_PENDING_DOC } from '@/lib/platform-meta-oauth';
+import { getOAuthRedirectOrigin, buildOAuthRedirectUrl } from '@/lib/oauth-redirect-origin';
+import {
+  fetchMetaUserPages,
+  getPlatformSocialSettings,
+  isAllowedPlatformFacebookPage,
+  isBlockedPlatformFacebookPage,
+} from '@/lib/platform-facebook-config';
 
 const db = getFirestore();
 
@@ -31,7 +39,7 @@ function integrationsRedirect(request: NextRequest, tenantId: string, query: str
     tenantId === PLATFORM_SOCIAL_TENANT_ID
       ? `/admin/settings/integrations?${query}`
       : `/settings/integrations?${query}`;
-  return NextResponse.redirect(new URL(path, request.url));
+  return NextResponse.redirect(buildOAuthRedirectUrl(path, request));
 }
 
 export async function GET(request: NextRequest) {
@@ -94,7 +102,7 @@ export async function GET(request: NextRequest) {
       return integrationsRedirect(request, tenantId, 'error=meta_app_not_configured');
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001';
+    const baseUrl = getOAuthRedirectOrigin(request);
     const redirectUri = `${baseUrl}/api/integrations/callback`;
 
     const tokenResponse = await fetch(
@@ -138,21 +146,61 @@ export async function GET(request: NextRequest) {
     let pagesStored: Array<Record<string, unknown>> = [];
 
     if (type === 'facebook') {
-      const pagesResponse = await fetch(
-        `https://graph.facebook.com/v18.0/me/accounts?access_token=${accessToken}&fields=id,name,access_token`
-      );
-      if (!pagesResponse.ok) {
-        return integrationsRedirect(request, tenantId, 'error=no_facebook_page');
+      let rawList: Array<{ id: string; name: string; access_token: string }>;
+      try {
+        rawList = await fetchMetaUserPages(accessToken);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'facebook_pages_api_failed';
+        console.error('[admin oauth] me/accounts failed:', msg);
+        return integrationsRedirect(
+          request,
+          tenantId,
+          `error=${encodeURIComponent(`facebook_pages:${msg}`)}`
+        );
       }
-      const pagesData = await pagesResponse.json();
-      const rawList = (pagesData.data || []) as Array<{
-        id?: string;
-        name?: string;
-        access_token?: string;
-      }>;
+
       if (rawList.length === 0) {
         return integrationsRedirect(request, tenantId, 'error=no_facebook_page');
       }
+      pagesStored = sanitizePagesForStorage(rawList);
+
+      // Plataforma: no usar la primera página automáticamente (puede ser de un vendedor).
+      if (tenantId === PLATFORM_SOCIAL_TENANT_ID) {
+        const platformSettings = await getPlatformSocialSettings();
+        const pagesPending = rawList
+          .map((p) => ({
+            id: String(p.id ?? ''),
+            name: String(p.name ?? ''),
+            access_token: readPageAccessToken(p) || '',
+          }))
+          .filter((p) => p.id && p.access_token);
+
+        if (pagesPending.length === 0) {
+          return integrationsRedirect(request, tenantId, 'error=no_facebook_page_token');
+        }
+
+        const allowedPages = pagesPending.filter(
+          (p) => isAllowedPlatformFacebookPage(p.id, platformSettings).allowed
+        );
+        if (allowedPages.length === 0) {
+          const onlyBlocked = pagesPending.every((p) => isBlockedPlatformFacebookPage(p.id));
+          const code = onlyBlocked ? 'only_seller_pages' : 'no_official_platform_page';
+          return integrationsRedirect(request, tenantId, `error=${code}`);
+        }
+
+        await db.collection('system_settings').doc(PLATFORM_META_OAUTH_PENDING_DOC).set({
+          type: 'facebook',
+          accessToken,
+          primaryAdAccountId: primaryAdAccountId || null,
+          leadOwnerUserId: leadOwnerUserId || null,
+          pages: allowedPages,
+          pagesDisplay: pagesStored,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        return integrationsRedirect(request, tenantId, 'select_platform_page=1');
+      }
+
       const firstPage = rawList[0];
       pageId = String(firstPage.id ?? '');
       pageName = String(firstPage.name ?? '');
@@ -160,7 +208,6 @@ export async function GET(request: NextRequest) {
       if (!pageAccessToken) {
         return integrationsRedirect(request, tenantId, 'error=no_facebook_page_token');
       }
-      pagesStored = sanitizePagesForStorage(rawList);
     } else if (type === 'instagram') {
       const pagesResponse = await fetch(
         `https://graph.facebook.com/v18.0/me/accounts?access_token=${accessToken}&fields=id,name,access_token,instagram_business_account{id,username}`

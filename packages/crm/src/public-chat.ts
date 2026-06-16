@@ -82,23 +82,24 @@ export async function createPublicChatMessage(
           .where('status', '==', 'active')
           .get();
 
+        const { notifyUser } = await import('@autodealers/core');
         for (const userDoc of usersSnapshot.docs) {
           const userData = userDoc.data();
           if (userData.role === 'dealer' || userData.role === 'seller') {
             try {
-              await createNotification(tenantId, userDoc.id, {
+              await notifyUser(tenantId, userDoc.id, {
                 type: 'public_chat',
                 title: 'Nuevo mensaje de cliente',
                 message: `${clientName}: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`,
-                data: {
+                metadata: {
                   messageId: docRef.id,
                   sessionId,
                   clientName,
+                  route: '/messages',
                 },
               });
             } catch (notifError) {
               console.warn('⚠️ Error creando notificación:', notifError);
-              // Continuar aunque falle la notificación
             }
           }
         }
@@ -280,30 +281,3 @@ export async function markPublicChatMessagesAsRead(
 /**
  * Crea una notificación
  */
-async function createNotification(
-  tenantId: string,
-  userId: string,
-  notification: {
-    type: string;
-    title: string;
-    message: string;
-    data?: Record<string, any>;
-  }
-): Promise<void> {
-  const db = getDb();
-  const notificationRef = db
-    .collection('tenants')
-    .doc(tenantId)
-    .collection('notifications')
-    .doc();
-
-  await notificationRef.set({
-    userId,
-    ...notification,
-    read: false,
-    createdAt: getFirestoreFieldValue().serverTimestamp(),
-  } as any);
-}
-
-
-

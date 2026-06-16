@@ -208,7 +208,7 @@ export default function AdminAllVehiclesPage() {
           </button>
           <Link
             href="/admin/vehicles/create"
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+            className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 flex items-center gap-2"
           >
             <span>➕</span>
             Crear Vehículo
@@ -244,14 +244,14 @@ export default function AdminAllVehiclesPage() {
                 <span className={
                   debugInfo.status === 'exito' ? 'text-green-600' :
                   debugInfo.status === 'error' ? 'text-red-600' :
-                  'text-blue-600'
+                  'text-primary-600'
                 }>
                   {debugInfo.status}
                 </span>
               </div>
               <div>
                 <span className="font-semibold">Vehículos encontrados:</span>{' '}
-                <span className="text-blue-600 font-bold">{debugInfo.vehiclesCount}</span>
+                <span className="text-primary-600 font-bold">{debugInfo.vehiclesCount}</span>
               </div>
               {debugInfo.responseStatus && (
                 <div>
@@ -329,7 +329,7 @@ export default function AdminAllVehiclesPage() {
                       </button>
                       <a
                         href="/admin/global"
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors"
+                        className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 text-sm font-medium transition-colors"
                       >
                         🏠 Ir al Dashboard
                       </a>
@@ -458,7 +458,7 @@ export default function AdminAllVehiclesPage() {
                   ${vehicle.price.toLocaleString()}
                 </td>
                 <td className="px-6 py-4">
-                  <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs capitalize">
+                  <span className="px-2 py-1 bg-primary-100 text-primary-700 rounded text-xs capitalize">
                     {vehicle.status}
                   </span>
                 </td>
@@ -494,7 +494,7 @@ export default function AdminAllVehiclesPage() {
                             photos: vehicle.photos,
                           })
                         }
-                        className="text-left text-violet-700 hover:text-violet-900 text-sm font-medium"
+                        className="text-left text-primary-700 hover:text-primary-900 text-sm font-medium"
                       >
                         📱 Publicar en redes
                       </button>

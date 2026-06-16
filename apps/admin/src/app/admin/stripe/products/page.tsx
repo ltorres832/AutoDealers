@@ -151,7 +151,7 @@ export default function StripeProductsPage() {
             <button
               type="submit"
               disabled={creating}
-              className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              className="w-full bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 disabled:opacity-50"
             >
               {creating ? 'Creando...' : '✓ Crear Producto'}
             </button>
@@ -197,7 +197,7 @@ export default function StripeProductsPage() {
                       key={price.id}
                       className="flex items-center gap-2 text-sm bg-gray-50 px-3 py-2 rounded"
                     >
-                      <span className="font-semibold text-blue-600">
+                      <span className="font-semibold text-primary-600">
                         ${price.amount.toFixed(2)} {price.currency.toUpperCase()}
                       </span>
                       {price.interval && (

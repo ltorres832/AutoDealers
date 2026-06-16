@@ -8,9 +8,12 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import FICalculator from '@/components/FICalculator';
 import FIApprovalScore from '@/components/FIApprovalScore';
+import FIDocumentPdfPanel from '@/components/FIDocumentPdfPanel';
 import { useAuth } from '@/hooks/useAuth';
 import { useRealtimeFIRequest } from '@/hooks/useRealtimeFIRequest';
 import { expeditionStageLabel } from '@autodealers/shared/client';
+import FICosignerFullForm from '@/components/FICosignerFullForm';
+import { getCosignerTotalMonthlyIncome, getFITotalMonthlyIncome } from '@/lib/fi-income-utils';
 
 interface FIRequest {
   id: string;
@@ -64,8 +67,9 @@ export default function FIRequestDetailPage() {
 
   const request = liveRequest as FIRequest | null;
   const [client, setClient] = useState<FIClient | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'calculator' | 'score' | 'cosigner' | 'options' | 'history'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'calculator' | 'score' | 'cosigner' | 'options' | 'documents' | 'history'>('overview');
   const [showCosignerForm, setShowCosignerForm] = useState(false);
+  const [cosignerFormMode, setCosignerFormMode] = useState<'create' | 'edit'>('create');
   const linkAttemptRef = useRef(false);
 
   useEffect(() => {
@@ -145,7 +149,7 @@ export default function FIRequestDetailPage() {
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { color: string; label: string }> = {
       draft: { color: 'bg-gray-500', label: 'Borrador' },
-      submitted: { color: 'bg-blue-500', label: 'Enviado' },
+      submitted: { color: 'bg-primary-500', label: 'Enviado' },
       under_review: { color: 'bg-yellow-500', label: 'En Revisión' },
       pre_approved: { color: 'bg-green-500', label: 'Pre-Aprobado' },
       approved: { color: 'bg-green-600', label: 'Aprobado' },
@@ -179,7 +183,7 @@ export default function FIRequestDetailPage() {
         <p className="text-gray-500 text-sm mb-4">
           Comprueba tu sesión, las reglas de seguridad y que el módulo F&I esté activo.
         </p>
-        <Link href="/fi" className="text-blue-600 hover:text-blue-700">
+        <Link href="/fi" className="text-primary-600 hover:text-primary-700">
           Volver a F&I
         </Link>
       </div>
@@ -190,7 +194,7 @@ export default function FIRequestDetailPage() {
     return (
       <div className="text-center py-12">
         <p className="text-gray-500">Solicitud no encontrada</p>
-        <Link href="/fi" className="text-blue-600 hover:text-blue-700 mt-4 inline-block">
+        <Link href="/fi" className="text-primary-600 hover:text-primary-700 mt-4 inline-block">
           Volver a F&I
         </Link>
       </div>
@@ -204,7 +208,7 @@ export default function FIRequestDetailPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-6">
-        <Link href="/fi" className="text-blue-600 hover:text-blue-700 text-sm">
+        <Link href="/fi" className="text-primary-600 hover:text-primary-700 text-sm">
           ← Volver a F&I
         </Link>
       </div>
@@ -220,7 +224,7 @@ export default function FIRequestDetailPage() {
         <div className="flex flex-wrap items-center gap-2 justify-end">
           {getStatusBadge(request.status)}
           <span
-            className="px-3 py-1 rounded-full text-sm bg-indigo-100 text-indigo-800 border border-indigo-200"
+            className="px-3 py-1 rounded-full text-sm bg-primary-100 text-primary-800 border border-primary-200"
             title="Etapa del expediente vinculada al caso de cliente"
           >
             Expedición: {expeditionStageLabel(request.expeditionStage)}
@@ -228,7 +232,7 @@ export default function FIRequestDetailPage() {
           {request.customerFileId && (
             <Link
               href="/customer-files"
-              className="text-sm text-blue-600 hover:text-blue-800 underline"
+              className="text-sm text-primary-600 hover:text-primary-800 underline"
             >
               Ver caso de cliente
             </Link>
@@ -236,7 +240,7 @@ export default function FIRequestDetailPage() {
           {request.status === 'draft' && (
             <button
               onClick={handleSubmit}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
             >
               Enviar a F&I
             </button>
@@ -253,6 +257,7 @@ export default function FIRequestDetailPage() {
             { id: 'score', label: 'Score', icon: '🎯' },
             { id: 'cosigner', label: 'Co-signer', icon: '👥' },
             { id: 'options', label: 'Opciones', icon: '📊' },
+            { id: 'documents', label: 'PDF y documentos', icon: '📄' },
             { id: 'history', label: 'Historial', icon: '📜' },
           ].map((tab) => (
             <button
@@ -260,7 +265,7 @@ export default function FIRequestDetailPage() {
               onClick={() => setActiveTab(tab.id as any)}
               className={`${
                 activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600'
+                  ? 'border-primary-500 text-primary-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2`}
             >
@@ -361,7 +366,7 @@ export default function FIRequestDetailPage() {
             {request.sellerNotes && (
               <div className="mb-4">
                 <span className="text-sm font-medium text-gray-700">Notas del Vendedor:</span>
-                <p className="mt-1 text-gray-600 bg-blue-50 p-3 rounded">{request.sellerNotes}</p>
+                <p className="mt-1 text-gray-600 bg-primary-50 p-3 rounded">{request.sellerNotes}</p>
               </div>
             )}
             {request.fiManagerNotes && (
@@ -395,33 +400,118 @@ export default function FIRequestDetailPage() {
       {activeTab === 'cosigner' && (
         <div className="bg-white shadow rounded-lg p-6">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">👥 Co-signer</h2>
+            <h2 className="text-xl font-semibold text-gray-900">👥 Codeudor (Co-signer)</h2>
             {!request.cosigner && (
               <button
-                onClick={() => setShowCosignerForm(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                onClick={() => {
+                  setCosignerFormMode('create');
+                  setShowCosignerForm(true);
+                }}
+                className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
               >
-                + Agregar Co-signer
+                + Agregar codeudor
+              </button>
+            )}
+            {request.cosigner && (
+              <button
+                onClick={() => {
+                  setCosignerFormMode('edit');
+                  setShowCosignerForm(true);
+                }}
+                className="px-4 py-2 border border-primary-300 text-primary-700 rounded-md hover:bg-primary-50"
+              >
+                Editar codeudor
               </button>
             )}
           </div>
           {request.cosigner ? (
-            <div className="bg-gray-50 rounded-lg p-4">
-              <p className="font-medium">{request.cosigner.name}</p>
-              <p className="text-sm text-gray-600">{request.cosigner.phone}</p>
-              <p className="text-sm text-gray-600">{request.cosigner.email}</p>
-              <span className={`mt-2 inline-block px-2 py-1 rounded text-xs ${
-                request.cosigner.status === 'approved' ? 'bg-green-100 text-green-800' :
-                request.cosigner.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                'bg-yellow-100 text-yellow-800'
-              }`}>
-                {request.cosigner.status === 'approved' ? 'Aprobado' :
-                 request.cosigner.status === 'rejected' ? 'Rechazado' : 'Pendiente'}
-              </span>
+            <div className="space-y-4">
+              <div className="bg-gray-50 rounded-lg p-4">
+                <p className="font-semibold text-lg">{request.cosigner.name}</p>
+                <p className="text-sm text-gray-600">{request.cosigner.phone}</p>
+                {request.cosigner.phoneAlternate && (
+                  <p className="text-sm text-gray-600">Alt: {request.cosigner.phoneAlternate}</p>
+                )}
+                <p className="text-sm text-gray-600">{request.cosigner.email}</p>
+                <p className="text-sm text-gray-600 mt-1 capitalize">
+                  Relación: {request.cosigner.relationship}
+                </p>
+                <span className={`mt-2 inline-block px-2 py-1 rounded text-xs ${
+                  request.cosigner.status === 'approved' ? 'bg-green-100 text-green-800' :
+                  request.cosigner.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                  'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {request.cosigner.status === 'approved' ? 'Aprobado' :
+                   request.cosigner.status === 'rejected' ? 'Rechazado' : 'Pendiente'}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div className="border rounded-lg p-3">
+                  <p className="font-medium text-gray-900 mb-1">Empleo principal</p>
+                  <p>{request.cosigner.employment?.employer || '—'}</p>
+                  <p className="text-gray-600">
+                    Ingreso: ${request.cosigner.employment?.monthlyIncome?.toLocaleString() || '0'}/mes
+                  </p>
+                </div>
+                <div className="border rounded-lg p-3 bg-primary-50">
+                  <p className="font-medium text-primary-900 mb-1">Ingreso total codeudor</p>
+                  <p className="text-lg font-semibold text-primary-800">
+                    ${getCosignerTotalMonthlyIncome(request.cosigner).toLocaleString()}/mes
+                  </p>
+                  <p className="text-xs text-primary-700 mt-1">
+                    Ingreso combinado hogar: $
+                    {(getFITotalMonthlyIncome(request) + getCosignerTotalMonthlyIncome(request.cosigner)).toLocaleString()}
+                    /mes
+                  </p>
+                </div>
+              </div>
+              {(request.cosigner.additionalEmployments?.length ?? 0) > 0 && (
+                <div>
+                  <p className="font-medium text-gray-900 mb-2">Empleos adicionales</p>
+                  {request.cosigner.additionalEmployments.map((job: any, i: number) => (
+                    <p key={i} className="text-sm text-gray-600">
+                      {job.employer} — ${job.monthlyIncome?.toLocaleString() || '0'}/mes
+                    </p>
+                  ))}
+                </div>
+              )}
+              {request.cosigner.personalInfo?.address && (
+                <p className="text-sm text-gray-600">
+                  Dirección: {request.cosigner.personalInfo.address}
+                </p>
+              )}
             </div>
           ) : (
-            <p className="text-gray-500">No hay co-signer agregado</p>
+            <p className="text-gray-500">
+              No hay codeudor registrado. Agregue la información completa si el cliente utilizará un garante.
+            </p>
           )}
+        </div>
+      )}
+
+      {showCosignerForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-semibold">
+                {cosignerFormMode === 'edit' ? 'Editar codeudor' : 'Agregar codeudor'}
+              </h3>
+              <button
+                onClick={() => setShowCosignerForm(false)}
+                className="text-gray-500 hover:text-gray-700 text-2xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+            <FICosignerFullForm
+              requestId={requestId}
+              mode={cosignerFormMode}
+              initialCosigner={request.cosigner}
+              onCancel={() => setShowCosignerForm(false)}
+              onCosignerAdded={() => setShowCosignerForm(false)}
+              onCosignerUpdated={() => setShowCosignerForm(false)}
+            />
+          </div>
         </div>
       )}
 
@@ -451,13 +541,17 @@ export default function FIRequestDetailPage() {
         </div>
       )}
 
+      {activeTab === 'documents' && (
+        <FIDocumentPdfPanel requestId={requestId} clientName={client?.name} />
+      )}
+
       {activeTab === 'history' && (
         <div className="bg-white shadow rounded-lg p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">📜 Historial Completo</h2>
           {request.history && request.history.length > 0 ? (
             <div className="space-y-3">
               {request.history.map((entry, index) => (
-                <div key={index} className="border-l-4 border-blue-500 pl-4 py-2">
+                <div key={index} className="border-l-4 border-primary-500 pl-4 py-2">
                   <div className="flex justify-between">
                     <span className="font-medium text-gray-900">{entry.action}</span>
                     <span className="text-sm text-gray-500">

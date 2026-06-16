@@ -1,6 +1,8 @@
-// Hook para obtener clientes F&I usando API route (evita problemas de permisos de Firestore)
+// Hook para obtener clientes F&I en tiempo real (Dealer)
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
+import { db } from '@/lib/firebase-client-base';
+import { collection, query, onSnapshot, Timestamp } from 'firebase/firestore';
 
 interface FIClient {
   id: string;
@@ -12,13 +14,13 @@ interface FIClient {
   vehicleYear?: number;
   vehiclePrice?: number;
   downPayment?: number;
+  createdAt?: Date | Timestamp;
 }
 
 export function useRealtimeFIClients(tenantId: string) {
   const [clients, setClients] = useState<FIClient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!tenantId) {
@@ -26,47 +28,63 @@ export function useRealtimeFIClients(tenantId: string) {
       return;
     }
 
-    // Función para cargar clientes desde la API
-    const fetchClients = async () => {
-      try {
-        const response = await fetch('/api/fi/clients', {
-          credentials: 'include',
+    if (!db) {
+      setLoading(false);
+      return;
+    }
+
+    const q = query(collection(db, 'tenants', tenantId, 'fi_clients'));
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const clientsData: FIClient[] = [];
+
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          clientsData.push({
+            id: doc.id,
+            name: data.name || '',
+            phone: data.phone || '',
+            email: data.email,
+            vehicleMake: data.vehicleMake,
+            vehicleModel: data.vehicleModel,
+            vehicleYear: data.vehicleYear,
+            vehiclePrice: data.vehiclePrice,
+            downPayment: data.downPayment,
+            createdAt: data.createdAt,
+          });
         });
 
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        const clientsData = data.clients || [];
+        clientsData.sort((a, b) => {
+          const aTime =
+            a.createdAt instanceof Timestamp
+              ? a.createdAt.toMillis()
+              : a.createdAt instanceof Date
+                ? a.createdAt.getTime()
+                : 0;
+          const bTime =
+            b.createdAt instanceof Timestamp
+              ? b.createdAt.toMillis()
+              : b.createdAt instanceof Date
+                ? b.createdAt.getTime()
+                : 0;
+          return bTime - aTime;
+        });
 
         setClients(clientsData);
         setLoading(false);
         setError(null);
-      } catch (err: any) {
-        console.error('Error al cargar clientes F&I:', err);
+      },
+      (err) => {
+        console.error('Error en tiempo real F&I clients:', err);
         setError(err);
         setLoading(false);
       }
-    };
+    );
 
-    // Cargar inmediatamente
-    fetchClients();
-
-    // Configurar polling cada 5 segundos para simular tiempo real
-    intervalRef.current = setInterval(() => {
-      fetchClients();
-    }, 5000);
-
-    // Limpiar intervalo al desmontar
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
+    return () => unsubscribe();
   }, [tenantId]);
 
   return { clients, loading, error };
 }
-

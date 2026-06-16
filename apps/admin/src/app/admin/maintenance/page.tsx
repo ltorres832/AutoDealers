@@ -77,7 +77,7 @@ export default function MaintenancePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
       </div>
     );
   }
@@ -98,7 +98,7 @@ export default function MaintenancePage() {
               type="checkbox"
               checked={mode.enabled}
               onChange={(e) => setMode({ ...mode, enabled: e.target.checked })}
-              className="h-5 w-5 text-blue-600 rounded"
+              className="h-5 w-5 text-primary-600 rounded"
             />
             <span className="text-lg font-medium text-gray-900">
               Activar Modo de Mantenimiento
@@ -118,7 +118,7 @@ export default function MaintenancePage() {
               <textarea
                 value={mode.message}
                 onChange={(e) => setMode({ ...mode, message: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 rows={4}
                 placeholder="La plataforma está en mantenimiento. Por favor, vuelve más tarde."
                 required
@@ -136,7 +136,7 @@ export default function MaintenancePage() {
                   ...mode, 
                   currentEnd: e.target.value ? new Date(e.target.value).toISOString() : undefined 
                 })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
               <p className="text-sm text-gray-500 mt-1">
                 El modo de mantenimiento se desactivará automáticamente después de esta fecha.
@@ -166,7 +166,7 @@ export default function MaintenancePage() {
                           });
                         }
                       }}
-                      className="h-4 w-4 text-blue-600 rounded"
+                      className="h-4 w-4 text-primary-600 rounded"
                     />
                     <span className="text-sm text-gray-700 capitalize">
                       {dashboard === 'admin' ? 'Admin' : 
@@ -184,7 +184,7 @@ export default function MaintenancePage() {
           <button
             onClick={handleSave}
             disabled={saving || (mode.enabled && !mode.message)}
-            className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? 'Guardando...' : 'Guardar Configuración'}
           </button>

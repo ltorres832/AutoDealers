@@ -21,6 +21,14 @@ export interface User {
   lastLogin?: Date;
   phone?: string; // Número de teléfono para notificaciones SMS y WhatsApp
   settings: Record<string, any>;
+  /** Cuenta creada por admin: debe cambiar contraseña en el primer acceso. */
+  mustChangePassword?: boolean;
+  createdByAdmin?: boolean;
+  /** granted = admin activó plan sin pago; required = debe elegir y pagar membresía */
+  adminMembershipAccess?: 'granted' | 'required';
+  adminMembershipSelectionRequired?: boolean;
+  adminMembershipGrantedBy?: string;
+  adminMembershipGrantedAt?: Date;
   // Email corporativo (legacy - para compatibilidad)
   corporateEmail?: string; // Email corporativo asignado (ej: juan@autocity.autoplataforma.com)
   emailSignature?: string; // Firma de email (HTML)
@@ -42,6 +50,8 @@ export interface Tenant {
   fiManagerId?: string; // ID del usuario designado como Gerente F&I (solo para dealers)
   fiManagerPhone?: string; // Teléfono del gerente F&I para notificaciones SMS
   fiManagerEmail?: string; // Email del gerente F&I para notificaciones
+  contactEmail?: string;
+  contactPhone?: string;
   branding: {
     logo?: string;
     logoUrl?: string;

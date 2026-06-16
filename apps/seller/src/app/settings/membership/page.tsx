@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRealtimeMemberships } from '@/hooks/useRealtimeMemberships';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
+import { DealerManagedMembershipPanel } from '@/components/DealerManagedMembershipPanel';
+import { MembershipOnboardingNotice } from '@autodealers/shared/client';
 
 interface Membership {
   id: string;
@@ -31,6 +33,7 @@ interface Subscription {
 
 export default function MembershipPage() {
   const [user, setUser] = useState<any>(null);
+  const [userLoading, setUserLoading] = useState(true);
   const [tenantId, setTenantId] = useState<string | undefined>(undefined);
   const [currentMembership, setCurrentMembership] = useState<Membership | null>(null);
   const [changing, setChanging] = useState(false);
@@ -38,7 +41,7 @@ export default function MembershipPage() {
   const [reactivating, setReactivating] = useState(false);
 
   // Hooks de tiempo real
-  const { memberships: availableMemberships, loading: membershipsLoading } = useRealtimeMemberships('seller');
+  const { memberships: availableMemberships, loading: membershipsLoading, emptyReason: membershipsEmptyReason } = useRealtimeMemberships('seller');
   const { subscription, loading: subscriptionLoading } = useRealtimeSubscription(tenantId);
 
   // Obtener tenantId del usuario
@@ -55,6 +58,8 @@ export default function MembershipPage() {
         }
       } catch (error) {
         console.error('Error obteniendo usuario:', error);
+      } finally {
+        setUserLoading(false);
       }
     }
     fetchUser();
@@ -140,6 +145,11 @@ export default function MembershipPage() {
       return;
     }
 
+    if (!subscription || !subscription.stripeCustomerId || !subscription.stripeSubscriptionId) {
+      window.location.href = `/settings/membership/payment?membershipId=${newMembershipId}`;
+      return;
+    }
+
     setChanging(true);
     try {
       // Asegurar que el token esté fresco antes de hacer la petición
@@ -154,20 +164,10 @@ export default function MembershipPage() {
       });
 
       if (response.ok) {
-        const data = await response.json();
-        
-        // Si no hay método de pago configurado, redirigir a la página de pago
-        if (!subscription?.stripeCustomerId || !subscription?.stripeSubscriptionId) {
-          // Redirigir a la página de pago
-          window.location.href = `/settings/membership/payment?membershipId=${newMembershipId}`;
-          return;
-        }
-        
         alert(`✅ Membresía ${action === 'cambiar' ? 'cambiada' : 'seleccionada'} exitosamente. El sistema se actualizará automáticamente.`);
-        // Los hooks de tiempo real actualizarán automáticamente
         setTimeout(() => {
-          window.location.reload();
-        }, 2000);
+          window.location.href = '/dashboard';
+        }, 1500);
       } else {
         const error = await response.json();
         alert(error.message || error.error || `Error al ${action} membresía`);
@@ -209,6 +209,28 @@ export default function MembershipPage() {
     return labels[status] || status;
   }
 
+  if (userLoading) {
+    return (
+      <div className="flex justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
+
+  if (user?.dealerId) {
+    return (
+      <Suspense
+        fallback={
+          <div className="flex justify-center p-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
+          </div>
+        }
+      >
+        <DealerManagedMembershipPanel tenantId={tenantId} dealerId={user.dealerId} />
+      </Suspense>
+    );
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center p-8">
@@ -219,6 +241,10 @@ export default function MembershipPage() {
 
   return (
     <div className="max-w-6xl mx-auto">
+      <MembershipOnboardingNotice
+        accountLabel="cuenta"
+        createdByAdmin={user?.createdByAdmin === true}
+      />
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Membresía</h1>
         <p className="text-gray-600">
@@ -301,8 +327,8 @@ export default function MembershipPage() {
             </div>
 
             {subscription.statusReason && (
-              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-800">
+              <div className="mb-4 p-3 bg-primary-50 border border-primary-200 rounded-lg">
+                <p className="text-sm text-primary-800">
                   <strong>Motivo del estado:</strong> {subscription.statusReason}
                 </p>
               </div>
@@ -493,8 +519,8 @@ export default function MembershipPage() {
               </div>
               {(currentMembership.features.maxInventory === null && 
                 currentMembership.features.maxStorageGB === null) && (
-                <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                  <p className="text-sm text-purple-800 font-medium">
+                <div className="mt-4 p-3 bg-primary-50 border border-primary-200 rounded-lg">
+                  <p className="text-sm text-primary-800 font-medium">
                     🎉 Todo Ilimitado - Sin Restricciones
                   </p>
                 </div>
@@ -502,19 +528,19 @@ export default function MembershipPage() {
             </div>
           </div>
         ) : (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+          <div className="bg-primary-50 border border-primary-200 rounded-lg p-6">
             <div className="flex items-start gap-4">
               <div className="flex-shrink-0">
                 <span className="text-3xl">📋</span>
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-blue-900 mb-2">
+                <h3 className="text-lg font-semibold text-primary-900 mb-2">
                   No tienes una membresía activa
                 </h3>
-                <p className="text-blue-700 mb-4">
+                <p className="text-primary-700 mb-4">
                   Selecciona un plan de membresía para comenzar a usar todas las funcionalidades de la plataforma.
                 </p>
-                <p className="text-sm text-blue-600">
+                <p className="text-sm text-primary-600">
                   Puedes elegir entre los planes disponibles a continuación. Una vez seleccionado, podrás gestionar tu membresía desde aquí.
                 </p>
               </div>
@@ -635,8 +661,8 @@ export default function MembershipPage() {
                 </div>
                 {(membership.features.maxInventory === null && 
                   membership.features.maxStorageGB === null) && (
-                  <div className="mt-2 p-2 bg-purple-50 border border-purple-200 rounded">
-                    <p className="text-xs text-purple-800 font-medium">
+                  <div className="mt-2 p-2 bg-primary-50 border border-primary-200 rounded">
+                    <p className="text-xs text-primary-800 font-medium">
                       🎉 Todo Ilimitado - Sin Restricciones
                     </p>
                   </div>
@@ -669,7 +695,7 @@ export default function MembershipPage() {
 
         {availableMemberships.length === 0 && (
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
-            <p className="text-gray-600">No hay membresías disponibles</p>
+            <p className="text-gray-600">{membershipsEmptyReason || 'No hay membresías disponibles'}</p>
           </div>
         )}
       </div>

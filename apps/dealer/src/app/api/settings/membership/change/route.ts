@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth, isDealerPortalRole, billingTenantId } from '@/lib/auth';
 import { getSubscriptionByTenantId, changeMembership } from '@autodealers/billing';
-import { getMembershipById } from '@autodealers/billing';
-import { getFirestore } from '@autodealers/core';
-import * as admin from 'firebase-admin';
-import { SubscriptionStatus } from '@autodealers/billing';
+import { getMembershipById, assertSelfServiceMembership } from '@autodealers/billing';
+import { getMembershipTrialDays } from '@autodealers/billing/membership-trial';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,72 +20,34 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Membership ID is required' }, { status: 400 });
     }
 
-    // Verificar que la membresía existe y es para dealers
     const newMembership = await getMembershipById(membershipId);
     if (!newMembership || !newMembership.isActive || newMembership.type !== 'dealer') {
       return NextResponse.json({ error: 'Invalid membership' }, { status: 400 });
     }
 
-    const billTid = billingTenantId(auth) ?? auth.tenantId;
-    // Obtener suscripción actual
-    let subscription = await getSubscriptionByTenantId(billTid!);
-    
-    // Si no hay suscripción, crear una nueva
-    if (!subscription) {
-      console.log(`📝 [DEALER] No hay suscripción, creando una nueva para tenant: ${billTid}`);
-      
-      // Obtener información del usuario
-      const db = getFirestore();
-      const userDoc = await db.collection('users').doc(auth.userId).get();
-      const userData = userDoc.data();
-      
-      if (!userData) {
-        return NextResponse.json({ error: 'User not found' }, { status: 404 });
-      }
-      
-      // Crear suscripción básica en Firestore (sin Stripe por ahora)
-      const subscriptionRef = db.collection('subscriptions').doc();
-      const now = new Date();
-      const periodEnd = new Date(now);
-      periodEnd.setMonth(periodEnd.getMonth() + 1); // 1 mes desde ahora
-      
-      const newSubscription = {
-        tenantId: billTid,
-        userId: auth.userId,
-        membershipId: membershipId,
-        stripeSubscriptionId: '', // Se creará cuando se configure el pago
-        stripeCustomerId: '', // Se creará cuando se configure el pago
-        status: 'trialing' as SubscriptionStatus, // Estado de prueba
-        currentPeriodStart: admin.firestore.Timestamp.fromDate(now),
-        currentPeriodEnd: admin.firestore.Timestamp.fromDate(periodEnd),
-        cancelAtPeriodEnd: false,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      };
-      
-      await subscriptionRef.set(newSubscription);
-      
-      subscription = {
-        id: subscriptionRef.id,
-        tenantId: billTid!,
-        userId: auth.userId,
-        membershipId: membershipId,
-        stripeSubscriptionId: '',
-        stripeCustomerId: '',
-        status: 'trialing',
-        currentPeriodStart: now,
-        currentPeriodEnd: periodEnd,
-        cancelAtPeriodEnd: false,
-        createdAt: now,
-        updatedAt: now,
-      };
-      
-      console.log(`✅ [DEALER] Suscripción creada: ${subscription.id}`);
-    } else {
-      // Si ya existe, cambiar membresía
-      console.log(`🔄 [DEALER] Cambiando membresía de suscripción existente: ${subscription.id}`);
-      await changeMembership(subscription.id, membershipId, newMembership.stripePriceId);
+    const selfServiceCheck = assertSelfServiceMembership(newMembership);
+    if (!selfServiceCheck.ok) {
+      return NextResponse.json({ error: selfServiceCheck.error }, { status: 403 });
     }
+
+    const billTid = billingTenantId(auth) ?? auth.tenantId;
+    const subscription = await getSubscriptionByTenantId(billTid!);
+
+    if (!subscription || !subscription.stripeSubscriptionId?.trim()) {
+      return NextResponse.json(
+        {
+          error: 'payment_required',
+          requiresPayment: true,
+          membershipId,
+          trialDays: getMembershipTrialDays(),
+          message:
+            'Registra tu método de pago para activar la membresía. Incluye 14 días de prueba gratis; el cobro mensual inicia automáticamente al terminar.',
+        },
+        { status: 402 }
+      );
+    }
+
+    await changeMembership(subscription.id, membershipId, newMembership.stripePriceId);
 
     return NextResponse.json({
       success: true,
@@ -101,6 +61,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-
-

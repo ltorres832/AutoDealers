@@ -83,7 +83,7 @@ export default function PoliciesPage() {
     );
   }
 
-  const primaryColor = tenant?.branding?.primaryColor || '#2563EB';
+  const primaryColor = tenant?.branding?.primaryColor || '#E10600';
   const enabledPolicies = (Object.keys(POLICY_INFO) as PolicyType[]).filter(
     (type) => policies[type]?.enabled
   );

@@ -8,6 +8,11 @@ const {
 } = require('@autodealers/core') as any;
 import * as admin from 'firebase-admin';
 import { getStripeService } from '@autodealers/core';
+import {
+  parseAdLinkType,
+  requiresDestinationUrl,
+  resolveAdLinkForSave,
+} from '@/lib/ad-link-types';
 
 const db = getFirestore();
 
@@ -72,9 +77,17 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // Validaciones
-    if (!type || !placement || !title || !linkUrl || !durationDays) {
+    if (!type || !placement || !title || !durationDays) {
       return NextResponse.json(
         { error: 'Faltan campos requeridos' },
+        { status: 400 }
+      );
+    }
+
+    const parsedLinkType = parseAdLinkType(linkType);
+    if (requiresDestinationUrl(parsedLinkType) && !String(linkUrl || '').trim()) {
+      return NextResponse.json(
+        { error: 'La URL de destino es obligatoria para enlace externo' },
         { status: 400 }
       );
     }
@@ -118,14 +131,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verificar que tenga un plan activo
-    if (!advertiser.plan) {
-      return NextResponse.json(
-        { error: 'Debes seleccionar un plan para crear anuncios. Por favor, selecciona un plan primero.' },
-        { status: 400 }
-      );
-    }
-
+    // Pago por anuncio: no se exige suscripción mensual
     // Obtener configuración de precios desde admin_config
     const pricingConfigDoc = await db.collection('admin_config').doc('pricing').get();
     let actualPrice = priceNumber;
@@ -164,6 +170,19 @@ export async function POST(request: NextRequest) {
     const end = new Date(start.getTime());
     end.setDate(end.getDate() + duration);
 
+    let resolvedLink: { linkType: ReturnType<typeof parseAdLinkType>; linkUrl: string };
+    try {
+      resolvedLink = resolveAdLinkForSave({
+        linkType: parsedLinkType,
+        linkUrl: String(linkUrl || ''),
+        advertiserWebsite: advertiser.website,
+      });
+    } catch (linkErr: unknown) {
+      const message =
+        linkErr instanceof Error ? linkErr.message : 'URL de destino no válida';
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+
     // Crear el anuncio en estado de pago pendiente
     const ad = await createSponsoredContent({
       advertiserId: auth.userId,
@@ -175,8 +194,8 @@ export async function POST(request: NextRequest) {
       description: description || '',
       imageUrl: media === 'image' ? imageUrl : '',
       videoUrl: media === 'video' ? videoUrl : '',
-      linkUrl,
-      linkType: linkType as 'external' | 'landing_page',
+      linkUrl: resolvedLink.linkUrl,
+      linkType: resolvedLink.linkType,
       targetLocation,
       targetVehicleTypes,
       budget: actualPrice,
@@ -187,6 +206,7 @@ export async function POST(request: NextRequest) {
       price: actualPrice,
       durationDays: duration,
       status: 'payment_pending' as any,
+      billingMode: 'per_ad' as const,
     });
 
     // Obtener servicio de Stripe desde Firestore

@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     // Crear SetupIntent para guardar método de pago
     const setupIntent = await stripe.setupIntents.create({
       customer: customerId,
-      payment_method_types: ['card', 'us_bank_account'],
+      payment_method_types: ['card'],
       usage: 'off_session',
       metadata: {
         tenantId: auth.tenantId,

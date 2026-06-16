@@ -221,8 +221,8 @@ export function PermissionsSelector({
 
   return (
     <div className="space-y-4">
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <p className="text-sm text-blue-800">
+      <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+        <p className="text-sm text-primary-800">
           <strong>💡 Tip:</strong> Los permisos marcados en <span className="text-green-600">verde</span> vienen del rol seleccionado. 
           Puedes agregar permisos adicionales marcando más casillas.
         </p>
@@ -256,7 +256,7 @@ export function PermissionsSelector({
                     e.stopPropagation();
                     selectAllInCategory(category);
                   }}
-                  className="text-xs text-blue-600 hover:text-blue-800 font-medium px-2 py-1 rounded hover:bg-blue-50"
+                  className="text-xs text-primary-600 hover:text-primary-800 font-medium px-2 py-1 rounded hover:bg-primary-50"
                 >
                   {allSelected ? 'Deseleccionar todos' : 'Seleccionar todos'}
                 </button>
@@ -280,7 +280,7 @@ export function PermissionsSelector({
                         isSelected
                           ? isFromRole
                             ? 'border-green-300 bg-green-50'
-                            : 'border-blue-300 bg-blue-50'
+                            : 'border-primary-300 bg-primary-50'
                           : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                       }`}
                     >
@@ -288,7 +288,7 @@ export function PermissionsSelector({
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => togglePermission(permission.id)}
-                        className="mt-1 w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                        className="mt-1 w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500"
                       />
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
@@ -319,7 +319,7 @@ export function PermissionsSelector({
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-gray-700">Total de permisos seleccionados:</p>
-            <p className="text-2xl font-bold text-blue-600">{selectedPermissions.length}</p>
+            <p className="text-2xl font-bold text-primary-600">{selectedPermissions.length}</p>
           </div>
           <div className="text-right">
             <p className="text-xs text-gray-500">Del rol: {rolePermissions.filter(p => selectedPermissions.includes(p)).length}</p>

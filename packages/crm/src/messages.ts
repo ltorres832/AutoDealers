@@ -45,19 +45,35 @@ export async function createMessage(
         }
       }
 
-      const { notifyManagersAndAdmins } = await import('@autodealers/core');
+      const { notifyManagersAndAdmins, notifyUser } = await import('@autodealers/core');
+      const metadata = {
+        messageId: newMessage.id,
+        leadId: messageData.leadId,
+        channel: messageData.channel,
+        from: messageData.from,
+        content: messageData.content,
+        route: messageData.leadId ? `/leads?leadId=${messageData.leadId}` : '/messages',
+      };
+
       await notifyManagersAndAdmins(messageData.tenantId, {
         type: 'message_received',
         title: 'Nuevo Mensaje Recibido',
         message: `Nuevo mensaje${leadInfo} en ${messageData.channel}: ${messageData.content.substring(0, 100)}${messageData.content.length > 100 ? '...' : ''}`,
-        metadata: {
-          messageId: newMessage.id,
-          leadId: messageData.leadId,
-          channel: messageData.channel,
-          from: messageData.from,
-          content: messageData.content,
-        },
+        metadata,
       });
+
+      if (messageData.leadId) {
+        const { getLeadById } = await import('./leads');
+        const lead = await getLeadById(messageData.tenantId, messageData.leadId);
+        if (lead?.assignedTo) {
+          await notifyUser(messageData.tenantId, lead.assignedTo, {
+            type: 'message_received',
+            title: 'Nuevo mensaje en tu lead',
+            message: `Mensaje${leadInfo} en ${messageData.channel}: ${messageData.content.substring(0, 80)}`,
+            metadata,
+          });
+        }
+      }
     } catch (error) {
       // No fallar si las notificaciones no están disponibles
       console.warn('Manager notification skipped for new message:', error);

@@ -188,7 +188,7 @@ export default function ReportsPage() {
     );
   }
 
-  const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
+  const COLORS = ['#E10600', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
 
   // Preparar datos para gráficos
   const salesByMonthData = salesReport?.byMonth
@@ -366,7 +366,7 @@ export default function ReportsPage() {
             </div>
             <div className="bg-white rounded-lg shadow p-6">
               <p className="text-sm text-gray-600 mb-2">Tenants Activos</p>
-              <p className="text-3xl font-bold text-blue-600">
+              <p className="text-3xl font-bold text-primary-600">
                 {membershipsReport?.byStatus.active || 0}
               </p>
             </div>
@@ -405,7 +405,7 @@ export default function ReportsPage() {
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Area type="monotone" dataKey="tenants" stackId="1" stroke="#3B82F6" fill="#3B82F6" name="Tenants" />
+                  <Area type="monotone" dataKey="tenants" stackId="1" stroke="#E10600" fill="#E10600" name="Tenants" />
                   <Area type="monotone" dataKey="revenue" stackId="2" stroke="#10B981" fill="#10B981" name="Revenue" />
                 </AreaChart>
               </ResponsiveContainer>
@@ -436,7 +436,7 @@ export default function ReportsPage() {
             </div>
             <div className="bg-white rounded-lg shadow p-6">
               <p className="text-sm text-gray-600 mb-2">Tasa de Conversión</p>
-              <p className="text-3xl font-bold text-blue-600">
+              <p className="text-3xl font-bold text-primary-600">
                 {salesReport?.conversionRate.toFixed(1) || 0}%
               </p>
             </div>
@@ -451,7 +451,7 @@ export default function ReportsPage() {
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Line type="monotone" dataKey="ventas" stroke="#3B82F6" name="Ventas" strokeWidth={2} />
+                <Line type="monotone" dataKey="ventas" stroke="#E10600" name="Ventas" strokeWidth={2} />
                 <Line type="monotone" dataKey="revenue" stroke="#10B981" name="Revenue" strokeWidth={2} />
               </LineChart>
             </ResponsiveContainer>
@@ -469,7 +469,7 @@ export default function ReportsPage() {
             </div>
             <div className="bg-white rounded-lg shadow p-6">
               <p className="text-sm text-gray-600 mb-2">Promociones Premium</p>
-              <p className="text-3xl font-bold text-purple-600">
+              <p className="text-3xl font-bold text-primary-600">
                 {promotionsReport?.premiumPromotions.total || 0}
               </p>
             </div>
@@ -552,7 +552,7 @@ export default function ReportsPage() {
             </div>
             <div className="bg-white rounded-lg shadow p-6">
               <p className="text-sm text-gray-600 mb-2">Vendidos</p>
-              <p className="text-3xl font-bold text-blue-600">
+              <p className="text-3xl font-bold text-primary-600">
                 {platformReport?.inventory.byStatus.sold || 0}
               </p>
             </div>
@@ -567,7 +567,7 @@ export default function ReportsPage() {
                   <XAxis dataKey="name" />
                   <YAxis />
                   <Tooltip />
-                  <Bar dataKey="value" fill="#3B82F6" />
+                  <Bar dataKey="value" fill="#E10600" />
                 </BarChart>
               </ResponsiveContainer>
             </div>

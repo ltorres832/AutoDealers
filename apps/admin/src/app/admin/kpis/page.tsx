@@ -2,7 +2,8 @@
 
 // Dashboard de KPIs según documento maestro
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useRealtimeKPIs } from '@/hooks/useRealtimeKPIs';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -60,71 +61,12 @@ interface KPIData {
 
 export default function KPIsPage() {
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d' | 'all'>('30d');
-  const [kpiData, setKpiData] = useState<KPIData | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  // Usar API en lugar de hook de tiempo real por ahora (más confiable)
-  useEffect(() => {
-    fetchKPIs();
-  }, [timeRange]);
-
-  const fetchKPIs = async () => {
-    setLoading(true);
-    const defaultData: KPIData = {
-      totalSales: 0,
-      verifiedSales: 0,
-      externalSales: 0,
-      pendingVerification: 0,
-      interactionsToSales: 0,
-      leadsToSales: 0,
-      fraudDetected: 0,
-      fraudScoreAverage: 0,
-      highRiskSales: 0,
-      totalEarnings: 0,
-      earningsByPartner: {},
-      earningsByCategory: {},
-      dealersWithFlags: 0,
-      topDealers: [],
-      salesTrend: [],
-    };
-
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => {
-        controller.abort();
-        console.warn('Timeout al obtener KPIs');
-      }, 10000); // 10 segundos timeout
-
-      const response = await fetch(`/api/admin/kpis?timeRange=${timeRange}`, {
-        credentials: 'include',
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log('KPIs recibidos:', data);
-        setKpiData(data);
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Error fetching KPIs:', response.status, errorData);
-        // Establecer datos vacíos en caso de error
-        setKpiData(defaultData);
-      }
-    } catch (error: any) {
-      console.error('Error fetching KPIs:', error);
-      // Establecer datos vacíos en caso de error
-      setKpiData(defaultData);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { kpiData, loading, error } = useRealtimeKPIs(timeRange);
 
   if (loading || !kpiData) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
       </div>
     );
   }
@@ -210,7 +152,7 @@ export default function KPIsPage() {
 
       {/* KPIs Principales */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
+        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-primary-500">
           <p className="text-sm text-gray-600 mb-1">Total de Ventas</p>
           <p className="text-3xl font-bold text-gray-900">{kpiData.totalSales}</p>
           <p className="text-xs text-gray-500 mt-2">
@@ -238,7 +180,7 @@ export default function KPIsPage() {
           </p>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500">
+        <div className="bg-white rounded-lg shadow p-6 border-l-4 border-primary-500">
           <p className="text-sm text-gray-600 mb-1">Ingresos Totales</p>
           <p className="text-3xl font-bold text-gray-900">
             ${kpiData.totalEarnings.toLocaleString()}
@@ -291,7 +233,7 @@ export default function KPIsPage() {
                   {dealer.name || dealer.dealerId.substring(0, 8)}...
                 </span>
               </div>
-              <span className="text-lg font-bold text-blue-600">{dealer.sales} ventas</span>
+              <span className="text-lg font-bold text-primary-600">{dealer.sales} ventas</span>
             </div>
           ))}
         </div>

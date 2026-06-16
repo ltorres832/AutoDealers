@@ -12,6 +12,7 @@ interface Campaign {
   metaDistribution?: string;
   metaAdsCampaignId?: string;
   metaAdsAdSetId?: string;
+  metaAdsAdId?: string;
   metaAdsPublishError?: string;
   budgets: Array<{ platform: string; amount: number; currency: string }>;
   metrics?: {
@@ -153,23 +154,25 @@ export default function CampaignsPage() {
                   (campaign.platforms.includes('facebook') || campaign.platforms.includes('instagram')) && (
                     <p className="mt-2 text-xs text-amber-900 bg-amber-50 border border-amber-100 rounded px-2 py-1.5">
                       Meta Ads (pago): el gasto se factura en la cuenta publicitaria de Meta.
-                      {campaign.metaAdsCampaignId ? (
+                      {campaign.metaAdsAdId || campaign.metaAdsCampaignId ? (
                         <>
                           {' '}
-                          Borrador: campaña <code className="text-[11px]">{campaign.metaAdsCampaignId}</code>
-                          {campaign.metaAdsAdSetId ? (
+                          Publicado en Meta (activo): anuncio{' '}
+                          <code className="text-[11px]">{campaign.metaAdsAdId || '—'}</code>
+                          {campaign.metaAdsCampaignId ? (
                             <>
-                              , conjunto <code className="text-[11px]">{campaign.metaAdsAdSetId}</code>
+                              , campaña <code className="text-[11px]">{campaign.metaAdsCampaignId}</code>
                             </>
                           ) : null}
-                          . Completa en Ads Manager.
+                          . El gasto se refleja en tu cuenta publicitaria de Meta.
                         </>
                       ) : campaign.metaAdsPublishError ? (
-                        <> Error: {campaign.metaAdsPublishError}</>
+                        <> Error al publicar en Meta: {campaign.metaAdsPublishError}</>
                       ) : (
                         <>
                           {' '}
-                          Con Activa + Facebook se intenta crear borrador PAUSED (permisos ads y cuenta publicitaria).
+                          Con Activa + Facebook se crea y activa el anuncio en Meta (permisos ads, cuenta
+                          publicitaria e imagen en el contenido).
                         </>
                       )}
                     </p>
@@ -210,14 +213,18 @@ export default function CampaignsPage() {
                   </span>
                 </p>
                 {(campaign.platforms.includes('facebook') || campaign.platforms.includes('instagram')) &&
-                  campaign.metaDistribution !== 'paid_ads' && (
+                  (campaign.metaDistribution !== 'paid_ads' || !campaign.metaAdsAdId) && (
                   <button
                     type="button"
                     disabled={publishingId === campaign.id}
                     onClick={() => publishCampaignSocial(campaign.id)}
                     className="w-full rounded border border-primary-200 bg-white px-3 py-2 text-sm font-medium text-primary-800 hover:bg-primary-50 disabled:opacity-50"
                   >
-                    {publishingId === campaign.id ? 'Publicando…' : 'Publicar en redes (Facebook / Instagram)'}
+                    {publishingId === campaign.id
+                      ? 'Publicando…'
+                      : campaign.metaDistribution === 'paid_ads'
+                        ? 'Publicar anuncio en Meta'
+                        : 'Publicar en redes (Facebook / Instagram)'}
                   </button>
                 )}
               </div>
@@ -294,6 +301,16 @@ function CreateCampaignModal({
       alert('Por favor completa todos los campos obligatorios (nombre, descripción, contenido) y selecciona al menos una plataforma');
       return;
     }
+    if (
+      formData.metaDistribution === 'paid_ads' &&
+      imageFiles.length === 0 &&
+      formData.images.length === 0
+    ) {
+      alert(
+        'Para anuncios de pago en Meta, sube al menos una imagen en el contenido (Meta requiere creativo visual).'
+      );
+      return;
+    }
     setLoading(true);
     setUploading(true);
     try {
@@ -356,14 +373,15 @@ function CreateCampaignModal({
             ' La publicación en redes al guardar solo ocurre si el estado es Activa; puedes usar «Publicar en redes» en la tarjeta.';
         }
         if (map?.attempted) {
-          if (map.success && map.metaCampaignId) {
-            msg += ` Meta Ads: borrador creado (campaña ${map.metaCampaignId}`;
-            if (map.metaAdSetId) msg += `, conjunto ${map.metaAdSetId}`;
-            msg += '). Revisa y activa en Ads Manager; aún falta el anuncio creativo.';
+          if (map.success && (map.metaAdId || map.metaCampaignId)) {
+            msg += ` Meta Ads: anuncio activo`;
+            if (map.metaAdId) msg += ` (${map.metaAdId})`;
+            else if (map.metaCampaignId) msg += ` (campaña ${map.metaCampaignId})`;
+            msg += '. El cobro va a tu cuenta publicitaria de Meta.';
           } else if (map.skippedReason === 'paid_ads_requires_facebook') {
             msg += ` ${map.error || ''}`;
           } else if (map.error) {
-            msg += ` Meta Ads: no se pudo crear el borrador (${map.error}).`;
+            msg += ` Meta Ads: no se pudo publicar (${map.error}).`;
           }
         }
         alert(msg);
@@ -582,9 +600,9 @@ function CreateCampaignModal({
                   className="mt-1"
                 />
                 <span className="text-sm text-gray-800">
-                  <strong>Anuncio de pago (Meta Ads)</strong> — el gasto lo cobra Meta a la cuenta publicitaria
-                  configurada en Ads Manager. Con estado Activa y Facebook en plataformas, intentamos crear en Meta una
-                  campaña y un conjunto en PAUSED; debes completar el anuncio (creativo) y activar allí.
+                  <strong>Anuncio de pago (Meta Ads)</strong> — el gasto lo cobra Meta a tu cuenta publicitaria vinculada.
+                  Con estado Activa y Facebook en plataformas, creamos y activamos el anuncio en Meta (incluye imagen en
+                  el contenido y enlace a tu sitio público). No necesitas usar Ads Manager por separado.
                 </span>
               </label>
             </div>

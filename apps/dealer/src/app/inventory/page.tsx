@@ -355,7 +355,7 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
               <button
                 type="button"
                 onClick={() => setShowSpecs(!showSpecs)}
-                className="text-sm text-blue-600 hover:text-blue-700"
+                className="text-sm text-primary-600 hover:text-primary-700"
               >
                 {showSpecs ? 'Ocultar' : 'Mostrar'}
               </button>

@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     const result = await createQuickListing({
       contactName: body.contactName,
       contactPhone: body.contactPhone,
-      contactEmail: body.contactEmail || null,
+      contactEmail: body.contactEmail,
       city: body.city || null,
       make: body.make,
       model: body.model,
@@ -93,6 +93,7 @@ export async function POST(request: NextRequest) {
       acceptTerms: body.acceptTerms === true,
       ipHash: hashIp(ip),
       userAgent: request.headers.get('user-agent') || null,
+      visitorId: typeof body.visitorId === 'string' ? body.visitorId : null,
     });
 
     if (!result.ok) {
@@ -107,6 +108,7 @@ export async function POST(request: NextRequest) {
       id: result.id,
       durationDays: result.durationDays,
       expiresAt: result.expiresAt ? result.expiresAt.toISOString() : null,
+      managementToken: result.managementToken || null,
     });
   } catch (e: unknown) {
     console.error('quick-listings POST:', e);

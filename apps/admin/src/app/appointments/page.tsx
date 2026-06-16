@@ -69,7 +69,7 @@ export default function AppointmentsPage() {
         ? '#6B7280'
         : apt.status === 'cancelled'
         ? '#EF4444'
-        : '#3B82F6',
+        : '#E10600',
     extendedProps: {
       appointment: apt,
     },

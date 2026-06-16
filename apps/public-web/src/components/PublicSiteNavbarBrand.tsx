@@ -87,12 +87,12 @@ export function PublicSiteNavbarBrand({
     <img
       src={imgSrc!}
       alt={siteInfo.name}
-      className="h-12 sm:h-14 w-auto max-w-[min(92vw,360px)] object-contain object-left"
+      className="h-14 sm:h-16 w-auto max-w-[min(92vw,380px)] object-contain object-left"
     />
   ) : (
     <>
       {showLogoMark ? (
-        <div className="w-10 h-10 bg-slate-900 rounded-lg flex items-center justify-center shrink-0">
+        <div className="w-10 h-10 bg-primary-600 rounded-lg flex items-center justify-center shrink-0">
           <span className="text-white font-bold text-lg tracking-tight">
             {navbarLogoBadgeText(rawLogo, siteInfo.name)}
           </span>

@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth, isDealerPortalRole, billingTenantId } from '@/lib/auth';
 import { getStripeInstance, getFirestore } from '@autodealers/core';
-import { getSubscriptionByTenantId } from '@autodealers/billing';
-import { getMembershipById } from '@autodealers/billing';
+import { getSubscriptionByTenantId, syncMembershipForSubscription } from '@autodealers/billing';
+import { getMembershipById, assertSelfServiceMembership } from '@autodealers/billing';
+import {
+  getMembershipTrialDays,
+  isEligibleForMembershipTrial,
+  stripeSubscriptionPeriodFields,
+} from '@autodealers/billing/membership-trial';
 import * as admin from 'firebase-admin';
 
 export const dynamic = 'force-dynamic';
@@ -31,6 +36,11 @@ export async function POST(request: NextRequest) {
     const membership = await getMembershipById(membershipId);
     if (!membership || !membership.isActive || membership.type !== 'dealer') {
       return NextResponse.json({ error: 'Invalid membership' }, { status: 400 });
+    }
+
+    const selfServiceCheck = assertSelfServiceMembership(membership);
+    if (!selfServiceCheck.ok) {
+      return NextResponse.json({ error: selfServiceCheck.error }, { status: 403 });
     }
 
     if (!membership.stripePriceId) {
@@ -99,6 +109,7 @@ export async function POST(request: NextRequest) {
 
     // Crear o actualizar suscripción
     let stripeSubscriptionId: string;
+    let stripeSubscription: Awaited<ReturnType<typeof stripe.subscriptions.create>>;
     
     if (subscription?.stripeSubscriptionId) {
       // Stripe exige el id del *subscription item* (si_...), no el de la suscripción (sub_...).
@@ -110,7 +121,7 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-      const stripeSubscription = await stripe.subscriptions.update(
+      stripeSubscription = await stripe.subscriptions.update(
         subscription.stripeSubscriptionId,
         {
           items: [{ id: primaryItem.id, price: membership.stripePriceId }],
@@ -125,8 +136,11 @@ export async function POST(request: NextRequest) {
       );
       stripeSubscriptionId = stripeSubscription.id;
     } else {
-      // Crear nueva suscripción
-      const stripeSubscription = await stripe.subscriptions.create({
+      const trialDays = isEligibleForMembershipTrial(subscription)
+        ? getMembershipTrialDays()
+        : 0;
+
+      stripeSubscription = await stripe.subscriptions.create({
         customer: customerId,
         items: [{ price: membership.stripePriceId }],
         payment_settings: {
@@ -136,6 +150,7 @@ export async function POST(request: NextRequest) {
         default_payment_method: paymentMethodId,
         expand: ['latest_invoice.payment_intent'],
         ...(taxRateId && { default_tax_rates: [taxRateId] }),
+        ...(trialDays > 0 ? { trial_period_days: trialDays } : {}),
         metadata: {
           tenantId: billTid,
           userId: auth.userId,
@@ -145,47 +160,55 @@ export async function POST(request: NextRequest) {
       stripeSubscriptionId = stripeSubscription.id;
     }
 
+    const periodFields = stripeSubscriptionPeriodFields(stripeSubscription);
+
     // Actualizar o crear suscripción en Firestore
+    let firestoreSubscriptionId: string;
+
+    const subscriptionPayload = {
+      membershipId: membershipId,
+      stripeSubscriptionId: stripeSubscriptionId,
+      stripeCustomerId: customerId,
+      status: periodFields.status,
+      currentPeriodStart: admin.firestore.Timestamp.fromDate(periodFields.currentPeriodStart),
+      currentPeriodEnd: admin.firestore.Timestamp.fromDate(periodFields.currentPeriodEnd),
+      ...(periodFields.trialEndsAt
+        ? { trialEndsAt: admin.firestore.Timestamp.fromDate(periodFields.trialEndsAt) }
+        : {}),
+      ...(periodFields.nextPaymentDate
+        ? { nextPaymentDate: admin.firestore.Timestamp.fromDate(periodFields.nextPaymentDate) }
+        : {}),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
     if (subscription) {
-      await db.collection('subscriptions').doc(subscription.id).update({
-        membershipId: membershipId,
-        stripeSubscriptionId: stripeSubscriptionId,
-        stripeCustomerId: customerId,
-        status: 'active',
-        currentPeriodStart: admin.firestore.Timestamp.fromDate(
-          new Date(Date.now())
-        ),
-        currentPeriodEnd: admin.firestore.Timestamp.fromDate(
-          new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 días
-        ),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+      firestoreSubscriptionId = subscription.id;
+      await db.collection('subscriptions').doc(subscription.id).update(subscriptionPayload);
     } else {
       const subscriptionRef = db.collection('subscriptions').doc();
+      firestoreSubscriptionId = subscriptionRef.id;
       await subscriptionRef.set({
         id: subscriptionRef.id,
         tenantId: billTid,
         userId: auth.userId,
-        membershipId: membershipId,
-        stripeSubscriptionId: stripeSubscriptionId,
-        stripeCustomerId: customerId,
-        status: 'active',
-        currentPeriodStart: admin.firestore.Timestamp.fromDate(
-          new Date(Date.now())
-        ),
-        currentPeriodEnd: admin.firestore.Timestamp.fromDate(
-          new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 días
-        ),
+        billingSource: 'stripe',
         cancelAtPeriodEnd: false,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        ...subscriptionPayload,
       });
     }
 
+    await syncMembershipForSubscription(firestoreSubscriptionId, membershipId);
+
     return NextResponse.json({
       success: true,
-      message: 'Suscripción creada exitosamente',
+      message:
+        periodFields.status === 'trialing'
+          ? `Prueba gratuita activada. El primer cobro será el ${periodFields.trialEndsAt?.toLocaleDateString('es')}.`
+          : 'Suscripción creada exitosamente',
       subscriptionId: stripeSubscriptionId,
+      status: periodFields.status,
+      trialEndsAt: periodFields.trialEndsAt?.toISOString() ?? null,
     });
   } catch (error: any) {
     console.error('Error creating subscription:', error);

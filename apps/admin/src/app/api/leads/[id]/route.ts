@@ -88,6 +88,35 @@ export async function PATCH(
   }
 }
 
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const auth = await verifyAuth(request);
+    if (!auth || !auth.tenantId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const lead = await getLeadById(auth.tenantId, id);
+    if (!lead) {
+      return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
+    }
+
+    const { deleteLead } = await import('@autodealers/crm');
+    await deleteLead(auth.tenantId, id);
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting lead:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
 
 
 

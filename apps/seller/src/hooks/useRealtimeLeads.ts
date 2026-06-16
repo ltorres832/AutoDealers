@@ -30,6 +30,8 @@ interface Lead {
 interface UseRealtimeLeadsOptions {
   tenantId?: string;
   assignedTo?: string;
+  /** Vendedor independiente: ve y gestiona todos los leads de su tenant */
+  independentWorkspace?: boolean;
   status?: string;
   limit?: number;
   search?: string;
@@ -55,8 +57,9 @@ export function useRealtimeLeads(options: UseRealtimeLeadsOptions = {}) {
         orderBy('createdAt', 'desc')
       );
 
-      // Sellers solo ven sus leads asignados
-      if (options.assignedTo) {
+      // Vendedores del concesionario solo ven leads asignados
+      const filterByAssignee = !options.independentWorkspace && options.assignedTo;
+      if (filterByAssignee) {
         q = query(
           collection(db, 'tenants', options.tenantId, 'leads'),
           where('assignedTo', '==', options.assignedTo),
@@ -64,10 +67,16 @@ export function useRealtimeLeads(options: UseRealtimeLeadsOptions = {}) {
         );
       }
 
-      if (options.status) {
+      if (options.status && filterByAssignee) {
         q = query(
           collection(db, 'tenants', options.tenantId, 'leads'),
-          where('assignedTo', '==', options.assignedTo || ''),
+          where('assignedTo', '==', options.assignedTo),
+          where('status', '==', options.status),
+          orderBy('createdAt', 'desc')
+        );
+      } else if (options.status) {
+        q = query(
+          collection(db, 'tenants', options.tenantId, 'leads'),
           where('status', '==', options.status),
           orderBy('createdAt', 'desc')
         );
@@ -178,7 +187,7 @@ export function useRealtimeLeads(options: UseRealtimeLeadsOptions = {}) {
       setError(err.message);
       setLoading(false);
     }
-  }, [options.tenantId, options.assignedTo, options.status, options.limit, options.search]);
+  }, [options.tenantId, options.assignedTo, options.independentWorkspace, options.status, options.limit, options.search]);
 
   return { leads, loading, error };
 }

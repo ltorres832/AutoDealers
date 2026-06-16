@@ -4,6 +4,7 @@ import { User, UserRole, TenantType } from './types';
 import { getFirestore, getAuth } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
 import { generateReferralCode } from './referrals';
+import { normalizeLoginEmail, resolveRegistrationLinks } from './user-auth-sync';
 
 // Lazy initialization - solo se inicializa cuando se necesita
 function getDb() {
@@ -26,37 +27,83 @@ export async function createUser(
   dealerId?: string,
   membershipId?: string
 ): Promise<User> {
+  const normalizedEmail = normalizeLoginEmail(email);
+
   // Crear usuario en Firebase Auth
   const userRecord = await getAuthInstance().createUser({
-    email,
+    email: normalizedEmail,
     password,
     displayName: name,
   });
 
+  let resolvedTenantId = tenantId?.trim() || undefined;
+  let resolvedDealerId = dealerId?.trim() || undefined;
+
+  if (resolvedTenantId) {
+    const tenantSnap = await getDb().collection('tenants').doc(resolvedTenantId).get();
+    const tData = tenantSnap.data() || {};
+    const links = resolveRegistrationLinks({
+      role,
+      tenantId: resolvedTenantId,
+      tenantType: tData.type,
+      tenantOwnerId: tData.ownerId,
+      userId: userRecord.uid,
+      explicitDealerId: resolvedDealerId,
+    });
+    if (links.tenantId) {
+      resolvedTenantId = links.tenantId;
+    }
+    if (links.dealerId === null) {
+      resolvedDealerId = undefined;
+    } else if (typeof links.dealerId === 'string') {
+      resolvedDealerId = links.dealerId;
+    }
+  }
+
   // Establecer custom claims después de crear el usuario
-  await getAuthInstance().setCustomUserClaims(userRecord.uid, {
-    role,
-    tenantId,
-    dealerId,
-  });
+  const claims: Record<string, string> = { role };
+  if (resolvedTenantId) claims.tenantId = resolvedTenantId;
+  if (resolvedDealerId) claims.dealerId = resolvedDealerId;
+  await getAuthInstance().setCustomUserClaims(userRecord.uid, claims);
 
   // Crear documento en Firestore - Limpiar undefined
   const userData: any = {
-    email,
+    email: normalizedEmail,
     name,
     role,
     membershipId: membershipId || '',
     membershipType: role === 'dealer' ? 'dealer' : 'seller',
     status: 'active',
-    settings: {},
+    settings:
+      role === 'seller' || role === 'dealer'
+        ? {
+            notifications: {
+              push: true,
+              email: true,
+              sms: true,
+              whatsapp: true,
+              sound: true,
+            },
+            businessNotifications: {
+              newLeads: true,
+              newMessages: true,
+              newAppointments: true,
+              newSales: true,
+              documents: true,
+              tasks: true,
+              catalogInterest: true,
+              systemAlerts: true,
+            },
+          }
+        : {},
   };
 
   // Solo agregar campos opcionales si tienen valor
-  if (tenantId) {
-    userData.tenantId = tenantId;
+  if (resolvedTenantId) {
+    userData.tenantId = resolvedTenantId;
   }
-  if (dealerId) {
-    userData.dealerId = dealerId;
+  if (resolvedDealerId) {
+    userData.dealerId = resolvedDealerId;
   }
 
   // Generar código de referido único automáticamente (solo para dealers y sellers)

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase-client';
 import { collection, query, where, onSnapshot, orderBy, Timestamp } from 'firebase/firestore';
-import { Workflow } from '@autodealers/crm';
+import type { Workflow } from '@autodealers/crm';
 
 interface UseRealtimeWorkflowsOptions {
   tenantId?: string;

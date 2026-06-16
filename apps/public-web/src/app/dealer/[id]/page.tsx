@@ -5,6 +5,8 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import StarRating from '../../../components/StarRating';
 import PublicReviewsList, { type PublicReviewItem } from '@/components/PublicReviewsList';
+import { PublicTrustGallery } from '@autodealers/shared/components/PublicTrustGallery';
+import { buildPublicVehicleDetailHref } from '@/lib/public-vehicle-detail-href';
 import { getFirstPhoto, handleImageError } from '@/lib/vehicle-image';
 
 interface Dealer {
@@ -19,6 +21,7 @@ interface Dealer {
   phone?: string;
   whatsapp?: string;
   website?: string;
+  publicTrustGalleryPhotos?: string[];
 }
 
 interface Seller {
@@ -36,6 +39,7 @@ interface Seller {
 
 interface Vehicle {
   id: string;
+  tenantId?: string;
   make: string;
   model: string;
   year: number;
@@ -101,7 +105,7 @@ export default function DealerPublicPage() {
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
       </div>
     );
   }
@@ -111,7 +115,7 @@ export default function DealerPublicPage() {
       <div className="flex justify-center items-center min-h-screen">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Dealer no encontrado</h1>
-          <Link href="/" className="text-purple-600 hover:underline">
+          <Link href="/" className="text-primary-600 hover:underline">
             Volver al inicio
           </Link>
         </div>
@@ -134,11 +138,11 @@ export default function DealerPublicPage() {
             Atrás
           </button>
           <span className="text-gray-300">|</span>
-          <Link href="/dealers" className="text-blue-600 hover:underline">
+          <Link href="/dealers" className="text-primary-600 hover:underline">
             ← Volver a Dealers
           </Link>
           <span className="text-gray-300">|</span>
-          <Link href="/" className="text-purple-600 hover:underline">
+          <Link href="/" className="text-primary-600 hover:underline">
             ← Volver al inicio
           </Link>
         </div>
@@ -161,7 +165,7 @@ export default function DealerPublicPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
                 {dealer.email ? (
-                  <a href={`mailto:${dealer.email}`} className="text-blue-600 hover:text-blue-800 hover:underline">
+                  <a href={`mailto:${dealer.email}`} className="text-primary-600 hover:text-primary-800 hover:underline">
                     {dealer.email}
                   </a>
                 ) : (
@@ -188,7 +192,7 @@ export default function DealerPublicPage() {
               
               {/* Website - Siempre visible */}
               <div className="flex items-center justify-center gap-2 text-gray-700">
-                <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
                 </svg>
                 {dealer.website ? (
@@ -196,7 +200,7 @@ export default function DealerPublicPage() {
                     href={dealer.website.startsWith('http') ? dealer.website : `https://${dealer.website}`}
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800 hover:underline"
+                    className="text-primary-600 hover:text-primary-800 hover:underline"
                   >
                     {dealer.website.replace(/^https?:\/\//, '')}
                   </a>
@@ -228,7 +232,7 @@ export default function DealerPublicPage() {
                   onClick={() => {
                     window.location.href = `mailto:${dealer.email}?subject=Consulta sobre vehículos`;
                   }}
-                  className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 font-medium flex items-center gap-2"
+                  className="bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 font-medium flex items-center gap-2"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -252,7 +256,7 @@ export default function DealerPublicPage() {
               {dealer.phone && (
                 <a
                   href={`tel:${dealer.phone}`}
-                  className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2"
+                  className="bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 font-medium flex items-center gap-2"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
@@ -269,6 +273,12 @@ export default function DealerPublicPage() {
           title="Opiniones de clientes"
           className="mb-8"
         />
+
+        {dealer.publicTrustGalleryPhotos && dealer.publicTrustGalleryPhotos.length > 0 ? (
+          <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
+            <PublicTrustGallery photos={dealer.publicTrustGalleryPhotos} />
+          </div>
+        ) : null}
 
         {/* Vendedores del Dealer */}
         {sellers.length > 0 && (
@@ -293,11 +303,11 @@ export default function DealerPublicPage() {
                   <Link
                     key={seller.id}
                     href={`/seller/${seller.id}`}
-                    className="border-2 rounded-xl p-6 hover:shadow-xl transition-all border-gray-200 hover:border-purple-500 bg-white group cursor-pointer"
+                    className="border-2 rounded-xl p-6 hover:shadow-xl transition-all border-gray-200 hover:border-primary-500 bg-white group cursor-pointer"
                   >
                     <div className="text-center">
                       {/* Foto del vendedor */}
-                      <div className="w-28 h-28 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center overflow-hidden mx-auto mb-4 border-4 border-white shadow-lg group-hover:scale-105 transition-transform">
+                      <div className="w-28 h-28 rounded-full bg-gradient-to-br from-primary-500 to-brand-red-bright600 flex items-center justify-center overflow-hidden mx-auto mb-4 border-4 border-white shadow-lg group-hover:scale-105 transition-transform">
                         {seller.photo ? (
                           <img
                             src={seller.photo}
@@ -320,7 +330,7 @@ export default function DealerPublicPage() {
                       </div>
                       
                       {/* Nombre y título */}
-                      <h3 className="font-bold text-xl text-gray-900 mb-1 group-hover:text-purple-600 transition">{seller.name}</h3>
+                      <h3 className="font-bold text-xl text-gray-900 mb-1 group-hover:text-primary-600 transition">{seller.name}</h3>
                       <p className="text-sm text-gray-600 mb-3">{seller.title || 'Vendedor'}</p>
                       
                       {/* Rating - Siempre visible */}
@@ -355,7 +365,7 @@ export default function DealerPublicPage() {
                       <div className="space-y-3 pt-4 border-t border-gray-200 mb-4">
                         {/* Vehículos disponibles */}
                         <div className="flex items-center justify-center gap-2 text-sm text-gray-700">
-                          <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
                           <span className="font-medium">{sellerVehiclesCount} vehículo{sellerVehiclesCount !== 1 ? 's' : ''}</span>
@@ -364,7 +374,7 @@ export default function DealerPublicPage() {
                         {/* Información de contacto visible */}
                         <div className="flex flex-wrap justify-center gap-3 text-xs">
                           {seller.email && (
-                            <div className="flex items-center gap-1 text-blue-600">
+                            <div className="flex items-center gap-1 text-primary-600">
                               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                               </svg>
@@ -384,7 +394,7 @@ export default function DealerPublicPage() {
                       
                       {/* Botón para ver perfil */}
                       <div className="mt-4 pt-4 border-t border-gray-200">
-                        <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white py-2.5 rounded-lg font-medium text-sm group-hover:from-purple-700 group-hover:to-pink-700 transition-all flex items-center justify-center gap-2">
+                        <div className="bg-gradient-to-r from-primary-600 to-brand-red-bright600 text-white py-2.5 rounded-lg font-medium text-sm group-hover:from-primary-700 group-hover:to-brand-red-bright700 transition-all flex items-center justify-center gap-2">
                           <span>Ver Perfil Completo</span>
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -411,11 +421,17 @@ export default function DealerPublicPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {vehicles.map((vehicle) => (
+              {vehicles.map((vehicle) => {
+                const detailHref = buildPublicVehicleDetailHref({
+                  vehicleId: vehicle.id,
+                  tenantId: vehicle.tenantId || dealer.tenantId,
+                });
+                return (
                 <div
                   key={vehicle.id}
                   className="bg-white rounded-lg shadow hover:shadow-lg transition overflow-hidden"
                 >
+                  <Link href={detailHref} className="block group">
                   {getFirstPhoto(vehicle) && (
                     <div className="relative h-48 bg-white border-b border-gray-100">
                       <img
@@ -429,22 +445,24 @@ export default function DealerPublicPage() {
                     </div>
                   )}
                   <div className="p-4">
-                    <h3 className="font-bold text-lg mb-2">
+                    <h3 className="font-bold text-lg mb-2 group-hover:text-primary-700">
                       {vehicle.year} {vehicle.make} {vehicle.model}
                     </h3>
-                    <p className="text-2xl font-bold text-purple-600 mb-2">
+                    <p className="text-2xl font-bold text-primary-600 mb-2">
                       {vehicle.currency} {vehicle.price.toLocaleString()}
                     </p>
                     <p className="text-sm text-gray-600 mb-2">
                       Millaje: {(vehicle.mileage ?? 0).toLocaleString()} millas
                     </p>
-                    <div className="flex gap-2">
+                  </div>
+                  </Link>
+                    <div className="px-4 pb-4 flex gap-2">
                       {dealer.email && (
                         <button
                           onClick={() => {
                             window.location.href = `mailto:${dealer.email}?subject=Consulta sobre ${vehicle.year} ${vehicle.make} ${vehicle.model}`;
                           }}
-                          className="flex-1 bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 font-medium text-sm flex items-center justify-center gap-1"
+                          className="flex-1 bg-primary-600 text-white px-4 py-2 rounded hover:bg-primary-700 font-medium text-sm flex items-center justify-center gap-1"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -464,9 +482,9 @@ export default function DealerPublicPage() {
                         </a>
                       )}
                     </div>
-                  </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

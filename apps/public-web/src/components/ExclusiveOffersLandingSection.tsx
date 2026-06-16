@@ -37,7 +37,7 @@ function CardCta({
 function OfferCard({ card }: { card: ExclusiveOfferCardConfig }) {
   const color = gradientClassForKey(card.gradientKey);
   return (
-    <div className="group relative h-[450px] rounded-[3rem] overflow-hidden shadow-2xl hover:shadow-blue-500/20 transition-all duration-700 hover:-translate-y-4">
+    <div className="group relative h-[450px] rounded-[3rem] overflow-hidden shadow-2xl hover:shadow-primary-500/20 transition-all duration-700 hover:-translate-y-4">
       <div
         className={`absolute inset-0 bg-gradient-to-br ${color} opacity-90 group-hover:opacity-100 transition-opacity`}
       />
@@ -92,7 +92,7 @@ export default function ExclusiveOffersLandingSection() {
   return (
     <section id="promotions" className="py-24 bg-slate-50 relative overflow-hidden border-t border-slate-200">
       <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 bg-amber-200/20 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 bg-blue-200/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 bg-primary-200/20 rounded-full blur-3xl pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center mb-16">

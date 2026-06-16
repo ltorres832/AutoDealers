@@ -8,6 +8,10 @@ import {
   assertUniqueMembershipPrice,
   mergeAndNormalizeMembershipFeatures,
 } from '@/lib/membership-features-admin';
+import {
+  coerceMembershipNumber,
+  serializeFirestoreDoc,
+} from '@/lib/serialize-firestore';
 
 const db = getFirestore();
 
@@ -22,13 +26,7 @@ async function readMembershipFromAdminDb(membershipId: string) {
   if (!id) return null;
   const snap = await db.collection('memberships').doc(id).get();
   if (!snap.exists) return null;
-  const data = snap.data();
-  if (!data) return null;
-  return {
-    id: snap.id,
-    ...data,
-    createdAt: data?.createdAt?.toDate?.() || new Date(),
-  };
+  return serializeFirestoreDoc(snap);
 }
 
 /** Campos de plan que pueden actualizarse desde el admin (el resto se ignora). */
@@ -130,11 +128,13 @@ export async function PUT(
       }
     });
 
-    const nextType = (cleanedUpdates.type as string) ?? existingMembership.type;
-    const nextCurrency = (cleanedUpdates.currency as string) ?? existingMembership.currency;
-    const nextCycle = (cleanedUpdates.billingCycle as string) ?? existingMembership.billingCycle;
+    const nextType = String(cleanedUpdates.type ?? existingMembership.type ?? 'dealer');
+    const nextCurrency = String(cleanedUpdates.currency ?? existingMembership.currency ?? 'USD');
+    const nextCycle = String(cleanedUpdates.billingCycle ?? existingMembership.billingCycle ?? 'monthly');
     const nextPrice =
-      cleanedUpdates.price !== undefined ? Number(cleanedUpdates.price) : existingMembership.price;
+      cleanedUpdates.price !== undefined
+        ? coerceMembershipNumber(cleanedUpdates.price)
+        : coerceMembershipNumber(existingMembership.price ?? 0);
 
     const priceCheck = await assertUniqueMembershipPrice({
       db,
@@ -193,20 +193,27 @@ export async function PUT(
 
     await db.collection('memberships').doc(membershipId).update(finalUpdateData as UpdateData<DocumentData>);
 
-    // Sincronizar features con todos los tenants que usan esta membresía
-    await syncMembershipFeaturesToTenants(membershipId);
+    try {
+      await syncMembershipFeaturesToTenants(
+        membershipId,
+        (mergedFeatures ?? existingMembership.features) as Record<string, unknown> | undefined
+      );
+    } catch (syncError) {
+      console.warn('⚠️ syncMembershipFeaturesToTenants (no bloquea guardado):', syncError);
+    }
 
     const updated = await readMembershipFromAdminDb(membershipId);
-    return NextResponse.json({ 
+    return NextResponse.json({
       membership: updated,
-      message: 'Membresía actualizada y features sincronizadas exitosamente'
+      message: 'Membresía actualizada exitosamente',
     });
   } catch (error) {
     console.error('Error updating membership:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
-      { status: 500 }
-    );
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    if (message.includes('No document to update') || message.includes('NOT_FOUND')) {
+      return NextResponse.json({ error: 'Membresía no encontrada' }, { status: 404 });
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 

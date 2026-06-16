@@ -99,7 +99,7 @@ export function LeadAssignmentModal({
           <select
             value={selectedSeller}
             onChange={(e) => setSelectedSeller(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
           >
             <option value="">-- Selecciona un vendedor --</option>
             {sellers.map((seller) => (
@@ -126,7 +126,7 @@ export function LeadAssignmentModal({
           <button
             onClick={handleAssign}
             disabled={loading || !selectedSeller}
-            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
             {loading ? 'Asignando...' : 'Asignar'}
           </button>

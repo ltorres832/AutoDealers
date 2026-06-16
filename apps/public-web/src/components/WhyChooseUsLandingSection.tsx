@@ -150,16 +150,16 @@ export default function WhyChooseUsLandingSection() {
   }
 
   return (
-    <section className="py-24 bg-gradient-to-b from-white to-slate-50 border-t-4 border-blue-600 relative overflow-hidden">
+    <section className="py-24 bg-gradient-to-b from-white to-slate-50 border-t-4 border-primary-600 relative overflow-hidden">
       <div className="absolute inset-0 opacity-5">
-        <div className="absolute top-0 left-0 w-96 h-96 bg-blue-600 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-purple-600 rounded-full blur-3xl" />
+        <div className="absolute top-0 left-0 w-96 h-96 bg-primary-600 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-primary-600 rounded-full blur-3xl" />
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center mb-16">
           {cfg.badgeLabel ? (
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-full mb-6">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-full mb-6">
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" aria-hidden>
                 <path
                   fillRule="evenodd"
@@ -174,7 +174,7 @@ export default function WhyChooseUsLandingSection() {
             <h2 className="text-5xl md:text-6xl font-extrabold text-slate-900 mb-6">
               {cfg.titleStart}
               {cfg.titleHighlight ? (
-                <span className="text-blue-600">{cfg.titleHighlight}</span>
+                <span className="text-primary-600">{cfg.titleHighlight}</span>
               ) : null}
               {cfg.titleEnd}
             </h2>

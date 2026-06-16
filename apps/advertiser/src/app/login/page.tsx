@@ -3,7 +3,9 @@
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { ForgotPasswordPanel } from '@/components/ForgotPasswordPanel';
+import { getFirebaseClient } from '@/lib/firebase-client';
 
 function AdvertiserLoginForm() {
   const router = useRouter();
@@ -21,10 +23,25 @@ function AdvertiserLoginForm() {
     setError('');
 
     try {
+      const firebase = getFirebaseClient();
+      if (!firebase?.app) {
+        setError(
+          'Firebase no está configurado en esta app. Revisa las variables NEXT_PUBLIC_FIREBASE_* en App Hosting.'
+        );
+        return;
+      }
+
+      const userCred = await signInWithEmailAndPassword(
+        getAuth(firebase.app),
+        formData.email.trim(),
+        formData.password
+      );
+      const idToken = await userCred.user.getIdToken();
+
       const response = await fetch('/api/advertiser/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ idToken }),
       });
 
       // Verificar Content-Type antes de parsear
@@ -50,6 +67,16 @@ function AdvertiserLoginForm() {
       }
     } catch (err: any) {
       console.error('Error logging in:', err);
+      const code = err?.code as string | undefined;
+      if (
+        code === 'auth/invalid-credential' ||
+        code === 'auth/wrong-password' ||
+        code === 'auth/user-not-found' ||
+        code === 'auth/invalid-email'
+      ) {
+        setError('Credenciales inválidas');
+        return;
+      }
       if (err.message && err.message.includes('Failed to fetch')) {
         setError('No se pudo conectar con el servidor. Asegúrate de que el servidor esté corriendo en el puerto 3004.');
       } else if (err.message && (err.message.includes('JSON') || err.message.includes('DOCTYPE'))) {
@@ -63,14 +90,19 @@ function AdvertiserLoginForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center px-4">
-      <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8">
+    <div className="brand-login-shell brand-top-accent">
+      <header className="brand-login-header">
+        <h1 className="text-2xl font-bold tracking-tight">AutoDealers</h1>
+        <p className="text-sm text-white/90 mt-1">Panel de Anunciante</p>
+      </header>
+      <div className="brand-login-body">
+      <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 border-t-4 border-primary-600">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Panel de Anunciante
-          </h1>
-          <p className="text-gray-600">
-            Inicia sesión para gestionar tus campañas
+          <h2 className="text-xl font-bold text-gray-900 mb-1">
+            Iniciar sesión
+          </h2>
+          <p className="text-gray-600 text-sm">
+            Gestiona tus campañas publicitarias
           </p>
         </div>
 
@@ -89,7 +121,7 @@ function AdvertiserLoginForm() {
               type="email"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
               required
             />
           </div>
@@ -102,7 +134,7 @@ function AdvertiserLoginForm() {
               type="password"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
               required
             />
           </div>
@@ -110,7 +142,7 @@ function AdvertiserLoginForm() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-indigo-700 font-semibold transition-all disabled:opacity-50"
+            className="w-full bg-gradient-to-r from-primary-600 to-primary-600 text-white px-6 py-3 rounded-lg hover:from-primary-700 hover:to-primary-700 font-semibold transition-all disabled:opacity-50"
           >
             {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
           </button>
@@ -119,10 +151,11 @@ function AdvertiserLoginForm() {
         <ForgotPasswordPanel />
 
         <div className="mt-6 text-center">
-          <Link href="/register" className="text-blue-600 hover:text-blue-700 text-sm">
+          <Link href="/register" className="text-primary-600 hover:text-primary-700 text-sm">
             ¿No tienes cuenta? Regístrate aquí
           </Link>
         </div>
+      </div>
       </div>
     </div>
   );
@@ -132,8 +165,8 @@ export default function AdvertiserLoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" />
+        <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-50 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600" />
         </div>
       }
     >

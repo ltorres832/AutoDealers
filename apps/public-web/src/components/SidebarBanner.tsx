@@ -3,11 +3,13 @@
 import { useRealtimeSponsoredContent } from '../hooks/useRealtimeSponsoredContent';
 import { useEffect, useRef } from 'react';
 import { getAdvertiserLoginForCreateUrl } from '@/config/advertiser-links';
+import { SponsoredAdShell } from '@/components/SponsoredAdShell';
+import { SPONSORED_CTA_LABEL } from '@/lib/sponsored-content-href';
 
 const PremiumPlaceholder = ({ variant }: { variant: 'blue' | 'green' }) => {
   const isBlue = variant === 'blue';
   return (
-    <div className={`group relative overflow-hidden rounded-3xl shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:shadow-[0_20px_40px_-10px_rgba(0,0,0,0.2)] transition-all duration-500 border border-white/40 hover:-translate-y-1.5 ${isBlue ? 'bg-gradient-to-br from-blue-600 via-indigo-700 to-violet-800' : 'bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-700'
+    <div className={`group relative overflow-hidden rounded-3xl shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] hover:shadow-[0_20px_40px_-10px_rgba(0,0,0,0.2)] transition-all duration-500 border border-white/40 hover:-translate-y-1.5 ${isBlue ? 'bg-gradient-to-br from-primary-600 via-primary-700 to-brand-black-deep800' : 'bg-gradient-to-br from-emerald-500 via-teal-600 to-primary-700'
       }`}>
       {/* Immersive background elements */}
       <div className="absolute top-0 right-0 -mr-12 -mt-12 w-48 h-48 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 transition-all duration-700 ease-in-out pointer-events-none"></div>
@@ -105,24 +107,19 @@ export default function SidebarBanner() {
         data-content-id={banner.id}
         className="group bg-white rounded-3xl shadow-[0_10px_30px_-10px_rgba(0,0,0,0.08)] hover:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.15)] overflow-hidden border border-slate-200 mb-6 transition-all duration-500 hover:-translate-y-1.5 flex flex-col"
       >
-        <a
-          href={banner.linkUrl}
-          target={banner.linkType === 'external' ? '_blank' : '_self'}
-          rel={banner.linkType === 'external' ? 'noopener noreferrer' : undefined}
-          onClick={() => {
-            fetch(`/api/public/sponsored-content/${banner.id}/click`, {
-              method: 'POST',
-            }).catch(console.error);
-          }}
+        <SponsoredAdShell
+          contentId={banner.id}
+          linkType={banner.linkType}
+          linkUrl={banner.linkUrl}
           className="block h-full flex flex-col relative"
         >
           {banner.imageUrl ? (
-            <div className="relative h-60 overflow-hidden bg-slate-900">
+            <div className="relative h-60 overflow-hidden bg-brand-black-deep">
               <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/40 to-transparent z-10 transition-opacity duration-500 group-hover:opacity-80"></div>
               <img
                 src={banner.imageUrl}
                 alt={banner.title}
-                className="w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-110"
+                className="w-full h-full object-contain bg-brand-black-deep transition-transform duration-1000 ease-out group-hover:scale-105"
                 referrerPolicy="no-referrer"
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
@@ -138,8 +135,8 @@ export default function SidebarBanner() {
           ) : (
             <div className="relative h-48 bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center border-b border-slate-200 overflow-hidden">
               {/* Decorative elements for missing image */}
-              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-100 rounded-full blur-3xl opacity-50 -mr-16 -mt-16"></div>
-              <div className="absolute bottom-0 left-0 w-32 h-32 bg-purple-100 rounded-full blur-3xl opacity-50 -ml-16 -mb-16"></div>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-primary-100 rounded-full blur-3xl opacity-50 -mr-16 -mt-16"></div>
+              <div className="absolute bottom-0 left-0 w-32 h-32 bg-primary-100 rounded-full blur-3xl opacity-50 -ml-16 -mb-16"></div>
 
               <div className="text-slate-300 relative z-10 group-hover:scale-110 transition-transform duration-500">
                 <svg className="w-16 h-16 drop-shadow-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" /></svg>
@@ -151,18 +148,18 @@ export default function SidebarBanner() {
           )}
 
           <div className="p-6 flex flex-col flex-grow bg-white relative">
-            <h4 className="font-extrabold text-slate-900 text-xl mb-3 line-clamp-2 leading-tight group-hover:text-blue-600 transition-colors">{banner.title}</h4>
+            <h4 className="font-extrabold text-slate-900 text-xl mb-3 line-clamp-2 leading-tight group-hover:text-primary-600 transition-colors">{banner.title}</h4>
             <p className="text-sm text-slate-600 line-clamp-3 mb-6 leading-relaxed font-medium">{banner.description}</p>
             <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
-              <span className="inline-flex items-center gap-2 text-blue-600 font-bold text-sm tracking-wide">
-                Ver oferta
+              <span className="inline-flex items-center gap-2 text-primary-600 font-bold text-sm tracking-wide">
+                {SPONSORED_CTA_LABEL}
               </span>
-              <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
+              <div className="w-8 h-8 rounded-full bg-primary-50 flex items-center justify-center text-primary-600 group-hover:bg-primary-600 group-hover:text-white transition-colors duration-300">
                 <svg className="w-4 h-4 transform group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
               </div>
             </div>
           </div>
-        </a>
+        </SponsoredAdShell>
       </div>
     );
   };

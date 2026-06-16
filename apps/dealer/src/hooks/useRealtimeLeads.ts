@@ -34,6 +34,8 @@ interface UseRealtimeLeadsOptions {
   assignedTo?: string;
   limit?: number;
   search?: string;
+  /** Ocultar leads del vendedor (CRM del concesionario). */
+  dealerVisibleOnly?: boolean;
 }
 
 export function useRealtimeLeads(options: UseRealtimeLeadsOptions = {}) {
@@ -75,6 +77,10 @@ export function useRealtimeLeads(options: UseRealtimeLeadsOptions = {}) {
               createdAt: data.createdAt?.toDate() || new Date(),
               updatedAt: data.updatedAt?.toDate() || new Date(),
             } as Lead;
+
+            if (options.dealerVisibleOnly && (lead as Lead & { sellerOwned?: boolean }).sellerOwned) {
+              return;
+            }
 
             if (options.status && lead.status !== options.status) return;
             if (options.source && lead.source !== options.source) return;
@@ -161,6 +167,7 @@ export function useRealtimeLeads(options: UseRealtimeLeadsOptions = {}) {
     options.status,
     options.source,
     options.assignedTo,
+    options.dealerVisibleOnly,
     options.limit,
     options.search,
   ]);

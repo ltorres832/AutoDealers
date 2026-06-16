@@ -6,6 +6,7 @@ import { useRealtimeTenants } from '@/hooks/useRealtimeTenants';
 import { RealtimeIndicator } from '@/components/RealtimeIndicator';
 import StarRating from '@/components/StarRating';
 import { fetchWithAuth } from '@/lib/fetch-with-auth';
+import { getDashboardLoginUrl } from '@/lib/dashboard-login-urls';
 
 interface Tenant {
   id: string;
@@ -333,6 +334,8 @@ function CreateTenantModal({
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [createdOwnerEmail, setCreatedOwnerEmail] = useState<string | null>(null);
+  const [createdTenantType, setCreatedTenantType] = useState<'dealer' | 'seller' | null>(null);
+  const [welcomeEmailSent, setWelcomeEmailSent] = useState<boolean | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -368,6 +371,8 @@ function CreateTenantModal({
       const data = await response.json().catch(() => ({}));
       if (response.ok) {
         setCreatedOwnerEmail(typeof data.owner?.email === 'string' ? data.owner.email : '');
+        setCreatedTenantType(formData.type);
+        setWelcomeEmailSent(data.welcomeEmailSent === true);
       } else {
         setSubmitError(typeof data.error === 'string' ? data.error : 'Error al crear tenant');
       }
@@ -379,17 +384,41 @@ function CreateTenantModal({
     }
   }
 
-  if (createdOwnerEmail !== null) {
+  if (createdOwnerEmail !== null && createdTenantType) {
+    const loginUrl = getDashboardLoginUrl(createdTenantType);
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-lg max-w-lg w-full shadow-xl p-6">
           <div className="rounded-lg bg-green-50 border border-green-200 text-green-900 px-4 py-3 mb-4">
             <p className="font-semibold">Tenant creado correctamente</p>
             <p className="text-sm mt-2">
-              Cuenta de acceso (login): <strong>{createdOwnerEmail || '—'}</strong>
+              Email de acceso: <strong>{createdOwnerEmail || '—'}</strong>
             </p>
             <p className="text-sm mt-2 text-green-800">
-              Entrega al cliente el email y la contraseña que definiste; puede cambiar la contraseña desde su perfil.
+              Entrega al cliente el <strong>email</strong> y la <strong>contraseña temporal</strong> que definiste aquí.
+              Sin esos datos no podrá iniciar sesión.
+            </p>
+            {welcomeEmailSent ? (
+              <p className="text-sm mt-2 text-green-700">
+                Se envió un email de bienvenida con el enlace de acceso (sin la contraseña, por seguridad).
+              </p>
+            ) : (
+              <p className="text-sm mt-2 text-amber-800">
+                No se pudo enviar el email de bienvenida; comparte manualmente el enlace y la contraseña.
+              </p>
+            )}
+            <p className="text-sm mt-2 text-green-800">
+              En el primer acceso se le pedirá <strong>cambiar la contraseña</strong>.
+            </p>
+            <p className="text-sm mt-3">
+              URL de login ({createdTenantType === 'dealer' ? 'dealer' : 'vendedor'}):{' '}
+              <a href={loginUrl} className="text-primary-700 underline break-all" target="_blank" rel="noreferrer">
+                {loginUrl}
+              </a>
+            </p>
+            <p className="text-sm mt-3 text-amber-900 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+              Tras el primer login deberá <strong>elegir y pagar su membresía</strong> para activar todas las
+              funciones del panel.
             </p>
           </div>
           <div className="flex justify-end">
@@ -397,6 +426,8 @@ function CreateTenantModal({
               type="button"
               onClick={() => {
                 setCreatedOwnerEmail(null);
+                setCreatedTenantType(null);
+                setWelcomeEmailSent(null);
                 onSuccess();
                 onClose();
               }}

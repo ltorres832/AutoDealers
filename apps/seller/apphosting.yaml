@@ -6,10 +6,10 @@ buildConfig:
     set -e
     if [ -f ../../package-lock.json ]; then cd ../..; fi
     npm ci --legacy-peer-deps
-    npm run build --workspace=@autodealers/shared
-    npm run build --workspace=@autodealers/billing
     npm run build --workspace=@autodealers/crm
     npm run build --workspace=@autodealers/core
+    npm run build --workspace=@autodealers/shared
+    npm run build --workspace=@autodealers/billing
     npm run build --workspace=@autodealers/inventory
     npm run build --workspace=@autodealers/ai
     npm run build --workspace=@autodealers/messaging
@@ -53,6 +53,11 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_VAPID_KEY
+    secret: NEXT_PUBLIC_FIREBASE_VAPID_KEY
+    availability:
+      - BUILD
+      - RUNTIME
   - variable: FIREBASE_PROJECT_ID
     value: autodealers-7f62e
     availability:
@@ -73,6 +78,11 @@ env:
   - variable: NODE_ENV
     value: production
     availability:
+      - RUNTIME
+  - variable: NEXT_PUBLIC_APP_URL
+    value: https://seller-app--autodealers-7f62e.us-central1.hosted.app
+    availability:
+      - BUILD
       - RUNTIME
   - variable: STRIPE_SECRET_KEY
     secret: STRIPE_SECRET_KEY

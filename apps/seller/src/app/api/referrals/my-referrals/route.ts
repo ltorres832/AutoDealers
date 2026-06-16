@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
+import { dealerManagedReferralsResponse } from '@/lib/referrals-access-guard';
 import { getReferralsByUser } from '@autodealers/core';
 
 export async function GET(request: NextRequest) {
@@ -12,6 +13,9 @@ export async function GET(request: NextRequest) {
         { status: 401 }
       );
     }
+
+    const blocked = dealerManagedReferralsResponse(auth);
+    if (blocked) return blocked;
 
     const referrals = await getReferralsByUser(auth.userId);
 

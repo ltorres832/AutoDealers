@@ -7,7 +7,13 @@ import { verifyAuth } from '@/lib/auth';
 import { requireTenantFeature } from '@/lib/membership-middleware';
 import { getFirestore } from '@autodealers/core';
 import * as admin from 'firebase-admin';
-import { fiStatusToExpeditionStage, syncLinkedCustomerFileExpedition } from '@autodealers/crm';
+import {
+  addCosignerToRequest,
+  calculateCombinedScore,
+  getFIRequestById,
+  fiStatusToExpeditionStage,
+  syncLinkedCustomerFileExpedition,
+} from '@autodealers/crm';
 
 // Implementación directa para evitar problemas de webpack
 function generateRandomId(): string {
@@ -266,7 +272,16 @@ export async function POST(request: NextRequest) {
       personalInfo,
       sellerNotes,
       customerFileId,
-      submit = false, // Si es true, envía directamente a F&I
+      additionalEmployments,
+      previousEmployment,
+      otherIncomeSources,
+      references,
+      spouseInfo,
+      monthlyDebtPayments,
+      bankruptcyHistory,
+      bankruptcyNotes,
+      cosignerData,
+      submit = false,
     } = body;
 
     if (!clientId || !employment || !creditInfo || !personalInfo) {
@@ -292,7 +307,15 @@ export async function POST(request: NextRequest) {
         personalInfo,
         status: 'draft',
         sellerNotes,
-        createdBy: user.userId, // Este es el userId que debe coincidir con user.id del frontend
+        createdBy: user.userId,
+        ...(additionalEmployments ? { additionalEmployments } : {}),
+        ...(previousEmployment ? { previousEmployment } : {}),
+        ...(otherIncomeSources ? { otherIncomeSources } : {}),
+        ...(references ? { references } : {}),
+        ...(spouseInfo ? { spouseInfo } : {}),
+        ...(monthlyDebtPayments != null ? { monthlyDebtPayments } : {}),
+        ...(bankruptcyHistory != null ? { bankruptcyHistory } : {}),
+        ...(bankruptcyNotes ? { bankruptcyNotes } : {}),
         ...(typeof customerFileId === 'string' && customerFileId.trim()
           ? { customerFileId: customerFileId.trim() }
           : {}),
@@ -303,6 +326,27 @@ export async function POST(request: NextRequest) {
     console.log('  requestId:', fiRequest.id);
     console.log('  createdBy guardado:', user.userId);
     console.log('  status:', fiRequest.status || 'draft');
+
+    if (cosignerData) {
+      await addCosignerToRequest(user.tenantId!, fiRequest.id, cosignerData);
+      const updated = await getFIRequestById(user.tenantId!, fiRequest.id);
+      if (updated?.approvalScore && cosignerData.creditInfo?.creditRange) {
+        const combinedScore = calculateCombinedScore(
+          updated.approvalScore,
+          cosignerData.creditInfo.creditRange
+        );
+        const db = getFirestore();
+        await db
+          .collection('tenants')
+          .doc(user.tenantId!)
+          .collection('fi_requests')
+          .doc(fiRequest.id)
+          .update({
+            combinedScore,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+      }
+    }
 
     // Verificar que se guardó correctamente en Firestore
     const db = getFirestore();

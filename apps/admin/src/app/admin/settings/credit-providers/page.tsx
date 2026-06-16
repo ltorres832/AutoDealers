@@ -136,7 +136,7 @@ export default function CreditProvidersSettingsPage() {
               type="password"
               value={credentials.experian?.apiKey || ''}
               onChange={(e) => updateProvider('experian', 'apiKey', e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               placeholder="Ingresa tu API Key de Experian"
             />
           </div>
@@ -148,7 +148,7 @@ export default function CreditProvidersSettingsPage() {
               type="password"
               value={credentials.experian?.apiSecret || ''}
               onChange={(e) => updateProvider('experian', 'apiSecret', e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               placeholder="Ingresa tu API Secret de Experian"
             />
           </div>
@@ -181,7 +181,7 @@ export default function CreditProvidersSettingsPage() {
               type="password"
               value={credentials.equifax?.apiKey || ''}
               onChange={(e) => updateProvider('equifax', 'apiKey', e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               placeholder="Ingresa tu API Key de Equifax"
             />
           </div>
@@ -193,7 +193,7 @@ export default function CreditProvidersSettingsPage() {
               type="password"
               value={credentials.equifax?.apiSecret || ''}
               onChange={(e) => updateProvider('equifax', 'apiSecret', e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               placeholder="Ingresa tu API Secret de Equifax"
             />
           </div>
@@ -226,7 +226,7 @@ export default function CreditProvidersSettingsPage() {
               type="password"
               value={credentials.transunion?.apiKey || ''}
               onChange={(e) => updateProvider('transunion', 'apiKey', e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               placeholder="Ingresa tu API Key de TransUnion"
             />
           </div>
@@ -238,7 +238,7 @@ export default function CreditProvidersSettingsPage() {
               type="password"
               value={credentials.transunion?.apiSecret || ''}
               onChange={(e) => updateProvider('transunion', 'apiSecret', e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               placeholder="Ingresa tu API Secret de TransUnion"
             />
           </div>
@@ -259,15 +259,15 @@ export default function CreditProvidersSettingsPage() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="bg-blue-600 text-white py-2 px-6 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="bg-primary-600 text-white py-2 px-6 rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {saving ? 'Guardando...' : 'Guardar Credenciales'}
         </button>
       </div>
 
-      <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h3 className="font-semibold text-blue-900 mb-2">ℹ️ Información:</h3>
-        <ul className="list-disc list-inside space-y-2 text-sm text-blue-800">
+      <div className="mt-8 bg-primary-50 border border-primary-200 rounded-lg p-4">
+        <h3 className="font-semibold text-primary-900 mb-2">ℹ️ Información:</h3>
+        <ul className="list-disc list-inside space-y-2 text-sm text-primary-800">
           <li>Las credenciales se guardan de forma segura en Firestore</li>
           <li>Si no configuras credenciales, el sistema usará datos mock (simulados) para desarrollo</li>
           <li>Para obtener credenciales reales, contacta con los proveedores directamente:

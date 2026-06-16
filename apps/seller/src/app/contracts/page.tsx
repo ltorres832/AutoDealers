@@ -111,7 +111,7 @@ export default function ContractsPage() {
     const statusMap: Record<string, { color: string; label: string }> = {
       draft: { color: 'bg-gray-500', label: 'Borrador' },
       pending_signatures: { color: 'bg-yellow-500', label: 'Pendiente Firmas' },
-      partially_signed: { color: 'bg-blue-500', label: 'Parcialmente Firmado' },
+      partially_signed: { color: 'bg-primary-500', label: 'Parcialmente Firmado' },
       fully_signed: { color: 'bg-green-600', label: 'Completamente Firmado' },
       completed: { color: 'bg-green-700', label: 'Completado' },
       cancelled: { color: 'bg-red-500', label: 'Cancelado' },
@@ -137,7 +137,7 @@ export default function ContractsPage() {
           </div>
           <button
             onClick={() => setShowUpload(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
           >
             + Subir Contrato
           </button>
@@ -166,14 +166,14 @@ export default function ContractsPage() {
 
       {loading ? (
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
         </div>
       ) : contracts.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
           <p className="text-gray-500 mb-4">No hay contratos aún</p>
           <button
             onClick={() => setShowUpload(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
           >
             Subir Primer Contrato
           </button>
@@ -214,7 +214,7 @@ export default function ContractsPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                     <button
                       onClick={() => handleSignInPerson(contract)}
-                      className="text-blue-600 hover:text-blue-900"
+                      className="text-primary-600 hover:text-primary-900"
                     >
                       Firmar en Persona
                     </button>

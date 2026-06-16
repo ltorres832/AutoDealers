@@ -49,7 +49,7 @@ export default function CreateFirstAdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center p-4">
       <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">AutoDealers</h1>
@@ -79,7 +79,7 @@ export default function CreateFirstAdminPage() {
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               placeholder="Juan Pérez"
               required
             />
@@ -93,7 +93,7 @@ export default function CreateFirstAdminPage() {
               type="email"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               placeholder="admin@autodealers.com"
               required
             />
@@ -107,7 +107,7 @@ export default function CreateFirstAdminPage() {
               type="password"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               placeholder="Mínimo 8 caracteres"
               minLength={8}
               required
@@ -118,14 +118,14 @@ export default function CreateFirstAdminPage() {
           <button
             type="submit"
             disabled={loading || success}
-            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg hover:shadow-lg transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-gradient-to-r from-primary-600 to-primary-600 text-white py-3 rounded-lg hover:shadow-lg transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Creando...' : success ? '✅ Creado' : 'Crear Usuario Admin 🚀'}
           </button>
         </form>
 
         <div className="mt-6 text-center">
-          <Link href="/login" className="text-blue-600 hover:text-blue-700 text-sm">
+          <Link href="/login" className="text-primary-600 hover:text-primary-700 text-sm">
             ¿Ya tienes una cuenta? Inicia sesión
           </Link>
         </div>

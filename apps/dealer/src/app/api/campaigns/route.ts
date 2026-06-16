@@ -3,7 +3,11 @@ import { createCampaign, getCampaigns, getFirestore } from '@autodealers/core';
 import { verifyAuth, isDealerPortalRole } from '@/lib/auth';
 import * as admin from 'firebase-admin';
 import { SocialPublisherService, type PublishResult, MetaMarketingPublisherService } from '@autodealers/messaging';
-import { pickSocialPlatforms, campaignContentToPostContent } from '@/lib/campaign-social-publish';
+import {
+  pickSocialPlatforms,
+  campaignContentToPostContent,
+  campaignContentLink,
+} from '@/lib/campaign-social-publish';
 
 function resolveFacebookDailyBudgetMajor(
   budgets: Array<{ platform: string; amount: number; dailyLimit?: number }> | undefined
@@ -157,6 +161,8 @@ export async function POST(request: NextRequest) {
           success?: boolean;
           metaCampaignId?: string;
           metaAdSetId?: string;
+          metaCreativeId?: string;
+          metaAdId?: string;
           error?: string;
           skippedReason?: string;
         }
@@ -222,7 +228,7 @@ export async function POST(request: NextRequest) {
           attempted: false,
           skippedReason: 'paid_ads_requires_facebook',
           error:
-            'Para crear borradores en Meta Ads automáticamente, incluye Facebook en las plataformas (usa la cuenta publicitaria vinculada).',
+            'Para publicar anuncios de pago en Meta automáticamente, incluye Facebook en las plataformas (usa la cuenta publicitaria vinculada).',
         };
       }
     }
@@ -234,16 +240,30 @@ export async function POST(request: NextRequest) {
         if (!canUseSocial) {
           metaAdsPublish = { attempted: false, skippedReason: 'membership_social_disabled', error: 'Plan sin redes' };
         } else {
+          const postContent = campaignContentToPostContent(
+            contentObj,
+            String(body.description || ''),
+            String(body.name || '')
+          );
           const adsPub = new MetaMarketingPublisherService();
-          const r = await adsPub.createDraftCampaignAndAdSet(auth.tenantId, {
+          const landingUrl =
+            campaignContentLink(contentObj) ||
+            (await adsPub.resolveTenantLandingUrl(auth.tenantId));
+          const r = await adsPub.createAndLaunchPaidCampaign(auth.tenantId, {
             name: body.name,
             dailyBudgetMajorUnits: resolveFacebookDailyBudgetMajor(body.budgets),
+            message: postContent.text,
+            imageUrl: postContent.imageUrl,
+            linkUrl: landingUrl,
+            platforms: socialPlatforms,
           });
           metaAdsPublish = {
             attempted: true,
             success: r.success,
             metaCampaignId: r.metaCampaignId,
             metaAdSetId: r.metaAdSetId,
+            metaCreativeId: r.metaCreativeId,
+            metaAdId: r.metaAdId,
             error: r.error,
           };
           const patch: Record<string, unknown> = {
@@ -252,6 +272,8 @@ export async function POST(request: NextRequest) {
           if (r.success && r.metaCampaignId) {
             patch.metaAdsCampaignId = r.metaCampaignId;
             if (r.metaAdSetId) patch.metaAdsAdSetId = r.metaAdSetId;
+            if (r.metaCreativeId) patch.metaAdsCreativeId = r.metaCreativeId;
+            if (r.metaAdId) patch.metaAdsAdId = r.metaAdId;
             patch.metaAdsPublishError = admin.firestore.FieldValue.delete();
           } else {
             patch.metaAdsPublishError = r.error || 'Error al crear en Meta';

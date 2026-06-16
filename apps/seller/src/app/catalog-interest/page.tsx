@@ -399,7 +399,7 @@ function CatalogInterestPageInner() {
               type="button"
               onClick={applyFilter}
               disabled={loading}
-              className="px-4 py-2 bg-gray-800 text-white rounded-lg text-sm hover:bg-gray-900 disabled:opacity-50 h-[42px]"
+              className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 disabled:opacity-50 h-[42px]"
             >
               Aplicar
             </button>

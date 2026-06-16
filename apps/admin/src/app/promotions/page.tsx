@@ -115,7 +115,7 @@ export default function PromotionsPage() {
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2">
                   {promotion.autoSendToLeads && (
-                    <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                    <span className="px-2 py-1 bg-primary-100 text-primary-700 rounded text-xs">
                       Envía a Leads
                     </span>
                   )}

@@ -43,6 +43,7 @@ export * from './messaging/whatsapp';
 
 // Billing Functions
 export * from './billing/subscriptions';
+export { processOverdueSubscriptionsDaily } from './billing/process-overdue-cron';
 
 // Notifications Functions
 export * from './notifications/notifications';
@@ -76,6 +77,7 @@ export * from './reviews/reviews';
 
 // Referrals Functions
 export * from './referrals/referrals';
+export { confirmReferralRewardsDaily } from './referrals/confirmation-cron';
 
 // Banners Functions
 export * from './banners/banners';

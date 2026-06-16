@@ -154,14 +154,11 @@ export async function POST(request: NextRequest) {
     // Crear notificación para el vendedor si existe
     if (sellerId) {
       try {
-        const { createNotification } = await import('@autodealers/core');
-        await createNotification({
-          tenantId,
-          userId: sellerId,
-          type: 'message_received',
+        const { notifyUser } = await import('@autodealers/core');
+        await notifyUser(tenantId, sellerId, {
+          type: 'public_chat',
           title: 'Nuevo mensaje del chat público',
           message: `${clientName}: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`,
-          channels: ['system'],
           metadata: {
             sessionId,
             clientName,
@@ -170,8 +167,9 @@ export async function POST(request: NextRequest) {
             messageId: clientMessageRef.id,
           },
         });
-      } catch (notifError: any) {
-        console.warn('⚠️ Error creando notificación (no crítico):', notifError.message);
+      } catch (notifError: unknown) {
+        const msg = notifError instanceof Error ? notifError.message : String(notifError);
+        console.warn('⚠️ Error creando notificación (no crítico):', msg);
       }
     }
 

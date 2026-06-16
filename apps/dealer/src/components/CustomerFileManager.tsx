@@ -148,7 +148,7 @@ export default function CustomerFileManager({
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
       </div>
     );
   }
@@ -178,25 +178,25 @@ export default function CustomerFileManager({
         <button
           type="button"
           onClick={() => setShowUploadModal(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+          className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 text-sm"
         >
           + Subir Documento Final
         </button>
       </div>
 
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg p-4">
+      <div className="bg-gradient-to-r from-primary-50 to-primary-50 border-2 border-primary-200 rounded-lg p-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <p className="text-xs text-blue-600 font-medium">Cliente</p>
-            <p className="text-blue-900 font-semibold">{customerFile.customerInfo?.fullName || 'N/A'}</p>
+            <p className="text-xs text-primary-600 font-medium">Cliente</p>
+            <p className="text-primary-900 font-semibold">{customerFile.customerInfo?.fullName || 'N/A'}</p>
           </div>
           <div>
-            <p className="text-xs text-blue-600 font-medium">Teléfono</p>
-            <p className="text-blue-900 font-semibold">{customerFile.customerInfo?.phone || 'N/A'}</p>
+            <p className="text-xs text-primary-600 font-medium">Teléfono</p>
+            <p className="text-primary-900 font-semibold">{customerFile.customerInfo?.phone || 'N/A'}</p>
           </div>
           <div>
-            <p className="text-xs text-blue-600 font-medium">Email</p>
-            <p className="text-blue-900 font-semibold">{customerFile.customerInfo?.email || 'N/A'}</p>
+            <p className="text-xs text-primary-600 font-medium">Email</p>
+            <p className="text-primary-900 font-semibold">{customerFile.customerInfo?.email || 'N/A'}</p>
           </div>
         </div>
       </div>
@@ -208,7 +208,7 @@ export default function CustomerFileManager({
           <button
             type="button"
             onClick={() => setShowUploadModal(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
           >
             Subir Primer Documento
           </button>
@@ -218,7 +218,7 @@ export default function CustomerFileManager({
           {allDocuments.map((doc: any, index: number) => (
             <div
               key={doc.id || index}
-              className="bg-white border-2 border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors"
+              className="bg-white border-2 border-gray-200 rounded-lg p-4 hover:border-primary-300 transition-colors"
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-start space-x-4 flex-1">
@@ -252,7 +252,7 @@ export default function CustomerFileManager({
                       href={doc.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm"
+                      className="px-3 py-1 bg-primary-100 text-primary-700 rounded hover:bg-primary-200 text-sm"
                     >
                       Ver
                     </a>
@@ -300,7 +300,7 @@ export default function CustomerFileManager({
                     value={newDocument.name}
                     onChange={(e) => setNewDocument(prev => ({ ...prev, name: e.target.value }))}
                     placeholder="Ej: Contrato de Venta Final, Título del Vehículo, etc."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                     required
                   />
                 </div>
@@ -312,7 +312,7 @@ export default function CustomerFileManager({
                   <select
                     value={newDocument.type}
                     onChange={(e) => setNewDocument(prev => ({ ...prev, type: e.target.value as any }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="final_contract">Contrato Final</option>
                     <option value="title">Título del Vehículo</option>
@@ -356,8 +356,8 @@ export default function CustomerFileManager({
                   )}
                 </div>
 
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <p className="text-blue-800 text-sm">
+                <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+                  <p className="text-primary-800 text-sm">
                     <strong>💡 Importante:</strong> Este documento será visible para el vendedor, dealer y F&I 
                     en el archivo del cliente. Todos los documentos relacionados con este cliente estarán 
                     sincronizados en tiempo real.
@@ -378,7 +378,7 @@ export default function CustomerFileManager({
                 <button
                   onClick={handleUpload}
                   disabled={uploading || !newDocument.name || !newDocument.file}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50"
                 >
                   {uploading ? 'Subiendo...' : '✓ Subir Documento'}
                 </button>

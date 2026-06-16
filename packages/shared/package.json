@@ -21,6 +21,11 @@
       "require": "./dist/platform-branding-client.js",
       "types": "./dist/platform-branding-client.d.ts"
     },
+    "./platform-colors": {
+      "import": "./dist/platform-colors.js",
+      "require": "./dist/platform-colors.js",
+      "types": "./dist/platform-colors.d.ts"
+    },
     "./components/SocialMediaLinks": {
       "import": "./dist/components/SocialMediaLinks.js",
       "require": "./dist/components/SocialMediaLinks.js",
@@ -40,6 +45,26 @@
       "import": "./dist/components/PromoVideosEditor.js",
       "require": "./dist/components/PromoVideosEditor.js",
       "types": "./dist/components/PromoVideosEditor.d.ts"
+    },
+    "./public-trust-gallery": {
+      "import": "./dist/public-trust-gallery.js",
+      "require": "./dist/public-trust-gallery.js",
+      "types": "./dist/public-trust-gallery.d.ts"
+    },
+    "./components/PublicTrustGallery": {
+      "import": "./dist/components/PublicTrustGallery.js",
+      "require": "./dist/components/PublicTrustGallery.js",
+      "types": "./dist/components/PublicTrustGallery.d.ts"
+    },
+    "./components/TrustGalleryEditor": {
+      "import": "./dist/components/TrustGalleryEditor.js",
+      "require": "./dist/components/TrustGalleryEditor.js",
+      "types": "./dist/components/TrustGalleryEditor.d.ts"
+    },
+    "./firebase-storage-upload": {
+      "import": "./dist/firebase-storage-upload.js",
+      "require": "./dist/firebase-storage-upload.js",
+      "types": "./dist/firebase-storage-upload.d.ts"
     }
   },
   "scripts": {
@@ -50,6 +75,7 @@
   "dependencies": {
     "@stripe/react-stripe-js": "^2.9.0",
     "@stripe/stripe-js": "^2.4.0",
+    "firebase": "^11.0.0",
     "firebase-admin": "^12.7.0",
     "next": "^16.1.6",
     "react": "^18.2.0"

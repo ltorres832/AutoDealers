@@ -73,7 +73,7 @@ function LoginWithTokenPage() {
             <p className="text-sm mt-2">{error}</p>
           </div>
         ) : (
-          <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded">
+          <div className="bg-primary-50 border border-primary-200 text-primary-700 px-4 py-3 rounded">
             <p className="font-semibold">⏳ {status}</p>
           </div>
         )}

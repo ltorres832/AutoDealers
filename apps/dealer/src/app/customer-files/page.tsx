@@ -148,12 +148,12 @@ export default function CustomerFilesPage() {
       </div>
 
       <div
-        className="mb-6 rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-blue-50 px-4 py-4 text-sm text-indigo-950 shadow-sm"
+        className="mb-6 rounded-xl border border-primary-200 bg-gradient-to-r from-primary-50 to-primary-50 px-4 py-4 text-sm text-primary-950 shadow-sm"
         role="region"
         aria-label="Colaboración del equipo en casos"
       >
-        <p className="font-semibold text-indigo-950">Misma carpeta para gerencia, vendedores y cliente</p>
-        <p className="mt-1 leading-relaxed text-indigo-900/90">
+        <p className="font-semibold text-primary-950">Misma carpeta para gerencia, vendedores y cliente</p>
+        <p className="mt-1 leading-relaxed text-primary-900/90">
           Desde aquí y desde el panel F&amp;I trabajan el mismo caso: solicita documentos al cliente, adjunta
           archivos y mantén un solo historial rumbo al cierre — sin duplicar correos ni versiones sueltas.
         </p>
@@ -256,7 +256,7 @@ export default function CustomerFilesPage() {
                           file.status === 'active'
                             ? 'bg-green-100 text-green-800'
                             : file.status === 'completed'
-                            ? 'bg-blue-100 text-blue-800'
+                            ? 'bg-primary-100 text-primary-800'
                             : 'bg-gray-100 text-gray-800'
                         }`}
                       >
@@ -270,7 +270,7 @@ export default function CustomerFilesPage() {
                       {file.linkedFiRequestId ? (
                         <Link
                           href={`/fi?openRequest=${encodeURIComponent(file.linkedFiRequestId)}`}
-                          className="text-blue-600 hover:text-blue-900 font-medium"
+                          className="text-primary-600 hover:text-primary-900 font-medium"
                         >
                           Abrir en F&amp;I
                         </Link>

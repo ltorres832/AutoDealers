@@ -129,22 +129,22 @@ export default function UsersManagementPage() {
                 <p className="text-sm text-gray-600 mb-2">Permisos:</p>
                 <div className="flex flex-wrap gap-1">
                   {user.permissions.canManageInventory && (
-                    <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">Inventario</span>
+                    <span className="px-2 py-1 bg-primary-100 text-primary-700 text-xs rounded">Inventario</span>
                   )}
                   {user.permissions.canManageLeads && (
                     <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded">Leads</span>
                   )}
                   {user.permissions.canManageSellers && (
-                    <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded">Vendedores</span>
+                    <span className="px-2 py-1 bg-primary-100 text-primary-700 text-xs rounded">Vendedores</span>
                   )}
                   {user.permissions.canManageIntegrations && (
                     <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded">Integraciones</span>
                   )}
                   {user.permissions.canManageTemplates && (
-                    <span className="px-2 py-1 bg-pink-100 text-pink-700 text-xs rounded">Templates</span>
+                    <span className="px-2 py-1 bg-primary-100 text-primary-700 text-xs rounded">Templates</span>
                   )}
                   {user.permissions.canViewReports && (
-                    <span className="px-2 py-1 bg-indigo-100 text-indigo-700 text-xs rounded">Reportes</span>
+                    <span className="px-2 py-1 bg-primary-100 text-primary-700 text-xs rounded">Reportes</span>
                   )}
                 </div>
               </div>
@@ -514,7 +514,7 @@ function CreateUserModal({
               </label>
 
               {formData.role === 'dealer_admin' && (
-                <label className="flex items-center space-x-3 cursor-pointer hover:bg-white p-2 rounded bg-blue-50">
+                <label className="flex items-center space-x-3 cursor-pointer hover:bg-white p-2 rounded bg-primary-50">
                   <input
                     type="checkbox"
                     checked={formData.permissions.canManageUsers}

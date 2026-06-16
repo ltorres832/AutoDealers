@@ -99,7 +99,7 @@ export default function NotificationsPanel() {
               {unreadCount > 0 && (
                 <button
                   onClick={markAllAsRead}
-                  className="text-sm text-blue-600 hover:text-blue-700"
+                  className="text-sm text-primary-600 hover:text-primary-700"
                 >
                   Marcar todas como leídas
                 </button>
@@ -116,7 +116,7 @@ export default function NotificationsPanel() {
                     <div
                       key={notification.id}
                       className={`p-4 hover:bg-gray-50 cursor-pointer ${
-                        !notification.read ? 'bg-blue-50' : ''
+                        !notification.read ? 'bg-primary-50' : ''
                       }`}
                       onClick={() => !notification.read && markAsRead(notification.id)}
                     >
@@ -126,7 +126,7 @@ export default function NotificationsPanel() {
                           <div className="flex items-start justify-between">
                             <p className="font-medium text-sm">{notification.title}</p>
                             {!notification.read && (
-                              <span className="w-2 h-2 bg-blue-500 rounded-full mt-1 flex-shrink-0"></span>
+                              <span className="w-2 h-2 bg-primary-500 rounded-full mt-1 flex-shrink-0"></span>
                             )}
                           </div>
                           <p className="text-sm text-gray-600 mt-1">{notification.message}</p>

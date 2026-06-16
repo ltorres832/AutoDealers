@@ -266,7 +266,7 @@ export default function TemplatesPage() {
                         {template.variables.map((variable) => (
                           <span
                             key={variable}
-                            className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded"
+                            className="text-xs bg-primary-100 text-primary-700 px-2 py-1 rounded"
                           >
                             {`{{${variable}}}`}
                           </span>
@@ -497,13 +497,13 @@ function CreateTemplateModal({
                 {formData.variables.map((variable) => (
                   <span
                     key={variable}
-                    className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 px-2 py-1 rounded text-sm"
+                    className="inline-flex items-center gap-1 bg-primary-100 text-primary-700 px-2 py-1 rounded text-sm"
                   >
                     {`{{${variable}}}`}
                     <button
                       type="button"
                       onClick={() => removeVariable(variable)}
-                      className="text-blue-700 hover:text-blue-900"
+                      className="text-primary-700 hover:text-primary-900"
                     >
                       ×
                     </button>

@@ -10,9 +10,9 @@ export default function FreePublicListingsSettingsPage() {
   const [form, setForm] = useState({
     enabled: true,
     maxActiveFreeVehiclesPerSeller: 2,
-    durationDays: 14,
+    durationDays: 7,
     ctaTitle: '¿Quieres vender?',
-    ctaSubtitle: 'Publica tu auto hoy mismo y llega a millones',
+    ctaSubtitle: 'Publica tu auto hoy mismo y llega a miles de compradores',
     ctaButtonLabel: 'Publicar Gratis',
     quickListingPath: '/publicar-gratis',
     registerPath: '/register?type=seller',
@@ -31,7 +31,7 @@ export default function FreePublicListingsSettingsPage() {
           setForm({
             enabled: data.enabled !== false,
             maxActiveFreeVehiclesPerSeller: data.maxActiveFreeVehiclesPerSeller ?? 2,
-            durationDays: data.durationDays ?? 14,
+            durationDays: data.durationDays ?? 7,
             ctaTitle: data.ctaTitle ?? '',
             ctaSubtitle: data.ctaSubtitle ?? '',
             ctaButtonLabel: data.ctaButtonLabel ?? '',
@@ -113,8 +113,8 @@ export default function FreePublicListingsSettingsPage() {
               className="w-full max-w-xs px-3 py-2 border rounded-lg"
             />
             <p className="text-xs text-gray-500 mt-1">
-              Cuentan los que no están vendidos y no han vencido. Con 0, nadie puede publicar gratis (deben tener
-              plan).
+              Por vendedor, teléfono, correo o dispositivo (visitantes sin cuenta). Cuentan activos no vencidos; al agotar el
+              cupo vitalicio deben registrarse.
             </p>
           </div>
 
@@ -239,7 +239,7 @@ export default function FreePublicListingsSettingsPage() {
           <button
             type="submit"
             disabled={saving}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
           >
             {saving ? 'Guardando...' : 'Guardar'}
           </button>

@@ -318,7 +318,7 @@ export default function AppointmentPage() {
                 }
                 className={`flex-1 min-w-[140px] rounded-md px-4 py-2 text-sm font-medium transition ${
                   formData.schedulingIntent === 'test_drive_request'
-                    ? 'bg-indigo-600 text-white shadow'
+                    ? 'bg-primary-600 text-white shadow'
                     : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-100'
                 }`}
               >
@@ -560,7 +560,7 @@ export default function AppointmentPage() {
               }
               className={`w-full px-6 py-3 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed text-white ${
                 formData.schedulingIntent === 'test_drive_request'
-                  ? 'bg-indigo-600 hover:bg-indigo-700'
+                  ? 'bg-primary-600 hover:bg-primary-700'
                   : 'bg-primary-600 hover:bg-primary-700'
               }`}
             >

@@ -218,7 +218,7 @@ export default function FIManagerSettingsPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-6">
-        <Link href="/settings" className="text-blue-600 hover:text-blue-700 text-sm">
+        <Link href="/settings" className="text-primary-600 hover:text-primary-700 text-sm">
           ← Volver a Configuración
         </Link>
       </div>
@@ -327,7 +327,7 @@ export default function FIManagerSettingsPage() {
                   <button
                     onClick={() => handleSetFIManager(user.id)}
                     disabled={saving}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                    className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50"
                   >
                     Designar como Gerente F&I
                   </button>
@@ -342,7 +342,7 @@ export default function FIManagerSettingsPage() {
             <p className="text-gray-500">No hay usuarios disponibles</p>
             <Link
               href="/users"
-              className="text-blue-600 hover:text-blue-700 mt-2 inline-block"
+              className="text-primary-600 hover:text-primary-700 mt-2 inline-block"
             >
               Crear usuario →
             </Link>
@@ -351,9 +351,9 @@ export default function FIManagerSettingsPage() {
       </div>
 
       {/* Información Adicional */}
-      <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <h3 className="font-semibold text-blue-900 mb-2">💡 Información</h3>
-        <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+      <div className="mt-6 bg-primary-50 border border-primary-200 rounded-lg p-6">
+        <h3 className="font-semibold text-primary-900 mb-2">💡 Información</h3>
+        <ul className="text-sm text-primary-800 space-y-1 list-disc list-inside">
           <li>El Gerente F&I recibirá todas las notificaciones de solicitudes F&I</li>
           <li>Puedes cambiar el gerente F&I en cualquier momento</li>
           <li>Si no designas un gerente, todos los dealers recibirán las notificaciones</li>

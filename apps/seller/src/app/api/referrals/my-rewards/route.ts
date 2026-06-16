@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
+import { dealerManagedReferralsResponse } from '@/lib/referrals-access-guard';
 import { getFirestore } from '@autodealers/core';
 import { getAvailableCredits } from '@autodealers/core';
 
@@ -15,6 +16,9 @@ export async function GET(request: NextRequest) {
         { status: 401 }
       );
     }
+
+    const blocked = dealerManagedReferralsResponse(auth);
+    if (blocked) return blocked;
 
     // Obtener recompensas activas del usuario
     const userDoc = await db.collection('users').doc(auth.userId).get();

@@ -1,6 +1,7 @@
 // Sistema de anunciantes (empresas externas)
 
 import { getFirestore, getAuth } from '@autodealers/shared';
+import { sendOutboundEmail } from './messaging-outbound';
 
 // Lazy initialization - solo se inicializa cuando se necesita
 function getDb() {
@@ -41,7 +42,13 @@ export interface SponsoredContent {
   imageUrl: string;
   videoUrl?: string;
   linkUrl: string;
-  linkType: 'external' | 'landing_page';
+  linkType:
+    | 'external'
+    | 'landing_page'
+    | 'marketplace'
+    | 'inventory'
+    | 'contact'
+    | 'none';
   
   // Targeting opcional
   targetLocation?: string[];
@@ -59,7 +66,14 @@ export interface SponsoredContent {
   conversions: number;
   
   // Estado y aprobación
-  status: 'pending' | 'approved' | 'active' | 'paused' | 'expired' | 'rejected';
+  status:
+    | 'pending'
+    | 'approved'
+    | 'active'
+    | 'paused'
+    | 'expired'
+    | 'rejected'
+    | 'payment_pending';
   approvedBy?: string;
   approvedAt?: Date;
   rejectionReason?: string;
@@ -100,7 +114,26 @@ export async function createAdvertiser(
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   } as any);
 
-  // TODO: Enviar email con credenciales
+  const loginUrl =
+    process.env.NEXT_PUBLIC_ADVERTISER_URL?.trim() ||
+    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
+    'https://advertiser.autodealers.com';
+
+  try {
+    await sendOutboundEmail(
+      advertiserData.email,
+      'Bienvenido a AutoDealers — credenciales de acceso',
+      `<p>Hola ${advertiserData.contactName},</p>
+<p>Tu cuenta de anunciante para <strong>${advertiserData.companyName}</strong> ha sido creada.</p>
+<p><strong>Email:</strong> ${advertiserData.email}<br/>
+<strong>Contraseña temporal:</strong> ${password}</p>
+<p>Inicia sesión en <a href="${loginUrl}/login">${loginUrl}/login</a> y cambia tu contraseña lo antes posible.</p>
+<p>Equipo AutoDealers</p>`,
+      'platform'
+    );
+  } catch (emailError) {
+    console.warn('Advertiser welcome email failed:', emailError);
+  }
 
   return {
     id: advertiserRef.id,
@@ -135,14 +168,23 @@ export async function getAdvertiserById(advertiserId: string): Promise<Advertise
  * Crea contenido patrocinado con validación de límites del plan
  */
 export async function createSponsoredContent(
-  contentData: Omit<SponsoredContent, 'id' | 'createdAt' | 'updatedAt' | 'impressions' | 'clicks' | 'conversions'>
+  contentData: Omit<SponsoredContent, 'id' | 'createdAt' | 'updatedAt' | 'impressions' | 'clicks' | 'conversions'> & {
+    status?: string;
+    billingMode?: 'per_ad' | 'subscription';
+  }
 ): Promise<SponsoredContent> {
-  // Validar límites del plan
-  const { canCreateBanner } = await import('./advertiser-limits');
-  const bannerCheck = await canCreateBanner(contentData.advertiserId, contentData.placement);
-  
-  if (!bannerCheck.allowed) {
-    throw new Error(bannerCheck.reason || 'No se puede crear el banner');
+  const payPerAd =
+    contentData.billingMode === 'per_ad' ||
+    contentData.status === 'payment_pending';
+
+  // Suscripción mensual: validar límites del plan. Pago por anuncio: no exige plan.
+  if (!payPerAd) {
+    const { canCreateBanner } = await import('./advertiser-limits');
+    const bannerCheck = await canCreateBanner(contentData.advertiserId, contentData.placement);
+
+    if (!bannerCheck.allowed) {
+      throw new Error(bannerCheck.reason || 'No se puede crear el banner');
+    }
   }
 
   const contentRef = getDb().collection('sponsored_content').doc();

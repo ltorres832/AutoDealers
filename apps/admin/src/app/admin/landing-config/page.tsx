@@ -321,8 +321,8 @@ export default function LandingConfigPage() {
                   <p className="text-xs text-gray-500 mt-1">Recomendado: 7-12 segundos</p>
                 </div>
               </div>
-              <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                <p className="text-sm text-blue-800">
+              <div className="mt-4 p-3 bg-primary-50 rounded-lg">
+                <p className="text-sm text-primary-800">
                   <strong>💡 Nota:</strong> Los cambios se aplicarán inmediatamente en la página pública. 
                   Los tiempos se miden en segundos. Mínimo: 3 segundos, Máximo: 30 segundos.
                 </p>

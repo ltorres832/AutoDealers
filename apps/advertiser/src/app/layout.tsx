@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import '../styles/globals.css';
+import '../../../../packages/shared/src/styles/brand-surface.css';
 import ServerStatus from '../components/ServerStatus';
 import { PlatformBrandingHead } from '@/components/PlatformBrandingHead';
 
@@ -9,7 +10,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  themeColor: '#f9fafb',
+  themeColor: '#E10600',
 };
 
 export const metadata: Metadata = {
@@ -32,7 +33,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
-      <body className="min-h-[100dvh] overflow-x-hidden antialiased">
+      <body className="brand-top-accent min-h-[100dvh] overflow-x-hidden antialiased">
         <PlatformBrandingHead />
         <ServerStatus />
         {children}

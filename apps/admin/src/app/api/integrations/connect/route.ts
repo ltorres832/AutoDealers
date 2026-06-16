@@ -3,6 +3,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { encodeSocialOAuthState, getFirestore, PLATFORM_SOCIAL_TENANT_ID } from '@autodealers/core';
+import { buildMetaOAuthDialogUrl } from '@autodealers/core/meta-oauth-scopes';
+import { getOAuthRedirectOrigin } from '@/lib/oauth-redirect-origin';
 
 const db = getFirestore();
 
@@ -14,7 +16,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { platform } = body as { platform?: string };
+    const { platform, reauthorize } = body as { platform?: string; reauthorize?: boolean };
 
     if (!platform || !['facebook', 'instagram'].includes(platform)) {
       return NextResponse.json({ error: 'Invalid platform' }, { status: 400 });
@@ -44,12 +46,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001';
+    const baseUrl = getOAuthRedirectOrigin(request);
     const redirectUri = `${baseUrl}/api/integrations/callback`;
-    const scope =
-      platform === 'facebook'
-        ? 'pages_show_list,pages_manage_posts,pages_read_engagement,pages_messaging,instagram_basic,instagram_content_publish,ads_read,ads_management'
-        : 'instagram_basic,instagram_content_publish,instagram_manage_messages,pages_show_list';
 
     const statePayload = encodeSocialOAuthState({
       type: platform,
@@ -57,12 +55,13 @@ export async function POST(request: NextRequest) {
       leadOwnerUserId: auth.userId ?? '',
     });
 
-    const authUrl =
-      `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}` +
-      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-      `&scope=${scope}` +
-      `&response_type=code` +
-      `&state=${encodeURIComponent(statePayload)}`;
+    const authUrl = buildMetaOAuthDialogUrl({
+      appId,
+      redirectUri,
+      state: statePayload,
+      type: platform === 'instagram' ? 'instagram' : 'facebook',
+      reauthorize: reauthorize === true,
+    });
 
     return NextResponse.json({ authUrl });
   } catch (error) {

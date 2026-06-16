@@ -58,9 +58,15 @@ export async function signIn(email: string, password: string) {
 
 export async function signOut() {
   try {
+    const { unregisterWebPushToken } = await import('@autodealers/shared/client');
+    await unregisterWebPushToken('/api/notifications/fcm-token');
+
     const authInstance = getAuthInstance();
-    if (!authInstance) return;
-    await firebaseSignOut(authInstance);
+    if (authInstance) {
+      await firebaseSignOut(authInstance);
+    }
+
+    document.cookie = 'authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Error al cerrar sesión';
     throw new Error(message);

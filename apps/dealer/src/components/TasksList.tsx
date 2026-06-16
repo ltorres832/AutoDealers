@@ -193,7 +193,7 @@ export default function TasksList({ tenantId, leadId, assignedTo }: TasksListPro
                       </Link>
                     )}
                     {task.recurrence !== 'none' && (
-                      <span className="text-purple-600">{task.recurrence}</span>
+                      <span className="text-primary-600">{task.recurrence}</span>
                     )}
                   </div>
                 </div>

@@ -145,7 +145,7 @@ export default function AnnouncementsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
       </div>
     );
   }
@@ -173,7 +173,7 @@ export default function AnnouncementsPage() {
             });
             setShowModal(true);
           }}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
         >
           + Crear Anuncio
         </button>
@@ -225,7 +225,7 @@ export default function AnnouncementsPage() {
                       announcement.type === 'error' ? 'bg-red-100 text-red-800' :
                       announcement.type === 'warning' ? 'bg-yellow-100 text-yellow-800' :
                       announcement.type === 'success' ? 'bg-green-100 text-green-800' :
-                      'bg-blue-100 text-blue-800'
+                      'bg-primary-100 text-primary-800'
                     }`}>
                       {announcement.type}
                     </span>
@@ -261,7 +261,7 @@ export default function AnnouncementsPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button
                       onClick={() => handleEdit(announcement)}
-                      className="text-blue-600 hover:text-blue-900 mr-4"
+                      className="text-primary-600 hover:text-primary-900 mr-4"
                     >
                       Editar
                     </button>
@@ -472,7 +472,7 @@ export default function AnnouncementsPage() {
               <button
                 onClick={handleSave}
                 disabled={!formData.title || !formData.message}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50"
               >
                 Guardar
               </button>

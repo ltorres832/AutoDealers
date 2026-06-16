@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase-client-base';
-import { collection, query, where, onSnapshot, Timestamp } from 'firebase/firestore';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { filterPublicCatalogMemberships } from '@autodealers/billing/membership-visibility';
 
 interface Membership {
   id: string;
@@ -11,75 +12,58 @@ interface Membership {
   price: number;
   currency: string;
   billingCycle: 'monthly' | 'yearly';
-  features: any;
-  stripePriceId: string;
+  features: Record<string, unknown>;
+  stripePriceId?: string;
   isActive: boolean;
-  createdAt?: Date | Timestamp;
 }
 
-export function useRealtimeMemberships(type: 'dealer' | 'seller' = 'dealer', filterMultiDealer?: boolean | null) {
+export function useRealtimeMemberships(type: 'dealer' | 'seller' = 'dealer') {
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [emptyReason, setEmptyReason] = useState<string | null>(null);
 
   useEffect(() => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const q = query(
-        collection(db, 'memberships'),
-        where('type', '==', type),
-        where('isActive', '==', true)
-      );
-
-      const unsubscribe = onSnapshot(
-        q,
-        (snapshot) => {
-          const membershipsData: Membership[] = [];
-          
-          snapshot.forEach((doc) => {
-            const data = doc.data();
-            membershipsData.push({
-              id: doc.id,
-              ...data,
-              createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : data.createdAt,
-            } as Membership);
-          });
-
-          // Filtrar según el tipo de cuenta si se especifica
-          let filteredMemberships = membershipsData;
-          if (filterMultiDealer !== undefined && filterMultiDealer !== null) {
-            if (filterMultiDealer) {
-              // Solo multi-dealer
-              filteredMemberships = membershipsData.filter(m => m.features?.multiDealerEnabled === true);
-            } else {
-              // Solo dealer regular (NO multi-dealer)
-              filteredMemberships = membershipsData.filter(m => !m.features?.multiDealerEnabled);
-            }
-          }
-
-          // Ordenar por precio
-          filteredMemberships.sort((a, b) => a.price - b.price);
-
-          setMemberships(filteredMemberships);
-          setLoading(false);
-        },
-        (err) => {
-          console.error('Error en listener de membresías:', err);
-          setError(err.message);
-          setLoading(false);
-        }
-      );
-
-      return () => unsubscribe();
-    } catch (err: any) {
-      console.error('Error setting up memberships listener:', err);
-      setError(err.message);
+    if (!db) {
       setLoading(false);
+      return;
     }
-  }, [type, filterMultiDealer]);
 
-  return { memberships, loading, error };
+    const unsubscribe = onSnapshot(
+      collection(db, 'memberships'),
+      (snapshot) => {
+        const mapped: Membership[] = snapshot.docs.map((doc) => {
+          const d = doc.data();
+          return {
+            id: doc.id,
+            name: (d.name as string) || doc.id,
+            type: (d.type as 'dealer' | 'seller') || 'dealer',
+            price: Number(d.price) || 0,
+            currency: (d.currency as string) || 'USD',
+            billingCycle: (d.billingCycle as 'monthly' | 'yearly') || 'monthly',
+            features: (d.features as Record<string, unknown>) || {},
+            stripePriceId: d.stripePriceId as string | undefined,
+            isActive: d.isActive !== false,
+          };
+        });
+
+        let rows = filterPublicCatalogMemberships(mapped.filter((m) => m.type === type));
+
+        rows.sort((a, b) => (a.price || 0) - (b.price || 0));
+        setMemberships(rows);
+        setEmptyReason(rows.length === 0 ? 'No hay planes activos configurados.' : null);
+        setLoading(false);
+        setError(null);
+      },
+      (err) => {
+        console.error('Error en listener memberships:', err);
+        setError(err.message);
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [type]);
+
+  return { memberships, loading, error, emptyReason };
 }
-

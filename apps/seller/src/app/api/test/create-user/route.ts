@@ -11,18 +11,11 @@ export const dynamic = 'force-dynamic';
  * Body: { email, password, name, role, tenantId?, dealerId? }
  */
 export async function POST(request: NextRequest) {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
   try {
-    // Solo permitir en desarrollo (verificar también por hostname)
-    const isDevelopment = 
-      process.env.NODE_ENV !== 'production' || 
-      process.env.NODE_ENV === undefined;
-    
-    if (!isDevelopment) {
-      return NextResponse.json(
-        { error: 'Esta funcionalidad solo está disponible en desarrollo' },
-        { status: 403 }
-      );
-    }
 
     let body;
     try {

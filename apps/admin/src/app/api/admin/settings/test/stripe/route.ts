@@ -2,10 +2,20 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getFirestore } from '@autodealers/core';
-import { StripeService } from '@autodealers/billing';
+import {
+  getStripeInstance,
+  getStripeWebhookSecret,
+  isValidStripeWebhookSecret,
+} from '@autodealers/core';
 
-const db = getFirestore();
+function resolveAdminWebhookUrl(): string {
+  const base =
+    process.env.ADMIN_APP_URL?.trim() ||
+    process.env.NEXT_PUBLIC_ADMIN_URL?.trim() ||
+    process.env.NEXTAUTH_URL?.trim() ||
+    'https://admin-app--autodealers-7f62e.us-central1.hosted.app';
+  return `${base.replace(/\/$/, '')}/api/webhooks/stripe`;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,39 +24,36 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Obtener credenciales de Stripe
-    const credentialsDoc = await db.collection('system_settings').doc('credentials').get();
-    const credentials = credentialsDoc.exists ? (credentialsDoc.data() || {}) : {};
-    
-    const stripeSecretKey = credentials.stripeSecretKey;
-    
-    if (!stripeSecretKey) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Stripe Secret Key no configurada' 
-      }, { status: 400 });
-    }
+    const webhookSecret = await getStripeWebhookSecret();
+    const webhookSecretConfigured = isValidStripeWebhookSecret(webhookSecret);
 
     try {
-      // Probar conexión con Stripe
-      const stripeService = new StripeService(stripeSecretKey);
-      
-      // Intentar obtener información de la cuenta
-      // En Stripe, podemos usar cualquier endpoint simple para verificar la conexión
-      // Por ejemplo, listar productos (endpoint simple y seguro)
-      const stripe = (stripeService as any).stripe;
-      await stripe.products.list({ limit: 1 });
+      const stripe = await getStripeInstance();
+      const account = await stripe.accounts.retrieve();
 
-      return NextResponse.json({ 
-        success: true, 
-        message: 'Conexión con Stripe exitosa' 
+      return NextResponse.json({
+        success: true,
+        message: 'Conexión con Stripe exitosa',
+        accountId: account.id,
+        webhookEndpoint: resolveAdminWebhookUrl(),
+        webhookSecretConfigured,
+        webhookSecretHint: webhookSecretConfigured
+          ? 'Signing secret válido (whsec_...)'
+          : 'Configura whsec_... en Admin → Configuración → Stripe (no uses la URL del endpoint como secreto)',
       });
-    } catch (stripeError: any) {
+    } catch (stripeError: unknown) {
+      const message =
+        stripeError instanceof Error ? stripeError.message : 'Error al conectar con Stripe';
       console.error('Stripe error:', stripeError);
-      return NextResponse.json({ 
-        success: false, 
-        error: stripeError.message || 'Error al conectar con Stripe' 
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          success: false,
+          error: message,
+          webhookEndpoint: resolveAdminWebhookUrl(),
+          webhookSecretConfigured,
+        },
+        { status: 400 }
+      );
     }
   } catch (error) {
     console.error('Error testing Stripe connection:', error);
@@ -56,8 +63,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-
-
-
-

@@ -425,8 +425,8 @@ export default function WebsiteSettingsPage() {
               </div>
             </div>
 
-            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-800">
+            <div className="mt-4 p-4 bg-primary-50 border border-primary-200 rounded-lg">
+              <p className="text-sm text-primary-800">
                 💡 <strong>Nota:</strong> La información de contacto (teléfono, email, dirección, horarios, redes sociales)
                 se toma automáticamente de tu <Link href="/settings/profile" className="underline">Perfil</Link>.
                 Asegúrate de tener toda tu información actualizada allí.
@@ -712,8 +712,8 @@ function WebsitePreview({
   socialPosts?: any[];
   onClose: () => void;
 }) {
-  const primaryColor = branding?.primaryColor || '#2563EB';
-  const secondaryColor = branding?.secondaryColor || '#1E40AF';
+  const primaryColor = branding?.primaryColor || '#E10600';
+  const secondaryColor = branding?.secondaryColor || '#0A0A0A';
   const tenantName = profile?.businessName || 'Nombre del Dealer';
   const contactPhone = profile?.phone || '';
   const contactEmail = profile?.email || '';
@@ -972,7 +972,7 @@ function WebsitePreview({
                         {post.platforms?.map((platform: string) => (
                           <span
                             key={platform}
-                            className="text-sm bg-blue-100 text-blue-700 px-2 py-1 rounded"
+                            className="text-sm bg-primary-100 text-primary-700 px-2 py-1 rounded"
                           >
                             {platform === 'facebook' ? '📘' : platform === 'instagram' ? '📷' : '🎵'} {platform}
                           </span>

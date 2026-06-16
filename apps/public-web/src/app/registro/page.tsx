@@ -151,7 +151,7 @@ function RegistroPageContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-primary-50 to-brand-red-bright50 flex items-center justify-center p-4">
       <div className="max-w-4xl w-full">
         {/* Header */}
         <div className="text-center mb-8">
@@ -163,13 +163,13 @@ function RegistroPageContent() {
               Volver
             </PublicBackButton>
             <span className="text-gray-300 hidden sm:inline">|</span>
-            <Link href="/" className="text-sm text-gray-500 hover:text-purple-600">
+            <Link href="/" className="text-sm text-gray-500 hover:text-primary-600">
               Inicio
             </Link>
           </div>
           <h1 className="text-4xl font-bold mb-2">
             Crea tu cuenta en{' '}
-            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-primary-600 to-primary-600 bg-clip-text text-transparent">
               AutoDealers
             </span>
           </h1>
@@ -184,7 +184,7 @@ function RegistroPageContent() {
                 <div
                   className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
                     s <= step
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
+                      ? 'bg-gradient-to-r from-primary-600 to-primary-600 text-white'
                       : 'bg-gray-200 text-gray-500'
                   }`}
                 >
@@ -193,7 +193,7 @@ function RegistroPageContent() {
                 {s < 4 && (
                   <div
                     className={`flex-1 h-1 mx-2 ${
-                      s < step ? 'bg-gradient-to-r from-blue-600 to-purple-600' : 'bg-gray-200'
+                      s < step ? 'bg-gradient-to-r from-primary-600 to-primary-600' : 'bg-gray-200'
                     }`}
                   />
                 )}
@@ -222,7 +222,7 @@ function RegistroPageContent() {
                       onClick={() => setFormData({ ...formData, accountType: 'dealer' })}
                       className={`p-8 rounded-xl border-2 transition-all text-left ${
                         formData.accountType === 'dealer'
-                          ? 'border-blue-600 bg-blue-50'
+                          ? 'border-primary-600 bg-primary-50'
                           : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
@@ -245,10 +245,10 @@ function RegistroPageContent() {
                     </button>
                     <Link
                       href={multiDealerRegisterHref}
-                      className="text-center text-sm text-gray-500 hover:text-blue-600 px-2 py-2 rounded-lg border border-transparent hover:border-blue-100 hover:bg-blue-50/50 transition-colors"
+                      className="text-center text-sm text-gray-500 hover:text-primary-600 px-2 py-2 rounded-lg border border-transparent hover:border-primary-100 hover:bg-primary-50/50 transition-colors"
                     >
                       ¿Gestionas varios concesionarios?{' '}
-                      <span className="font-semibold text-blue-600 underline-offset-2 hover:underline">
+                      <span className="font-semibold text-primary-600 underline-offset-2 hover:underline">
                         Solicitud Multi Dealer
                       </span>
                     </Link>
@@ -259,7 +259,7 @@ function RegistroPageContent() {
                     onClick={() => setFormData({ ...formData, accountType: 'seller' })}
                     className={`p-8 rounded-xl border-2 transition-all text-left ${
                       formData.accountType === 'seller'
-                        ? 'border-purple-600 bg-purple-50'
+                        ? 'border-primary-600 bg-primary-50'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                   >
@@ -297,7 +297,7 @@ function RegistroPageContent() {
                       type="text"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                       required
                     />
                   </div>
@@ -309,7 +309,7 @@ function RegistroPageContent() {
                       type="email"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                       required
                     />
                   </div>
@@ -321,7 +321,7 @@ function RegistroPageContent() {
                       type="password"
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                       minLength={8}
                       required
                     />
@@ -335,7 +335,7 @@ function RegistroPageContent() {
                       type="tel"
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                       required
                     />
                   </div>
@@ -356,7 +356,7 @@ function RegistroPageContent() {
                       type="text"
                       value={formData.businessName}
                       onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                       required
                     />
                   </div>
@@ -371,7 +371,7 @@ function RegistroPageContent() {
                         onChange={(e) =>
                           setFormData({ ...formData, subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })
                         }
-                        className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                         placeholder="mi-negocio"
                         required
                       />
@@ -387,7 +387,7 @@ function RegistroPageContent() {
                       type="text"
                       value={formData.address}
                       onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                     />
                   </div>
                 </div>
@@ -407,7 +407,7 @@ function RegistroPageContent() {
                   <p className="text-sm text-gray-600 mb-6 max-w-2xl mx-auto text-center leading-relaxed">
                     Los planes <strong>multi concesionario</strong> gestionan varios concesionarios bajo una cuenta; la
                     alta puede requerir una{' '}
-                    <Link href={multiDealerRegisterHref} className="font-semibold text-blue-600 hover:underline">
+                    <Link href={multiDealerRegisterHref} className="font-semibold text-primary-600 hover:underline">
                       solicitud dedicada
                     </Link>
                     .
@@ -415,7 +415,7 @@ function RegistroPageContent() {
                 )}
                 {loadingMemberships ? (
                   <div className="flex justify-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
                   </div>
                 ) : memberships.length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
@@ -438,12 +438,12 @@ function RegistroPageContent() {
                           onClick={() => setFormData({ ...formData, membershipId: membership.id })}
                           className={`p-6 rounded-xl border-2 transition-all text-left ${
                             formData.membershipId === membership.id
-                              ? 'border-blue-600 bg-blue-50 shadow-lg'
+                              ? 'border-primary-600 bg-primary-50 shadow-lg'
                               : 'border-gray-200 hover:border-gray-300'
-                          } ${isPopular ? 'scale-105 ring-2 ring-blue-300' : ''}`}
+                          } ${isPopular ? 'scale-105 ring-2 ring-primary-300' : ''}`}
                         >
                           {isPopular && (
-                            <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-3 py-1 rounded-full text-xs font-semibold inline-block mb-3">
+                            <div className="bg-gradient-to-r from-primary-600 to-primary-600 text-white px-3 py-1 rounded-full text-xs font-semibold inline-block mb-3">
                               ⭐ MÁS POPULAR
                             </div>
                           )}
@@ -492,7 +492,7 @@ function RegistroPageContent() {
 
                           {/* Mensaje sobre límites ilimitados */}
                           {limits.some(l => l.includes('Ilimitado') || l.includes('Ilimitada')) && (
-                            <div className="mt-3 p-2 bg-gradient-to-r from-green-50 to-blue-50 rounded border border-green-200">
+                            <div className="mt-3 p-2 bg-gradient-to-r from-green-50 to-primary-50 rounded border border-green-200">
                               <p className="text-xs font-semibold text-green-700 text-center">
                                 🎉 Límites Ilimitados
                               </p>
@@ -511,15 +511,15 @@ function RegistroPageContent() {
                       type="checkbox"
                       checked={acceptTerms}
                       onChange={(e) => setAcceptTerms(e.target.checked)}
-                      className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600"
+                      className="mt-1 h-4 w-4 rounded border-gray-300 text-primary-600"
                     />
                     <label htmlFor="registro-terms" className="text-sm text-gray-700 leading-relaxed cursor-pointer">
                       Acepto los{' '}
-                      <Link href="/terminos" className="font-semibold text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">
+                      <Link href="/terminos" className="font-semibold text-primary-600 hover:underline" target="_blank" rel="noopener noreferrer">
                         Términos y Condiciones
                       </Link>{' '}
                       y la{' '}
-                      <Link href="/privacidad" className="font-semibold text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">
+                      <Link href="/privacidad" className="font-semibold text-primary-600 hover:underline" target="_blank" rel="noopener noreferrer">
                         Política de Privacidad
                       </Link>{' '}
                       de la plataforma AutoDealers.
@@ -544,7 +544,7 @@ function RegistroPageContent() {
               <button
                 type="submit"
                 disabled={loading || (step === 4 && !formData.membershipId)}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-lg hover:shadow-lg transition-all font-semibold disabled:opacity-50"
+                className="bg-gradient-to-r from-primary-600 to-primary-600 text-white px-8 py-3 rounded-lg hover:shadow-lg transition-all font-semibold disabled:opacity-50"
               >
                 {loading ? 'Procesando...' : step < 4 ? 'Siguiente →' : 'Continuar al Pago 💳'}
               </button>
@@ -553,7 +553,7 @@ function RegistroPageContent() {
 
           {/* Formulario de Pago Integrado */}
           {showPayment && selectedMembership && (
-            <div className="mt-8 bg-white rounded-xl shadow-xl p-8 border-2 border-blue-200">
+            <div className="mt-8 bg-white rounded-xl shadow-xl p-8 border-2 border-primary-200">
               <div className="flex justify-between items-center mb-6">
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">Completa tu Pago</h2>
@@ -589,7 +589,7 @@ function RegistroPageContent() {
           {!showPayment && (
             <div className="mt-6 text-center text-sm text-gray-600">
               ¿Ya tienes una cuenta?{' '}
-              <Link href="/login" className="text-blue-600 hover:text-blue-700 font-semibold">
+              <Link href="/login" className="text-primary-600 hover:text-primary-700 font-semibold">
                 Inicia sesión aquí
               </Link>
             </div>

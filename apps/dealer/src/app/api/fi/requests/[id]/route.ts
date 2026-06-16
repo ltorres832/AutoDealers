@@ -5,8 +5,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth, isDealerPortalRole } from '@/lib/auth';
 import { requireTenantFeature } from '@/lib/membership-middleware';
-import { createNotification, getFirestore } from '@autodealers/core';
-import { getFIRequestById, fiStatusToExpeditionStage, syncLinkedCustomerFileExpedition } from '@autodealers/crm';
+import { notifyFIRequestStatusChanged, getFirestore } from '@autodealers/core';
+import { getFIRequestById, getFIClientById, fiStatusToExpeditionStage, syncLinkedCustomerFileExpedition } from '@autodealers/crm';
 import * as admin from 'firebase-admin';
 
 async function updateFIRequestStatusDirect(
@@ -207,23 +207,19 @@ export async function PATCH(
           pre_approved: 'Pre-Aprobada',
           pending_info: 'Pendiente de Información',
         };
-        
-        await createNotification({
-          tenantId: user.tenantId,
-          userId: updatedRequest.createdBy,
-          type: 'system_alert',
-          title: `Solicitud F&I ${statusLabels[status] || 'Actualizada'}`,
-          message: `El estado de tu solicitud F&I ha cambiado a: ${statusLabels[status] || status}`,
-          channels: ['system'],
-          metadata: {
-            requestId: id,
-            action: 'fi_request_status_changed',
-            newStatus: status,
-          },
+        const client = await getFIClientById(user.tenantId!, updatedRequest.clientId);
+        const clientName = (client as { name?: string })?.name || 'Cliente';
+
+        await notifyFIRequestStatusChanged(user.tenantId!, {
+          requestId: id,
+          clientName,
+          sellerUserId: updatedRequest.createdBy,
+          status,
+          statusLabel: statusLabels[status] || status,
+          changedByUserId: user.userId,
         });
       } catch (error) {
         console.error('Error enviando notificación:', error);
-        // No fallar si la notificación falla
       }
     }
 

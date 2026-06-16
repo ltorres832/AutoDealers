@@ -1,6 +1,18 @@
 buildConfig:
   runtime: nodejs20
-  buildCommand: npm ci --legacy-peer-deps && npm run build --workspace=@autodealers/shared && cd apps/dealer && npm run build
+  buildCommand: |
+    set -e
+    if [ -f ../../package-lock.json ]; then cd ../..; fi
+    npm ci --legacy-peer-deps
+    npm run build --workspace=@autodealers/crm
+    npm run build --workspace=@autodealers/core
+    npm run build --workspace=@autodealers/shared
+    npm run build --workspace=@autodealers/billing
+    npm run build --workspace=@autodealers/inventory
+    npm run build --workspace=@autodealers/ai
+    npm run build --workspace=@autodealers/messaging
+    npm run build --workspace=@autodealers/reports
+    cd apps/dealer && npm run build
   outputDir: .next
 
 runConfig:
@@ -39,6 +51,11 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_VAPID_KEY
+    secret: NEXT_PUBLIC_FIREBASE_VAPID_KEY
+    availability:
+      - BUILD
+      - RUNTIME
   - variable: FIREBASE_PROJECT_ID
     value: autodealers-7f62e
     availability:
@@ -55,4 +72,9 @@ env:
   - variable: META_VERIFY_TOKEN
     secret: META_VERIFY_TOKEN
     availability:
+      - RUNTIME
+  - variable: NEXT_PUBLIC_APP_URL
+    value: https://dealer-app--autodealers-7f62e.us-central1.hosted.app
+    availability:
+      - BUILD
       - RUNTIME

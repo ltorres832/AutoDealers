@@ -107,7 +107,7 @@ export function PolicyAcceptanceModal({
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg p-8 max-w-2xl w-full mx-4">
           <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
           </div>
         </div>
       </div>
@@ -121,7 +121,7 @@ export function PolicyAcceptanceModal({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="bg-blue-600 text-white px-6 py-4">
+        <div className="bg-primary-600 text-white px-6 py-4">
           <h2 className="text-2xl font-bold">Políticas Requeridas</h2>
           <p className="text-sm mt-1">
             Debes aceptar las siguientes políticas para continuar usando la plataforma
@@ -158,14 +158,14 @@ export function PolicyAcceptanceModal({
                       )}
                       <button
                         onClick={() => setExpandedPolicy(isExpanded ? null : policy.id)}
-                        className="px-4 py-2 text-sm text-blue-600 hover:text-blue-800"
+                        className="px-4 py-2 text-sm text-primary-600 hover:text-primary-800"
                       >
                         {isExpanded ? 'Ocultar' : 'Ver Contenido'}
                       </button>
                       {!isAccepted && (
                         <button
                           onClick={() => handleAcceptPolicy(policy.id)}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+                          className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 text-sm"
                         >
                           Aceptar
                         </button>
@@ -197,7 +197,7 @@ export function PolicyAcceptanceModal({
             <button
               onClick={handleAcceptAll}
               disabled={accepting || acceptedPolicies.size === policies.length}
-              className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {accepting ? 'Aceptando...' : 'Aceptar Todas'}
             </button>

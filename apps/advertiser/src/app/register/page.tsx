@@ -66,7 +66,7 @@ export default function AdvertiserRegisterPage() {
       const data = await response.json();
 
       if (response.ok) {
-        // Redirigir al dashboard (sin plan aún)
+        // Redirigir al login tras registro
         alert('Registro exitoso. Bienvenido a tu panel de anunciante.');
         router.push('/login');
       } else {
@@ -87,11 +87,11 @@ export default function AdvertiserRegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-primary-50">
       {/* Header */}
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-6">
-          <Link href="/login" className="text-blue-600 hover:text-blue-700 font-semibold">
+          <Link href="/login" className="text-primary-600 hover:text-primary-700 font-semibold">
             ← Volver al inicio de sesión
           </Link>
         </div>
@@ -104,7 +104,7 @@ export default function AdvertiserRegisterPage() {
             Regístrate como Anunciante
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Crea tu cuenta gratis y accede a todas las herramientas. Selecciona tu plan cuando estés listo para crear tu primer anuncio.
+            Crea tu cuenta gratis. Pagas solo cuando publicas un anuncio — sin suscripción mensual.
           </p>
         </div>
 
@@ -130,7 +130,7 @@ export default function AdvertiserRegisterPage() {
                         type="text"
                         value={formData.companyName}
                         onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                         required
                       />
                     </div>
@@ -142,7 +142,7 @@ export default function AdvertiserRegisterPage() {
                         type="text"
                         value={formData.contactName}
                         onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                         required
                       />
                     </div>
@@ -157,7 +157,7 @@ export default function AdvertiserRegisterPage() {
                         type="email"
                         value={formData.email}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                         required
                       />
                     </div>
@@ -169,7 +169,7 @@ export default function AdvertiserRegisterPage() {
                         type="tel"
                         value={formData.phone}
                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                       />
                     </div>
                   </div>
@@ -183,7 +183,7 @@ export default function AdvertiserRegisterPage() {
                         type="password"
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                         required
                         minLength={6}
                       />
@@ -196,7 +196,7 @@ export default function AdvertiserRegisterPage() {
                         type="password"
                         value={formData.confirmPassword}
                         onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                         required
                         minLength={6}
                       />
@@ -212,7 +212,7 @@ export default function AdvertiserRegisterPage() {
                         type="url"
                         value={formData.website}
                         onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                         placeholder="https://..."
                       />
                     </div>
@@ -223,7 +223,7 @@ export default function AdvertiserRegisterPage() {
                       <select
                         value={formData.industry}
                         onChange={(e) => setFormData({ ...formData, industry: e.target.value as any })}
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                         required
                       >
                         <option value="automotive">Automotriz</option>
@@ -242,7 +242,7 @@ export default function AdvertiserRegisterPage() {
                     <textarea
                       value={formData.message}
                       onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                      className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                       rows={4}
                       placeholder="Cuéntanos sobre tu empresa y objetivos de publicidad..."
                     />
@@ -252,7 +252,7 @@ export default function AdvertiserRegisterPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-indigo-700 font-semibold transition-all disabled:opacity-50"
+                className="flex-1 bg-gradient-to-r from-primary-600 to-primary-600 text-white px-6 py-3 rounded-lg hover:from-primary-700 hover:to-primary-700 font-semibold transition-all disabled:opacity-50"
               >
                 {loading ? 'Creando cuenta...' : 'Crear Cuenta Gratis'}
               </button>

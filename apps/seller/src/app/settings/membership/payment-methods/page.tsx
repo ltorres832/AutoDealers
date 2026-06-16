@@ -205,8 +205,19 @@ export default function PaymentMethodsPage() {
             setShowAddForm(false);
           }
         } else if (!cancelled) {
-          const errorData = await response.json();
-          alert(`Error: ${errorData.error || errorData.details || 'No se pudo inicializar el formulario de pago'}`);
+          const errorData = await response.json().catch(() => ({}));
+          if (errorData.error === 'dealer_managed') {
+            alert(
+              errorData.message ||
+                'Tu plan lo gestiona tu concesionario. No puedes agregar métodos de pago desde tu cuenta.'
+            );
+          } else {
+            alert(
+              errorData.details ||
+                errorData.error ||
+                'No se pudo inicializar el formulario de pago'
+            );
+          }
           setShowAddForm(false);
         }
       } catch (error: any) {

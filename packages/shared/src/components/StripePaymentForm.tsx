@@ -1,17 +1,13 @@
 'use client';
 
-import React, { useState, FormEvent } from 'react';
-import { loadStripe, StripeElementsOptions } from '@stripe/stripe-js';
+import React, { useState, useEffect, FormEvent } from 'react';
+import { loadStripe, StripeElementsOptions, type Stripe } from '@stripe/stripe-js';
 import {
   Elements,
   CardElement,
   useStripe,
   useElements,
 } from '@stripe/react-stripe-js';
-
-const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''
-);
 
 interface StripePaymentFormProps {
   amount: number;
@@ -23,6 +19,9 @@ interface StripePaymentFormProps {
   customerId?: string;
   subscriptionPriceId?: string; // Para suscripciones
   clientSecret?: string; // Si ya tienes un Payment Intent creado
+  /** Si no hay NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY, se obtiene desde esta API (ej. Firestore). */
+  publishableKeyUrl?: string;
+  publishableKey?: string;
 }
 
 function PaymentForm({
@@ -207,7 +206,7 @@ function PaymentForm({
       <button
         type="submit"
         disabled={!stripe || loading}
-        className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="w-full bg-primary-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         {loading ? 'Procesando...' : `Pagar $${amount.toFixed(2)}`}
       </button>
@@ -219,12 +218,76 @@ function PaymentForm({
   );
 }
 
-export function StripePaymentForm(props: StripePaymentFormProps) {
+export function StripePaymentForm({
+  publishableKeyUrl,
+  publishableKey: publishableKeyProp,
+  ...props
+}: StripePaymentFormProps) {
+  const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null);
+  const [loadingKey, setLoadingKey] = useState(true);
+  const [configError, setConfigError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function initStripe() {
+      const envKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.trim();
+      const directKey = publishableKeyProp?.trim();
+
+      if (directKey) {
+        if (!cancelled) setStripePromise(loadStripe(directKey));
+        if (!cancelled) setLoadingKey(false);
+        return;
+      }
+
+      if (envKey) {
+        if (!cancelled) setStripePromise(loadStripe(envKey));
+        if (!cancelled) setLoadingKey(false);
+        return;
+      }
+
+      if (publishableKeyUrl) {
+        try {
+          const res = await fetch(publishableKeyUrl, { credentials: 'include' });
+          const data = (await res.json()) as { publishableKey?: string; error?: string };
+          if (!res.ok || !data.publishableKey) {
+            if (!cancelled) {
+              setConfigError(
+                data.error ||
+                  'Stripe no está configurado. Configura las claves en Admin → Configuración → General → Stripe.'
+              );
+            }
+          } else if (!cancelled) {
+            setStripePromise(loadStripe(data.publishableKey));
+          }
+        } catch {
+          if (!cancelled) {
+            setConfigError('No se pudo conectar con el servidor de pagos.');
+          }
+        }
+        if (!cancelled) setLoadingKey(false);
+        return;
+      }
+
+      if (!cancelled) {
+        setConfigError(
+          'Stripe no está configurado. Añade la clave en Admin → Stripe o define NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.'
+        );
+        setLoadingKey(false);
+      }
+    }
+
+    initStripe();
+    return () => {
+      cancelled = true;
+    };
+  }, [publishableKeyUrl, publishableKeyProp]);
+
   const options: StripeElementsOptions = {
     appearance: {
       theme: 'stripe',
       variables: {
-        colorPrimary: '#2563eb',
+        colorPrimary: '#E10600',
         colorBackground: '#ffffff',
         colorText: '#1f2937',
         colorDanger: '#dc2626',
@@ -235,12 +298,16 @@ export function StripePaymentForm(props: StripePaymentFormProps) {
     },
   };
 
-  if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
+  if (loadingKey) {
+    return (
+      <div className="text-center py-8 text-gray-600 text-sm">Cargando pasarela de pago…</div>
+    );
+  }
+
+  if (configError || !stripePromise) {
     return (
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-        <p className="text-yellow-800">
-          ⚠️ Stripe no está configurado. Por favor, configura NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-        </p>
+        <p className="text-yellow-800">⚠️ {configError}</p>
       </div>
     );
   }

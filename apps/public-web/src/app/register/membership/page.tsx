@@ -58,6 +58,7 @@ function MembershipSelectionContent() {
   }, [urlType]);
 
   const [memberships, setMemberships] = useState<Membership[]>([]);
+  const [trialDays, setTrialDays] = useState(7);
   const [loadingList, setLoadingList] = useState(true);
   const [selectedMembership, setSelectedMembership] = useState<string>('');
   const [loading, setLoading] = useState(false);
@@ -79,6 +80,7 @@ function MembershipSelectionContent() {
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
       setMemberships(data.memberships || []);
+      if (typeof data.trialDays === 'number') setTrialDays(data.trialDays);
     } catch (error) {
       console.error('Error fetching memberships:', error);
       setError('Error al cargar las membresías.');
@@ -145,7 +147,7 @@ function MembershipSelectionContent() {
   if (!typeReady) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center py-20 px-4">
-        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <div className="w-12 h-12 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -157,7 +159,7 @@ function MembershipSelectionContent() {
           <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">⚠️</div>
           <h2 className="text-2xl font-black text-slate-900 mb-4 tracking-tight uppercase">Acceso No Autorizado</h2>
           <p className="text-slate-500 font-medium mb-8">El tipo de cuenta es requerido para continuar.</p>
-          <Link href="/register" className="inline-flex items-center gap-2 text-blue-600 font-black text-xs uppercase tracking-widest hover:underline">
+          <Link href="/register" className="inline-flex items-center gap-2 text-primary-600 font-black text-xs uppercase tracking-widest hover:underline">
             Volver al Inicio
           </Link>
         </div>
@@ -168,7 +170,7 @@ function MembershipSelectionContent() {
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center py-24 px-4 relative overflow-hidden">
       {/* Background Decor */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[500px] bg-gradient-to-b from-blue-50/50 to-transparent pointer-events-none"></div>
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[500px] bg-gradient-to-b from-primary-50/50 to-transparent pointer-events-none"></div>
 
       <div className="max-w-6xl w-full relative z-10">
         <div className="text-center mb-16 px-4">
@@ -178,11 +180,15 @@ function MembershipSelectionContent() {
           </div>
 
           <h1 className="text-5xl md:text-6xl font-black text-slate-900 mb-6 tracking-tighter uppercase leading-none">
-            Elige Tu <span className="text-blue-600">Plan Maestro</span>
+            Elige Tu <span className="text-primary-600">Plan Maestro</span>
           </h1>
           <p className="text-xl text-slate-500 max-w-2xl mx-auto font-medium leading-relaxed">
             Potencia tu presencia digital con el plan que mejor se adapte a tu escala de negocio.
           </p>
+          <div className="mt-8 inline-flex items-center gap-3 px-6 py-3 bg-primary-50 border border-primary-100 rounded-2xl text-primary-700 text-sm font-semibold">
+            <span className="text-lg">🎁</span>
+            {trialDays} días de prueba gratis · Registra tu tarjeta · El cobro mensual inicia automáticamente al terminar
+          </div>
         </div>
 
         {error && (
@@ -193,19 +199,24 @@ function MembershipSelectionContent() {
 
         {loadingList ? (
           <div className="flex justify-center py-20">
-            <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+            <div className="w-12 h-12 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
           <>
             {accountType === 'dealer' && (
               <p className="text-center text-sm text-slate-500 mb-8 max-w-2xl mx-auto">
                 Los planes <strong>Multi concesionario</strong> gestionan varios dealers bajo una cuenta; el alta puede requerir{' '}
-                <Link href="/register/multi-dealer" className="text-blue-600 font-semibold hover:underline">
+                <Link href="/register/multi-dealer" className="text-primary-600 font-semibold hover:underline">
                   solicitud dedicada
                 </Link>
                 .
               </p>
             )}
+
+            <p className="text-center text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 mb-8 max-w-2xl mx-auto">
+              Si elegiste un subdominio en el registro, solo se activará si el plan incluye{' '}
+              <strong>página web con subdominio propio</strong> (customSubdomain).
+            </p>
 
             {(() => {
               const standardMemberships =
@@ -230,15 +241,15 @@ function MembershipSelectionContent() {
                     selectedMembership === membership.id
                       ? multi
                         ? 'border-amber-500 shadow-[0_40px_80px_-20px_rgba(245,158,11,0.25)] -translate-y-4'
-                        : 'border-blue-600 shadow-[0_40px_80px_-20px_rgba(37,99,235,0.2)] -translate-y-4'
+                        : 'border-primary-600 shadow-[0_40px_80px_-20px_rgba(225, 6, 0,0.2)] -translate-y-4'
                       : multi
                         ? 'border-amber-100 shadow-xl hover:border-amber-200 hover:-translate-y-2'
-                        : 'border-slate-100 shadow-xl hover:border-blue-100 hover:shadow-blue-600/5 hover:-translate-y-2'
+                        : 'border-slate-100 shadow-xl hover:border-primary-100 hover:shadow-primary-600/5 hover:-translate-y-2'
                   }`}
                 >
                   <div className="mb-10">
                     <div className="flex justify-between items-start mb-4 flex-wrap gap-2">
-                      <h3 className="text-2xl font-black text-slate-900 tracking-tight uppercase leading-none group-hover:text-blue-600 transition-colors">
+                      <h3 className="text-2xl font-black text-slate-900 tracking-tight uppercase leading-none group-hover:text-primary-600 transition-colors">
                         {membership.name}
                       </h3>
                       {multi && (
@@ -247,7 +258,7 @@ function MembershipSelectionContent() {
                         </span>
                       )}
                       {selectedMembership === membership.id && (
-                        <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-600/40 ml-auto">
+                        <div className="w-8 h-8 rounded-full bg-primary-600 text-white flex items-center justify-center shadow-lg shadow-primary-600/40 ml-auto">
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                           </svg>
@@ -302,8 +313,8 @@ function MembershipSelectionContent() {
                   <div
                     className={`mt-auto h-16 rounded-2xl flex items-center justify-center font-black text-[10px] uppercase tracking-[0.3em] transition-all ${
                       selectedMembership === membership.id
-                        ? 'bg-blue-600 text-white shadow-xl shadow-blue-600/30'
-                        : 'bg-slate-50 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-600'
+                        ? 'bg-primary-600 text-white shadow-xl shadow-primary-600/30'
+                        : 'bg-slate-50 text-slate-400 group-hover:bg-primary-50 group-hover:text-primary-600'
                     }`}
                   >
                     {selectedMembership === membership.id ? 'Seleccionado' : 'Elegir Plan'}
@@ -355,14 +366,18 @@ function MembershipSelectionContent() {
           <button
             onClick={handleSelectMembership}
             disabled={!selectedMembership || loading}
-            className="w-full max-w-sm group bg-slate-900 text-white h-20 rounded-[2rem] font-black text-xs uppercase tracking-[0.4em] relative overflow-hidden shadow-2xl hover:bg-blue-600 transition-all duration-500 disabled:opacity-50 active:scale-[0.98]"
+            className="w-full max-w-sm group bg-primary-600 text-white h-20 rounded-[2rem] font-black text-xs uppercase tracking-[0.4em] relative overflow-hidden shadow-2xl hover:bg-primary-700 transition-all duration-500 disabled:opacity-50 active:scale-[0.98]"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:animate-shimmer"></div>
-            {loading ? 'Preparando Checkout...' : 'Confirmar y Pagar'}
+            {loading ? 'Preparando Checkout...' : 'Registrar tarjeta y activar prueba'}
           </button>
 
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-[0.15em] max-w-md text-center leading-relaxed">
+            No se cobra hoy. Stripe guardará tu método de pago y facturará la membresía cada mes después de los {trialDays} días de prueba.
+          </p>
+
           <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">
-            ¿Tienes dudas? <Link href="/soporte" className="text-blue-600 hover:text-blue-700">Habla con un asesor</Link>
+            ¿Tienes dudas? <Link href="/soporte" className="text-primary-600 hover:text-primary-700">Habla con un asesor</Link>
           </p>
         </div>
       </div>
@@ -374,7 +389,7 @@ export default function MembershipSelectionPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-12 h-12 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
       </div>
     }>
       <MembershipSelectionContent />

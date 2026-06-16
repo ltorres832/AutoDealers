@@ -90,8 +90,59 @@ export class SubscriptionService {
     currentPeriodEnd: number,
     cancelAtPeriodEnd?: boolean
   ): Promise<void> {
-    // TODO: Actualizar en Firestore
-    throw new Error('Not implemented');
+    const { getFirestore } = await import('@autodealers/shared');
+    const db = getFirestore();
+    const snapshot = await db
+      .collection('subscriptions')
+      .where('stripeSubscriptionId', '==', stripeSubscriptionId)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) {
+      throw new Error(`Subscription not found for Stripe id ${stripeSubscriptionId}`);
+    }
+
+    await snapshot.docs[0].ref.update({
+      status: this.mapStripeStatus(status),
+      currentPeriodStart: admin.firestore.Timestamp.fromDate(
+        new Date(currentPeriodStart * 1000)
+      ),
+      currentPeriodEnd: admin.firestore.Timestamp.fromDate(
+        new Date(currentPeriodEnd * 1000)
+      ),
+      cancelAtPeriodEnd: cancelAtPeriodEnd ?? false,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
+
+  private async getFirestoreSubscriptionDoc(subscriptionId: string) {
+    const { getFirestore } = await import('@autodealers/shared');
+    const db = getFirestore();
+    const doc = await db.collection('subscriptions').doc(subscriptionId).get();
+    if (!doc.exists) {
+      throw new Error('Subscription not found');
+    }
+    return { ref: doc.ref, data: doc.data() as { stripeSubscriptionId?: string } };
+  }
+
+  /**
+   * Actualiza campos permitidos en Firestore (no sustituye el webhook de Stripe).
+   */
+  async updateSubscription(
+    subscriptionId: string,
+    updates: Record<string, unknown>
+  ): Promise<void> {
+    const { ref } = await this.getFirestoreSubscriptionDoc(subscriptionId);
+    const allowed = ['membershipId', 'status', 'cancelAtPeriodEnd'] as const;
+    const safe: Record<string, unknown> = {
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    for (const key of allowed) {
+      if (key in updates) {
+        safe[key] = updates[key];
+      }
+    }
+    await ref.update(safe);
   }
 
   /**
@@ -101,17 +152,66 @@ export class SubscriptionService {
     subscriptionId: string,
     cancelAtPeriodEnd: boolean = true
   ): Promise<void> {
-    // Obtener subscriptionId de Stripe desde Firestore
-    // TODO: Implementar
-    const stripeSubscriptionId = '';
+    const { ref, data } = await this.getFirestoreSubscriptionDoc(subscriptionId);
+    const stripeSubscriptionId = data.stripeSubscriptionId?.trim();
+    if (!stripeSubscriptionId) {
+      throw new Error('La suscripción no tiene stripeSubscriptionId vinculado');
+    }
 
     await this.stripeService.cancelSubscription(
       stripeSubscriptionId,
       cancelAtPeriodEnd
     );
 
-    // Actualizar en Firestore
-    // TODO: Implementar
+    await ref.update({
+      cancelAtPeriodEnd,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      ...(cancelAtPeriodEnd ? {} : { status: 'cancelled' }),
+    });
+  }
+
+  /**
+   * Reactiva una suscripción cancelada al final del período
+   */
+  async reactivateSubscription(subscriptionId: string): Promise<void> {
+    const { ref, data } = await this.getFirestoreSubscriptionDoc(subscriptionId);
+    const stripeSubscriptionId = data.stripeSubscriptionId?.trim();
+    if (!stripeSubscriptionId) {
+      throw new Error('La suscripción no tiene stripeSubscriptionId vinculado');
+    }
+
+    await this.stripeService.reactivateSubscription(stripeSubscriptionId);
+
+    await ref.update({
+      cancelAtPeriodEnd: false,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
+
+  /**
+   * Cambia plan en Stripe y Firestore
+   */
+  async changeMembership(
+    subscriptionId: string,
+    newMembershipId: string,
+    newPriceId: string
+  ): Promise<void> {
+    const { data } = await this.getFirestoreSubscriptionDoc(subscriptionId);
+    const stripeSubscriptionId = data.stripeSubscriptionId?.trim();
+
+    if (stripeSubscriptionId) {
+      const { updateStripeSubscriptionPrice } = await import('./stripe-membership-sync');
+      await updateStripeSubscriptionPrice(
+        stripeSubscriptionId,
+        newPriceId,
+        newMembershipId
+      );
+    }
+
+    const { changeMembership: changeMembershipInFirestore } = await import(
+      './subscription-management'
+    );
+    await changeMembershipInFirestore(subscriptionId, newMembershipId, newPriceId);
   }
 
   /**

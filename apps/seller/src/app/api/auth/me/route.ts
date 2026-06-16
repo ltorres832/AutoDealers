@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
+import { resolveIndependentSellerWorkspace } from '@/lib/seller-workspace';
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,12 +20,20 @@ export async function GET(request: NextRequest) {
       return response;
     }
 
+    const isIndependentWorkspace = await resolveIndependentSellerWorkspace({
+      tenantId: auth.tenantId,
+      userId: auth.userId,
+      dealerId: auth.dealerId,
+    });
+
     return NextResponse.json({
       user: {
         userId: auth.userId,
         tenantId: auth.tenantId,
         email: auth.email,
         role: auth.role,
+        dealerId: auth.dealerId,
+        isIndependentWorkspace,
       },
     });
   } catch (error: any) {

@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { getOrCreateFreeListingVisitorId } from '@/lib/free-listing-visitor';
+import { saveFreeListingToDevice } from '@/lib/free-listing-storage';
+import ShareListingPanel from '@/components/ShareListingPanel';
 
 interface FreeListingsCfg {
   enabled: boolean;
@@ -49,7 +52,52 @@ export default function PublicarGratisPage() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<{ id: string; expiresAt: string | null; durationDays: number } | null>(null);
+  const [success, setSuccess] = useState<{
+    id: string;
+    expiresAt: string | null;
+    durationDays: number;
+    managementToken?: string | null;
+    make: string;
+    model: string;
+    year: number;
+  } | null>(null);
+  const [visitorId, setVisitorId] = useState('');
+  const [eligibility, setEligibility] = useState<{
+    allowed: boolean;
+    reason?: string;
+    registerPath?: string;
+    maxFreeListings?: number;
+    durationDays?: number;
+  } | null>(null);
+
+  useEffect(() => {
+    const vid = getOrCreateFreeListingVisitorId();
+    setVisitorId(vid);
+  }, []);
+
+  useEffect(() => {
+    if (!visitorId) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const params = new URLSearchParams({ visitorId });
+        if (form.contactPhone.trim()) params.set('contactPhone', form.contactPhone.trim());
+        if (form.contactEmail.trim()) params.set('contactEmail', form.contactEmail.trim());
+        const r = await fetch(`/api/public/quick-listings/eligibility?${params.toString()}`, {
+          cache: 'no-store',
+        });
+        if (!r.ok) return;
+        const j = await r.json();
+        if (!cancelled) setEligibility(j);
+      } catch {
+        /* ignore */
+      }
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [visitorId, form.contactPhone, form.contactEmail]);
 
   useEffect(() => {
     let cancelled = false;
@@ -73,6 +121,8 @@ export default function PublicarGratisPage() {
   const featureEnabled = useMemo(() => {
     return Boolean(cfg && cfg.enabled && cfg.maxActiveFreeVehiclesPerSeller > 0);
   }, [cfg]);
+
+  const blockedByEligibility = eligibility?.allowed === false;
 
   const handleField = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const value = e.target.type === 'checkbox' ? (e.target as HTMLInputElement).checked : e.target.value;
@@ -117,6 +167,14 @@ export default function PublicarGratisPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!form.contactEmail.trim()) {
+      setError('El correo electrónico es obligatorio.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.contactEmail.trim())) {
+      setError('Ingresa un correo electrónico válido.');
+      return;
+    }
     if (!form.acceptTerms) {
       setError('Debes aceptar que se mostrarán tu nombre, teléfono y la información del vehículo.');
       return;
@@ -132,6 +190,7 @@ export default function PublicarGratisPage() {
           price: form.price ? Number(form.price) : null,
           mileage: form.mileage ? Number(form.mileage) : null,
           photos,
+          visitorId,
         }),
       });
       const j = await r.json().catch(() => ({}));
@@ -139,7 +198,24 @@ export default function PublicarGratisPage() {
         setError(j.error || 'No se pudo publicar el anuncio.');
         return;
       }
-      setSuccess({ id: j.id, expiresAt: j.expiresAt, durationDays: j.durationDays });
+      setSuccess({
+        id: j.id,
+        expiresAt: j.expiresAt,
+        durationDays: j.durationDays,
+        managementToken: j.managementToken,
+        make: form.make,
+        model: form.model,
+        year: Number(form.year),
+      });
+      if (j.id && j.managementToken) {
+        saveFreeListingToDevice({
+          id: j.id,
+          managementToken: j.managementToken,
+          make: form.make,
+          model: form.model,
+          year: Number(form.year),
+        });
+      }
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch {
       setError('Error de conexión. Intenta nuevamente.');
@@ -166,7 +242,7 @@ export default function PublicarGratisPage() {
           </p>
           <Link
             href={cfg.registerPath || '/register?type=seller'}
-            className="inline-block mt-6 px-6 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700"
+            className="inline-block mt-6 px-6 py-3 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700"
           >
             Crear cuenta
           </Link>
@@ -175,9 +251,36 @@ export default function PublicarGratisPage() {
     );
   }
 
+  if (cfg && blockedByEligibility) {
+    return (
+      <div className="min-h-screen bg-slate-50 py-16 px-4">
+        <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow p-8 text-center">
+          <h1 className="text-2xl font-bold text-slate-900 mb-3">Regístrate para seguir publicando</h1>
+          <p className="text-slate-600 mb-4">
+            {eligibility?.reason ||
+              'Ya usaste tus publicaciones gratuitas sin cuenta. Crea tu perfil de vendedor para continuar.'}
+          </p>
+          <p className="text-sm text-slate-500 mb-6">
+            El sistema detecta tu dispositivo, teléfono y correo para evitar publicaciones ilimitadas sin registro. Con una
+            cuenta tendrás panel, más anuncios, mensajería y financiamiento.
+          </p>
+          <Link
+            href={eligibility?.registerPath || cfg.registerPath || '/register?type=seller'}
+            className="inline-block px-6 py-3 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700"
+          >
+            Crear cuenta de vendedor
+          </Link>
+          <Link href="/" className="block mt-4 text-sm text-slate-500 hover:text-primary-600">
+            Volver al inicio
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   if (success && cfg) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 py-16 px-4">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-primary-50 py-16 px-4">
         <div className="max-w-2xl mx-auto bg-white rounded-3xl shadow-lg p-8">
           <div className="w-16 h-16 mx-auto rounded-full bg-green-100 flex items-center justify-center text-green-600 mb-6">
             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -191,18 +294,30 @@ export default function PublicarGratisPage() {
             Tu anuncio estará activo durante <strong>{success.durationDays || cfg.durationDays} días</strong>. Después se
             eliminará automáticamente.
           </p>
-          <p className="text-center text-slate-500 text-sm mb-4">
+          <p className="text-center text-slate-500 text-sm mb-2">
             En público se muestran tu <strong>nombre</strong>, <strong>teléfono</strong> y los <strong>datos del vehículo</strong>.
           </p>
+
+          {success.managementToken ? (
+            <ShareListingPanel
+              listingId={success.id}
+              managementToken={success.managementToken}
+              vehicleLabel={`${success.year} ${success.make} ${success.model}`}
+              registerPath={cfg.registerPath || '/register?type=seller'}
+            />
+          ) : null}
+
           <p className="text-center text-slate-500 text-sm mb-6">
-            <Link href={`/anuncio/${success.id}`} className="text-blue-600 font-semibold hover:underline">
+            <Link href={`/anuncio/${success.id}`} className="text-primary-600 font-semibold hover:underline">
               Ver tu anuncio completo
             </Link>
             {' · '}
-            Aparece en la sección <strong>Vendedores particulares</strong> del inicio. Si no lo ves, actualiza la página.
+            <Link href="/mis-anuncios" className="text-primary-600 font-semibold hover:underline">
+              Mis anuncios y estadísticas
+            </Link>
           </p>
 
-          <div className="bg-blue-50 border border-blue-100 rounded-2xl p-6 mb-6">
+          <div className="bg-primary-50 border border-primary-100 rounded-2xl p-6 mb-6">
             <h2 className="font-bold text-slate-900 mb-2">¿Quieres conseguir muchos más clientes?</h2>
             <p className="text-sm text-slate-700 mb-4">
               {cfg.successSubtitle ||
@@ -210,7 +325,7 @@ export default function PublicarGratisPage() {
             </p>
             <Link
               href={cfg.registerPath || '/register?type=seller'}
-              className="inline-block px-5 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700"
+              className="inline-block px-5 py-3 bg-primary-600 text-white rounded-xl font-semibold hover:bg-primary-700"
             >
               {cfg.registerCtaLabel || 'Crear cuenta de vendedor'}
             </Link>
@@ -247,7 +362,7 @@ export default function PublicarGratisPage() {
             </button>
             <button
               onClick={() => router.push('/')}
-              className="px-5 py-2.5 bg-slate-900 text-white rounded-xl font-medium hover:bg-slate-800"
+              className="px-5 py-2.5 bg-primary-600 text-white rounded-xl font-medium hover:bg-primary-700"
             >
               Volver al inicio
             </button>
@@ -267,7 +382,7 @@ export default function PublicarGratisPage() {
           <p className="text-slate-600 max-w-2xl mx-auto">
             {cfg?.ctaSubtitle || 'Llega a miles de compradores hoy mismo'}
           </p>
-          <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-100 text-blue-800 text-sm font-medium">
+          <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary-100 text-primary-800 text-sm font-medium">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
@@ -414,8 +529,8 @@ export default function PublicarGratisPage() {
           <section>
             <h2 className="font-bold text-lg text-slate-900 mb-1">Datos de contacto</h2>
             <p className="text-xs text-slate-500 mb-4">
-              Solo tu <strong>teléfono</strong> y <strong>nombre</strong> aparecen en el anuncio público. El email queda
-              privado y solo lo usaremos para invitarte a registrarte como vendedor.
+              Solo tu <strong>teléfono</strong> y <strong>nombre</strong> aparecen en el anuncio público. El email es
+              obligatorio, queda privado y lo usamos para invitarte a registrarte como vendedor.
             </p>
             <div className="grid md:grid-cols-2 gap-4">
               <Field label="Tu nombre *">
@@ -431,8 +546,9 @@ export default function PublicarGratisPage() {
                   placeholder="+1 809 000 0000"
                 />
               </Field>
-              <Field label="Email (privado, opcional)" className="md:col-span-2">
+              <Field label="Email (privado) *" className="md:col-span-2">
                 <input
+                  required
                   type="email"
                   value={form.contactEmail}
                   onChange={handleField('contactEmail')}
@@ -464,7 +580,7 @@ export default function PublicarGratisPage() {
             <button
               type="submit"
               disabled={submitting || uploadingPhoto}
-              className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:opacity-60"
+              className="flex-1 py-3 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 disabled:opacity-60"
             >
               {submitting ? 'Publicando…' : 'Publicar anuncio gratis'}
             </button>
@@ -482,9 +598,9 @@ export default function PublicarGratisPage() {
 }
 
 const inputClass =
-  'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
+  'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500';
 const selectClass =
-  'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white';
+  'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white';
 
 function Field({
   label,

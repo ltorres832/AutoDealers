@@ -19,13 +19,13 @@ export interface ExclusiveOffersSectionConfigClient {
 }
 
 export const EXCLUSIVE_OFFER_GRADIENT_CLASSES: Record<string, string> = {
-  blue: 'from-blue-600 to-indigo-700',
+  blue: 'from-primary-600 to-primary-700',
   emerald: 'from-emerald-500 to-teal-700',
   amber: 'from-amber-500 to-orange-600',
   slate: 'from-slate-700 to-slate-900',
-  rose: 'from-rose-500 to-pink-700',
-  violet: 'from-violet-600 to-purple-800',
-  cyan: 'from-cyan-500 to-blue-700',
+  rose: 'from-rose-500 to-brand-red-bright700',
+  violet: 'from-primary-600 to-primary-800',
+  cyan: 'from-primary-500 to-primary-700',
 };
 
 export function gradientClassForKey(key: string): string {

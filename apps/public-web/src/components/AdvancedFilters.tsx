@@ -35,10 +35,10 @@ export default function AdvancedFilters({ filters, onFiltersChange, availableMak
     filters.transmission !== 'all' || filters.condition !== 'all' || filters.location || filters.bodyType !== 'all';
 
   return (
-    <div className={`bg-gradient-to-br ${isExpanded ? 'from-blue-50 to-indigo-50' : 'from-white to-gray-50'} rounded-xl shadow-lg border-2 ${hasActiveFilters ? 'border-blue-400' : 'border-gray-200'} p-6 mb-6 transition-all duration-300`}>
+    <div className={`bg-gradient-to-br ${isExpanded ? 'from-primary-50 to-primary-50' : 'from-white to-gray-50'} rounded-xl shadow-lg border-2 ${hasActiveFilters ? 'border-primary-400' : 'border-gray-200'} p-6 mb-6 transition-all duration-300`}>
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-3">
-          <div className={`p-2 rounded-lg ${isExpanded ? 'bg-blue-600' : 'bg-gray-200'} transition-colors`}>
+          <div className={`p-2 rounded-lg ${isExpanded ? 'bg-primary-600' : 'bg-gray-200'} transition-colors`}>
             <svg className={`w-6 h-6 ${isExpanded ? 'text-white' : 'text-gray-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
             </svg>
@@ -46,7 +46,7 @@ export default function AdvancedFilters({ filters, onFiltersChange, availableMak
           <div>
             <h3 className="text-xl font-bold text-gray-900">Búsqueda Avanzada</h3>
             {hasActiveFilters && (
-              <p className="text-sm text-blue-600 font-medium">Filtros activos</p>
+              <p className="text-sm text-primary-600 font-medium">Filtros activos</p>
             )}
           </div>
         </div>
@@ -55,7 +55,7 @@ export default function AdvancedFilters({ filters, onFiltersChange, availableMak
           className={`px-6 py-2 rounded-lg font-semibold transition-all transform hover:scale-105 ${
             isExpanded 
               ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' 
-              : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-lg'
+              : 'bg-gradient-to-r from-primary-600 to-primary-600 text-white hover:from-primary-700 hover:to-primary-700 shadow-lg'
           }`}
         >
           {isExpanded ? (
@@ -78,7 +78,7 @@ export default function AdvancedFilters({ filters, onFiltersChange, availableMak
             <select
               value={filters.make}
               onChange={(e) => updateFilter('make', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               <option value="all">Todas</option>
               {availableMakes.map((make) => (
@@ -95,7 +95,7 @@ export default function AdvancedFilters({ filters, onFiltersChange, availableMak
               value={filters.model}
               onChange={(e) => updateFilter('model', e.target.value)}
               placeholder="Ej: Civic"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
 
@@ -107,7 +107,7 @@ export default function AdvancedFilters({ filters, onFiltersChange, availableMak
               value={filters.yearMin}
               onChange={(e) => updateFilter('yearMin', e.target.value)}
               placeholder="2020"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
 
@@ -119,7 +119,7 @@ export default function AdvancedFilters({ filters, onFiltersChange, availableMak
               value={filters.yearMax}
               onChange={(e) => updateFilter('yearMax', e.target.value)}
               placeholder="2024"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
 
@@ -131,7 +131,7 @@ export default function AdvancedFilters({ filters, onFiltersChange, availableMak
               value={filters.priceMin}
               onChange={(e) => updateFilter('priceMin', e.target.value)}
               placeholder="$10,000"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
 
@@ -143,7 +143,7 @@ export default function AdvancedFilters({ filters, onFiltersChange, availableMak
               value={filters.priceMax}
               onChange={(e) => updateFilter('priceMax', e.target.value)}
               placeholder="$50,000"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
 
@@ -155,7 +155,7 @@ export default function AdvancedFilters({ filters, onFiltersChange, availableMak
               value={filters.mileageMax}
               onChange={(e) => updateFilter('mileageMax', e.target.value)}
               placeholder="50,000"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
 
@@ -165,7 +165,7 @@ export default function AdvancedFilters({ filters, onFiltersChange, availableMak
             <select
               value={filters.fuelType}
               onChange={(e) => updateFilter('fuelType', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               <option value="all">Todos</option>
               <option value="gasoline">Gasolina</option>
@@ -181,7 +181,7 @@ export default function AdvancedFilters({ filters, onFiltersChange, availableMak
             <select
               value={filters.transmission}
               onChange={(e) => updateFilter('transmission', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               <option value="all">Todas</option>
               <option value="automatic">Automática</option>
@@ -196,7 +196,7 @@ export default function AdvancedFilters({ filters, onFiltersChange, availableMak
             <select
               value={filters.bodyType}
               onChange={(e) => updateFilter('bodyType', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               <option value="all">Todas</option>
               <option value="suv">SUV</option>
@@ -222,7 +222,7 @@ export default function AdvancedFilters({ filters, onFiltersChange, availableMak
             <select
               value={filters.condition}
               onChange={(e) => updateFilter('condition', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               <option value="all">Todas</option>
               <option value="new">Nuevo</option>
@@ -239,7 +239,7 @@ export default function AdvancedFilters({ filters, onFiltersChange, availableMak
               value={filters.location}
               onChange={(e) => updateFilter('location', e.target.value)}
               placeholder="Ciudad o ZIP"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
         </div>
@@ -271,7 +271,7 @@ export default function AdvancedFilters({ filters, onFiltersChange, availableMak
           </button>
           <button
             onClick={() => setIsExpanded(false)}
-            className="px-8 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 font-semibold transition-all transform hover:scale-105 shadow-lg"
+            className="px-8 py-2.5 bg-gradient-to-r from-primary-600 to-primary-600 text-white rounded-lg hover:from-primary-700 hover:to-primary-700 font-semibold transition-all transform hover:scale-105 shadow-lg"
           >
             Aplicar Filtros
           </button>

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth, isDealerPortalRole } from '@/lib/auth';
 import { requireTenantFeature } from '@/lib/membership-middleware';
-import { createNotification, getFirestore } from '@autodealers/core';
+import { notifyUser, getFirestore } from '@autodealers/core';
 
 const db = getFirestore();
 
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     if (fiGate) return fiGate;
 
     const body = await request.json();
-    const { requestId, type, message, channels } = body;
+    const { requestId, type, message } = body;
 
     if (!requestId || !type || !message) {
       return NextResponse.json(
@@ -89,43 +89,29 @@ export async function POST(request: NextRequest) {
     const client = await getFIClientByIdDirect(auth.tenantId!, fiRequestAny.clientId);
     const clientAny = client as any;
     
-    // Notificar al vendedor que creó la solicitud
+    const metadata = {
+      requestId,
+      clientId: fiRequestAny.clientId,
+      status: fiRequestAny.status,
+      route: `/fi/requests/${requestId}`,
+    };
+    const title = `Actualización F&I - ${clientAny?.name || 'Cliente'}`;
+
     if (fiRequestAny.createdBy) {
-      if (!auth.tenantId) {
-        return NextResponse.json({ error: 'Tenant ID is required' }, { status: 400 });
-      }
-      await createNotification({
-        tenantId: auth.tenantId,
-        userId: fiRequestAny.createdBy,
-        type: type as any,
-        title: `Actualización F&I - ${clientAny?.name || 'Cliente'}`,
+      await notifyUser(auth.tenantId, fiRequestAny.createdBy, {
+        type: (type as 'fi_request') || 'fi_request',
+        title,
         message,
-        channels: channels || ['dashboard', 'email'],
-        metadata: {
-          requestId,
-          clientId: fiRequestAny.clientId,
-          status: fiRequestAny.status,
-        },
+        metadata,
       });
     }
 
-    // Notificar al gerente F&I si hay uno asignado
     if (fiRequestAny.reviewedBy && fiRequestAny.reviewedBy !== fiRequestAny.createdBy) {
-      if (!auth.tenantId) {
-        return NextResponse.json({ error: 'Tenant ID is required' }, { status: 400 });
-      }
-      await createNotification({
-        tenantId: auth.tenantId,
-        userId: fiRequestAny.reviewedBy,
-        type: type as any,
-        title: `Actualización F&I - ${clientAny?.name || 'Cliente'}`,
+      await notifyUser(auth.tenantId, fiRequestAny.reviewedBy, {
+        type: (type as 'fi_request') || 'fi_request',
+        title,
         message,
-        channels: channels || ['dashboard', 'email'],
-        metadata: {
-          requestId,
-          clientId: fiRequestAny.clientId,
-          status: fiRequestAny.status,
-        },
+        metadata,
       });
     }
 

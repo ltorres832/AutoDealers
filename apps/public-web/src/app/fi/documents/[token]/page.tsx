@@ -131,7 +131,7 @@ export default function DocumentUploadPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Cargando solicitud de documentos...</p>
         </div>
       </div>
@@ -185,8 +185,8 @@ export default function DocumentUploadPage() {
           )}
 
           {success && !isSubmitted && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-              <p className="text-blue-800">
+            <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 mb-6">
+              <p className="text-primary-800">
                 ✅ Documentos subidos correctamente. Puedes subir más documentos si es necesario.
               </p>
             </div>
@@ -237,7 +237,7 @@ export default function DocumentUploadPage() {
                         href={submittedDoc.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-700 text-sm"
+                        className="text-primary-600 hover:text-primary-700 text-sm"
                       >
                         Ver documento enviado →
                       </a>
@@ -283,7 +283,7 @@ export default function DocumentUploadPage() {
                           handleFileChange(doc.type, e.target.files?.[0] || null)
                         }
                         disabled={isExpired || isSubmitted}
-                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50"
+                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 disabled:opacity-50"
                       />
                       {hasFile && (
                         <p className="text-sm text-green-600 mt-2">
@@ -302,7 +302,7 @@ export default function DocumentUploadPage() {
               <button
                 onClick={handleUpload}
                 disabled={uploading}
-                className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 font-semibold"
+                className="w-full bg-primary-600 text-white py-3 px-4 rounded-lg hover:bg-primary-700 disabled:opacity-50 font-semibold"
               >
                 {uploading ? 'Subiendo...' : 'Enviar Documentos'}
               </button>

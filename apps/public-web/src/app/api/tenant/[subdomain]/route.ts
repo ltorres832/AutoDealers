@@ -96,7 +96,10 @@ export async function GET(
     // Todos los vehículos del tenant (sin filtrar solo status=available; muchos docs legacy no tienen ese campo)
     const vehiclesRaw = await getVehicles(tenantId);
 
-    let plainVehicles = (vehiclesRaw || []).map((v) => ({ ...(v as object) } as Record<string, unknown>));
+    let plainVehicles = (vehiclesRaw || []).map((v) => ({
+      ...(v as object),
+      tenantId,
+    } as Record<string, unknown>));
 
     if (sellerScopedId) {
       plainVehicles = filterVehiclesForSellerPublicCatalog(plainVehicles, sellerScopedId, {
@@ -112,7 +115,7 @@ export async function GET(
       name: tenantData.name || '',
       subdomain: tenantData.subdomain || subdomain,
       branding: tenantData.branding || {
-        primaryColor: '#007bff',
+        primaryColor: '#E10600',
         secondaryColor: '#6c757d',
       },
       contactEmail: tenantData.contactEmail,

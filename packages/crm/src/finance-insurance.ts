@@ -74,6 +74,43 @@ export interface TradeInVehicleProfile {
   linkedStockSnapshot?: Record<string, unknown>;
 }
 
+/** Registro de empleo (principal, secundario o anterior). */
+export interface FIEmploymentRecord {
+  employer?: string;
+  position?: string;
+  employerPhone?: string;
+  employerAddress?: string;
+  supervisorName?: string;
+  monthlyIncome: number;
+  timeAtJob: number;
+  incomeType: IncomeType;
+  isCurrent?: boolean;
+  notes?: string;
+}
+
+export interface FIOtherIncomeSource {
+  source: string;
+  monthlyAmount: number;
+  notes?: string;
+}
+
+export interface FIReference {
+  name: string;
+  relationship: string;
+  phone: string;
+  yearsKnown?: number;
+  address?: string;
+}
+
+export interface FISpouseInfo {
+  name?: string;
+  employer?: string;
+  position?: string;
+  monthlyIncome?: number;
+  phone?: string;
+  employerPhone?: string;
+}
+
 export interface FIClient {
   id: string;
   tenantId: string;
@@ -83,6 +120,20 @@ export interface FIClient {
   email?: string;
   address?: string;
   identification?: string; // Opcional
+  identificationType?: string;
+  dateOfBirth?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  /** SSN completo (XXX-XX-XXXX) */
+  ssn?: string;
+  /** @deprecated Usar ssn. Conservado para registros antiguos. */
+  ssnLast4?: string;
+  driversLicense?: string;
+  phoneAlternate?: string;
+  yearsAtAddress?: number;
+  timeAtAddressMonths?: number;
+  previousAddress?: string;
   // Datos del vehículo
   vehicleId?: string;
   vehicleMake?: string;
@@ -106,10 +157,27 @@ export interface FIRequest {
   employment: {
     employer?: string;
     position?: string;
+    employerPhone?: string;
+    employerAddress?: string;
+    supervisorName?: string;
     monthlyIncome: number;
     timeAtJob: number; // Meses
     incomeType: IncomeType;
   };
+  /** Segundo, tercer empleo, etc. */
+  additionalEmployments?: FIEmploymentRecord[];
+  /** Empleo anterior al actual */
+  previousEmployment?: FIEmploymentRecord;
+  /** Rentas, pensiones, comisiones adicionales, etc. */
+  otherIncomeSources?: FIOtherIncomeSource[];
+  /** Referencias personales o laborales */
+  references?: FIReference[];
+  /** Cónyuge / pareja (si aplica) */
+  spouseInfo?: FISpouseInfo;
+  /** Pagos mensuales de deudas declarados (tarjetas, préstamos, etc.) */
+  monthlyDebtPayments?: number;
+  bankruptcyHistory?: boolean;
+  bankruptcyNotes?: string;
   creditInfo: {
     creditRange: CreditRange;
     notes?: string;
@@ -120,6 +188,11 @@ export interface FIRequest {
     dependents: number;
     housing: HousingType;
     monthlyHousingPayment?: number;
+    yearsAtAddress?: number;
+    dateOfBirth?: string;
+    city?: string;
+    state?: string;
+    zipCode?: string;
   };
   // Estado y flujo
   status: FIRequestStatus;
@@ -766,6 +839,21 @@ export interface ApprovalScore {
   positiveFactors: string[];
 }
 
+/** Ingreso mensual total declarado (empleos + otros ingresos + cónyuge si aplica). */
+export function getFITotalMonthlyIncome(request: FIRequest): number {
+  let total = request.employment?.monthlyIncome || 0;
+  for (const job of request.additionalEmployments || []) {
+    total += job.monthlyIncome || 0;
+  }
+  for (const src of request.otherIncomeSources || []) {
+    total += src.monthlyAmount || 0;
+  }
+  if (request.spouseInfo?.monthlyIncome) {
+    total += request.spouseInfo.monthlyIncome;
+  }
+  return total;
+}
+
 /**
  * Calcula el score de aprobación basado en múltiples factores
  */
@@ -797,7 +885,7 @@ export function calculateApprovalScore(
   }
 
   // Factor 2: Relación deuda/ingreso (0-25 puntos)
-  const monthlyIncome = request.employment.monthlyIncome;
+  const monthlyIncome = getFITotalMonthlyIncome(request);
   if (monthlyIncome > 0) {
     const dtiRatio = (monthlyPayment / monthlyIncome) * 100;
     if (dtiRatio <= 20) {
@@ -927,13 +1015,20 @@ export interface Cosigner {
   name: string;
   phone: string;
   email: string;
+  phoneAlternate?: string;
   relationship: 'spouse' | 'parent' | 'sibling' | 'other';
-  employment: {
-    employer: string;
-    monthlyIncome: number;
-    timeAtJob: number;
-    incomeType: IncomeType;
-  };
+  dateOfBirth?: string;
+  /** SSN completo (XXX-XX-XXXX) */
+  ssn?: string;
+  /** @deprecated Usar ssn */
+  ssnLast4?: string;
+  driversLicense?: string;
+  identificationType?: string;
+  /** Empleo principal del codeudor */
+  employment: FIEmploymentRecord;
+  additionalEmployments?: FIEmploymentRecord[];
+  previousEmployment?: FIEmploymentRecord;
+  otherIncomeSources?: FIOtherIncomeSource[];
   creditInfo: {
     creditRange: CreditRange;
     creditScore?: number;
@@ -942,8 +1037,19 @@ export interface Cosigner {
   personalInfo: {
     maritalStatus: 'single' | 'married' | 'divorced' | 'widowed';
     address?: string;
+    city?: string;
+    state?: string;
+    zipCode?: string;
     identification?: string;
+    dependents?: number;
+    housing?: HousingType;
+    monthlyHousingPayment?: number;
+    yearsAtAddress?: number;
   };
+  references?: FIReference[];
+  monthlyDebtPayments?: number;
+  bankruptcyHistory?: boolean;
+  bankruptcyNotes?: string;
   documents: Array<{
     type: DocumentType;
     url: string;
@@ -953,6 +1059,27 @@ export interface Cosigner {
   approvedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
+}
+
+/** Ingreso mensual total del codeudor (empleos + otros ingresos). */
+export function getCosignerTotalMonthlyIncome(cosigner: Cosigner): number {
+  let total = cosigner.employment?.monthlyIncome || 0;
+  for (const job of cosigner.additionalEmployments || []) {
+    total += job.monthlyIncome || 0;
+  }
+  for (const src of cosigner.otherIncomeSources || []) {
+    total += src.monthlyAmount || 0;
+  }
+  return total;
+}
+
+/** Ingreso combinado solicitante + codeudor para paquetes bancarios. */
+export function getFIHouseholdMonthlyIncome(request: FIRequest): number {
+  let total = getFITotalMonthlyIncome(request);
+  if (request.cosigner) {
+    total += getCosignerTotalMonthlyIncome(request.cosigner);
+  }
+  return total;
 }
 
 // ============================================
@@ -1194,6 +1321,37 @@ export async function createDocumentRequest(
 
   await docRequestRef.set(docRequest);
 
+  try {
+    const clientDoc = await db
+      .collection('tenants')
+      .doc(tenantId)
+      .collection('fi_clients')
+      .doc(clientId)
+      .get();
+    const clientName = clientDoc.data()?.name || 'Cliente';
+
+    const fiReqDoc = await db
+      .collection('tenants')
+      .doc(tenantId)
+      .collection('fi_requests')
+      .doc(requestId)
+      .get();
+    const sellerId = fiReqDoc.data()?.createdBy as string | undefined;
+
+    const { notifyFIDocumentEvent } = await import('@autodealers/core');
+    await notifyFIDocumentEvent(tenantId, {
+      title: 'Documentos solicitados al cliente',
+      message: `Se envió link de documentos a ${clientName}.`,
+      sellerId,
+      excludeUserIds: [requestedBy],
+      requestId,
+      clientId,
+      route: `/fi/requests/${requestId}`,
+    });
+  } catch (e) {
+    console.warn('F&I document request notification skipped:', e);
+  }
+
   return {
     id: docRequestRef.id,
     ...docRequest,
@@ -1283,6 +1441,37 @@ export async function submitDocumentToRequest(
     submittedAt: getFirestoreFieldValue().serverTimestamp(),
     updatedAt: getFirestoreFieldValue().serverTimestamp(),
   });
+
+  try {
+    const clientDoc = await db
+      .collection('tenants')
+      .doc(docRequest.tenantId)
+      .collection('fi_clients')
+      .doc(docRequest.clientId)
+      .get();
+    const clientName = clientDoc.data()?.name || 'Cliente';
+
+    const fiReqDoc = await db
+      .collection('tenants')
+      .doc(docRequest.tenantId)
+      .collection('fi_requests')
+      .doc(docRequest.requestId)
+      .get();
+    const sellerId = fiReqDoc.data()?.createdBy as string | undefined;
+
+    const { notifyFIDocumentEvent } = await import('@autodealers/core');
+    await notifyFIDocumentEvent(docRequest.tenantId, {
+      title: 'Documento F&I recibido',
+      message: `${clientName} subió: ${document.name}`,
+      sellerId,
+      excludeUserIds: docRequest.requestedBy ? [docRequest.requestedBy] : undefined,
+      requestId: docRequest.requestId,
+      clientId: docRequest.clientId,
+      route: `/fi/requests/${docRequest.requestId}`,
+    });
+  } catch (e) {
+    console.warn('F&I client document notification skipped:', e);
+  }
 }
 
 /**
@@ -1402,12 +1591,64 @@ export async function addCosignerToRequest(
     .collection('fi_requests')
     .doc(requestId);
 
+  const existing = await requestRef.get();
+  if (!existing.exists) {
+    throw new Error('Solicitud F&I no encontrada');
+  }
+  if (existing.data()?.cosigner) {
+    throw new Error('Esta solicitud ya tiene codeudor. Use la opción de editar.');
+  }
+
   const cosigner: Cosigner = {
     id: db.collection('_').doc().id,
     ...cosignerData,
     documents: [],
     status: 'pending',
     createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  await requestRef.update({
+    cosigner,
+    updatedAt: getFirestoreFieldValue().serverTimestamp(),
+  });
+
+  return cosigner;
+}
+
+/**
+ * Actualiza los datos de un codeudor existente en una solicitud F&I.
+ */
+export async function updateCosignerOnRequest(
+  tenantId: string,
+  requestId: string,
+  cosignerData: Omit<Cosigner, 'id' | 'status' | 'createdAt' | 'updatedAt' | 'documents'>
+): Promise<Cosigner> {
+  const db = getDb();
+  const requestRef = db
+    .collection('tenants')
+    .doc(tenantId)
+    .collection('fi_requests')
+    .doc(requestId);
+
+  const requestDoc = await requestRef.get();
+  if (!requestDoc.exists) {
+    throw new Error('Solicitud F&I no encontrada');
+  }
+
+  const existing = requestDoc.data()?.cosigner as Cosigner | undefined;
+  if (!existing) {
+    throw new Error('No hay codeudor registrado para actualizar');
+  }
+
+  const cosigner: Cosigner = {
+    ...existing,
+    ...cosignerData,
+    id: existing.id,
+    status: existing.status,
+    documents: existing.documents || [],
+    approvedAt: existing.approvedAt,
+    createdAt: existing.createdAt instanceof Date ? existing.createdAt : new Date(existing.createdAt),
     updatedAt: new Date(),
   };
 

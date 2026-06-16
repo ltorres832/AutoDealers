@@ -1,45 +1,26 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import {
+  useRealtimeTenantReviews,
+  type TenantReview,
+  type TenantReviewStats,
+} from '@/hooks/useRealtimeTenantReviews';
 
-interface Review {
-  photos?: string[];
-  videos?: string[];
-  id: string;
-  customerName: string;
-  customerEmail?: string;
-  customerPhone?: string;
-  rating: number;
-  title?: string;
-  comment: string;
-  vehicleId?: string;
-  saleId?: string;
-  status: 'pending' | 'approved' | 'rejected';
-  featured: boolean;
-  response?: {
-    text: string;
-    respondedBy: string;
-    respondedAt: string;
-  };
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface ReviewStats {
-  total: number;
-  approved: number;
-  pending: number;
-  rejected: number;
-  averageRating: number;
-  ratingDistribution: { [key: number]: number };
-}
+type Review = TenantReview;
+type ReviewStats = TenantReviewStats;
 
 export default function ReviewsPage() {
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [stats, setStats] = useState<ReviewStats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const { reviews: allReviews, stats, loading } = useRealtimeTenantReviews(user?.tenantId);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const reviews = useMemo(
+    () => (filter === 'all' ? allReviews : allReviews.filter((r) => r.status === filter)),
+    [allReviews, filter]
+  );
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
   const [showResponseModal, setShowResponseModal] = useState(false);
   const [responseText, setResponseText] = useState('');
@@ -56,8 +37,6 @@ export default function ReviewsPage() {
       const data = await response.json();
       if (response.ok) {
         alert(data.message || 'Calificaciones sincronizadas en la web pública.');
-        fetchReviews();
-        fetchStats();
       } else {
         alert(data.error || 'No se pudo sincronizar');
       }
@@ -65,43 +44,6 @@ export default function ReviewsPage() {
       alert('Error al sincronizar calificaciones');
     } finally {
       setSyncingPublic(false);
-    }
-  }
-
-  useEffect(() => {
-    fetchReviews();
-    fetchStats();
-  }, [filter]);
-
-  async function fetchReviews() {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams();
-      if (filter !== 'all') {
-        params.append('status', filter);
-      }
-
-      const response = await fetch(`/api/reviews?${params.toString()}`);
-      if (response.ok) {
-        const data = await response.json();
-        setReviews(data.reviews || []);
-      }
-    } catch (error) {
-      console.error('Error fetching reviews:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function fetchStats() {
-    try {
-      const response = await fetch('/api/reviews?stats=true');
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data.stats);
-      }
-    } catch (error) {
-      console.error('Error fetching stats:', error);
     }
   }
 
@@ -114,8 +56,6 @@ export default function ReviewsPage() {
       });
 
       if (response.ok) {
-        fetchReviews();
-        fetchStats();
       }
     } catch (error) {
       console.error('Error updating status:', error);
@@ -132,7 +72,6 @@ export default function ReviewsPage() {
       });
 
       if (response.ok) {
-        fetchReviews();
       }
     } catch (error) {
       console.error('Error toggling featured:', error);
@@ -149,8 +88,6 @@ export default function ReviewsPage() {
       });
 
       if (response.ok) {
-        fetchReviews();
-        fetchStats();
       }
     } catch (error) {
       console.error('Error deleting review:', error);
@@ -178,7 +115,6 @@ export default function ReviewsPage() {
         setShowResponseModal(false);
         setResponseText('');
         setSelectedReview(null);
-        fetchReviews();
       } else {
         alert('Error al agregar respuesta');
       }
@@ -226,6 +162,13 @@ export default function ReviewsPage() {
           <p className="text-gray-600">Gestiona las reseñas de tus clientes</p>
         </div>
         <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => setShowInviteModal(true)}
+            className="border border-emerald-600 text-emerald-700 px-5 py-3 rounded-lg hover:bg-emerald-50 font-medium"
+          >
+            🔗 Enlace de satisfacción
+          </button>
           <button
             type="button"
             onClick={handleSyncPublicRatings}
@@ -404,7 +347,7 @@ export default function ReviewsPage() {
                         setSelectedReview(review);
                         setShowResponseModal(true);
                       }}
-                      className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                      className="px-3 py-1 bg-primary-600 text-white rounded hover:bg-primary-700 text-sm"
                     >
                       Responder
                     </button>
@@ -419,15 +362,15 @@ export default function ReviewsPage() {
               </div>
 
               {review.response && (
-                <div className="mt-4 pt-4 border-t border-gray-200 bg-blue-50 rounded p-4">
+                <div className="mt-4 pt-4 border-t border-gray-200 bg-primary-50 rounded p-4">
                   <div className="flex justify-between items-start mb-2">
-                    <div className="font-medium text-blue-900">Respuesta del concesionario:</div>
-                    <div className="text-xs text-blue-600">
+                    <div className="font-medium text-primary-900">Respuesta del concesionario:</div>
+                    <div className="text-xs text-primary-600">
                       {new Date(review.response.respondedAt).toLocaleDateString('es-ES')}
                     </div>
                   </div>
-                  <p className="text-blue-800">{review.response.text}</p>
-                  <p className="text-xs text-blue-600 mt-2">Por: {review.response.respondedBy}</p>
+                  <p className="text-primary-800">{review.response.text}</p>
+                  <p className="text-xs text-primary-600 mt-2">Por: {review.response.respondedBy}</p>
                 </div>
               )}
             </div>
@@ -477,11 +420,121 @@ export default function ReviewsPage() {
         <CreateReviewModal
           onClose={() => {
             setShowCreateModal(false);
-            fetchReviews();
-            fetchStats();
           }}
         />
       )}
+
+      {showInviteModal && (
+        <ReviewInviteModal onClose={() => setShowInviteModal(false)} />
+      )}
+    </div>
+  );
+}
+
+function ReviewInviteModal({ onClose }: { onClose: () => void }) {
+  const [customerNameHint, setCustomerNameHint] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  async function generateLink() {
+    setLoading(true);
+    try {
+      const r = await fetch('/api/review-invites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerNameHint: customerNameHint.trim() || undefined,
+        }),
+      });
+      const j = await r.json();
+      if (!r.ok) {
+        alert(j.error || 'No se pudo crear el enlace');
+        return;
+      }
+      setInviteUrl(j.url);
+    } catch {
+      alert('Error de conexión');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function copyUrl() {
+    if (!inviteUrl) return;
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const waUrl = inviteUrl
+    ? `https://wa.me/?text=${encodeURIComponent(
+        `Hola${customerNameHint ? ` ${customerNameHint}` : ''}, me encantaría conocer tu opinión sobre tu experiencia conmigo. Por favor completa esta breve evaluación:\n${inviteUrl}`
+      )}`
+    : '#';
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg m-4 p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-gray-900">Enlace de satisfacción</h2>
+          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl">
+            ×
+          </button>
+        </div>
+        <p className="text-sm text-gray-600 mb-4">
+          Genera un enlace para enviar a tu cliente. Cuando envíe su evaluación, llegará aquí como{' '}
+          <strong>pendiente de aprobación</strong> antes de publicarse en la web.
+        </p>
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Nombre del cliente (opcional)
+          </label>
+          <input
+            type="text"
+            value={customerNameHint}
+            onChange={(e) => setCustomerNameHint(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-4 py-2"
+            placeholder="Ej: Juan Del Pueblo"
+          />
+        </div>
+        {!inviteUrl ? (
+          <button
+            type="button"
+            onClick={generateLink}
+            disabled={loading}
+            className="w-full py-3 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 disabled:opacity-60"
+          >
+            {loading ? 'Generando…' : 'Generar enlace'}
+          </button>
+        ) : (
+          <div className="space-y-3">
+            <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm break-all">{inviteUrl}</div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={copyUrl}
+                className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium"
+              >
+                {copied ? '¡Copiado!' : 'Copiar enlace'}
+              </button>
+              <a
+                href={waUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium"
+              >
+                Enviar por WhatsApp
+              </a>
+            </div>
+            <p className="text-xs text-gray-500">El enlace expira en 30 días y solo puede usarse una vez.</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -7,6 +7,8 @@ import FICalculator from './FICalculator';
 import FIApprovalScore from './FIApprovalScore';
 import FICreditReport from './FICreditReport';
 import FIFinancingComparison from './FIFinancingComparison';
+import FICosignerForm from './FICosignerForm';
+import { getCosignerTotalMonthlyIncome, getFITotalMonthlyIncome } from '@autodealers/crm';
 
 interface FIRequest {
   id: string;
@@ -27,6 +29,8 @@ interface FIRequest {
   notes?: Array<{ by: string; byName: string; timestamp: Date; content: string; isInternal: boolean }>;
   requestedDocuments?: Array<{ type: string; name: string; status: string; receivedAt?: Date }>;
   history?: Array<{ action: string; performedBy: string; timestamp: Date; notes?: string }>;
+  cosigner?: any;
+  combinedScore?: number;
 }
 
 interface FIClient {
@@ -48,7 +52,16 @@ interface AdvancedFIRequestReviewModalProps {
   onClose: () => void;
   onStatusChange: (requestId: string, newStatus: string, notes?: string, internalNotes?: string) => Promise<void>;
   onRequestDocuments: (requestId: string, documents: Array<{ type: string; name: string; required: boolean }>) => Promise<void>;
-  onSendExternalEmail: (requestId: string, email: { to: string; subject: string; body: string }) => Promise<void>;
+  onSendExternalEmail: (
+    requestId: string,
+    email: {
+      to: string;
+      subject: string;
+      body: string;
+      attachPdf?: boolean;
+      pdfTemplate?: string;
+    }
+  ) => Promise<void>;
 }
 
 export default function AdvancedFIRequestReviewModal({
@@ -66,9 +79,19 @@ export default function AdvancedFIRequestReviewModal({
   const [showExternalEmail, setShowExternalEmail] = useState(false);
   const [requestedDocs, setRequestedDocs] = useState<Array<{ type: string; name: string; required: boolean }>>([]);
   const [externalEmail, setExternalEmail] = useState({ to: '', subject: '', body: '' });
+  const [attachPdf, setAttachPdf] = useState(true);
+  const [pdfTemplate, setPdfTemplate] = useState('lender_package');
+  const [generatingPdf, setGeneratingPdf] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [requestingDocs, setRequestingDocs] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [showCosignerForm, setShowCosignerForm] = useState(false);
+  const [cosignerFormMode, setCosignerFormMode] = useState<'create' | 'edit'>('create');
+  const [localCosigner, setLocalCosigner] = useState<any>(request.cosigner);
+
+  useEffect(() => {
+    setLocalCosigner(request.cosigner);
+  }, [request.cosigner, request.id]);
 
   const vehiclePrice = client?.vehiclePrice || request.vehicleInfo?.price || 0;
   const downPayment = client?.downPayment || request.vehicleInfo?.downPayment || 0;
@@ -77,7 +100,7 @@ export default function AdvancedFIRequestReviewModal({
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { color: string; label: string }> = {
       draft: { color: 'bg-gray-500', label: 'Borrador' },
-      submitted: { color: 'bg-blue-500', label: 'Enviado' },
+      submitted: { color: 'bg-primary-500', label: 'Enviado' },
       under_review: { color: 'bg-yellow-500', label: 'En Revisión' },
       pre_approved: { color: 'bg-green-500', label: 'Pre-Aprobado' },
       approved: { color: 'bg-green-600', label: 'Aprobado' },
@@ -132,7 +155,11 @@ export default function AdvancedFIRequestReviewModal({
 
     setSendingEmail(true);
     try {
-      await onSendExternalEmail(request.id, externalEmail);
+      await onSendExternalEmail(request.id, {
+        ...externalEmail,
+        attachPdf,
+        pdfTemplate,
+      });
       setShowExternalEmail(false);
       setExternalEmail({ to: '', subject: '', body: '' });
     } catch (error) {
@@ -142,16 +169,57 @@ export default function AdvancedFIRequestReviewModal({
     }
   };
 
+  async function handleGeneratePdf(template: string, downloadOnly = false) {
+    setGeneratingPdf(true);
+    try {
+      const res = await fetch('/api/fi/documents/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          requestId: request.id,
+          template,
+          downloadOnly,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || 'Error al generar PDF');
+        return;
+      }
+      if (downloadOnly) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `documento-${template}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } else {
+        const data = await res.json();
+        alert(`PDF generado: ${data.title || template}`);
+        if (data.document?.pdfUrl) {
+          window.open(data.document.pdfUrl, '_blank');
+        }
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error al generar PDF');
+    } finally {
+      setGeneratingPdf(false);
+    }
+  }
+
   const renderOverview = () => (
     <div className="space-y-6">
       {/* Información del Cliente - Mejorada */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg p-6">
+      <div className="bg-gradient-to-r from-primary-50 to-primary-50 border-2 border-primary-200 rounded-lg p-6">
         <div className="flex items-start justify-between mb-4">
           <div>
-            <h3 className="text-xl font-bold text-blue-900 mb-2">Información del Cliente</h3>
+            <h3 className="text-xl font-bold text-primary-900 mb-2">Información del Cliente</h3>
             <div className="flex items-center gap-2 mb-2">
               <span className="text-2xl"></span>
-              <span className="text-lg font-semibold text-blue-900">{client?.name || 'N/A'}</span>
+              <span className="text-lg font-semibold text-primary-900">{client?.name || 'N/A'}</span>
             </div>
           </div>
           {getStatusBadge(request.status)}
@@ -160,17 +228,17 @@ export default function AdvancedFIRequestReviewModal({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <span className="text-blue-600"></span>
-              <span className="text-blue-800">{client?.phone || 'N/A'}</span>
+              <span className="text-primary-600"></span>
+              <span className="text-primary-800">{client?.phone || 'N/A'}</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-blue-600"></span>
-              <span className="text-blue-800">{client?.email || 'N/A'}</span>
+              <span className="text-primary-600"></span>
+              <span className="text-primary-800">{client?.email || 'N/A'}</span>
             </div>
             {client?.address && (
               <div className="flex items-center gap-2">
-                <span className="text-blue-600">📍</span>
-                <span className="text-blue-800">{client.address}</span>
+                <span className="text-primary-600">📍</span>
+                <span className="text-primary-800">{client.address}</span>
               </div>
             )}
           </div>
@@ -178,8 +246,8 @@ export default function AdvancedFIRequestReviewModal({
           <div className="space-y-2">
             {request.submittedAt && (
               <div className="flex items-center gap-2">
-                <span className="text-blue-600"></span>
-                <span className="text-blue-800">
+                <span className="text-primary-600"></span>
+                <span className="text-primary-800">
                   Enviado: {new Date(request.submittedAt).toLocaleDateString('es-ES', { 
                     year: 'numeric', 
                     month: 'long', 
@@ -192,8 +260,8 @@ export default function AdvancedFIRequestReviewModal({
             )}
             {request.reviewedAt && (
               <div className="flex items-center gap-2">
-                <span className="text-blue-600"></span>
-                <span className="text-blue-800">
+                <span className="text-primary-600"></span>
+                <span className="text-primary-800">
                   Revisado: {new Date(request.reviewedAt).toLocaleDateString('es-ES', { 
                     year: 'numeric', 
                     month: 'long', 
@@ -268,7 +336,7 @@ export default function AdvancedFIRequestReviewModal({
                 <span className="text-green-700 font-medium">Rango de Crédito:</span>
                 <span className={`px-3 py-1 rounded-full text-sm font-semibold capitalize ${
                   request.creditInfo?.creditRange === 'excellent' ? 'bg-green-200 text-green-800' :
-                  request.creditInfo?.creditRange === 'good' ? 'bg-blue-200 text-blue-800' :
+                  request.creditInfo?.creditRange === 'good' ? 'bg-primary-200 text-primary-800' :
                   request.creditInfo?.creditRange === 'fair' ? 'bg-yellow-200 text-yellow-800' :
                   request.creditInfo?.creditRange === 'poor' ? 'bg-orange-200 text-orange-800' :
                   'bg-red-200 text-red-800'
@@ -280,28 +348,28 @@ export default function AdvancedFIRequestReviewModal({
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-lg p-5">
-          <h3 className="font-bold text-purple-900 mb-4 flex items-center gap-2">
+        <div className="bg-gradient-to-br from-primary-50 to-brand-red-bright50 border-2 border-primary-200 rounded-lg p-5">
+          <h3 className="font-bold text-primary-900 mb-4 flex items-center gap-2">
             <span>👥</span>
             <span>Información Personal</span>
           </h3>
           <div className="space-y-3">
             <div className="flex justify-between items-center">
-              <span className="text-purple-700 font-medium">Estado Civil:</span>
-              <span className="text-purple-900 font-semibold capitalize">{request.personalInfo?.maritalStatus || 'N/A'}</span>
+              <span className="text-primary-700 font-medium">Estado Civil:</span>
+              <span className="text-primary-900 font-semibold capitalize">{request.personalInfo?.maritalStatus || 'N/A'}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-purple-700 font-medium">Dependientes:</span>
-              <span className="text-purple-900 font-semibold">{request.personalInfo?.dependents || 0}</span>
+              <span className="text-primary-700 font-medium">Dependientes:</span>
+              <span className="text-primary-900 font-semibold">{request.personalInfo?.dependents || 0}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-purple-700 font-medium">Vivienda:</span>
-              <span className="text-purple-900 font-semibold capitalize">{request.personalInfo?.housing || 'N/A'}</span>
+              <span className="text-primary-700 font-medium">Vivienda:</span>
+              <span className="text-primary-900 font-semibold capitalize">{request.personalInfo?.housing || 'N/A'}</span>
             </div>
             {request.personalInfo?.monthlyHousingPayment && (
               <div className="flex justify-between items-center">
-                <span className="text-purple-700 font-medium">Pago Mensual Vivienda:</span>
-                <span className="text-purple-900 font-semibold">${request.personalInfo.monthlyHousingPayment.toLocaleString()}</span>
+                <span className="text-primary-700 font-medium">Pago Mensual Vivienda:</span>
+                <span className="text-primary-900 font-semibold">${request.personalInfo.monthlyHousingPayment.toLocaleString()}</span>
               </div>
             )}
           </div>
@@ -319,12 +387,68 @@ export default function AdvancedFIRequestReviewModal({
         </div>
       )}
 
+      {/* Codeudor */}
+      <div className="bg-primary-50 border-2 border-primary-200 rounded-lg p-4">
+        <div className="flex justify-between items-center mb-3">
+          <h3 className="font-bold text-primary-900 flex items-center gap-2">
+            <span>👥</span>
+            <span>Codeudor (Co-signer)</span>
+          </h3>
+          {!localCosigner && (
+            <button
+              type="button"
+              onClick={() => {
+                setCosignerFormMode('create');
+                setShowCosignerForm(true);
+              }}
+              className="px-3 py-1.5 text-sm bg-primary-600 text-white rounded-md hover:bg-primary-700"
+            >
+              + Agregar codeudor
+            </button>
+          )}
+          {localCosigner && (
+            <button
+              type="button"
+              onClick={() => {
+                setCosignerFormMode('edit');
+                setShowCosignerForm(true);
+              }}
+              className="px-3 py-1.5 text-sm border border-primary-300 text-primary-700 rounded-md hover:bg-primary-100"
+            >
+              Editar codeudor
+            </button>
+          )}
+        </div>
+        {localCosigner ? (
+          <div className="space-y-2 text-sm">
+            <p className="font-semibold text-primary-900 text-base">{localCosigner.name}</p>
+            <p className="text-primary-800">{localCosigner.phone} · {localCosigner.email}</p>
+            <p className="text-primary-700 capitalize">Relación: {localCosigner.relationship}</p>
+            <p className="text-primary-800">
+              Ingreso codeudor: ${getCosignerTotalMonthlyIncome(localCosigner).toLocaleString()}/mes
+            </p>
+            <p className="text-primary-900 font-medium">
+              Ingreso combinado hogar: $
+              {(getFITotalMonthlyIncome(request) + getCosignerTotalMonthlyIncome(localCosigner)).toLocaleString()}
+              /mes
+            </p>
+            {request.combinedScore != null && (
+              <p className="text-primary-700">Score combinado: {request.combinedScore}</p>
+            )}
+          </div>
+        ) : (
+          <p className="text-primary-700 text-sm">
+            Sin codeudor registrado. Agregue la información completa si el cliente utilizará un garante.
+          </p>
+        )}
+      </div>
+
       {/* Score de Aprobación - Si existe */}
       {request.approvalScore && (
-        <div className="bg-white border-2 border-blue-200 rounded-lg p-4">
+        <div className="bg-white border-2 border-primary-200 rounded-lg p-4">
           <h3 className="font-bold text-gray-900 mb-3">Score de Aprobación</h3>
           <div className="flex items-center gap-4">
-            <div className="text-4xl font-bold text-blue-600">{request.approvalScore.score}/100</div>
+            <div className="text-4xl font-bold text-primary-600">{request.approvalScore.score}/100</div>
             <div className="flex-1">
               <div className="w-full bg-gray-200 rounded-full h-4">
                 <div
@@ -388,61 +512,122 @@ export default function AdvancedFIRequestReviewModal({
     </div>
   );
 
-  const renderDocuments = () => (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-bold text-gray-900">Documentos</h3>
+  const renderProfessionalPdfSection = () => (
+    <div className="rounded-lg border-2 border-primary-200 bg-primary-50/40 p-5 space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h4 className="font-semibold text-slate-900 text-lg">Documentos PDF profesionales</h4>
+          <p className="text-sm text-slate-600 mt-1">
+            Genera PDFs con logo y colores de tu concesionario. Configura el branding en{' '}
+            <a href="/settings/document-branding" className="text-primary-600 hover:underline font-medium">
+              Ajustes → Branding de documentos
+            </a>
+            .
+          </p>
+        </div>
         <button
-          onClick={() => setShowRequestDocuments(true)}
-          className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+          type="button"
+          onClick={() => {
+            setExternalEmail({
+              to: '',
+              subject: `Solicitud de financiamiento — ${client?.name || ''}`.trim(),
+              body: `Estimados,\n\nAdjuntamos la solicitud de financiamiento del cliente ${client?.name || ''} para su evaluación crediticia.\n\nQuedamos atentos a su respuesta.\n\nSaludos cordiales.`,
+            });
+            setShowExternalEmail(true);
+          }}
+          className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 text-sm font-medium whitespace-nowrap"
         >
-          Solicitar Documentos
+          Enviar a banco / financiera
         </button>
       </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {[
+          { id: 'lender_package', label: 'Paquete para banco' },
+          { id: 'credit_application', label: 'Solicitud de crédito' },
+          { id: 'pre_approval_letter', label: 'Carta pre-aprobación' },
+          { id: 'financing_summary', label: 'Resumen financiamiento' },
+          { id: 'rejection_letter', label: 'Comunicado de decisión' },
+          { id: 'terms_agreement', label: 'Acuerdo de términos' },
+          { id: 'cosigner_agreement', label: 'Co-signer' },
+        ].map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            disabled={generatingPdf}
+            onClick={() => void handleGeneratePdf(t.id, true)}
+            className="text-left px-3 py-2.5 rounded-md border border-slate-200 bg-white hover:bg-slate-100 text-sm disabled:opacity-50"
+          >
+            {generatingPdf ? 'Generando…' : `Descargar: ${t.label}`}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 
-      {request.requestedDocuments && request.requestedDocuments.length > 0 ? (
-        <div className="space-y-3">
-          {request.requestedDocuments.map((doc, index) => (
-            <div
-              key={index}
-              className={`border rounded-lg p-4 ${
-                doc.status === 'received' ? 'bg-green-50 border-green-200' :
-                doc.status === 'pending' ? 'bg-yellow-50 border-yellow-200' :
-                'bg-gray-50 border-gray-200'
-              }`}
-            >
-              <div className="flex justify-between items-center">
-                <div>
-                  <h4 className="font-semibold text-gray-900">{doc.name}</h4>
-                  <p className="text-sm text-gray-600">Tipo: {doc.type}</p>
-                  {doc.receivedAt && (
-                    <p className="text-xs text-gray-500">
-                      Recibido: {new Date(doc.receivedAt).toLocaleDateString()}
-                    </p>
-                  )}
-                </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  doc.status === 'received' ? 'bg-green-200 text-green-800' :
-                  doc.status === 'pending' ? 'bg-yellow-200 text-yellow-800' :
-                  'bg-gray-200 text-gray-800'
-                }`}>
-                  {doc.status === 'received' ? 'Recibido' : doc.status === 'pending' ? 'Pendiente' : 'No Recibido'}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-          <p className="text-gray-500">No hay documentos solicitados aún</p>
+  const renderDocuments = () => (
+    <div className="space-y-8">
+      {renderProfessionalPdfSection()}
+
+      <div className="border-t pt-6 space-y-4">
+        <div className="flex justify-between items-center">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">Documentos del cliente</h3>
+            <p className="text-sm text-gray-500 mt-0.5">
+              Archivos que el cliente sube por link (licencia, comprobantes, etc.)
+            </p>
+          </div>
           <button
             onClick={() => setShowRequestDocuments(true)}
-            className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 text-sm"
           >
-            Solicitar Documentos
+            Solicitar al cliente
           </button>
         </div>
-      )}
+
+        {request.requestedDocuments && request.requestedDocuments.length > 0 ? (
+          <div className="space-y-3">
+            {request.requestedDocuments.map((doc, index) => (
+              <div
+                key={index}
+                className={`border rounded-lg p-4 ${
+                  doc.status === 'received' ? 'bg-green-50 border-green-200' :
+                  doc.status === 'pending' ? 'bg-yellow-50 border-yellow-200' :
+                  'bg-gray-50 border-gray-200'
+                }`}
+              >
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h4 className="font-semibold text-gray-900">{doc.name}</h4>
+                    <p className="text-sm text-gray-600">Tipo: {doc.type}</p>
+                    {doc.receivedAt && (
+                      <p className="text-xs text-gray-500">
+                        Recibido: {new Date(doc.receivedAt).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    doc.status === 'received' ? 'bg-green-200 text-green-800' :
+                    doc.status === 'pending' ? 'bg-yellow-200 text-yellow-800' :
+                    'bg-gray-200 text-gray-800'
+                  }`}>
+                    {doc.status === 'received' ? 'Recibido' : doc.status === 'pending' ? 'Pendiente' : 'No Recibido'}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+            <p className="text-gray-500 text-sm">Aún no has pedido documentos al cliente por link</p>
+            <button
+              onClick={() => setShowRequestDocuments(true)}
+              className="mt-3 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 text-sm"
+            >
+              Solicitar documentos al cliente
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 
@@ -453,7 +638,7 @@ export default function AdvancedFIRequestReviewModal({
       {request.history && request.history.length > 0 ? (
         <div className="space-y-4">
           {request.history.map((entry, index) => (
-            <div key={index} className="border-l-4 border-blue-500 pl-4 pb-4">
+            <div key={index} className="border-l-4 border-primary-500 pl-4 pb-4">
               <div className="flex justify-between items-start">
                 <div>
                   <p className="font-semibold text-gray-900 capitalize">{entry.action.replace('_', ' ')}</p>
@@ -490,7 +675,7 @@ export default function AdvancedFIRequestReviewModal({
               <div
                 key={index}
                 className={`border rounded-lg p-4 ${
-                  note.isInternal ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'
+                  note.isInternal ? 'bg-red-50 border-red-200' : 'bg-primary-50 border-primary-200'
                 }`}
               >
                 <div className="flex justify-between items-start mb-2">
@@ -535,7 +720,7 @@ export default function AdvancedFIRequestReviewModal({
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={4}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
             placeholder="Agrega notas que el vendedor pueda ver..."
           />
         </div>
@@ -548,7 +733,7 @@ export default function AdvancedFIRequestReviewModal({
             value={internalNotes}
             onChange={(e) => setInternalNotes(e.target.value)}
             rows={4}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
             placeholder="Notas privadas para el equipo F&I..."
           />
         </div>
@@ -590,15 +775,16 @@ export default function AdvancedFIRequestReviewModal({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-4 border-t">
         <button
           onClick={() => setShowRequestDocuments(true)}
-          className="px-4 py-3 bg-purple-600 text-white rounded-md hover:bg-purple-700 font-medium flex items-center justify-center gap-2"
+          className="px-4 py-3 bg-primary-600 text-white rounded-md hover:bg-primary-700 font-medium flex items-center justify-center gap-2"
         >
-          Solicitar Documentos
+          Solicitar documentos al cliente
         </button>
         <button
-          onClick={() => setShowExternalEmail(true)}
-          className="px-4 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 font-medium flex items-center justify-center gap-2"
+          type="button"
+          onClick={() => setActiveTab('documents')}
+          className="px-4 py-3 bg-primary-600 text-white rounded-md hover:bg-primary-700 font-medium flex items-center justify-center gap-2"
         >
-          Enviar Email Externo
+          PDFs y envío a banco →
         </button>
       </div>
     </div>
@@ -628,7 +814,7 @@ export default function AdvancedFIRequestReviewModal({
               {[
                 { id: 'overview', label: '📊 Resumen', icon: '📊' },
                 { id: 'financial', label: '💰 Financiero', icon: '💰' },
-                { id: 'documents', label: 'Documentos', icon: '' },
+                { id: 'documents', label: '📄 PDF y documentos', icon: '' },
                 { id: 'history', label: '📜 Historial', icon: '📜' },
                 { id: 'actions', label: '⚡ Acciones', icon: '⚡' },
               ].map((tab) => (
@@ -637,7 +823,7 @@ export default function AdvancedFIRequestReviewModal({
                   onClick={() => setActiveTab(tab.id as any)}
                   className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
                     activeTab === tab.id
-                      ? 'border-blue-600 text-blue-600'
+                      ? 'border-primary-600 text-primary-600'
                       : 'border-transparent text-gray-600 hover:text-gray-900'
                   }`}
                 >
@@ -693,7 +879,7 @@ export default function AdvancedFIRequestReviewModal({
                     <div
                       key={doc.type}
                       className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
-                        isSelected ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-gray-300'
+                        isSelected ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:border-gray-300'
                       }`}
                       onClick={() => {
                         if (isSelected) {
@@ -712,11 +898,11 @@ export default function AdvancedFIRequestReviewModal({
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => {}}
-                          className="h-5 w-5 text-purple-600"
+                          className="h-5 w-5 text-primary-600"
                         />
                       </div>
                       {isSelected && (
-                        <div className="mt-3 pt-3 border-t border-purple-200">
+                        <div className="mt-3 pt-3 border-t border-primary-200">
                           <label className="flex items-center text-sm">
                             <input
                               type="checkbox"
@@ -750,7 +936,7 @@ export default function AdvancedFIRequestReviewModal({
                 <button
                   onClick={handleRequestDocuments}
                   disabled={requestingDocs || requestedDocs.length === 0}
-                  className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50"
                 >
                   {requestingDocs ? 'Enviando...' : 'Enviar Solicitud'}
                 </button>
@@ -788,7 +974,7 @@ export default function AdvancedFIRequestReviewModal({
                     value={externalEmail.to}
                     onChange={(e) => setExternalEmail({ ...externalEmail, to: e.target.value })}
                     placeholder="ejemplo@banco.com"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
 
@@ -801,7 +987,7 @@ export default function AdvancedFIRequestReviewModal({
                     value={externalEmail.subject}
                     onChange={(e) => setExternalEmail({ ...externalEmail, subject: e.target.value })}
                     placeholder="Solicitud de financiamiento - [Nombre Cliente]"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
 
@@ -814,8 +1000,44 @@ export default function AdvancedFIRequestReviewModal({
                     onChange={(e) => setExternalEmail({ ...externalEmail, body: e.target.value })}
                     rows={8}
                     placeholder="Escribe tu mensaje aquí..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
+                </div>
+
+                <div className="rounded-lg border border-primary-100 bg-primary-50/60 p-4 space-y-3">
+                  <label className="flex items-start gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={attachPdf}
+                      onChange={(e) => setAttachPdf(e.target.checked)}
+                      className="mt-1"
+                    />
+                    <span className="text-sm text-gray-800">
+                      <strong>Adjuntar PDF profesional</strong> — paquete para entidad financiera con datos
+                      completos del cliente y branding del concesionario.
+                    </span>
+                  </label>
+                  {attachPdf && (
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                        Plantilla del adjunto
+                      </label>
+                      <select
+                        value={pdfTemplate}
+                        onChange={(e) => setPdfTemplate(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      >
+                        <option value="lender_package">Paquete para banco / financiera</option>
+                        <option value="credit_application">Solicitud de crédito</option>
+                        <option value="financing_summary">Resumen de financiamiento</option>
+                        <option value="pre_approval_letter">Carta de pre-aprobación</option>
+                      </select>
+                    </div>
+                  )}
+                  <p className="text-xs text-gray-500">
+                    Ideal para enviar a bancos, cooperativas o aseguradoras. Las respuestas pueden llegar a la
+                    plataforma.
+                  </p>
                 </div>
               </div>
 
@@ -832,12 +1054,45 @@ export default function AdvancedFIRequestReviewModal({
                 <button
                   onClick={handleSendExternalEmail}
                   disabled={sendingEmail || !externalEmail.to || !externalEmail.subject || !externalEmail.body}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50"
                 >
-                  {sendingEmail ? 'Enviando...' : 'Enviar Email'}
+                  {sendingEmail ? 'Enviando…' : attachPdf ? 'Enviar con PDF adjunto' : 'Enviar Email'}
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showCosignerForm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-semibold">
+                {cosignerFormMode === 'edit' ? 'Editar codeudor' : 'Agregar codeudor'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowCosignerForm(false)}
+                className="text-gray-500 hover:text-gray-700 text-2xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+            <FICosignerForm
+              requestId={request.id}
+              mode={cosignerFormMode}
+              initialCosigner={localCosigner}
+              onCancel={() => setShowCosignerForm(false)}
+              onCosignerAdded={(cosigner) => {
+                setLocalCosigner(cosigner);
+                setShowCosignerForm(false);
+              }}
+              onCosignerUpdated={(cosigner) => {
+                setLocalCosigner(cosigner);
+                setShowCosignerForm(false);
+              }}
+            />
           </div>
         </div>
       )}

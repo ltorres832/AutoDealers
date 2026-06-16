@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getMembershipById } from '@autodealers/billing';
+import { getMembershipById, assertSelfServiceMembership } from '@autodealers/billing';
+import { dealerManagedBillingResponse } from '@/lib/dealer-managed-guard';
 import { getFirestore, getStripeService } from '@autodealers/core';
 
 const db = getFirestore();
@@ -12,6 +13,9 @@ export async function POST(request: NextRequest) {
     if (!auth || !auth.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const dealerBlock = dealerManagedBillingResponse(auth);
+    if (dealerBlock) return dealerBlock;
 
     const body = await request.json();
     const { planId } = body;
@@ -30,6 +34,11 @@ export async function POST(request: NextRequest) {
         { error: 'Invalid plan or Stripe not configured' },
         { status: 400 }
       );
+    }
+
+    const selfServiceCheck = assertSelfServiceMembership(plan);
+    if (!selfServiceCheck.ok) {
+      return NextResponse.json({ error: selfServiceCheck.error }, { status: 403 });
     }
 
     // Obtener email del usuario

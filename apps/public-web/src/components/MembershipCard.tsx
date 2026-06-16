@@ -61,15 +61,15 @@ export default function MembershipCard({
       <div
         className={`bg-white rounded-xl p-6 border-2 transition-all ${
           selected
-            ? 'border-blue-600 shadow-lg scale-105'
+            ? 'border-primary-600 shadow-lg scale-105'
             : isPopular
-            ? 'border-blue-300 shadow-md'
+            ? 'border-primary-300 shadow-md'
             : 'border-gray-200 hover:border-gray-300'
         } ${onSelect ? 'cursor-pointer' : ''}`}
         onClick={() => onSelect?.(membership.id)}
       >
         {isPopular && (
-          <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-3 py-1 rounded-full text-xs font-semibold inline-block mb-3">
+          <div className="bg-gradient-to-r from-primary-600 to-primary-600 text-white px-3 py-1 rounded-full text-xs font-semibold inline-block mb-3">
             MÁS POPULAR
           </div>
         )}
@@ -97,7 +97,7 @@ export default function MembershipCard({
           <button
             className={`w-full py-2 px-4 rounded-lg font-semibold transition-all text-sm ${
               selected || isPopular
-                ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-lg'
+                ? 'bg-gradient-to-r from-primary-600 to-primary-600 text-white hover:shadow-lg'
                 : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
             }`}
           >
@@ -108,7 +108,7 @@ export default function MembershipCard({
             href="/registro"
             className={`block text-center py-2 px-4 rounded-lg font-semibold transition-all text-sm ${
               isPopular
-                ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-lg'
+                ? 'bg-gradient-to-r from-primary-600 to-primary-600 text-white hover:shadow-lg'
                 : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
             }`}
           >
@@ -123,15 +123,15 @@ export default function MembershipCard({
     <div
       className={`bg-white rounded-2xl p-8 border-2 transition-all ${
         selected
-          ? 'border-blue-600 shadow-2xl scale-105'
+          ? 'border-primary-600 shadow-2xl scale-105'
           : isPopular
-          ? 'border-blue-300 shadow-xl'
+          ? 'border-primary-300 shadow-xl'
           : 'border-gray-200 shadow-sm hover:shadow-md'
       } ${onSelect ? 'cursor-pointer' : ''}`}
       onClick={() => onSelect?.(membership.id)}
     >
       {isPopular && (
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-1 rounded-full text-sm font-semibold inline-block mb-4">
+        <div className="bg-gradient-to-r from-primary-600 to-primary-600 text-white px-4 py-1 rounded-full text-sm font-semibold inline-block mb-4">
           MÁS POPULAR
         </div>
       )}
@@ -159,7 +159,7 @@ export default function MembershipCard({
         <button
           className={`w-full py-3 px-6 rounded-lg font-semibold transition-all ${
             selected || isPopular
-              ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-lg'
+              ? 'bg-gradient-to-r from-primary-600 to-primary-600 text-white hover:shadow-lg'
               : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
           }`}
         >
@@ -170,7 +170,7 @@ export default function MembershipCard({
           href="/registro"
           className={`block text-center py-3 px-6 rounded-lg font-semibold transition-all ${
             isPopular
-              ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-lg'
+              ? 'bg-gradient-to-r from-primary-600 to-primary-600 text-white hover:shadow-lg'
               : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
           }`}
         >

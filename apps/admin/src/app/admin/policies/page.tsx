@@ -138,7 +138,7 @@ export default function PoliciesPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
       </div>
     );
   }
@@ -245,7 +245,7 @@ export default function PoliciesPage() {
               });
               setShowModal(true);
             }}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
           >
             + Crear Política
           </button>
@@ -290,7 +290,7 @@ export default function PoliciesPage() {
               policies.map((policy) => (
                 <tr key={policy.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="px-2 py-1 text-xs rounded bg-blue-100 text-blue-800">
+                    <span className="px-2 py-1 text-xs rounded bg-primary-100 text-primary-800">
                       {policy.type}
                     </span>
                   </td>
@@ -323,7 +323,7 @@ export default function PoliciesPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button
                       onClick={() => handleEdit(policy)}
-                      className="text-blue-600 hover:text-blue-900 mr-4"
+                      className="text-primary-600 hover:text-primary-900 mr-4"
                     >
                       Editar
                     </button>
@@ -535,7 +535,7 @@ export default function PoliciesPage() {
               <button
                 onClick={handleSave}
                 disabled={!formData.title || !formData.content}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50"
               >
                 Guardar
               </button>

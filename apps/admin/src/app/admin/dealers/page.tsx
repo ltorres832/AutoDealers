@@ -2,8 +2,9 @@
 
 // Panel Admin: Gestión de Dealers (Aprobación y Control)
 
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { useRealtimeDealers } from '@/hooks/useRealtimeDealers';
 
 interface Dealer {
   dealerId: string;
@@ -21,45 +22,28 @@ interface Dealer {
 
 export default function DealersManagementPage() {
   const router = useRouter();
-  const [dealers, setDealers] = useState<Dealer[]>([]);
-  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const [selectedDealer, setSelectedDealer] = useState<Dealer | null>(null);
   const [showApproveModal, setShowApproveModal] = useState(false);
   const [aliasesLimit, setAliasesLimit] = useState<number | null>(null);
 
-  useEffect(() => {
-    fetchDealers();
+  const dealerFilter = useMemo(() => {
+    if (filter === 'pending') return { status: 'pending' as const, approvedByAdmin: false };
+    if (filter === 'approved') return { approvedByAdmin: true };
+    return undefined;
   }, [filter]);
 
-  async function fetchDealers() {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams();
-      if (filter === 'pending') {
-        params.append('status', 'pending');
-        params.append('approvedByAdmin', 'false');
-      } else if (filter === 'approved') {
-        params.append('approvedByAdmin', 'true');
-      } else if (filter === 'rejected') {
-        params.append('status', 'suspended');
-        params.append('approvedByAdmin', 'false');
-      }
+  const { dealers: rawDealers, loading } = useRealtimeDealers(dealerFilter);
 
-      const response = await fetch(`/api/dealers?${params.toString()}`);
-      const data = await response.json();
-
-      if (response.ok) {
-        setDealers(data.dealers || []);
-      } else {
-        console.error('Error:', data.error);
-      }
-    } catch (error) {
-      console.error('Error fetching dealers:', error);
-    } finally {
-      setLoading(false);
+  const dealers = useMemo(() => {
+    if (filter === 'rejected') {
+      return rawDealers.filter((d) => d.status === 'suspended' && !d.approvedByAdmin);
     }
-  }
+    if (filter === 'pending') {
+      return rawDealers.filter((d) => d.status === 'pending' && !d.approvedByAdmin);
+    }
+    return rawDealers;
+  }, [rawDealers, filter]);
 
   async function handleApprove(dealer: Dealer) {
     setSelectedDealer(dealer);
@@ -86,7 +70,6 @@ export default function DealersManagementPage() {
         alert('Dealer aprobado exitosamente');
         setShowApproveModal(false);
         setSelectedDealer(null);
-        fetchDealers();
       } else {
         alert(`Error: ${data.error}`);
       }
@@ -114,7 +97,6 @@ export default function DealersManagementPage() {
 
       if (response.ok) {
         alert('Dealer rechazado');
-        fetchDealers();
       } else {
         alert(`Error: ${data.error}`);
       }
@@ -132,7 +114,7 @@ export default function DealersManagementPage() {
       </div>
 
       {/* Filtros */}
-      <div className="mb-6 flex gap-4">
+      <div className="mb-6 filter-chip-row">
         <button
           onClick={() => setFilter('all')}
           className={`px-4 py-2 rounded-lg ${
@@ -179,6 +161,7 @@ export default function DealersManagementPage() {
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <div className="table-scroll">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -251,6 +234,7 @@ export default function DealersManagementPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

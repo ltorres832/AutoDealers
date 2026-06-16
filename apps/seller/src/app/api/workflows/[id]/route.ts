@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getWorkflows } from '@autodealers/crm';
-import { getFirestore } from '@autodealers/shared';
+import { getWorkflows, updateWorkflow } from '@autodealers/crm';
 
 export async function PATCH(
   request: NextRequest,
@@ -10,32 +9,27 @@ export async function PATCH(
   try {
     const { id: workflowId } = await params;
     const auth = await verifyAuth(request);
-    if (!auth) {
+    if (!auth || !auth.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
     const body = await request.json();
+    const workflow = await updateWorkflow(auth.tenantId, workflowId, {
+      name: body.name,
+      description: body.description,
+      enabled: body.enabled,
+      trigger: body.trigger,
+      triggerConfig: body.triggerConfig,
+      conditions: body.conditions,
+      actions: body.actions,
+    });
 
-    // Actualizar workflow
-    if (body.enabled !== undefined) {
-      const db = getFirestore();
-      await db
-        .collection('tenants')
-        .doc(auth.tenantId!)
-        .collection('workflows')
-        .doc(workflowId)
-        .update({
-          enabled: body.enabled,
-          updatedAt: (await import('firebase-admin')).firestore.FieldValue.serverTimestamp(),
-        });
-    }
-
-    return NextResponse.json({ success: true });
-  } catch (error: any) {
+    return NextResponse.json({ success: true, workflow });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Error updating workflow';
+    const status = message === 'Workflow not found' ? 404 : 500;
     console.error('Error updating workflow:', error);
-    return NextResponse.json(
-      { error: error.message || 'Error updating workflow' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: message }, { status });
   }
 }
 
@@ -46,26 +40,21 @@ export async function GET(
   try {
     const { id: workflowId } = await params;
     const auth = await verifyAuth(request);
-    if (!auth) {
+    if (!auth || !auth.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    if (!auth.tenantId) {
-      return NextResponse.json({ error: 'TenantId is required' }, { status: 400 });
-    }
+
     const workflows = await getWorkflows(auth.tenantId);
-    const workflow = workflows.find(w => w.id === workflowId);
+    const workflow = workflows.find((w) => w.id === workflowId);
 
     if (!workflow) {
       return NextResponse.json({ error: 'Workflow not found' }, { status: 404 });
     }
 
     return NextResponse.json({ workflow });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Error fetching workflow';
     console.error('Error fetching workflow:', error);
-    return NextResponse.json(
-      { error: error.message || 'Error fetching workflow' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-

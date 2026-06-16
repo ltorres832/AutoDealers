@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase-client';
-import { collection, query, where, onSnapshot, orderBy, QuerySnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { EmailAlias } from '@autodealers/core';
 
 export function useRealtimeEmailAliases(dealerId?: string, assignedTo?: string) {
@@ -24,39 +24,35 @@ export function useRealtimeEmailAliases(dealerId?: string, assignedTo?: string) 
       q = query(
         collection(db, 'email_aliases'),
         where('dealerId', '==', dealerId),
-        where('status', '!=', 'deleted'),
         orderBy('createdAt', 'desc')
       );
     } else if (assignedTo) {
       q = query(
         collection(db, 'email_aliases'),
         where('assignedTo', '==', assignedTo),
-        where('status', '!=', 'deleted'),
         orderBy('createdAt', 'desc')
       );
     } else {
-      q = query(
-        collection(db, 'email_aliases'),
-        where('status', '!=', 'deleted'),
-        orderBy('createdAt', 'desc')
-      );
+      q = query(collection(db, 'email_aliases'), orderBy('createdAt', 'desc'));
     }
 
     const unsubscribe = onSnapshot(
       q,
       (snapshot: any) => {
         try {
-          const aliasesData = snapshot.docs.map((doc: any) => {
-            const data = doc.data();
-            return {
-              id: doc.id,
-              ...data,
-              suspendedAt: data.suspendedAt?.toDate(),
-              reactivatedAt: data.reactivatedAt?.toDate(),
-              createdAt: data.createdAt?.toDate() || new Date(),
-              updatedAt: data.updatedAt?.toDate() || new Date(),
-            } as EmailAlias;
-          });
+          const aliasesData = snapshot.docs
+            .map((doc: any) => {
+              const data = doc.data();
+              return {
+                id: doc.id,
+                ...data,
+                suspendedAt: data.suspendedAt?.toDate(),
+                reactivatedAt: data.reactivatedAt?.toDate(),
+                createdAt: data.createdAt?.toDate() || new Date(),
+                updatedAt: data.updatedAt?.toDate() || new Date(),
+              } as EmailAlias;
+            })
+            .filter((a: EmailAlias) => a.status !== 'deleted');
           setAliases(aliasesData);
           setLoading(false);
           setError(null);
@@ -77,4 +73,3 @@ export function useRealtimeEmailAliases(dealerId?: string, assignedTo?: string) 
 
   return { aliases, loading, error };
 }
-

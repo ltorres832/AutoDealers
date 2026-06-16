@@ -50,6 +50,23 @@ export async function validateMembershipFeature(
       return null; // null = continuar sin restricciones
     }
 
+    if (auth.tenantId) {
+      const { assertSellerAuthHasActiveBilling } = await import('@autodealers/billing');
+      const billing = await assertSellerAuthHasActiveBilling(auth);
+      if (!billing.allowed) {
+        return NextResponse.json(
+          {
+            error: 'billing_suspended',
+            reason: billing.reason,
+            subscriptionStatus: billing.subscription?.status,
+            dealerManaged: billing.dealerManaged,
+            upgradeRequired: !billing.dealerManaged,
+          },
+          { status: 402 }
+        );
+      }
+    }
+
     // Validar que el tenant tiene la feature
     if (!auth.tenantId) {
       return NextResponse.json(
@@ -58,7 +75,11 @@ export async function validateMembershipFeature(
       );
     }
 
-    const featureCheck = await canExecuteFeature(auth.tenantId, action);
+    const { resolveBillingTenantId } = await import('@autodealers/billing');
+    const featureTenantId =
+      resolveBillingTenantId(auth.tenantId, auth.dealerId) ?? auth.tenantId;
+
+    const featureCheck = await canExecuteFeature(featureTenantId, action);
 
     if (!featureCheck.allowed) {
       return NextResponse.json(

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getFirestore } from '@autodealers/core';
+import { getFirestore, normalizeLoginEmail, syncLoginEmail } from '@autodealers/core';
 import * as admin from 'firebase-admin';
 
 const db = getFirestore();
@@ -29,7 +29,10 @@ export async function GET(request: NextRequest) {
     const profile = {
       name: tenantData?.name || '',
       companyName: tenantData?.companyName || '', // Nombre de la compañía (solo para dealers)
-      email: tenantData?.contactEmail || '',
+      email:
+        (typeof userData?.email === 'string' && userData.email.trim()) ||
+        tenantData?.contactEmail ||
+        '',
       phone: tenantData?.contactPhone || '',
       address: tenantData?.address?.street || '',
       city: tenantData?.address?.city || '',
@@ -78,6 +81,44 @@ export async function PUT(request: NextRequest) {
       businessHours,
       socialMedia,
     } = body;
+
+    const userRef = db.collection('users').doc(auth.userId);
+    const userSnap = await userRef.get();
+    const userRow = userSnap.data() || {};
+
+    if (email !== undefined && typeof email === 'string' && email.trim()) {
+      const normalizedEmail = normalizeLoginEmail(email);
+      const currentEmail =
+        typeof userRow.email === 'string' ? normalizeLoginEmail(userRow.email) : '';
+      if (normalizedEmail !== currentEmail) {
+        try {
+          await syncLoginEmail(auth.userId, normalizedEmail);
+        } catch (syncErr: unknown) {
+          const code =
+            syncErr && typeof syncErr === 'object' && 'code' in syncErr
+              ? (syncErr as { code?: string }).code
+              : '';
+          const msg =
+            code === 'auth/email-already-exists'
+              ? 'Ese email ya está en uso en otra cuenta'
+              : syncErr instanceof Error
+                ? syncErr.message
+                : 'No se pudo actualizar el email de inicio de sesión';
+          return NextResponse.json({ error: msg }, { status: 400 });
+        }
+      }
+      await userRef.update({
+        email: normalizedEmail,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    if (phone !== undefined) {
+      await userRef.update({
+        phone: phone || admin.firestore.FieldValue.delete(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
 
     // Actualizar tenant
     await db.collection('tenants').doc(auth.tenantId).update({

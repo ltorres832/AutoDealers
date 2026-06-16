@@ -11,20 +11,9 @@ import * as admin from 'firebase-admin';
 // Implementación directa para evitar problemas de webpack
 async function createFIClientDirect(
   tenantId: string,
-  clientData: {
+  clientData: Record<string, unknown> & {
     name: string;
     phone: string;
-    email?: string;
-    address?: string;
-    identification?: string;
-    vehicleId?: string;
-    vehicleMake?: string;
-    vehicleModel?: string;
-    vehicleYear?: number;
-    vehiclePrice?: number;
-    downPayment?: number;
-    hasTradeIn?: boolean;
-    tradeInDetails?: Record<string, unknown>;
     createdBy: string;
   }
 ) {
@@ -158,27 +147,24 @@ export async function POST(request: NextRequest) {
     });
 
     const body = await request.json();
-    const {
-      name,
-      phone,
-      email,
-      address,
-      identification,
-      vehicleId,
-      vehicleMake,
-      vehicleModel,
-      vehicleYear,
-      vehiclePrice,
-      downPayment,
-      hasTradeIn,
-      tradeInDetails,
-    } = body;
+    const { name, phone, ...extraFields } = body;
 
     if (!name || !phone) {
       return NextResponse.json(
         { error: 'Nombre y teléfono son requeridos' },
         { status: 400 }
       );
+    }
+
+    if (extraFields.ssn) {
+      const { isValidSsn, normalizeSsn } = await import('@autodealers/core');
+      if (!isValidSsn(extraFields.ssn)) {
+        return NextResponse.json(
+          { error: 'SSN inválido. Use el formato XXX-XX-XXXX (9 dígitos).' },
+          { status: 400 }
+        );
+      }
+      extraFields.ssn = normalizeSsn(extraFields.ssn);
     }
 
     console.log('📝 POST /api/fi/clients - Creando cliente F&I:', {
@@ -191,17 +177,7 @@ export async function POST(request: NextRequest) {
     const client = await createFIClientDirect(tenantId, {
       name,
       phone,
-      email,
-      address,
-      identification,
-      vehicleId,
-      vehicleMake,
-      vehicleModel,
-      vehicleYear,
-      vehiclePrice,
-      downPayment,
-      hasTradeIn,
-      tradeInDetails,
+      ...extraFields,
       createdBy: user.userId,
     });
 

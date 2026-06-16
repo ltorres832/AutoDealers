@@ -3,6 +3,8 @@
 import { useRealtimeSponsoredContent } from '../hooks/useRealtimeSponsoredContent';
 import { useState, useEffect, useRef } from 'react';
 import { getAdvertiserLoginForCreateUrl } from '@/config/advertiser-links';
+import { SponsoredAdShell } from '@/components/SponsoredAdShell';
+import { SPONSORED_CTA_LABEL } from '@/lib/sponsored-content-href';
 
 export default function BetweenContentBanner() {
   const { content, loading } = useRealtimeSponsoredContent('between_content', 5);
@@ -68,7 +70,7 @@ export default function BetweenContentBanner() {
   if (loading || content.length === 0) {
     return (
       <div className="my-12 w-full relative rounded-3xl overflow-hidden shadow-2xl bg-slate-900 border border-slate-800">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-900/80 via-indigo-900/80 to-purple-900/80 z-0 pointer-events-none"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-primary-900/80 via-primary-900/80 to-primary-900/80 z-0 pointer-events-none"></div>
         <div
           className="absolute inset-0 opacity-20 z-0 pointer-events-none"
           style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")` }}
@@ -90,9 +92,9 @@ export default function BetweenContentBanner() {
               href={getAdvertiserLoginForCreateUrl()}
               target="_blank"
               rel="noopener noreferrer"
-              className="group relative z-20 inline-flex items-center gap-3 bg-white text-indigo-900 px-8 py-4 rounded-xl font-bold hover:bg-slate-50 transition-all shadow-xl hover:shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:-translate-y-1 text-lg whitespace-nowrap pointer-events-auto"
+              className="group relative z-20 inline-flex items-center gap-3 bg-white text-primary-900 px-8 py-4 rounded-xl font-bold hover:bg-slate-50 transition-all shadow-xl hover:shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:-translate-y-1 text-lg whitespace-nowrap pointer-events-auto"
             >
-              <svg className="w-6 h-6 text-indigo-600 transition-transform group-hover:rotate-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-6 h-6 text-primary-600 transition-transform group-hover:rotate-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
               </svg>
               Crear Anuncio
@@ -118,22 +120,19 @@ export default function BetweenContentBanner() {
           className={`absolute inset-0 transition-all duration-1000 ease-[cubic-bezier(0.25,1,0.5,1)] ${index === currentIndex ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 translate-x-8 scale-105 pointer-events-none'
             }`}
         >
-          <a
-            href={item.linkUrl}
-            target={item.linkType === 'external' ? '_blank' : '_self'}
-            rel={item.linkType === 'external' ? 'noopener noreferrer' : undefined}
-            onClick={() => {
-              fetch(`/api/public/sponsored-content/${item.id}/click`, { method: 'POST' }).catch(console.error);
-            }}
+          <SponsoredAdShell
+            contentId={item.id}
+            linkType={item.linkType}
+            linkUrl={item.linkUrl}
             className="block w-full h-full relative"
           >
             {item.imageUrl ? (
               <>
-                <div className="absolute inset-0 bg-slate-900">
+                <div className="absolute inset-0 bg-brand-black-deep">
                   <img
                     src={item.imageUrl}
                     alt={item.title}
-                    className="w-full h-full object-cover opacity-80"
+                    className="w-full h-full object-contain bg-brand-black-deep opacity-90"
                     referrerPolicy="no-referrer"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
@@ -146,15 +145,15 @@ export default function BetweenContentBanner() {
                 <div className="absolute inset-0 bg-gradient-to-r from-slate-900/90 via-slate-900/50 to-transparent"></div>
               </>
             ) : (
-              <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900"></div>
+              <div className="absolute inset-0 bg-gradient-to-br from-brand-black-deep via-primary-900 to-slate-900"></div>
             )}
 
             {/* Content Layer */}
             <div className="absolute inset-0 flex items-center p-8 md:p-16">
               <div className="max-w-2xl transform transition-transform duration-700 translate-y-0 group-hover:-translate-y-2">
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-500/20 backdrop-blur-md border border-indigo-400/30 rounded-full mb-6">
-                  <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span>
-                  <span className="text-indigo-100 font-bold text-[10px] uppercase tracking-widest">Patrocinado</span>
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary-500/20 backdrop-blur-md border border-primary-400/30 rounded-full mb-6">
+                  <span className="w-2 h-2 rounded-full bg-primary-400 animate-pulse"></span>
+                  <span className="text-primary-100 font-bold text-[10px] uppercase tracking-widest">Patrocinado</span>
                 </div>
 
                 <h3 className="text-3xl md:text-5xl font-black text-white mb-4 leading-tight tracking-tight drop-shadow-lg">
@@ -165,15 +164,15 @@ export default function BetweenContentBanner() {
                   {item.description}
                 </p>
 
-                <div className="inline-flex items-center gap-2 bg-white text-indigo-900 px-6 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl hover:bg-slate-50 transition-all">
-                  Ver más
+                <div className="inline-flex items-center gap-2 bg-white text-primary-900 px-6 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl hover:bg-slate-50 transition-all">
+                  {SPONSORED_CTA_LABEL}
                   <svg className="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                   </svg>
                 </div>
               </div>
             </div>
-          </a>
+          </SponsoredAdShell>
         </div>
       ))}
 
@@ -217,7 +216,7 @@ export default function BetweenContentBanner() {
                   setIsPaused(true);
                   setTimeout(() => setIsPaused(false), 8000);
                 }}
-                className={`h-2 rounded-full transition-all duration-500 ${index === currentIndex ? 'w-8 bg-indigo-400' : 'w-2 bg-white/40 hover:bg-white/70'
+                className={`h-2 rounded-full transition-all duration-500 ${index === currentIndex ? 'w-8 bg-primary-400' : 'w-2 bg-white/40 hover:bg-white/70'
                   }`}
                 aria-label={`Ir a banner ${index + 1}`}
               />

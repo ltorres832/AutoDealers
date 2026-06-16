@@ -8,6 +8,7 @@ import {
   MetaIntegrationsCard,
   type ToastData,
   type MetaIntegrationRow,
+  type MetaTokenHealthSummary,
 } from '@autodealers/shared/client';
 
 interface Integration {
@@ -17,6 +18,8 @@ interface Integration {
   name: string;
   description: string;
   pageName?: string;
+  platformManaged?: boolean;
+  metaTokenHealth?: MetaTokenHealthSummary;
 }
 
 const availableIntegrations: Integration[] = [
@@ -24,7 +27,7 @@ const availableIntegrations: Integration[] = [
     id: 'whatsapp',
     type: 'whatsapp',
     name: 'WhatsApp Business',
-    description: 'Conecta tu cuenta de WhatsApp Business para enviar y recibir mensajes',
+    description: 'Usa el WhatsApp Business configurado por la plataforma (admin). No necesitas ingresar tokens manualmente.',
     status: 'inactive',
   },
   {
@@ -62,6 +65,7 @@ function toMetaRow(
     type: base.type === 'instagram' ? 'instagram' : 'facebook',
     status: base.status,
     pageName: base.pageName,
+    metaTokenHealth: base.metaTokenHealth,
   };
 }
 
@@ -77,6 +81,7 @@ export default function IntegrationsPage() {
   const [debugLogs, setDebugLogs] = useState<string[]>([]);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
   const [connectingType, setConnectingType] = useState<string | null>(null);
+  const [verifyingMeta, setVerifyingMeta] = useState(false);
   const [toast, setToast] = useState<ToastData | null>(null);
 
   const showToast = useCallback(
@@ -96,15 +101,38 @@ export default function IntegrationsPage() {
     
     if (success === 'connected' || success === 'meta') {
       const ig = urlParams.get('instagram');
-      const message =
+      const notice = urlParams.get('notice');
+      const metaWarn = urlParams.get('meta_warn');
+      let message =
         success === 'meta'
           ? ig === '1'
-            ? 'Facebook e Instagram quedaron conectados con un solo inicio de sesión en Meta.'
-            : 'Facebook conectado. Si tienes Instagram Business, vincúlalo a tu página en Meta Business Suite y pulsa «Actualizar permisos».'
+            ? 'Facebook e Instagram quedaron conectados.'
+            : 'Facebook conectado correctamente. Instagram no es obligatorio; puedes conectarlo después si lo necesitas.'
           : 'Integración conectada exitosamente';
+      if (notice === 'no_instagram_business') {
+        message =
+          'No encontramos Instagram Business vinculado a tu página. Facebook sigue disponible; Instagram es opcional. Si tienes IG profesional, vincúlalo en Meta Business Suite e intenta «Conectar Instagram (opcional)».';
+      }
+      if (metaWarn === 'missing_scopes') {
+        message +=
+          ' Algunos permisos no se concedieron. Usa «Actualizar permisos de Facebook» y acepta todos (publicar, mensajes y anuncios).';
+      } else if (metaWarn === 'ads_not_ready') {
+        message +=
+          ' La cuenta publicitaria no está lista. Verifica Business Manager, método de pago y permisos de anuncios.';
+      } else if (metaWarn === 'organic_not_ready') {
+        message +=
+          ' Faltan permisos para publicar en la página. Actualiza permisos en Integraciones.';
+      }
       setErrorModal({
         show: true,
-        title: '✅ Éxito',
+        title:
+          metaWarn && metaWarn !== 'missing_scopes'
+            ? '⚠️ Conectado con avisos'
+            : notice === 'no_instagram_business'
+              ? 'ℹ️ Instagram no detectado'
+              : metaWarn === 'missing_scopes'
+                ? '⚠️ Permisos incompletos'
+                : '✅ Éxito',
         message,
       });
       window.history.replaceState({}, '', '/settings/integrations');
@@ -211,7 +239,9 @@ export default function IntegrationsPage() {
             ...integration,
             status: existing.status || 'active',
             id: existing.id,
+            platformManaged: existing.platformManaged === true,
             ...(pageName ? { pageName } : {}),
+            ...(existing.metaTokenHealth ? { metaTokenHealth: existing.metaTokenHealth } : {}),
           };
         });
         setIntegrations(updated);
@@ -219,7 +249,7 @@ export default function IntegrationsPage() {
       } else if (response.status === 401) {
         addDebugLog('❌ Error 401 - No autorizado después de renovar token');
         const errorData = await response.json().catch(() => ({}));
-        const errorDetails = `El servidor no pudo verificar tu sesión incluso después de renovar el token.\n\nStatus: ${response.status}\nError: ${errorData.error || 'Unauthorized'}\n\nEsto puede ocurrir si:\n- Tu sesión de Firebase Auth expiró completamente\n- Necesitas iniciar sesión nuevamente\n\nSOLUCIÓN: Por favor inicia sesión nuevamente.`;
+        const errorDetails = `El servidor no pudo verificar tu sesión incluso después de renovar el token.\n\nStatus: ${response.status}\nError: ${errorData.error || 'Unauthorized'}\n\nEsto puede ocurrir si:\n- Tu sesión expiró por completo\n- Necesitas iniciar sesión nuevamente\n\nSOLUCIÓN: Por favor inicia sesión nuevamente.`;
         setErrorModal({
           show: true,
           title: '❌ Error de autenticación',
@@ -249,17 +279,84 @@ export default function IntegrationsPage() {
     }
   }
 
-  async function handleConnect(type: string) {
+  async function connectWhatsApp() {
+    setConnectingType('whatsapp');
     try {
-      if (type === 'whatsapp') {
+      const response = await fetch('/api/settings/integrations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ type: 'whatsapp', action: 'connect' }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (response.ok && data.success) {
+        showToast('success', 'WhatsApp conectado', data.message || 'Listo para enviar y recibir mensajes.');
+        await fetchIntegrations();
+        return;
+      }
+      if (data.error === 'manual_credentials_required') {
         setShowWhatsAppModal(true);
         return;
       }
+      showToast('error', 'Error al conectar WhatsApp', data.message || data.error || 'Error desconocido');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Error desconocido';
+      showToast('error', 'Error al conectar WhatsApp', message);
+    } finally {
+      setConnectingType(null);
+    }
+  }
 
-      if (type === 'facebook' || type === 'instagram' || type === 'meta') {
+  async function verifyMetaPermissions() {
+    setVerifyingMeta(true);
+    try {
+      const response = await fetch('/api/settings/integrations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ action: 'verify_meta' }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        showToast('error', 'Verificación fallida', data.error || 'No se pudo verificar');
+        return;
+      }
+      const h = data.metaTokenHealth as MetaTokenHealthSummary | undefined;
+      if (h?.readyForOrganic && h?.readyForPaidAds) {
+        showToast('success', 'Permisos correctos', 'Listo para publicar orgánico y anuncios de pago.');
+      } else {
+        showToast(
+          'warning',
+          'Permisos incompletos',
+          h?.missingScopes?.length
+            ? `Faltan: ${h.missingScopes.join(', ')}. Actualiza permisos en Meta.`
+            : 'Usa «Actualizar permisos de Facebook».'
+        );
+      }
+      await fetchIntegrations();
+    } finally {
+      setVerifyingMeta(false);
+    }
+  }
+
+  async function handleConnect(type: string, opts?: { reauthorize?: boolean }) {
+    try {
+      if (type === 'whatsapp') {
+        await connectWhatsApp();
+        return;
+      }
+
+      if (type === 'facebook' || type === 'meta') {
         setConnectingType('meta');
-        addDebugLog('🔵 Iniciando conexión unificada con Meta (Facebook + Instagram)...');
-        await initiateOAuth('meta');
+        addDebugLog('🔵 Iniciando conexión con Meta (Facebook)...');
+        await initiateOAuth('meta', opts?.reauthorize);
+        return;
+      }
+
+      if (type === 'instagram') {
+        setConnectingType('instagram');
+        addDebugLog('🔵 Conexión opcional de Instagram...');
+        await initiateOAuth('instagram');
         return;
       }
     } catch (error: unknown) {
@@ -271,14 +368,14 @@ export default function IntegrationsPage() {
     }
   }
 
-  async function initiateOAuth(type: string) {
+  async function initiateOAuth(type: string, reauthorize?: boolean) {
     setConnectingType(type);
     try {
       const response = await fetch('/api/settings/integrations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ type, action: 'connect' }),
+        body: JSON.stringify({ type, action: 'connect', reauthorize: reauthorize === true }),
       });
 
       const contentType = response.headers.get('content-type');
@@ -455,19 +552,21 @@ export default function IntegrationsPage() {
                   <p className="text-gray-600 mb-3">{integration.description}</p>
                   {integration.status === 'active' && (
                     <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                      ✓ Conectado
+                      ✓ Conectado{integration.platformManaged ? ' (plataforma)' : ''}
                     </span>
                   )}
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 {integration.status === 'active' ? (
+                  integration.platformManaged && integration.id === 'platform-whatsapp' ? null : (
                   <button
                     onClick={() => handleDisconnect(integration.id)}
                     className="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 font-medium"
                   >
                     Desconectar
                   </button>
+                  )
                 ) : (
                   <button
                     type="button"
@@ -487,16 +586,20 @@ export default function IntegrationsPage() {
         <MetaIntegrationsCard
           facebook={toMetaRow(integrations.find((i) => i.type === 'facebook'), 'facebook')}
           instagram={toMetaRow(integrations.find((i) => i.type === 'instagram'), 'instagram')}
-          connecting={connectingType === 'meta'}
-          onConnect={() => void handleConnect('meta')}
+          connecting={connectingType === 'meta' || connectingType === 'instagram'}
+          onConnect={(opts) => void handleConnect('meta', opts)}
+          onConnectInstagram={() => void handleConnect('instagram')}
           onDisconnect={handleDisconnect}
+          onVerifyPermissions={() => void verifyMetaPermissions()}
+          verifyingPermissions={verifyingMeta}
         />
       </div>
 
-      <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h4 className="font-semibold text-blue-900 mb-2">💡 Información</h4>
-        <p className="text-sm text-blue-800">
-          Usa un solo botón «Conectar con Meta» para Facebook e Instagram. WhatsApp se configura aparte.
+      <div className="mt-8 bg-primary-50 border border-primary-200 rounded-lg p-4">
+        <h4 className="font-semibold text-primary-900 mb-2">💡 Información</h4>
+        <p className="text-sm text-primary-800">
+          Usa «Conectar Facebook (Meta)» para la página de tu negocio. Instagram es opcional y se configura aparte si lo
+          necesitas. WhatsApp se configura en su propia tarjeta.
         </p>
       </div>
 

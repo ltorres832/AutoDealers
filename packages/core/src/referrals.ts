@@ -266,6 +266,24 @@ export async function getUserByReferralCode(code: string): Promise<string | null
 }
 
 /**
+ * Mapea un plan de membresía al tier usado en recompensas de referidos.
+ */
+export function resolveReferralMembershipTier(membership: {
+  name?: string;
+  price?: number;
+}): 'basic' | 'professional' | 'premium' {
+  const name = String(membership.name || '').toLowerCase();
+  if (name.includes('premium') || name.includes('pro plus')) return 'premium';
+  if (name.includes('professional') || name.includes(' pro')) return 'professional';
+  if (name.includes('basic') || name.includes('starter')) return 'basic';
+
+  const price = Number(membership.price) || 0;
+  if (price >= 200) return 'premium';
+  if (price >= 80) return 'professional';
+  return 'basic';
+}
+
+/**
  * Crea un registro de referido cuando alguien se registra con un código
  */
 export async function createReferral(
@@ -734,5 +752,127 @@ export async function cancelReferral(referralId: string): Promise<void> {
 
   // Actualizar estadísticas
   await updateReferrerStats(referral.referrerId);
+}
+
+export interface ReferralConfirmationCronResult {
+  processed: number;
+  skipped: number;
+  errors: Array<{ taskId: string; referralId?: string; message: string }>;
+}
+
+/**
+ * Procesa tareas programadas de referidos que cumplieron el período de espera (14 días).
+ * Invocado por cron (admin API o Cloud Scheduler).
+ */
+export async function processDueReferralConfirmations(): Promise<ReferralConfirmationCronResult> {
+  const now = admin.firestore.Timestamp.now();
+  const result: ReferralConfirmationCronResult = {
+    processed: 0,
+    skipped: 0,
+    errors: [],
+  };
+
+  const tasksSnapshot = await getDb()
+    .collection('scheduled_tasks')
+    .where('type', '==', 'referral_confirmation')
+    .where('status', '==', 'pending')
+    .where('scheduledFor', '<=', now)
+    .get();
+
+  for (const taskDoc of tasksSnapshot.docs) {
+    const task = taskDoc.data() as {
+      referralId?: string;
+      subscriptionId?: string;
+    };
+    const referralId = task.referralId;
+
+    if (!referralId) {
+      await taskDoc.ref.update({
+        status: 'skipped',
+        reason: 'Sin referralId',
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      } as any);
+      result.skipped++;
+      continue;
+    }
+
+    try {
+      const referralDoc = await getDb().collection('referrals').doc(referralId).get();
+      if (!referralDoc.exists) {
+        await taskDoc.ref.update({
+          status: 'skipped',
+          reason: 'Referido no encontrado',
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        } as any);
+        result.skipped++;
+        continue;
+      }
+
+      const referral = referralDoc.data() as Referral;
+
+      if (referral.status === 'cancelled') {
+        await taskDoc.ref.update({
+          status: 'skipped',
+          reason: 'Referido cancelado',
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        } as any);
+        result.skipped++;
+        continue;
+      }
+
+      if (referral.status === 'rewarded') {
+        await taskDoc.ref.update({
+          status: 'completed',
+          reason: 'Recompensas ya otorgadas',
+          completedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        } as any);
+        result.skipped++;
+        continue;
+      }
+
+      if (referral.status === 'pending') {
+        await taskDoc.ref.update({
+          status: 'skipped',
+          reason: 'Referido aún pendiente de confirmación de pago',
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        } as any);
+        result.skipped++;
+        continue;
+      }
+
+      if (referral.status !== 'confirmed') {
+        await taskDoc.ref.update({
+          status: 'skipped',
+          reason: `Estado no elegible: ${referral.status}`,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        } as any);
+        result.skipped++;
+        continue;
+      }
+
+      await confirmReferral(referralId);
+
+      await taskDoc.ref.update({
+        status: 'completed',
+        completedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      } as any);
+
+      result.processed++;
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`Error processing referral task ${taskDoc.id}:`, message);
+      result.errors.push({ taskId: taskDoc.id, referralId, message });
+
+      await taskDoc.ref.update({
+        status: 'error',
+        error: message,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      } as any);
+    }
+  }
+
+  return result;
 }
 

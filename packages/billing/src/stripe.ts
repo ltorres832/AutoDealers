@@ -34,7 +34,8 @@ export class StripeService {
     customerId: string,
     priceId: string,
     metadata?: Record<string, string>,
-    taxRateId?: string
+    taxRateId?: string,
+    trialPeriodDays?: number
   ): Promise<Stripe.Subscription> {
     const subscriptionData: Stripe.SubscriptionCreateParams = {
       customer: customerId,
@@ -46,6 +47,9 @@ export class StripeService {
         save_default_payment_method: 'on_subscription',
       },
       expand: ['latest_invoice.payment_intent'],
+      ...(trialPeriodDays && trialPeriodDays > 0
+        ? { trial_period_days: trialPeriodDays }
+        : {}),
     };
 
     // Agregar tax si se proporciona
@@ -239,23 +243,29 @@ export class StripeService {
     metadata?: Record<string, string>;
     customerEmail?: string;
     customerId?: string;
+    trialPeriodDays?: number;
   }): Promise<Stripe.Checkout.Session> {
-    // Obtener tax rate del 11.5%
     const taxRateId = await this.getOrCreateTaxRate();
+    const trialDays = params.trialPeriodDays ?? 0;
 
     const sessionData: Stripe.Checkout.SessionCreateParams = {
-      payment_method_types: ['card', 'us_bank_account'], // Tarjetas y ACH
+      payment_method_types: ['card', 'us_bank_account'],
       mode: 'subscription',
       line_items: [
         {
           price: params.priceId,
           quantity: 1,
-          tax_rates: [taxRateId], // Aplicar tax del 11.5%
+          tax_rates: [taxRateId],
         },
       ],
       customer: params.customerId,
       customer_email: params.customerEmail,
       metadata: params.metadata,
+      subscription_data: {
+        ...(params.metadata ? { metadata: params.metadata } : {}),
+        ...(trialDays > 0 ? { trial_period_days: trialDays } : {}),
+      },
+      payment_method_collection: 'always',
       success_url: params.successUrl || `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: params.cancelUrl || `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/payment/cancel`,
     };

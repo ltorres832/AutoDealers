@@ -14,6 +14,10 @@ type SellerRow = {
   dealerName?: string | null;
   tenantName?: string | null;
   tenantType?: string | null;
+  isIndependentSeller?: boolean;
+  createdByAdmin?: boolean;
+  adminMembershipAccess?: 'granted' | 'required';
+  adminMembershipSelectionRequired?: boolean;
   sellerRating?: number;
   sellerRatingCount?: number;
   lastLogin?: string;
@@ -118,6 +122,42 @@ export default function AdminSellersPage() {
     })();
   }, []);
 
+  async function generateTempPassword(sellerId: string, sellerName: string) {
+    if (
+      !confirm(
+        `¿Generar contraseña temporal para ${sellerName || 'este vendedor'}? Se mostrará una sola vez.`
+      )
+    ) {
+      return;
+    }
+    setActionId(sellerId);
+    setMessage(null);
+    try {
+      const res = await fetch(`/api/admin/users/${sellerId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ generateTemporaryPassword: true }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessage({ type: 'err', text: data.error || 'No se pudo generar la contraseña' });
+        return;
+      }
+      const pwd = typeof data.temporaryPassword === 'string' ? data.temporaryPassword : '';
+      setMessage({
+        type: 'ok',
+        text: pwd
+          ? `Contraseña temporal para ${sellerName || sellerId}: ${pwd} (cópiala ahora; no se volverá a mostrar)`
+          : 'Contraseña temporal generada',
+      });
+    } catch {
+      setMessage({ type: 'err', text: 'Error de red' });
+    } finally {
+      setActionId(null);
+    }
+  }
+
   async function runAction(
     sellerId: string,
     action: 'suspend' | 'reactivate' | 'cancel'
@@ -157,9 +197,9 @@ export default function AdminSellersPage() {
           <h1 className="text-3xl font-bold">Vendedores</h1>
           <p className="text-gray-600 mt-2 max-w-3xl text-sm leading-relaxed">
             Control de soporte sobre todos los vendedores: cambiar email y contraseña, suspender acceso,
-            vincular a concesionario o revisar tenant independiente. La edición completa (email de inicio de
-            sesión, Firebase Auth, permisos) está en{' '}
-            <strong>Editar cuenta</strong>.
+            vincular a concesionario o revisar tenant independiente. Para cuentas creadas por admin:{' '}
+            <strong>Sin facturación / Demo</strong> (activar plan sin cobro o exigir membresía pagada) en{' '}
+            <strong>Editar cuenta</strong> o en el tenant del vendedor.
           </p>
         </div>
         <div className="flex flex-wrap gap-2 shrink-0">
@@ -269,14 +309,21 @@ export default function AdminSellersPage() {
                     <div className="font-mono text-[10px] text-gray-400 mt-1 break-all">{s.id}</div>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
-                    {s.dealerId ? (
-                      <span className="text-blue-800">Bajo dealer</span>
+                    {s.isIndependentSeller || !s.dealerId ? (
+                      <span className="text-primary-800">Independiente</span>
                     ) : (
-                      <span className="text-purple-800">Independiente</span>
+                      <span className="text-primary-800">Bajo dealer</span>
                     )}
+                    {s.createdByAdmin && s.isIndependentSeller ? (
+                      <div className="text-[10px] text-primary-700 mt-1">
+                        {s.adminMembershipAccess === 'granted'
+                          ? 'Plan admin (sin pago)'
+                          : 'Debe elegir plan'}
+                      </div>
+                    ) : null}
                   </td>
                   <td className="px-4 py-3">
-                    {s.dealerId ? (
+                    {s.dealerId && !s.isIndependentSeller ? (
                       <Link
                         href={`/admin/tenants/${s.dealerId}`}
                         className="text-primary-600 hover:underline"
@@ -315,6 +362,22 @@ export default function AdminSellersPage() {
                       >
                         Editar cuenta (email, auth)
                       </Link>
+                      {s.isIndependentSeller ? (
+                        <Link
+                          href={`/admin/users/${s.id}/edit#sin-facturacion`}
+                          className="text-primary-700 hover:underline text-xs font-medium"
+                        >
+                          Sin facturación / Demo
+                        </Link>
+                      ) : null}
+                      <button
+                        type="button"
+                        disabled={actionId === s.id}
+                        onClick={() => void generateTempPassword(s.id, s.name)}
+                        className="text-left text-xs text-primary-700 hover:underline disabled:opacity-50"
+                      >
+                        Contraseña temporal
+                      </button>
                       {s.status === 'active' && !s.authDisabled ? (
                         <button
                           type="button"

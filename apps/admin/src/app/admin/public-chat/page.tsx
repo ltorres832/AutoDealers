@@ -239,7 +239,7 @@ export default function AdminPublicChatPage() {
         <div className="col-span-2 bg-white rounded-lg shadow flex flex-col">
           {selectedSessionId ? (
             <>
-              <div className="p-4 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
+              <div className="p-4 border-b bg-gradient-to-r from-primary-50 to-primary-50">
                 <h2 className="font-bold text-lg">
                   {selectedConversation?.clientName || 'Cliente'}
                 </h2>

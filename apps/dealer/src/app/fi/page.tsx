@@ -54,6 +54,7 @@ export default function FIFIManagerPage() {
   const [requestingDocs, setRequestingDocs] = useState(false);
   const [showExternalEmail, setShowExternalEmail] = useState(false);
   const [externalEmail, setExternalEmail] = useState({to: '', subject: '', body: ''});
+  const [attachPdfToEmail, setAttachPdfToEmail] = useState(true);
   const [sendingEmail, setSendingEmail] = useState(false);
   const [debugInfo, setDebugInfo] = useState<any>(null);
   const [showDebug, setShowDebug] = useState(false);
@@ -166,7 +167,7 @@ export default function FIFIManagerPage() {
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { color: string; label: string }> = {
       draft: { color: 'bg-gray-500', label: 'Borrador' },
-      submitted: { color: 'bg-blue-500', label: 'Enviado' },
+      submitted: { color: 'bg-primary-500', label: 'Enviado' },
       under_review: { color: 'bg-yellow-500', label: 'En Revisión' },
       pre_approved: { color: 'bg-green-500', label: 'Pre-Aprobado' },
       approved: { color: 'bg-green-600', label: 'Aprobado' },
@@ -212,12 +213,12 @@ export default function FIFIManagerPage() {
       )}
 
       {/* Filtros */}
-      <div className="mb-6 flex space-x-4">
+      <div className="mb-6 filter-chip-row">
         <button
           onClick={() => setFilterStatus('all')}
           className={`px-4 py-2 rounded-md ${
             filterStatus === 'all'
-              ? 'bg-blue-600 text-white'
+              ? 'bg-primary-600 text-white'
               : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
           }`}
         >
@@ -227,7 +228,7 @@ export default function FIFIManagerPage() {
           onClick={() => setFilterStatus('submitted')}
           className={`px-4 py-2 rounded-md ${
             filterStatus === 'submitted'
-              ? 'bg-blue-600 text-white'
+              ? 'bg-primary-600 text-white'
               : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
           }`}
         >
@@ -237,7 +238,7 @@ export default function FIFIManagerPage() {
           onClick={() => setFilterStatus('under_review')}
           className={`px-4 py-2 rounded-md ${
             filterStatus === 'under_review'
-              ? 'bg-blue-600 text-white'
+              ? 'bg-primary-600 text-white'
               : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
           }`}
         >
@@ -247,7 +248,7 @@ export default function FIFIManagerPage() {
           onClick={() => setFilterStatus('approved')}
           className={`px-4 py-2 rounded-md ${
             filterStatus === 'approved'
-              ? 'bg-blue-600 text-white'
+              ? 'bg-primary-600 text-white'
               : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
           }`}
         >
@@ -257,6 +258,7 @@ export default function FIFIManagerPage() {
 
       {/* Lista de Solicitudes */}
       <div className="bg-white shadow rounded-lg overflow-hidden">
+        <div className="table-scroll">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -311,7 +313,7 @@ export default function FIFIManagerPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     {request.customerFileId ? (
-                      <Link href="/customer-files" className="text-blue-600 hover:text-blue-900 font-medium">
+                      <Link href="/customer-files" className="text-primary-600 hover:text-primary-900 font-medium">
                         Ver expediente
                       </Link>
                     ) : (
@@ -338,7 +340,7 @@ export default function FIFIManagerPage() {
                             ? request.reviewedAt 
                             : undefined,
                       } as FIRequest)}
-                      className="text-blue-600 hover:text-blue-900"
+                      className="text-primary-600 hover:text-primary-900"
                     >
                       Revisar
                     </button>
@@ -348,6 +350,7 @@ export default function FIFIManagerPage() {
             })}
           </tbody>
         </table>
+        </div>
 
         {requests.length === 0 && (
           <div className="text-center py-12">
@@ -396,14 +399,14 @@ export default function FIFIManagerPage() {
                           setDebugInfo({ error: err.message });
                         }
                       }}
-                      className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 font-semibold"
+                      className="px-4 py-2 bg-primary-500 text-white rounded hover:bg-primary-600 font-semibold"
                     >
                       Consultar Firestore Directamente
                     </button>
                     
                     {debugInfo && (
-                      <div className="mt-4 bg-blue-50 border border-blue-200 rounded p-4">
-                        <p className="font-semibold text-blue-900 mb-2">Resultados de Firestore:</p>
+                      <div className="mt-4 bg-primary-50 border border-primary-200 rounded p-4">
+                        <p className="font-semibold text-primary-900 mb-2">Resultados de Firestore:</p>
                         {debugInfo.error ? (
                           <p className="text-red-600">Error: {debugInfo.error}</p>
                         ) : (
@@ -494,11 +497,17 @@ export default function FIFIManagerPage() {
               const response = await fetch(`/api/fi/requests/${requestId}/send-external-email`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(email),
+                credentials: 'include',
+                body: JSON.stringify({
+                  ...email,
+                  attachPdf: email.attachPdf !== false,
+                  pdfTemplate: email.pdfTemplate || 'lender_package',
+                }),
               });
 
               if (response.ok) {
-                alert('Email enviado correctamente. Las respuestas llegarán a la plataforma.');
+                const data = await response.json();
+                alert(data.message || 'Email enviado correctamente.');
               } else {
                 const error = await response.json();
                 alert(error.error || 'Error al enviar email');
@@ -545,12 +554,12 @@ export default function FIFIManagerPage() {
                 return (
                   <div className="space-y-6">
                     {/* Información del Cliente */}
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <h3 className="font-semibold text-blue-900 mb-2">Cliente</h3>
-                      <p className="text-blue-700">{client?.name || 'N/A'}</p>
-                      <p className="text-sm text-blue-600">{client?.phone}</p>
+                    <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+                      <h3 className="font-semibold text-primary-900 mb-2">Cliente</h3>
+                      <p className="text-primary-700">{client?.name || 'N/A'}</p>
+                      <p className="text-sm text-primary-600">{client?.phone}</p>
                       {client?.email && (
-                        <p className="text-sm text-blue-600">{client?.email}</p>
+                        <p className="text-sm text-primary-600">{client?.email}</p>
                       )}
                     </div>
 
@@ -627,7 +636,7 @@ export default function FIFIManagerPage() {
                           value={notes}
                           onChange={(e) => setNotes(e.target.value)}
                           rows={3}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                           placeholder="Agrega notas que el vendedor pueda ver..."
                         />
                       </div>
@@ -640,7 +649,7 @@ export default function FIFIManagerPage() {
                           value={internalNotes}
                           onChange={(e) => setInternalNotes(e.target.value)}
                           rows={3}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                           placeholder="Notas privadas para el equipo F&I..."
                         />
                       </div>
@@ -662,13 +671,13 @@ export default function FIFIManagerPage() {
                       </button>
                       <button
                         onClick={() => setShowRequestDocuments(true)}
-                        className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+                        className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
                       >
                         📄 Solicitar Documentos
                       </button>
                       <button
                         onClick={() => setShowExternalEmail(true)}
-                        className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                        className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
                       >
                         Enviar Email Externo
                       </button>
@@ -751,7 +760,7 @@ export default function FIFIManagerPage() {
                     <div
                       key={doc.type}
                       className={`border rounded-lg p-3 cursor-pointer transition-colors ${
-                        isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                        isSelected ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:border-gray-300'
                       }`}
                       onClick={() => {
                         if (isSelected) {
@@ -772,7 +781,7 @@ export default function FIFIManagerPage() {
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => {}}
-                          className="h-5 w-5 text-blue-600"
+                          className="h-5 w-5 text-primary-600"
                         />
                       </div>
                       {isSelected && (
@@ -843,7 +852,7 @@ export default function FIFIManagerPage() {
                     }
                   }}
                   disabled={requestingDocs || requestedDocs.length === 0}
-                  className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50"
                 >
                   {requestingDocs ? 'Enviando...' : 'Enviar Solicitud'}
                 </button>
@@ -883,7 +892,7 @@ export default function FIFIManagerPage() {
                     value={externalEmail.to}
                     onChange={(e) => setExternalEmail({ ...externalEmail, to: e.target.value })}
                     placeholder="ejemplo@banco.com"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     Ejemplo: banco, aseguradora, etc. Las respuestas llegarán a la plataforma.
@@ -899,7 +908,7 @@ export default function FIFIManagerPage() {
                     value={externalEmail.subject}
                     onChange={(e) => setExternalEmail({ ...externalEmail, subject: e.target.value })}
                     placeholder="Solicitud de financiamiento - [Nombre Cliente]"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
 
@@ -912,7 +921,7 @@ export default function FIFIManagerPage() {
                     onChange={(e) => setExternalEmail({ ...externalEmail, body: e.target.value })}
                     rows={8}
                     placeholder="Escribe tu mensaje aquí..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     Las respuestas a este email llegarán automáticamente a la plataforma.
@@ -922,16 +931,28 @@ export default function FIFIManagerPage() {
                 {selectedRequest && (() => {
                   const client = getClient(selectedRequest.clientId);
                   return (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <p className="text-sm text-blue-800">
+                    <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+                      <p className="text-sm text-primary-800">
                         <strong>Cliente:</strong> {client?.name || 'N/A'}
                       </p>
-                      <p className="text-sm text-blue-800">
+                      <p className="text-sm text-primary-800">
                         <strong>Solicitud ID:</strong> {selectedRequest.id}
                       </p>
                     </div>
                   );
                 })()}
+
+                <label className="flex items-start gap-2 cursor-pointer rounded-lg border border-primary-100 bg-primary-50/60 p-3">
+                  <input
+                    type="checkbox"
+                    checked={attachPdfToEmail}
+                    onChange={(e) => setAttachPdfToEmail(e.target.checked)}
+                    className="mt-1"
+                  />
+                  <span className="text-sm text-gray-800">
+                    Adjuntar <strong>PDF profesional</strong> (paquete para banco con branding del concesionario)
+                  </span>
+                </label>
               </div>
 
               <div className="flex justify-end space-x-4 mt-6 pt-4 border-t">
@@ -957,11 +978,16 @@ export default function FIFIManagerPage() {
                       const response = await fetch(`/api/fi/requests/${selectedRequest.id}/send-external-email`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(externalEmail),
+                        body: JSON.stringify({
+                          ...externalEmail,
+                          attachPdf: attachPdfToEmail,
+                          pdfTemplate: 'lender_package',
+                        }),
                       });
 
                       if (response.ok) {
-                        alert('Email enviado correctamente. Las respuestas llegarán a la plataforma.');
+                        const data = await response.json();
+                        alert(data.message || 'Email enviado correctamente.');
                         setShowExternalEmail(false);
                         setExternalEmail({ to: '', subject: '', body: '' });
                       } else {
@@ -976,9 +1002,9 @@ export default function FIFIManagerPage() {
                     }
                   }}
                   disabled={sendingEmail || !externalEmail.to || !externalEmail.subject || !externalEmail.body}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50"
                 >
-                  {sendingEmail ? 'Enviando...' : 'Enviar Email'}
+                  {sendingEmail ? 'Enviando…' : attachPdfToEmail ? 'Enviar con PDF' : 'Enviar Email'}
                 </button>
               </div>
             </div>

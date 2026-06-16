@@ -1,52 +1,14 @@
 'use client';
 
-import { useParams } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { fetchWithAuth } from '@/lib/fetch-with-auth';
-import type { Lead, LeadStatus } from '@autodealers/crm';
+import { useAuth } from '@/hooks/useAuth';
+import { useRealtimeLead } from '@/hooks/useRealtimeLead';
+import type { LeadStatus } from '@autodealers/crm';
 import type { CrmPipelineSettings } from '@autodealers/core';
 import { LeadFullProfile } from '@/components/LeadProfileSections';
-
-function parseUnknownDate(v: unknown): Date | undefined {
-  if (v instanceof Date && !Number.isNaN(v.getTime())) return v;
-  if (typeof v === 'string' || typeof v === 'number') {
-    const d = new Date(v);
-    return Number.isNaN(d.getTime()) ? undefined : d;
-  }
-  if (v && typeof v === 'object' && '_seconds' in (v as object)) {
-    return new Date((v as { _seconds: number })._seconds * 1000);
-  }
-  return undefined;
-}
-
-function reviveLead(raw: unknown): Lead {
-  if (!raw || typeof raw !== 'object') throw new Error('Respuesta inválida');
-  const o = raw as Record<string, unknown>;
-  const interactions = Array.isArray(o.interactions)
-    ? (o.interactions as Record<string, unknown>[]).map((x) => ({
-        ...x,
-        createdAt: parseUnknownDate(x.createdAt) ?? new Date(),
-      }))
-    : [];
-  let score = o.score;
-  if (score && typeof score === 'object') {
-    const sr = score as Record<string, unknown>;
-    score = {
-      ...sr,
-      lastUpdated: parseUnknownDate(sr.lastUpdated) ?? new Date(),
-    };
-  }
-  return {
-    ...(o as object),
-    interactions,
-    score: score as Lead['score'],
-    createdAt: parseUnknownDate(o.createdAt) ?? new Date(),
-    updatedAt: parseUnknownDate(o.updatedAt) ?? new Date(),
-    lastContactDate: o.lastContactDate ? parseUnknownDate(o.lastContactDate) ?? null : null,
-    nextFollowUpDate: o.nextFollowUpDate ? parseUnknownDate(o.nextFollowUpDate) ?? null : null,
-  } as Lead;
-}
 
 const FALLBACK_STATUS_OPTIONS: { value: LeadStatus; label: string }[] = [
   { value: 'new', label: 'Nuevo' },
@@ -62,13 +24,14 @@ const FALLBACK_STATUS_OPTIONS: { value: LeadStatus; label: string }[] = [
 
 export default function LeadDetailPage() {
   const params = useParams();
+  const router = useRouter();
+  const { user } = useAuth();
   const id =
     typeof params?.id === 'string' ? params.id : Array.isArray(params?.id) ? params.id[0] : '';
 
-  const [lead, setLead] = useState<Lead | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { lead, loading, error } = useRealtimeLead(user?.tenantId, id);
   const [statusSaving, setStatusSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [statusOptions, setStatusOptions] = useState<{ value: LeadStatus; label: string }[]>(
     FALLBACK_STATUS_OPTIONS
   );
@@ -91,27 +54,6 @@ export default function LeadDetailPage() {
     };
   }, []);
 
-  const load = useCallback(async () => {
-    if (!id) return;
-    setLoading(true);
-    setError('');
-    try {
-      const res = await fetchWithAuth(`/api/leads/${id}`, {});
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error al cargar el lead');
-      setLead(reviveLead(data.lead));
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Error al cargar el lead');
-      setLead(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
   const statusSelectOptions = useMemo(() => {
     const m = new Map(statusOptions.map((s) => [s.value, s]));
     if (lead && !m.has(lead.status)) {
@@ -133,11 +75,35 @@ export default function LeadDetailPage() {
         const err = await res.json().catch(() => ({}));
         throw new Error((err as { error?: string }).error || 'No se pudo actualizar el estado');
       }
-      setLead({ ...lead, status: next });
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : 'Error al actualizar');
     } finally {
       setStatusSaving(false);
+    }
+  }
+
+  async function onDeleteLead() {
+    if (!lead || !id || deleting) return;
+    const name = lead.contact?.name || 'este lead';
+    if (
+      !window.confirm(
+        `¿Eliminar permanentemente a ${name}? Esta acción no se puede deshacer.`
+      )
+    ) {
+      return;
+    }
+    setDeleting(true);
+    try {
+      const res = await fetchWithAuth(`/api/leads/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error || 'No se pudo eliminar el lead');
+      }
+      router.push('/leads');
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Error al eliminar');
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -202,6 +168,14 @@ export default function LeadDetailPage() {
             ))}
           </select>
           {statusSaving ? <span className="text-xs text-gray-500">Guardando…</span> : null}
+          <button
+            type="button"
+            onClick={onDeleteLead}
+            disabled={deleting}
+            className="mt-2 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+          >
+            {deleting ? 'Eliminando…' : 'Eliminar lead'}
+          </button>
         </div>
       </header>
 

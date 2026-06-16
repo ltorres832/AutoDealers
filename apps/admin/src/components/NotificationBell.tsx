@@ -12,6 +12,7 @@ interface Notification {
   title: string;
   message: string;
   data?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   read: boolean;
   createdAt: Date | Timestamp | string;
 }
@@ -28,8 +29,12 @@ export function NotificationBell() {
       });
       
       // Navegar si la notificación tiene metadata con ruta
-      if (notification?.data?.route) {
-        router.push(notification.data.route);
+      const routeRaw =
+        notification?.metadata?.route ??
+        (notification as { data?: { route?: string } })?.data?.route;
+      const route = typeof routeRaw === 'string' ? routeRaw : undefined;
+      if (route) {
+        router.push(route);
         setShowDropdown(false);
       }
     } catch (error) {
@@ -122,7 +127,7 @@ export function NotificationBell() {
                   <div
                     key={notif.id}
                     className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors ${
-                      !notif.read ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+                      !notif.read ? 'bg-primary-50 border-l-4 border-primary-500' : ''
                     }`}
                     onClick={() => handleNotificationClick(notif)}
                   >
@@ -152,7 +157,7 @@ export function NotificationBell() {
                         </p>
                       </div>
                       {!notif.read && (
-                        <div className="h-2 w-2 bg-blue-500 rounded-full flex-shrink-0 mt-1 animate-pulse"></div>
+                        <div className="h-2 w-2 bg-primary-500 rounded-full flex-shrink-0 mt-1 animate-pulse"></div>
                       )}
                     </div>
                   </div>

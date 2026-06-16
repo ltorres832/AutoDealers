@@ -34,18 +34,33 @@ export async function POST(request: NextRequest) {
     // Publicar en las plataformas seleccionadas
     const results = await publisher.publishToMultiple(auth.tenantId, content, platforms);
 
-    // Verificar si todas las publicaciones fueron exitosas
     const allSuccess = results.every((r) => r.success);
-    const hasErrors = results.some((r) => !r.success);
+    const failures = results.filter((r) => !r.success);
+    const failureDetail = failures
+      .map((r) => `${r.platform}: ${r.error || 'error desconocido'}`)
+      .join(' · ');
+
+    if (!allSuccess && failures.length === results.length) {
+      return NextResponse.json(
+        {
+          success: false,
+          results,
+          error: failureDetail || 'No se pudo publicar en ninguna red',
+          message: failureDetail,
+        },
+        { status: 422 }
+      );
+    }
 
     return NextResponse.json({
       success: allSuccess,
       results,
       message: allSuccess
         ? 'Publicado exitosamente en todas las plataformas'
-        : hasErrors
-        ? 'Algunas publicaciones fallaron'
-        : 'Publicación completada',
+        : failures.length > 0
+          ? `Publicado parcialmente. ${failureDetail}`
+          : 'Publicación completada',
+      ...(failures.length > 0 ? { error: failureDetail } : {}),
     });
   } catch (error: any) {
     console.error('Error publishing social media post:', error);

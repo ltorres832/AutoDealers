@@ -47,12 +47,33 @@ export async function GET(
     const tenantDoc = await db.collection('tenants').doc(id).get();
     const tenantData = tenantDoc.data() || {};
 
-    const [users, vehicles, leads, sales] = await Promise.all([
-      getUsersByTenant(id),
-      getVehicles(id),
-      getLeads(id),
-      getTenantSales(id),
-    ]);
+    const [usersResult, vehiclesResult, leadsResult, salesResult] =
+      await Promise.allSettled([
+        getUsersByTenant(id),
+        getVehicles(id),
+        getLeads(id),
+        getTenantSales(id),
+      ]);
+
+    const users =
+      usersResult.status === 'fulfilled' ? usersResult.value : [];
+    const vehicles =
+      vehiclesResult.status === 'fulfilled' ? vehiclesResult.value : [];
+    const leads = leadsResult.status === 'fulfilled' ? leadsResult.value : [];
+    const sales = salesResult.status === 'fulfilled' ? salesResult.value : [];
+
+    if (usersResult.status === 'rejected') {
+      console.error('getUsersByTenant failed:', usersResult.reason);
+    }
+    if (vehiclesResult.status === 'rejected') {
+      console.error('getVehicles failed:', vehiclesResult.reason);
+    }
+    if (leadsResult.status === 'rejected') {
+      console.error('getLeads failed:', leadsResult.reason);
+    }
+    if (salesResult.status === 'rejected') {
+      console.error('getTenantSales failed:', salesResult.reason);
+    }
 
     // Fusión: todo lo guardado en Firestore + objeto normalizado (fechas) para que el admin vea/edite campos completos
     const merged = {

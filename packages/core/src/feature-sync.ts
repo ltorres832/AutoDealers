@@ -1,34 +1,64 @@
 // Sistema de sincronización automática de features
 
-import { getFirestore } from '@autodealers/shared';
+import * as admin from 'firebase-admin';
+import { getFirestore } from './firebase';
 
-// Lazy initialization - solo se inicializa cuando se necesita
 function getDb() {
   return getFirestore();
 }
-import * as admin from 'firebase-admin';
 
-const db = getFirestore();
+async function readMembershipFeaturesFromDb(
+  membershipId: string
+): Promise<{ features: Record<string, unknown>; syncVersion?: number } | null> {
+  const id = membershipId.trim();
+  if (!id) return null;
+
+  const snap = await getDb().collection('memberships').doc(id).get();
+  if (!snap.exists) return null;
+
+  const data = snap.data();
+  if (!data || data.features == null) return null;
+
+  return {
+    features: data.features as Record<string, unknown>,
+    syncVersion: typeof data.syncVersion === 'number' ? data.syncVersion : undefined,
+  };
+}
 
 /**
  * Sincroniza las features de una membresía con todos los tenants que la usan
  * Se ejecuta automáticamente cuando se actualiza una membresía
  */
-export async function syncMembershipFeaturesToTenants(membershipId: string): Promise<void> {
-  // Import dinámico para evitar dependencia circular
-  const { getMembershipById } = await import('@autodealers/billing');
-  const membership = await getMembershipById(membershipId);
-  if (!membership) {
-    throw new Error('Membresía no encontrada');
+export async function syncMembershipFeaturesToTenants(
+  membershipId: string,
+  featuresOverride?: Record<string, unknown>
+): Promise<void> {
+  const id = membershipId.trim();
+  let features = featuresOverride;
+  let syncVersion: number | undefined;
+
+  if (!features) {
+    const fromDb = await readMembershipFeaturesFromDb(id);
+    if (!fromDb) {
+      throw new Error('Membresía no encontrada');
+    }
+    features = fromDb.features;
+    syncVersion = fromDb.syncVersion;
+  } else {
+    const snap = await getDb().collection('memberships').doc(id).get();
+    if (!snap.exists) {
+      throw new Error('Membresía no encontrada');
+    }
+    const data = snap.data();
+    syncVersion = typeof data?.syncVersion === 'number' ? data.syncVersion : undefined;
   }
 
-  // Obtener todos los tenants que usan esta membresía
   const tenantsSnapshot = await getDb().collection('tenants')
-    .where('membershipId', '==', membershipId)
+    .where('membershipId', '==', id)
     .get();
 
   if (tenantsSnapshot.empty) {
-    console.log(`No hay tenants usando la membresía ${membershipId}`);
+    console.log(`No hay tenants usando la membresía ${id}`);
     return;
   }
 
@@ -39,9 +69,9 @@ export async function syncMembershipFeaturesToTenants(membershipId: string): Pro
   tenantsSnapshot.docs.forEach((doc) => {
     const tenantRef = getDb().collection('tenants').doc(doc.id);
     batch.update(tenantRef, {
-      'featuresCache': membership.features,
-      'featuresLastSynced': now,
-      'membershipSyncVersion': membership.syncVersion || 0,
+      featuresCache: features,
+      featuresLastSynced: now,
+      membershipSyncVersion: syncVersion ?? 0,
     });
   });
 
@@ -78,22 +108,18 @@ export async function getTenantFeaturesCached(tenantId: string) {
     }
   }
 
-  // Si no hay caché o está desactualizada, obtener desde la membresía
-  // Import dinámico para evitar dependencia circular
-  const { getMembershipById } = await import('@autodealers/billing');
-  const membership = await getMembershipById(membershipId);
-  if (!membership) {
+  const fromDb = await readMembershipFeaturesFromDb(membershipId);
+  if (!fromDb) {
     return null;
   }
 
-  // Actualizar caché
   await getDb().collection('tenants').doc(tenantId).update({
-    featuresCache: membership.features,
+    featuresCache: fromDb.features,
     featuresLastSynced: admin.firestore.FieldValue.serverTimestamp(),
-    membershipSyncVersion: membership.syncVersion || 0,
+    membershipSyncVersion: fromDb.syncVersion ?? 0,
   });
 
-  return membership.features;
+  return fromDb.features;
 }
 
 /**

@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getFirestore } from '@autodealers/core';
+import { getFirestore, PLATFORM_ADMIN_TENANT_ID } from '@autodealers/core';
 import * as admin from 'firebase-admin';
 
 export async function POST(request: NextRequest) {
@@ -12,13 +12,12 @@ export async function POST(request: NextRequest) {
     }
 
     const db = getFirestore();
-    const tenantId = auth.tenantId;
-    
-    const notificationsCollection = tenantId
-      ? db.collection('tenants').doc(tenantId).collection('notifications')
-      : db.collection('notifications');
-    
-    const notificationsSnapshot = await notificationsCollection
+    const tenantId = auth.tenantId || PLATFORM_ADMIN_TENANT_ID;
+
+    const notificationsSnapshot = await db
+      .collection('tenants')
+      .doc(tenantId)
+      .collection('notifications')
       .where('userId', '==', auth.userId)
       .where('read', '==', false)
       .get();

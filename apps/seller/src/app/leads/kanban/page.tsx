@@ -37,7 +37,11 @@ export default function LeadsKanbanPage() {
         </Link>
       </div>
 
-      <LeadsKanban tenantId={user.tenantId} />
+      <LeadsKanban
+        tenantId={user.tenantId}
+        assignedTo={user.id}
+        independentWorkspace={user.isIndependentWorkspace === true}
+      />
     </div>
   );
 }

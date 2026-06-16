@@ -125,7 +125,7 @@ export default function AdDetailPage() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
         </div>
       </DashboardLayout>
     );
@@ -158,7 +158,7 @@ export default function AdDetailPage() {
             {(ad.status === 'active' || ad.status === 'paused') && (
               <button
                 onClick={handlePauseResume}
-                className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 font-medium"
+                className="px-4 py-2 bg-primary-100 text-primary-700 rounded-lg hover:bg-primary-200 font-medium"
               >
                 {ad.status === 'paused' ? 'Reanudar' : 'Pausar'}
               </button>
@@ -259,7 +259,7 @@ export default function AdDetailPage() {
               <div className="flex gap-4">
                 <button
                   onClick={handleUpdate}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                  className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium"
                 >
                   Guardar Cambios
                 </button>

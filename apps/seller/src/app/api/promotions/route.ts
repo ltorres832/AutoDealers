@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createPromotion, getPromotions, createNotification, canExecuteFeature, getAvailableCredits, useRewardCredit } from '@autodealers/core';
 import { verifyAuth } from '@/lib/auth';
+import { dealerManagedReferralsResponse } from '@/lib/referrals-access-guard';
 
 export async function GET(request: NextRequest) {
   try {
@@ -153,6 +154,9 @@ export async function POST(request: NextRequest) {
 
     // Si se solicita usar crédito de referido, verificar y usar
     if (body.useCredit === true) {
+      const blocked = dealerManagedReferralsResponse(auth);
+      if (blocked) return blocked;
+
       const availableCredits = await getAvailableCredits(auth.userId, 'promotion');
       if (availableCredits.length > 0) {
         const creditId = availableCredits[0].id;

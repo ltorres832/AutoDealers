@@ -101,7 +101,7 @@ function AdsPreviewContent() {
               )}
               <div className="p-4 space-y-2">
                 <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full">
+                  <span className="px-2 py-1 bg-primary-100 text-primary-800 rounded-full">
                     {ad.placement || 'sponsors_section'}
                   </span>
                   {ad.status && (
@@ -120,7 +120,7 @@ function AdsPreviewContent() {
                     href={ad.linkUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-block mt-2 text-sm font-semibold text-blue-600 hover:text-blue-700"
+                    className="inline-block mt-2 text-sm font-semibold text-primary-600 hover:text-primary-700"
                   >
                     Visitar enlace →
                   </a>

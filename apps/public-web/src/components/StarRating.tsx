@@ -29,9 +29,9 @@ export default function StarRating({ rating, count, size = 'md', showCount = tru
               key={star}
               className={`${sizeClass} ${
                 filled
-                  ? 'text-purple-600'
+                  ? 'text-primary-600'
                   : halfFilled
-                  ? 'text-purple-400'
+                  ? 'text-primary-400'
                   : 'text-gray-300'
               }`}
               style={{
@@ -42,7 +42,7 @@ export default function StarRating({ rating, count, size = 'md', showCount = tru
               ★
               {halfFilled && (
                 <span
-                  className="absolute left-0 top-0 overflow-hidden text-purple-600"
+                  className="absolute left-0 top-0 overflow-hidden text-primary-600"
                   style={{ width: '50%' }}
                 >
                   ★

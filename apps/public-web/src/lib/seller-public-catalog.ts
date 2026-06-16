@@ -53,3 +53,12 @@ export function filterVehiclesForSellerPublicCatalog(
 
   return listable;
 }
+
+/** Misma regla que /seller/[id] y web azul del vendedor — para contadores en listados. */
+export function countSellerPublicCatalogVehicles(
+  allVehicles: Record<string, unknown>[],
+  sellerId: string,
+  options?: SellerPublicCatalogFilterOptions
+): number {
+  return filterVehiclesForSellerPublicCatalog(allVehicles, sellerId, options).length;
+}

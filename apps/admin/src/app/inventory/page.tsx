@@ -177,7 +177,7 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
           {/* Información Básica */}
           <div className="mb-6">
             <h3 className="text-lg font-semibold mb-4 pb-2 border-b">Información Básica</h3>
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Marca *</label>
                 <input
@@ -223,7 +223,7 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
               </select>
             </div>
             
-            <div className="grid grid-cols-3 gap-4 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Año *</label>
                 <input
@@ -268,7 +268,7 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Condición *</label>
                 <select
@@ -331,7 +331,7 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
               <button
                 type="button"
                 onClick={() => setShowSpecs(!showSpecs)}
-                className="text-sm text-blue-600 hover:text-blue-700"
+                className="text-sm text-primary-600 hover:text-primary-700"
               >
                 {showSpecs ? 'Ocultar' : 'Mostrar'}
               </button>
@@ -339,7 +339,7 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
             
             {showSpecs && (
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-2">
                       VIN
@@ -374,7 +374,7 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-2">
                       Transmisión
@@ -415,7 +415,7 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-2">
                       Motor
@@ -451,7 +451,7 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-2">
                       Color Exterior
@@ -482,7 +482,7 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-2">
                       Puertas
@@ -517,7 +517,7 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-2">
                       MPG Ciudad

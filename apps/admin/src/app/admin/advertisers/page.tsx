@@ -42,8 +42,8 @@ export default function AdminAdvertisersPage() {
 
   function getPlanBadge(plan: string) {
     const styles = {
-      starter: 'bg-blue-100 text-blue-800',
-      professional: 'bg-purple-100 text-purple-800',
+      starter: 'bg-primary-100 text-primary-800',
+      professional: 'bg-primary-100 text-primary-800',
       premium: 'bg-yellow-100 text-yellow-800',
     };
     return (
@@ -62,7 +62,7 @@ export default function AdminAdvertisersPage() {
         </div>
         <Link
           href="/admin/advertisers/create"
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold"
+          className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-semibold"
         >
           + Crear anunciante
         </Link>
@@ -129,7 +129,7 @@ export default function AdminAdvertisersPage() {
                         href={advertiser.website}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-sm text-blue-600 hover:text-blue-700"
+                        className="text-sm text-primary-600 hover:text-primary-700"
                       >
                         {advertiser.website}
                       </a>
@@ -154,7 +154,7 @@ export default function AdminAdvertisersPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <Link
                       href={`/admin/advertisers/${advertiser.id}`}
-                      className="text-blue-600 hover:text-blue-900 mr-4"
+                      className="text-primary-600 hover:text-primary-900 mr-4"
                     >
                       Ver
                     </Link>

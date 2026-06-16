@@ -344,18 +344,18 @@ export default function CreateMembershipModal({ onClose, onSuccess }: CreateMemb
             </div>
           </div>
           {/* Indicador de Stripe */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
             <div className="flex items-start gap-3">
               <span className="text-2xl">💳</span>
               <div>
-                <h4 className="font-semibold text-blue-900 mb-1">
+                <h4 className="font-semibold text-primary-900 mb-1">
                   Integración Automática con Stripe
                 </h4>
-                <p className="text-sm text-blue-700">
+                <p className="text-sm text-primary-700">
                   Al crear esta membresía, se creará automáticamente un producto y precio en Stripe. 
                   No necesitas hacer nada manualmente.
                 </p>
-                <div className="mt-2 text-xs text-blue-600 space-y-1">
+                <div className="mt-2 text-xs text-primary-600 space-y-1">
                   <div>✓ Producto creado en Stripe</div>
                   <div>✓ Precio configurado: <strong>${formData.price || '0'} {formData.currency}</strong></div>
                   <div>✓ Intervalo: <strong>{formData.billingCycle === 'monthly' ? 'Mensual' : 'Anual'}</strong></div>
@@ -716,7 +716,7 @@ export default function CreateMembershipModal({ onClose, onSuccess }: CreateMemb
                         <h4 className="text-xs font-semibold text-gray-900">{feature.name}</h4>
                         <p className="text-xs text-gray-500">{feature.description}</p>
                       </div>
-                      <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                      <span className="text-xs px-2 py-1 bg-primary-100 text-primary-700 rounded">
                         {feature.type}
                       </span>
                     </div>

@@ -60,7 +60,7 @@ export default function LoginPage() {
     setError('');
 
     if (!auth) {
-      setError('Firebase no está configurado. Por favor, configura las variables de entorno NEXT_PUBLIC_FIREBASE_*');
+      setError('El servicio de acceso no está disponible. Si el problema continúa, contacta al soporte.');
       setLoading(false);
       setIsSubmitting(false);
       return;
@@ -194,7 +194,7 @@ export default function LoginPage() {
         localStorage.setItem('login_retry_after', retryTime.toString());
         setRetryAfter(300);
         
-        errorMessage = 'Se ha excedido la cuota de autenticación de Firebase. Por favor, espera 5 minutos antes de intentar nuevamente. Si el problema persiste, contacta al administrador o verifica tu plan de Firebase.';
+        errorMessage = 'Se alcanzó el límite temporal de intentos de acceso. Espera 5 minutos e inténtalo de nuevo. Si el problema continúa, contacta al administrador.';
         
         // Actualizar el contador cada segundo
         const interval = setInterval(() => {
@@ -238,11 +238,16 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow">
+    <div className="brand-login-shell brand-top-accent">
+      <header className="brand-login-header">
+        <h1 className="text-2xl font-bold tracking-tight">AutoDealers</h1>
+        <p className="text-sm text-white/90 mt-1">Portal Dealer</p>
+      </header>
+      <div className="brand-login-body">
+      <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow border-t-4 border-primary-600">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Iniciar Sesión - Dealer
+          <h2 className="text-center text-2xl font-extrabold text-gray-900">
+            Iniciar Sesión
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
             Ingresa tus credenciales para acceder
@@ -251,30 +256,9 @@ export default function LoginPage() {
         
         {!auth && (
           <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded">
-            <p className="font-semibold mb-2">⚠️ Firebase no está configurado</p>
-            <p className="text-sm mb-2">
-              Para usar el sistema de login, necesitas configurar Firebase. Crea un archivo{' '}
-              <code className="bg-yellow-100 px-1 rounded">.env.local</code> en{' '}
-              <code className="bg-yellow-100 px-1 rounded">apps/dealer/</code> con las siguientes variables:
-            </p>
-            <ul className="text-xs list-disc list-inside space-y-1 mt-2">
-              <li>NEXT_PUBLIC_FIREBASE_API_KEY</li>
-              <li>NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN</li>
-              <li>NEXT_PUBLIC_FIREBASE_PROJECT_ID</li>
-              <li>NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET</li>
-              <li>NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID</li>
-              <li>NEXT_PUBLIC_FIREBASE_APP_ID</li>
-            </ul>
-            <p className="text-xs mt-2">
-              Obtén estos valores de tu proyecto en{' '}
-              <a 
-                href="https://console.firebase.google.com" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-yellow-900 underline font-medium"
-              >
-                Firebase Console
-              </a>
+            <p className="font-semibold mb-2">Servicio no disponible</p>
+            <p className="text-sm">
+              No pudimos cargar el acceso a tu cuenta. Recarga la página o contacta al soporte si el problema continúa.
             </p>
           </div>
         )}
@@ -288,13 +272,13 @@ export default function LoginPage() {
                   ⏱️ Puedes intentar nuevamente en: <strong>{Math.floor(retryAfter / 60)}:{(retryAfter % 60).toString().padStart(2, '0')}</strong>
                 </p>
               )}
-              {error.includes('cuota') && (
+              {error.includes('límite temporal') && (
                 <div className="mt-3 text-xs bg-red-100 p-2 rounded">
-                  <p className="font-semibold mb-1">💡 Soluciones:</p>
+                  <p className="font-semibold mb-1">Qué puedes hacer:</p>
                   <ul className="list-disc list-inside space-y-1">
-                    <li>Espera 5 minutos antes de intentar nuevamente</li>
-                    <li>Verifica en Firebase Console si se alcanzó el límite de usuarios</li>
-                    <li>Considera actualizar tu plan de Firebase si es necesario</li>
+                    <li>Espera unos minutos antes de intentar nuevamente</li>
+                    <li>Verifica que tu correo y contraseña sean correctos</li>
+                    <li>Contacta al administrador si el problema continúa</li>
                   </ul>
                 </div>
               )}
@@ -382,6 +366,7 @@ export default function LoginPage() {
             </div>
           </div>
         )}
+      </div>
       </div>
     </div>
   );

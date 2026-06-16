@@ -11,10 +11,10 @@ export const WHY_CHOOSE_COLOR_THEME: Record<
   }
 > = {
   blue: {
-    cardBorder: 'border-blue-100',
-    cardBorderHover: 'hover:border-blue-500',
-    iconBg: 'from-blue-500 to-blue-600',
-    check: 'text-blue-600',
+    cardBorder: 'border-primary-100',
+    cardBorderHover: 'hover:border-primary-500',
+    iconBg: 'from-primary-600 to-primary-700',
+    check: 'text-primary-600',
     rotateClass: 'group-hover:rotate-6',
   },
   green: {
@@ -25,10 +25,10 @@ export const WHY_CHOOSE_COLOR_THEME: Record<
     rotateClass: 'group-hover:-rotate-6',
   },
   purple: {
-    cardBorder: 'border-purple-100',
-    cardBorderHover: 'hover:border-purple-500',
-    iconBg: 'from-purple-500 to-purple-600',
-    check: 'text-purple-600',
+    cardBorder: 'border-gray-200',
+    cardBorderHover: 'hover:border-brand-black',
+    iconBg: 'from-brand-black to-brand-black-deep',
+    check: 'text-brand-black',
     rotateClass: 'group-hover:rotate-6',
   },
   amber: {
@@ -39,24 +39,24 @@ export const WHY_CHOOSE_COLOR_THEME: Record<
     rotateClass: 'group-hover:-rotate-6',
   },
   rose: {
-    cardBorder: 'border-rose-100',
-    cardBorderHover: 'hover:border-rose-500',
-    iconBg: 'from-rose-500 to-rose-600',
-    check: 'text-rose-600',
+    cardBorder: 'border-primary-100',
+    cardBorderHover: 'hover:border-primary-400',
+    iconBg: 'from-primary-500 to-brand-red-bright',
+    check: 'text-primary-600',
     rotateClass: 'group-hover:rotate-6',
   },
   slate: {
     cardBorder: 'border-slate-200',
     cardBorderHover: 'hover:border-slate-500',
-    iconBg: 'from-slate-500 to-slate-700',
+    iconBg: 'from-slate-600 to-brand-black',
     check: 'text-slate-600',
     rotateClass: 'group-hover:-rotate-6',
   },
   indigo: {
-    cardBorder: 'border-indigo-100',
-    cardBorderHover: 'hover:border-indigo-500',
-    iconBg: 'from-indigo-500 to-indigo-600',
-    check: 'text-indigo-600',
+    cardBorder: 'border-gray-200',
+    cardBorderHover: 'hover:border-primary-500',
+    iconBg: 'from-primary-700 to-primary-900',
+    check: 'text-primary-700',
     rotateClass: 'group-hover:rotate-6',
   },
   teal: {

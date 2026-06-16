@@ -138,11 +138,14 @@ export async function POST(request: NextRequest) {
       leadNotes || intentLabel,
       {
         assignedTo: String(sellerId).trim(),
+        createdBy: String(sellerId).trim(),
+        sellerOwned: true,
         vehicleId: vid,
         vehicleStockNumber,
         vehicleStockSnapshot,
         publicTrackingToken: trackingToken,
         vehicleInterest,
+        tags: ['vendedor_propio', 'cita_publica'],
       }
     );
 

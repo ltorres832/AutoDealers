@@ -122,6 +122,9 @@ function runNpmBuild(nextAppDir) {
 }
 
 try {
+  console.log('\n📦 Building Cloud Functions TypeScript (lib/)...');
+  execSync('npm run build', { cwd: functionsDir, stdio: 'inherit', shell: true });
+
   // Build all apps
   for (const app of apps) {
     const nextAppDir = path.resolve(functionsDir, '..', 'apps', app);

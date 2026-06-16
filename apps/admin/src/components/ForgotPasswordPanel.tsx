@@ -20,7 +20,7 @@ export function ForgotPasswordPanel() {
       {!open ? (
         <button
           type="button"
-          className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+          className="text-sm font-medium text-primary-600 hover:text-primary-800 hover:underline"
           onClick={() => setOpen(true)}
         >
           ¿Olvidaste tu contraseña?
@@ -35,7 +35,7 @@ export function ForgotPasswordPanel() {
             try {
               await sendPasswordResetEmail(auth, email.trim());
               setMsg(
-                'Si existe una cuenta con ese correo, recibirás un enlace de Firebase para restablecer la contraseña.'
+                'Si existe una cuenta con ese correo, recibirás un enlace para restablecer la contraseña. Revisa también la carpeta de spam.'
               );
             } catch (ex: unknown) {
               const code = ex && typeof ex === 'object' && 'code' in ex ? String((ex as { code: string }).code) : '';
@@ -44,7 +44,7 @@ export function ForgotPasswordPanel() {
                   'Si existe una cuenta con ese correo, recibirás un enlace. Revisa también la carpeta de spam.'
                 );
               } else {
-                setErr(ex instanceof Error ? ex.message : 'No se pudo enviar el correo');
+                setErr('No se pudo enviar el correo. Verifica el email e inténtalo de nuevo.');
               }
             } finally {
               setLoading(false);
@@ -53,7 +53,7 @@ export function ForgotPasswordPanel() {
           className="space-y-2"
         >
           <p className="text-xs text-gray-600">
-            El panel admin usa el mismo proyecto Firebase que el resto de cuentas de la plataforma.
+            Indica el correo con el que inicias sesión. Te enviaremos un enlace para restablecer tu contraseña.
           </p>
           <label className="block text-xs font-medium text-gray-700">Correo de la cuenta</label>
           <input
@@ -69,7 +69,7 @@ export function ForgotPasswordPanel() {
             <button
               type="submit"
               disabled={loading}
-              className="text-sm px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+              className="text-sm px-3 py-1.5 rounded-lg bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50"
             >
               {loading ? 'Enviando…' : 'Enviar enlace'}
             </button>

@@ -185,7 +185,7 @@ export default function PaymentsHistoryPage() {
                           href={payment.invoiceUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-900 mr-4"
+                          className="text-primary-600 hover:text-primary-900 mr-4"
                         >
                           Ver Factura
                         </a>
@@ -195,7 +195,7 @@ export default function PaymentsHistoryPage() {
                           href={payment.invoicePdf}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-900"
+                          className="text-primary-600 hover:text-primary-900"
                         >
                           PDF
                         </a>

@@ -181,14 +181,14 @@ export function RealTimeNotifications({ userId, tenantId }: RealTimeNotification
             onClick={() => setShowDropdown(false)}
           />
 
-          <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl border border-gray-200 z-20 max-h-[80vh] overflow-hidden flex flex-col">
+          <div className="absolute right-0 mt-2 w-[min(24rem,calc(100vw-2rem))] bg-white rounded-lg shadow-xl border border-gray-200 z-20 max-h-[80vh] overflow-hidden flex flex-col">
             {/* Header */}
             <div className="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
               <h3 className="font-semibold text-gray-900">Notificaciones</h3>
               {unreadCount > 0 && (
                 <button
                   onClick={markAllAsRead}
-                  className="text-xs text-blue-600 hover:text-blue-800"
+                  className="text-xs text-primary-600 hover:text-primary-800"
                 >
                   Marcar todas como leídas
                 </button>
@@ -208,7 +208,7 @@ export function RealTimeNotifications({ userId, tenantId }: RealTimeNotification
                     <div
                       key={notification.id}
                       className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors ${
-                        !notification.isRead ? 'bg-blue-50' : ''
+                        !notification.isRead ? 'bg-primary-50' : ''
                       }`}
                       onClick={() => {
                         markAsRead(notification.id);
@@ -225,7 +225,7 @@ export function RealTimeNotifications({ userId, tenantId }: RealTimeNotification
                               {notification.title}
                             </h4>
                             {!notification.isRead && (
-                              <span className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0" />
+                              <span className="w-2 h-2 bg-primary-500 rounded-full flex-shrink-0" />
                             )}
                           </div>
                           <p className="text-sm text-gray-600 line-clamp-2">

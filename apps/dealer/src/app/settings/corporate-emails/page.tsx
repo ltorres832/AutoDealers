@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useRealtimeCorporateEmails } from '@/hooks/useRealtimeCorporateEmails';
 
 interface CorporateEmail {
   id: string;
@@ -27,31 +28,63 @@ interface User {
 }
 
 export default function CorporateEmailsPage() {
-  const [emails, setEmails] = useState<CorporateEmail[]>([]);
+  const [tenantId, setTenantId] = useState<string | undefined>();
+  const { emails: realtimeEmails, loading: emailsLoading } = useRealtimeCorporateEmails(tenantId);
   const [users, setUsers] = useState<User[]>([]);
   const [usage, setUsage] = useState<EmailUsage | null>(null);
-  const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedEmail, setSelectedEmail] = useState<CorporateEmail | null>(null);
   const [showActionsModal, setShowActionsModal] = useState(false);
 
+  const emails = useMemo<CorporateEmail[]>(
+    () =>
+      realtimeEmails.map((e) => ({
+        id: e.id,
+        userId: e.userId,
+        email: e.emailAddress,
+        emailAlias: e.isAlias ? e.username : undefined,
+        status:
+          e.status === 'deleted'
+            ? 'deleted'
+            : e.status === 'suspended'
+              ? 'suspended'
+              : 'active',
+        createdBy: 'dealer',
+        createdAt: e.createdAt.toISOString(),
+      })),
+    [realtimeEmails]
+  );
+
   useEffect(() => {
-    fetchEmails();
+    async function loadTenant() {
+      try {
+        const response = await fetch('/api/user');
+        if (response.ok) {
+          const data = await response.json();
+          setTenantId(data.user?.tenantId);
+        }
+      } catch (error) {
+        console.error('Error loading tenant:', error);
+      }
+    }
+    loadTenant();
     fetchUsers();
   }, []);
 
-  async function fetchEmails() {
+  useEffect(() => {
+    if (!tenantId) return;
+    fetchUsage();
+  }, [tenantId]);
+
+  async function fetchUsage() {
     try {
       const response = await fetch('/api/corporate-email');
       if (response.ok) {
         const data = await response.json();
-        setEmails(data.emails || []);
         setUsage(data.usage || null);
       }
     } catch (error) {
       console.error('Error:', error);
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -81,7 +114,6 @@ export default function CorporateEmailsPage() {
 
       if (response.ok) {
         alert('✅ Email suspendido exitosamente');
-        fetchEmails();
         setShowActionsModal(false);
       } else {
         const error = await response.json();
@@ -102,7 +134,6 @@ export default function CorporateEmailsPage() {
 
       if (response.ok) {
         alert('✅ Email activado exitosamente');
-        fetchEmails();
         setShowActionsModal(false);
       } else {
         const error = await response.json();
@@ -125,7 +156,6 @@ export default function CorporateEmailsPage() {
 
       if (response.ok) {
         alert('✅ Email eliminado exitosamente');
-        fetchEmails();
         setShowActionsModal(false);
       } else {
         const error = await response.json();
@@ -136,7 +166,7 @@ export default function CorporateEmailsPage() {
     }
   }
 
-  if (loading) {
+  if (emailsLoading && !tenantId) {
     return (
       <div className="flex justify-center p-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
@@ -168,11 +198,11 @@ export default function CorporateEmailsPage() {
 
       {/* Uso de emails */}
       {usage && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+        <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 mb-6">
           <div className="flex items-center gap-4">
             <div>
               <p className="text-sm text-gray-600">Emails usados</p>
-              <p className="text-2xl font-bold text-blue-600">
+              <p className="text-2xl font-bold text-primary-600">
                 {usage.emailsUsed} / {usage.emailsLimit === 0 ? '∞' : usage.emailsLimit}
               </p>
             </div>
@@ -180,7 +210,7 @@ export default function CorporateEmailsPage() {
               {usage.emailsLimit > 0 && (
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
-                    className="bg-blue-600 h-2 rounded-full"
+                    className="bg-primary-600 h-2 rounded-full"
                     style={{
                       width: `${Math.min((usage.emailsUsed / usage.emailsLimit) * 100, 100)}%`,
                     }}
@@ -233,7 +263,7 @@ export default function CorporateEmailsPage() {
                         setSelectedEmail(email);
                         setShowActionsModal(true);
                       }}
-                      className="flex-1 bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 text-sm"
+                      className="flex-1 bg-primary-600 text-white px-3 py-2 rounded hover:bg-primary-700 text-sm"
                     >
                       ⚙️ Acciones
                     </button>
@@ -276,7 +306,7 @@ export default function CorporateEmailsPage() {
                         setSelectedEmail(email);
                         setShowActionsModal(true);
                       }}
-                      className="flex-1 bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 text-sm"
+                      className="flex-1 bg-primary-600 text-white px-3 py-2 rounded hover:bg-primary-700 text-sm"
                     >
                       ⚙️ Acciones
                     </button>
@@ -310,7 +340,7 @@ export default function CorporateEmailsPage() {
           usage={usage}
           onClose={() => {
             setShowCreateModal(false);
-            fetchEmails();
+            void fetchUsage();
           }}
         />
       )}

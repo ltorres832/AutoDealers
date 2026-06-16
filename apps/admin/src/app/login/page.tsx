@@ -101,11 +101,16 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md">
+    <div className="brand-login-shell brand-top-accent">
+      <header className="brand-login-header">
+        <h1 className="text-2xl font-bold tracking-tight">AutoDealers</h1>
+        <p className="text-sm text-white/90 mt-1">Panel de Administración</p>
+      </header>
+      <div className="brand-login-body">
+      <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md border-t-4 border-primary-600">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">AutoDealers</h1>
-          <p className="text-gray-600">Panel de Administración</p>
+          <h2 className="text-xl font-bold text-gray-900 mb-1">Iniciar sesión</h2>
+          <p className="text-gray-600 text-sm">Acceso restringido a administradores</p>
         </div>
 
         {error && (
@@ -124,7 +129,7 @@ export default function LoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition"
               placeholder="admin@autodealers.com"
               required
               autoComplete="email"
@@ -139,7 +144,7 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition"
               placeholder="••••••••"
               required
               autoComplete="current-password"
@@ -149,7 +154,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 px-4 rounded-lg font-medium hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+            className="w-full bg-gradient-to-r from-primary-600 to-primary-600 text-white py-3 px-4 rounded-lg font-medium hover:from-primary-700 hover:to-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02] active:scale-[0.98]"
           >
             {loading ? (
               <span className="flex items-center justify-center">
@@ -167,7 +172,7 @@ export default function LoginPage() {
 
         <ForgotPasswordPanel />
 
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
+        <div className="mt-6 p-4 bg-primary-50 rounded-lg border border-primary-100">
           <p className="text-xs text-gray-600 mb-2 font-medium">💡 Credenciales de prueba:</p>
           <p className="text-xs text-gray-700 font-mono">📧 admin@autodealers.com</p>
           <p className="text-xs text-gray-700 font-mono">🔑 Admin123456</p>
@@ -176,6 +181,7 @@ export default function LoginPage() {
         <p className="text-center text-xs text-gray-500 mt-6">
           © 2024 AutoDealers. Todos los derechos reservados.
         </p>
+      </div>
       </div>
     </div>
   );

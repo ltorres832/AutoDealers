@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { getStripeInstance, getFirestore } from '@autodealers/core';
 import { getSubscriptionByTenantId } from '@autodealers/billing';
+import { dealerManagedBillingResponse } from '@/lib/dealer-managed-guard';
 import * as admin from 'firebase-admin';
 
 export const dynamic = 'force-dynamic';
@@ -12,6 +13,9 @@ export async function POST(request: NextRequest) {
     if (!auth || !auth.tenantId || auth.role !== 'seller') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const dealerBlock = dealerManagedBillingResponse(auth);
+    if (dealerBlock) return dealerBlock;
 
     const { methodType } = await request.json();
     const paymentMethodType = methodType === 'us_bank_account' ? 'us_bank_account' : 'card';

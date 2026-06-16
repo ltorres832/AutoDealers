@@ -65,12 +65,36 @@ export async function getStripeSecretKey(): Promise<string | undefined> {
   return key || process.env.STRIPE_SECRET_KEY;
 }
 
+/** Signing secret de Stripe (Dashboard → Webhook → Signing secret). No confundir con la URL del endpoint. */
+export function isValidStripeWebhookSecret(value: string | undefined | null): boolean {
+  if (!value || typeof value !== 'string') return false;
+  const trimmed = value.trim();
+  return trimmed.startsWith('whsec_') && trimmed.length > 12;
+}
+
+function resolveStripeWebhookSecret(fromFirestore: string | undefined): string | undefined {
+  if (isValidStripeWebhookSecret(fromFirestore)) {
+    return fromFirestore!.trim();
+  }
+  const fromEnv = process.env.STRIPE_WEBHOOK_SECRET;
+  if (isValidStripeWebhookSecret(fromEnv)) {
+    return fromEnv.trim();
+  }
+  const raw = fromFirestore?.trim();
+  if (raw?.startsWith('http://') || raw?.startsWith('https://')) {
+    console.warn(
+      '[stripe] stripeWebhookSecret en Firestore es una URL; debe ser whsec_... (Signing secret en Stripe Dashboard).'
+    );
+  }
+  return undefined;
+}
+
 /**
  * Obtiene el Webhook Secret de Stripe desde Firestore o variables de entorno
  */
 export async function getStripeWebhookSecret(): Promise<string | undefined> {
   const key = await getSystemCredential('stripeWebhookSecret');
-  return key || process.env.STRIPE_WEBHOOK_SECRET;
+  return resolveStripeWebhookSecret(key);
 }
 
 /**

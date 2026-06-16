@@ -79,6 +79,7 @@ export function PublishVehicleToSocialModal({
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState('');
   const [toast, setToast] = useState<ToastData | null>(null);
+  const [lastPublishErrors, setLastPublishErrors] = useState<string | null>(null);
 
   const showToast = useCallback((type: ToastData['type'], title: string, message?: string) => {
     setToast({ id: String(Date.now()), type, title, message });
@@ -181,7 +182,20 @@ export function PublishVehicleToSocialModal({
     }
   }
 
+  function extractPublishError(data: Record<string, unknown>): string {
+    const results = data.results as Array<{ platform?: string; success?: boolean; error?: string }> | undefined;
+    if (Array.isArray(results)) {
+      const failed = results.filter((r) => r && r.success === false);
+      if (failed.length > 0) {
+        return failed.map((r) => `${r.platform ?? 'red'}: ${r.error ?? 'error'}`).join(' · ');
+      }
+    }
+    const err = data.error ?? data.message ?? data.details;
+    return typeof err === 'string' ? err : 'Error al publicar';
+  }
+
   async function handlePublish() {
+    setLastPublishErrors(null);
     if (!postText.trim()) {
       showToast('warning', 'Escribe o genera el texto del post');
       return;
@@ -206,6 +220,7 @@ export function PublishVehicleToSocialModal({
       if (publishMode === 'schedule') {
         if (!scheduleDate || !scheduleTime) {
           showToast('warning', 'Indica fecha y hora');
+          setPublishing(false);
           return;
         }
         const scheduledFor = new Date(`${scheduleDate}T${scheduleTime}`).toISOString();
@@ -234,16 +249,38 @@ export function PublishVehicleToSocialModal({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         });
-        const data = await res.json();
-        if (!res.ok || (data.success === false && !data.results?.some((r: { success: boolean }) => r.success))) {
-          throw new Error(data.error || data.message || 'Error al publicar');
+        let data: Record<string, unknown> = {};
+        try {
+          data = (await res.json()) as Record<string, unknown>;
+        } catch {
+          throw new Error(`Respuesta inválida del servidor (${res.status})`);
         }
-        showToast('success', 'Publicado en redes', data.message || 'Revisa Facebook e Instagram.');
+        const anyOk = Array.isArray(data.results)
+          ? (data.results as Array<{ success?: boolean }>).some((r) => r.success)
+          : false;
+        if (!res.ok || (data.success === false && !anyOk)) {
+          const detail = extractPublishError(data);
+          setLastPublishErrors(detail);
+          throw new Error(detail);
+        }
+        if (!anyOk && data.success !== true) {
+          const detail = extractPublishError(data);
+          setLastPublishErrors(detail);
+          throw new Error(detail);
+        }
+        const partial = extractPublishError(data);
+        showToast(
+          'success',
+          anyOk && partial && data.success === false ? 'Publicado parcialmente' : 'Publicado en redes',
+          (data.message as string) || partial || 'Revisa tu página de Facebook.'
+        );
       }
       onPublished?.();
-      setTimeout(onClose, 1200);
+      setTimeout(onClose, 1500);
     } catch (e) {
-      showToast('error', 'No se pudo publicar', e instanceof Error ? e.message : 'Verifica las integraciones');
+      const msg = e instanceof Error ? e.message : 'Verifica las integraciones en Configuración';
+      setLastPublishErrors(msg);
+      showToast('error', 'No se pudo publicar', msg);
     } finally {
       setPublishing(false);
     }
@@ -312,7 +349,7 @@ export function PublishVehicleToSocialModal({
             {loadingIntegrations ? (
               <p className="text-sm text-gray-500">Cargando integraciones…</p>
             ) : integrations.length === 0 ? (
-              <div className="rounded-lg bg-blue-50 border border-blue-200 p-4 text-sm text-blue-900">
+              <div className="rounded-lg bg-primary-50 border border-primary-200 p-4 text-sm text-primary-900">
                 <p className="font-medium mb-1">Redes no conectadas</p>
                 <p>
                   {mode === 'admin' ? (
@@ -370,7 +407,7 @@ export function PublishVehicleToSocialModal({
                   type="button"
                   onClick={() => void generateWithAI()}
                   disabled={aiGenerating || selectedPlatforms.length === 0}
-                  className="w-full py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-primary-600 to-primary-600 text-white font-medium disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {aiGenerating ? (
                     <>
@@ -396,7 +433,7 @@ export function PublishVehicleToSocialModal({
                 {hashtags.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {hashtags.map((tag) => (
-                      <span key={tag} className="text-xs px-2 py-1 bg-blue-50 text-blue-800 rounded-full">
+                      <span key={tag} className="text-xs px-2 py-1 bg-primary-50 text-primary-800 rounded-full">
                         #{tag.replace(/^#/, '')}
                       </span>
                     ))}
@@ -441,6 +478,23 @@ export function PublishVehicleToSocialModal({
                     </div>
                   ) : null}
                 </div>
+
+                {lastPublishErrors ? (
+                  <div
+                    className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900"
+                    role="alert"
+                  >
+                    <p className="font-medium mb-1">Último error al publicar</p>
+                    <p className="break-words">{lastPublishErrors}</p>
+                    <p className="text-xs mt-2 text-red-800">
+                      Si ves error (#200) o &quot;page itself&quot;, desconecta y vuelve a conectar Meta en{' '}
+                      <a href={settingsIntegrationsHref} className="underline font-medium">
+                        Integraciones
+                      </a>{' '}
+                      (así se renueva el token de la página). Instagram requiere cuenta Business vinculada.
+                    </p>
+                  </div>
+                ) : null}
               </>
             ) : null}
           </div>

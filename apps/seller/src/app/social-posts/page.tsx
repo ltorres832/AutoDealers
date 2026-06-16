@@ -704,14 +704,14 @@ export default function SocialPostsPage() {
                         <p className="text-gray-900 mb-2">{post.content.text.substring(0, 150)}...</p>
                         <div className="flex gap-2 flex-wrap">
                           {post.platforms.map((platform) => (
-                            <span key={platform} className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs">
+                            <span key={platform} className="px-2 py-1 bg-primary-50 text-primary-700 rounded text-xs">
                               {platform === 'facebook' ? '📘' : '📷'} {platform}
                             </span>
                           ))}
                         </div>
                       </div>
                       <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        post.status === 'scheduled' ? 'bg-blue-100 text-blue-700' :
+                        post.status === 'scheduled' ? 'bg-primary-100 text-primary-700' :
                         post.status === 'published' ? 'bg-green-100 text-green-700' :
                         post.status === 'cancelled' ? 'bg-gray-100 text-gray-700' :
                         'bg-red-100 text-red-700'
@@ -811,7 +811,7 @@ export default function SocialPostsPage() {
                   <button
                     onClick={generatePostWithAI}
                     disabled={aiGenerating}
-                    className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="w-full px-4 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {aiGenerating ? (
                       <>
@@ -860,7 +860,7 @@ export default function SocialPostsPage() {
                       <label className="block text-sm font-medium mb-2">Hashtags</label>
                       <div className="flex flex-wrap gap-2">
                         {postContent.hashtags.map((hashtag) => (
-                          <span key={hashtag} className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm">
+                          <span key={hashtag} className="px-3 py-1 bg-primary-50 text-primary-700 rounded-full text-sm">
                             #{hashtag}
                           </span>
                         ))}
@@ -1039,8 +1039,8 @@ export default function SocialPostsPage() {
               </div>
 
               {adForm.budget > 0 && adForm.duration > 0 && (
-                <div className="bg-blue-50 border border-blue-200 rounded p-4">
-                  <p className="text-sm text-blue-800">
+                <div className="bg-primary-50 border border-primary-200 rounded p-4">
+                  <p className="text-sm text-primary-800">
                     <strong>Presupuesto diario estimado:</strong> ${(adForm.budget / adForm.duration).toFixed(2)}
                   </p>
                 </div>

@@ -15,7 +15,13 @@ interface SponsoredContent {
   imageUrl: string;
   videoUrl?: string;
   linkUrl: string;
-  linkType?: 'external' | 'landing_page';
+  linkType?:
+    | 'external'
+    | 'landing_page'
+    | 'marketplace'
+    | 'inventory'
+    | 'contact'
+    | 'none';
   impressions: number;
   clicks: number;
   status: string;

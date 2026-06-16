@@ -2,7 +2,9 @@
 
 // Panel Admin: Ver todos los Aliases
 
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
+import { useRealtimeEmailAliases } from '@/hooks/useRealtimeEmailAliases';
+import { useRealtimeDealers } from '@/hooks/useRealtimeDealers';
 
 interface EmailAlias {
   id: string;
@@ -21,56 +23,27 @@ interface Dealer {
 }
 
 export default function EmailAliasesPage() {
-  const [aliases, setAliases] = useState<EmailAlias[]>([]);
-  const [dealers, setDealers] = useState<Record<string, Dealer>>({});
-  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'active' | 'suspended'>('all');
+  const { aliases: allAliases, loading } = useRealtimeEmailAliases();
+  const { dealers: dealersList } = useRealtimeDealers();
 
-  useEffect(() => {
-    fetchAliases();
-    fetchDealers();
-  }, [filter]);
+  const dealers = useMemo(() => {
+    const map: Record<string, Dealer> = {};
+    dealersList.forEach((dealer) => {
+      map[dealer.dealerId] = { dealerId: dealer.dealerId, name: dealer.name };
+    });
+    return map;
+  }, [dealersList]);
 
-  async function fetchAliases() {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/email-aliases');
-      const data = await response.json();
-
-      if (response.ok) {
-        let filteredAliases = data.aliases || [];
-        if (filter === 'active') {
-          filteredAliases = filteredAliases.filter((a: EmailAlias) => a.active && a.status === 'active');
-        } else if (filter === 'suspended') {
-          filteredAliases = filteredAliases.filter((a: EmailAlias) => a.status === 'suspended');
-        }
-        setAliases(filteredAliases);
-      } else {
-        console.error('Error:', data.error);
-      }
-    } catch (error) {
-      console.error('Error fetching aliases:', error);
-    } finally {
-      setLoading(false);
+  const aliases = useMemo(() => {
+    if (filter === 'active') {
+      return allAliases.filter((a) => a.active && a.status === 'active');
     }
-  }
-
-  async function fetchDealers() {
-    try {
-      const response = await fetch('/api/dealers');
-      const data = await response.json();
-
-      if (response.ok) {
-        const dealersMap: Record<string, Dealer> = {};
-        (data.dealers || []).forEach((dealer: Dealer) => {
-          dealersMap[dealer.dealerId] = dealer;
-        });
-        setDealers(dealersMap);
-      }
-    } catch (error) {
-      console.error('Error fetching dealers:', error);
+    if (filter === 'suspended') {
+      return allAliases.filter((a) => a.status === 'suspended');
     }
-  }
+    return allAliases;
+  }, [allAliases, filter]);
 
   async function handleAction(aliasId: string, action: 'suspend' | 'activate' | 'delete') {
     if (!confirm(`¿Estás seguro de ${action === 'suspend' ? 'suspender' : action === 'activate' ? 'activar' : 'eliminar'} este alias?`)) {
@@ -88,7 +61,6 @@ export default function EmailAliasesPage() {
 
       if (response.ok) {
         alert(`Alias ${action === 'suspend' ? 'suspendido' : action === 'activate' ? 'activado' : 'eliminado'} exitosamente`);
-        fetchAliases();
       } else {
         alert(`Error: ${data.error}`);
       }
@@ -106,7 +78,7 @@ export default function EmailAliasesPage() {
       </div>
 
       {/* Filtros */}
-      <div className="mb-6 flex gap-4">
+      <div className="mb-6 filter-chip-row">
         <button
           onClick={() => setFilter('all')}
           className={`px-4 py-2 rounded-lg ${
@@ -145,6 +117,7 @@ export default function EmailAliasesPage() {
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <div className="table-scroll">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -221,6 +194,7 @@ export default function EmailAliasesPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

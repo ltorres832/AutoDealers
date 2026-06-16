@@ -2,6 +2,12 @@
 
 import { useEffect } from 'react';
 import { membershipAllowsMultiDealerNetwork } from '@autodealers/billing/membership-network';
+import { coerceMembershipNumber } from '@/lib/membership-number-utils';
+
+function formatMembershipPrice(price: unknown): string {
+  const n = coerceMembershipNumber(price);
+  return n % 1 === 0 ? String(n) : n.toFixed(2);
+}
 
 interface MembershipFeatures {
   maxSellers?: number | null;
@@ -105,14 +111,19 @@ export default function MembershipCard({ membership, isPopular = false }: Member
   const exclusiveFeatures = [];
 
   // Límites numéricos
+  const numLimit = (v: unknown) => {
+    const n = coerceMembershipNumber(v);
+    return n;
+  };
+
   if (membership.features.maxSellers !== undefined && membership.features.maxSellers !== null) {
-    limits.push({ label: 'Vendedores', value: membership.features.maxSellers, icon: '👥' });
+    limits.push({ label: 'Vendedores', value: numLimit(membership.features.maxSellers), icon: '👥' });
   } else if (membership.features.maxSellers === null) {
     limits.push({ label: 'Vendedores', value: '∞', icon: '👥', unlimited: true });
   }
 
   if (membership.features.maxInventory !== undefined && membership.features.maxInventory !== null) {
-    limits.push({ label: 'Vehículos', value: membership.features.maxInventory, icon: '🚗' });
+    limits.push({ label: 'Vehículos', value: numLimit(membership.features.maxInventory), icon: '🚗' });
   } else if (membership.features.maxInventory === null) {
     limits.push({ label: 'Vehículos', value: '∞', icon: '🚗', unlimited: true });
   }
@@ -125,7 +136,7 @@ export default function MembershipCard({ membership, isPopular = false }: Member
   // }
 
   if (membership.features.maxStorageGB !== undefined && membership.features.maxStorageGB !== null) {
-    limits.push({ label: 'Almacenamiento', value: `${membership.features.maxStorageGB} GB`, icon: '💾' });
+    limits.push({ label: 'Almacenamiento', value: `${numLimit(membership.features.maxStorageGB)} GB`, icon: '💾' });
   } else if (membership.features.maxStorageGB === null) {
     limits.push({ label: 'Almacenamiento', value: '∞', icon: '💾', unlimited: true });
   }
@@ -178,7 +189,7 @@ export default function MembershipCard({ membership, isPopular = false }: Member
     if (membership.features.maxDealers !== undefined && membership.features.maxDealers !== null) {
       limits.push({ 
         label: 'Dealers Permitidos', 
-        value: membership.features.maxDealers, 
+        value: numLimit(membership.features.maxDealers), 
         icon: '🏢' 
       });
     } else if (membership.features.maxDealers === null || membership.features.maxDealers === undefined) {
@@ -202,7 +213,7 @@ export default function MembershipCard({ membership, isPopular = false }: Member
     if (membership.features.maxCorporateEmails !== undefined && membership.features.maxCorporateEmails !== null) {
       limits.push({ 
         label: 'Emails Corporativos', 
-        value: membership.features.maxCorporateEmails, 
+        value: numLimit(membership.features.maxCorporateEmails), 
         icon: '📧' 
       });
     } else if (membership.features.maxCorporateEmails === null || membership.features.maxCorporateEmails === undefined) {
@@ -234,14 +245,14 @@ export default function MembershipCard({ membership, isPopular = false }: Member
     <div
       className={`bg-white rounded-lg shadow-lg p-6 border-2 transition-all hover:shadow-xl ${
         isPopular
-          ? 'border-blue-600 scale-105 bg-gradient-to-br from-blue-50 to-white'
+          ? 'border-primary-600 scale-105 bg-gradient-to-br from-primary-50 to-white'
           : membership.isActive === false
           ? 'border-red-300 opacity-75'
           : 'border-gray-200'
       }`}
     >
       {isPopular && (
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-1 rounded-full text-xs font-semibold inline-block mb-4">
+        <div className="bg-gradient-to-r from-primary-600 to-primary-600 text-white px-4 py-1 rounded-full text-xs font-semibold inline-block mb-4">
           ⭐ MÁS POPULAR
         </div>
       )}
@@ -253,7 +264,7 @@ export default function MembershipCard({ membership, isPopular = false }: Member
 
       <div className="mb-6">
         <div className="flex items-baseline">
-          <span className="text-4xl font-bold text-gray-900">${membership.price}</span>
+          <span className="text-4xl font-bold text-gray-900">${formatMembershipPrice(membership.price)}</span>
           <span className="text-lg text-gray-600 ml-2">
             /{membership.billingCycle === 'monthly' ? 'mes' : 'año'}
           </span>
@@ -300,7 +311,7 @@ export default function MembershipCard({ membership, isPopular = false }: Member
 
       {/* Mensaje sobre límites - Solo mostrar si TODOS los límites relevantes son ilimitados */}
       {limits.length > 0 && limits.every(l => l.unlimited) && (
-        <div className="mt-4 p-3 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border border-green-200">
+        <div className="mt-4 p-3 bg-gradient-to-r from-green-50 to-primary-50 rounded-lg border border-green-200">
           <p className="text-xs font-semibold text-green-700 text-center">
             🎉 Todo Ilimitado - Sin Restricciones
           </p>

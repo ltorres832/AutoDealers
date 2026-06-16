@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase-client';
 import { doc, onSnapshot } from 'firebase/firestore';
 
-interface Rewards {
+export interface ReferralRewardsView {
   activeRewards: {
     nextMonthDiscount: number;
     freeMonthsRemaining: number;
@@ -19,74 +19,48 @@ interface Rewards {
 }
 
 export function useRealtimeRewards(userId: string) {
-  const [rewards, setRewards] = useState<Rewards | null>(null);
+  const [rewards, setRewards] = useState<ReferralRewardsView | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!userId || !db) {
+    if (!userId) {
       setLoading(false);
       return;
     }
 
-    // Listener en tiempo real para el documento del usuario
+    if (!db) {
+      setLoading(false);
+      return;
+    }
+
     const unsubscribe = onSnapshot(
       doc(db, 'users', userId),
-      async (snapshot: any) => {
+      (snapshot) => {
         if (snapshot.exists()) {
           const userData = snapshot.data();
-          const activeRewards = userData.activeRewards || {
-            nextMonthDiscount: 0,
-            freeMonthsRemaining: 0,
-            promotionCredits: 0,
-            bannerCredits: 0,
-          };
-
-          // Obtener créditos disponibles (esto requiere llamada a API ya que getAvailableCredits es server-side)
-          try {
-            const creditsResponse = await fetch('/api/referrals/my-rewards', { credentials: 'include' });
-            if (creditsResponse.ok) {
-              const creditsData = await creditsResponse.json();
-              setRewards({
-                activeRewards: {
-                  ...activeRewards,
-                  promotionCredits: creditsData.activeRewards?.promotionCredits || 0,
-                  bannerCredits: creditsData.activeRewards?.bannerCredits || 0,
-                },
-                stats: creditsData.stats || {
-                  totalReferred: 0,
-                  totalRewarded: 0,
-                  pendingRewards: 0,
-                },
-              });
-            } else {
-              // Fallback si falla la API
-              setRewards({
-                activeRewards,
-                stats: userData.referralStats || {
-                  totalReferred: 0,
-                  totalRewarded: 0,
-                  pendingRewards: 0,
-                },
-              });
-            }
-          } catch (error) {
-            console.error('Error fetching credits:', error);
-            setRewards({
-              activeRewards,
-              stats: userData.referralStats || {
-                totalReferred: 0,
-                totalRewarded: 0,
-                pendingRewards: 0,
-              },
-            });
-          }
+          setRewards({
+            activeRewards: (userData.activeRewards as ReferralRewardsView['activeRewards']) || {
+              nextMonthDiscount: 0,
+              freeMonthsRemaining: 0,
+              promotionCredits: 0,
+              bannerCredits: 0,
+            },
+            stats: (userData.referralStats as ReferralRewardsView['stats']) || {
+              totalReferred: 0,
+              totalRewarded: 0,
+              pendingRewards: 0,
+            },
+          });
         } else {
           setRewards(null);
         }
         setLoading(false);
+        setError(null);
       },
-      (error) => {
-        console.error('Error listening to rewards:', error);
+      (err) => {
+        console.error('Error en listener rewards:', err);
+        setError(err.message);
         setLoading(false);
       }
     );
@@ -94,6 +68,5 @@ export function useRealtimeRewards(userId: string) {
     return () => unsubscribe();
   }, [userId]);
 
-  return { rewards, loading };
+  return { rewards, loading, error };
 }
-

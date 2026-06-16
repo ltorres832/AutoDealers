@@ -45,7 +45,7 @@ export const getStripeConfig = onCall(
           taxRate: 0,
           paymentMethods: ['card'],
           subscriptionSettings: {
-            trialDays: 0,
+            trialDays: 7,
             gracePeriodDays: 7,
             cancelAtPeriodEnd: true,
           },

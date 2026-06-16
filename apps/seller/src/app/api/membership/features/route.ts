@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { getTenantFeatures, getTenantMembership } from '@autodealers/core';
+import { resolveBillingTenantId } from '@autodealers/billing';
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,9 +11,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Obtener features del tenant
-    const features = await getTenantFeatures(auth.tenantId);
-    const membership = await getTenantMembership(auth.tenantId);
+    const featureTenantId =
+      resolveBillingTenantId(auth.tenantId, auth.dealerId) ?? auth.tenantId;
+
+    const features = await getTenantFeatures(featureTenantId);
+    const membership = await getTenantMembership(featureTenantId);
 
     if (!membership) {
       return NextResponse.json(

@@ -60,7 +60,7 @@ export default function DashboardSidebar({ mobileOpen, onClose }: DashboardSideb
                     onClick={onClose}
                     className={`flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-3 text-sm transition-colors md:px-4 ${
                       isActive
-                        ? 'bg-blue-50 font-semibold text-blue-600'
+                        ? 'bg-primary-50 font-semibold text-primary-600'
                         : 'text-gray-700 hover:bg-gray-50'
                     }`}
                   >

@@ -36,9 +36,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (isSellerRole(auth.role)) {
-      if (!isVideo) {
+      const isTrustGalleryUpload = type === 'seller_public_trust_gallery' && isImage;
+      if (!isVideo && !isTrustGalleryUpload) {
         return NextResponse.json(
-          { error: 'Los vendedores solo pueden subir video para su página pública' },
+          { error: 'Los vendedores pueden subir videos o fotos para su página pública' },
           { status: 403 }
         );
       }
@@ -65,37 +66,44 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Solo se permiten archivos de video' }, { status: 400 });
       }
       const { getStorage } = await import('@autodealers/core');
+      const { uploadBufferToAccessibleUrl } = await import('@autodealers/shared/firebase-storage-upload');
       const storage = getStorage();
       const bucket = storage.bucket();
       const timestamp = Date.now();
       const sanitizedFilename = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
       const filePath = `tenants/${auth.tenantId}/website-promo/${timestamp}_${sanitizedFilename}`;
-      const fileRef = bucket.file(filePath);
-      await fileRef.save(buffer, {
-        metadata: {
-          contentType: file.type,
-          metadata: { tenantId: auth.tenantId, type: 'dealer_website_promo' },
-        },
+      url = await uploadBufferToAccessibleUrl(bucket, filePath, buffer, file.type, {
+        tenantId: auth.tenantId,
+        type: 'dealer_website_promo',
       });
-      await fileRef.makePublic();
-      url = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
-    } else if (type === 'seller_public_promo' && isVideo) {
+    } else if (type === 'seller_public_trust_gallery' && isImage) {
       const { getStorage } = await import('@autodealers/core');
+      const { uploadBufferToAccessibleUrl } = await import('@autodealers/shared/firebase-storage-upload');
       const storage = getStorage();
       const bucket = storage.bucket();
-      const userId = isSellerRole(auth.role) ? auth.userId : auth.userId;
+      const userId = auth.userId;
+      const timestamp = Date.now();
+      const sanitizedFilename = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const filePath = `tenants/${auth.tenantId}/public-trust-gallery/${userId}/${timestamp}_${sanitizedFilename}`;
+      url = await uploadBufferToAccessibleUrl(bucket, filePath, buffer, file.type, {
+        tenantId: auth.tenantId,
+        userId,
+        type: 'seller_public_trust_gallery',
+      });
+    } else if (type === 'seller_public_promo' && isVideo) {
+      const { getStorage } = await import('@autodealers/core');
+      const { uploadBufferToAccessibleUrl } = await import('@autodealers/shared/firebase-storage-upload');
+      const storage = getStorage();
+      const bucket = storage.bucket();
+      const userId = auth.userId;
       const timestamp = Date.now();
       const sanitizedFilename = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
       const filePath = `tenants/${auth.tenantId}/seller-public/${userId}/${timestamp}_${sanitizedFilename}`;
-      const fileRef = bucket.file(filePath);
-      await fileRef.save(buffer, {
-        metadata: {
-          contentType: file.type,
-          metadata: { tenantId: auth.tenantId, userId, type: 'seller_public_promo' },
-        },
+      url = await uploadBufferToAccessibleUrl(bucket, filePath, buffer, file.type, {
+        tenantId: auth.tenantId,
+        userId,
+        type: 'seller_public_promo',
       });
-      await fileRef.makePublic();
-      url = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
     } else if (type === 'vehicle') {
       const vehicleId = formData.get('vehicleId') as string || 'temp';
       url = await uploadVehicleImage(

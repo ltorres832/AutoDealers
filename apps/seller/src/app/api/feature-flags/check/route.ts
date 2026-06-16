@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveDashboardFeatureEnabled, type DashboardType } from '@autodealers/core';
+import { resolveDashboardFeatureEnabled } from '@autodealers/core/dashboard-feature-membership';
+import type { DashboardType } from '@autodealers/core/feature-flags';
 import { verifyAuth } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {

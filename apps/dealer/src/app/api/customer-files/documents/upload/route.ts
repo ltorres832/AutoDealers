@@ -108,6 +108,27 @@ export async function POST(request: NextRequest) {
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
+    try {
+      const { notifyFIDocumentEvent } = await import('@autodealers/core');
+      const fileData = customerFileDoc.data()!;
+      const sellerId = fileData.sellerId as string | undefined;
+      const customerName = fileData.customerInfo?.fullName || 'Cliente';
+      const isSeller = auth.role === 'seller';
+
+      await notifyFIDocumentEvent(auth.tenantId, {
+        title: 'Documento agregado al expediente',
+        message: isSeller
+          ? `El vendedor agregó "${name}" al expediente de ${customerName}.`
+          : `Se agregó "${name}" al expediente de ${customerName}.`,
+        sellerId: isSeller ? undefined : sellerId,
+        excludeUserIds: isSeller ? [auth.userId] : undefined,
+        fileId: customerFileId,
+        route: `/customer-files/${customerFileId}`,
+      });
+    } catch (notifErr) {
+      console.warn('Customer file upload notification skipped:', notifErr);
+    }
+
     return NextResponse.json({
       success: true,
       document: {

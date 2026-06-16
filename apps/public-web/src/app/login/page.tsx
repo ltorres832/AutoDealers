@@ -36,12 +36,11 @@ function normalizePortalRole(
   return null;
 }
 
-const LINK_FIREBASE_AUTH_SETTINGS = `https://console.firebase.google.com/project/${PROJECT_ID}/authentication/settings`;
 
 function mapAuthError(message: string): string {
   const m = message.toLowerCase();
   if (m.includes('network-request-failed') || m.includes('failed to fetch') || m.includes('network error')) {
-    return 'No se pudo conectar con Firebase. Prueba otra red, desactiva bloqueadores de anuncios o extensión que bloquee googleapis.com, y revisa dominios autorizados en Firebase Authentication.';
+    return 'No se pudo conectar. Comprueba tu conexión, desactiva bloqueadores que impidan cargar el sitio e inténtalo de nuevo.';
   }
   if (m.includes('invalid-credential') || m.includes('wrong-password') || m.includes('invalid login')) {
     return 'Email o contraseña incorrectos';
@@ -51,6 +50,9 @@ function mapAuthError(message: string): string {
   }
   if (m.includes('too-many-requests')) {
     return 'Demasiados intentos. Espera unos minutos e intenta de nuevo.';
+  }
+  if (m.includes('firebase') || m.includes('auth/')) {
+    return 'No se pudo completar el acceso. Inténtalo de nuevo o contacta al soporte.';
   }
   return message;
 }
@@ -236,13 +238,13 @@ function LoginPageContent() {
       const password = formData.password;
 
       if (!firebaseConfig.apiKey?.trim()) {
-        setError('Falta la API key de Firebase en el entorno del cliente.');
+        setError('El servicio de acceso no está disponible. Recarga la página o contacta al soporte.');
         setLoading(false);
         return;
       }
 
       if (!auth) {
-        setError('Firebase no está inicializado. Recarga la página.');
+        setError('No pudimos cargar el acceso a tu cuenta. Recarga la página e inténtalo de nuevo.');
         setLoading(false);
         return;
       }
@@ -289,10 +291,10 @@ function LoginPageContent() {
             return;
           case 'auth/unauthorized-domain':
             setShowDomainHelp(true);
-            setError('Este dominio no está autorizado para iniciar sesión en Firebase.');
+            setError('Este sitio no está autorizado para iniciar sesión. Contacta al soporte.');
             return;
           default:
-            setError(error.message || 'Error al iniciar sesión');
+            setError(mapAuthError(error.message || 'Error al iniciar sesión'));
             return;
         }
       }
@@ -339,19 +341,8 @@ function LoginPageContent() {
 
           {showDomainHelp && (
             <div className="bg-amber-50 border border-amber-200 text-amber-950 rounded-lg px-4 py-3 text-sm">
-              <a
-                href={LINK_FIREBASE_AUTH_SETTINGS}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-700 underline font-medium"
-              >
-                Firebase → Authentication → Dominios autorizados
-              </a>
-              : añade el host de esta página (por ejemplo{' '}
-              <code className="bg-white/80 px-1 rounded text-xs break-all">
-                public-web-app--autodealers-7f62e.us-central1.hosted.app
-              </code>
-              ).
+              Si accedes desde un enlace o dominio nuevo, puede que tu cuenta aún no esté habilitada
+              en este sitio. Contacta al soporte de AutoDealers para que revisen el acceso.
             </div>
           )}
 

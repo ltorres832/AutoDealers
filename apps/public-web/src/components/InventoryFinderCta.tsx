@@ -79,10 +79,10 @@ export default function InventoryFinderCta({ publishedVehicleCount }: { publishe
 
   const primaryInner = (
     <>
-      <div className="absolute inset-0 bg-gradient-to-r from-blue-600/0 via-blue-400/10 to-blue-600/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+      <div className="absolute inset-0 bg-gradient-to-r from-primary-600/0 via-primary-400/10 to-primary-600/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
       <div className="flex flex-col items-start relative z-10">
         {cfg.primarySmallLabel ? (
-          <span className="text-[10px] font-black uppercase tracking-[0.5em] text-blue-400 mb-2">
+          <span className="text-[10px] font-black uppercase tracking-[0.5em] text-primary-400 mb-2">
             {cfg.primarySmallLabel}
           </span>
         ) : null}
@@ -95,7 +95,7 @@ export default function InventoryFinderCta({ publishedVehicleCount }: { publishe
           </div>
         ) : null}
       </div>
-      <div className="w-16 h-16 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-2xl group-hover:scale-110 group-hover:rotate-[360deg] transition-all duration-700 border border-white/20 relative z-10">
+      <div className="w-16 h-16 rounded-full bg-primary-600 text-white flex items-center justify-center shadow-2xl group-hover:scale-110 group-hover:rotate-[360deg] transition-all duration-700 border border-white/20 relative z-10">
         <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
         </svg>
@@ -104,14 +104,14 @@ export default function InventoryFinderCta({ publishedVehicleCount }: { publishe
   );
 
   const primaryClass =
-    'group relative flex items-center gap-8 px-12 py-10 bg-slate-900 text-white rounded-[3rem] shadow-[0_30px_70px_-15px_rgba(0,0,0,0.4)] hover:shadow-blue-900/40 transition-all duration-700 hover:-translate-y-3 active:scale-95 overflow-hidden border border-white/10';
+    'group relative flex items-center gap-8 px-12 py-10 bg-primary-600 text-white rounded-[3rem] shadow-[0_30px_70px_-15px_rgba(0,0,0,0.4)] hover:shadow-primary-900/40 transition-all duration-700 hover:-translate-y-3 active:scale-95 overflow-hidden border border-white/10';
 
   return (
     <div className="mt-32 flex flex-col items-center relative">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-blue-600/5 rounded-full blur-3xl -z-10" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-64 bg-primary-600/5 rounded-full blur-3xl -z-10" />
 
       <div className="flex flex-col items-center text-center mb-12">
-        <div className="w-16 h-1 bg-gradient-to-r from-transparent via-blue-600 to-transparent rounded-full mb-8" />
+        <div className="w-16 h-1 bg-gradient-to-r from-transparent via-primary-600 to-transparent rounded-full mb-8" />
         {cfg.title ? (
           <h4 className="text-2xl font-black text-slate-900 mb-4 tracking-tight uppercase tracking-widest">
             {cfg.title}
@@ -133,9 +133,9 @@ export default function InventoryFinderCta({ publishedVehicleCount }: { publishe
             className="group flex items-center gap-4 px-10 py-8 bg-white border border-slate-200 rounded-[2.5rem] shadow-xl hover:shadow-slate-200 hover:-translate-y-2 transition-all duration-500 font-black text-sm uppercase tracking-widest text-slate-900"
           >
             {cfg.secondaryLabel}
-            <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-blue-50 transition-colors">
+            <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-primary-50 transition-colors">
               <svg
-                className="w-5 h-5 text-slate-400 group-hover:text-blue-600"
+                className="w-5 h-5 text-slate-400 group-hover:text-primary-600"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"

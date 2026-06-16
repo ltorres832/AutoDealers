@@ -84,6 +84,8 @@ export interface Lead {
   metaLeadGenId?: string;
   metaFormId?: string;
   metaAdId?: string;
+  /** Lead generado por el vendedor (publicidad propia); oculto del CRM del dealer. */
+  sellerOwned?: boolean;
   /** Token opaco para que el cliente consulte estado (citas) sin login */
   publicTrackingToken?: string;
   /** Última alerta visible para el cliente (p. ej. cita confirmada) — escuchar con onSnapshot en tiempo real */

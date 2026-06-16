@@ -42,7 +42,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createTestUsers = exports.createPurchaseIntent = void 0;
+exports.createTestUsers = exports.confirmReferralRewardsDaily = exports.processOverdueSubscriptionsDaily = exports.createPurchaseIntent = void 0;
 const admin = __importStar(require("firebase-admin"));
 if (!admin.apps.length) {
     admin.initializeApp();
@@ -71,6 +71,8 @@ __exportStar(require("./messaging/sms"), exports);
 __exportStar(require("./messaging/whatsapp"), exports);
 // Billing Functions
 __exportStar(require("./billing/subscriptions"), exports);
+var process_overdue_cron_1 = require("./billing/process-overdue-cron");
+Object.defineProperty(exports, "processOverdueSubscriptionsDaily", { enumerable: true, get: function () { return process_overdue_cron_1.processOverdueSubscriptionsDaily; } });
 // Notifications Functions
 __exportStar(require("./notifications/notifications"), exports);
 // Reports Functions
@@ -93,6 +95,8 @@ __exportStar(require("./contracts/contracts"), exports);
 __exportStar(require("./reviews/reviews"), exports);
 // Referrals Functions
 __exportStar(require("./referrals/referrals"), exports);
+var confirmation_cron_1 = require("./referrals/confirmation-cron");
+Object.defineProperty(exports, "confirmReferralRewardsDaily", { enumerable: true, get: function () { return confirmation_cron_1.confirmReferralRewardsDaily; } });
 // Banners Functions
 __exportStar(require("./banners/banners"), exports);
 // Customer Files Functions

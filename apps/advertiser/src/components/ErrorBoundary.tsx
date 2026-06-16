@@ -43,7 +43,7 @@ export class ErrorBoundary extends Component<Props, State> {
                   this.setState({ hasError: false });
                   window.location.reload();
                 }}
-                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 font-medium"
+                className="bg-primary-600 text-white px-6 py-2 rounded-lg hover:bg-primary-700 font-medium"
               >
                 Recargar Página
               </button>

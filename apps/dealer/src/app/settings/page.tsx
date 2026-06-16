@@ -14,6 +14,38 @@ export default function SettingsPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Link
+          href="/settings/notifications"
+          className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+        >
+          <div className="flex items-center space-x-4">
+            <div className="h-12 w-12 rounded-lg bg-amber-100 flex items-center justify-center">
+              <span className="text-2xl">🔔</span>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Notificaciones</h3>
+              <p className="text-sm text-gray-600">Push, email, SMS, WhatsApp y sonido</p>
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          href="/settings/document-branding"
+          className="bg-white rounded-xl shadow-sm border-2 border-primary-200 p-6 hover:shadow-md transition-shadow md:col-span-2"
+        >
+          <div className="flex items-center space-x-4">
+            <div className="h-12 w-12 rounded-lg bg-primary-100 flex items-center justify-center">
+              <span className="text-2xl">📄</span>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">PDF F&I — Logo y marca en documentos</h3>
+              <p className="text-sm text-gray-600">
+                Qué logo y nombre salen en solicitudes de crédito, paquetes para banco y contratos PDF
+              </p>
+            </div>
+          </div>
+        </Link>
+
+        <Link
           href="/settings/crm-lead-routing"
           className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
         >
@@ -149,6 +181,23 @@ export default function SettingsPage() {
         </Link>
 
         <Link
+          href="/settings/trust-gallery"
+          className="bg-white rounded-xl shadow-sm border-2 border-primary-200 p-6 hover:shadow-md transition-shadow md:col-span-2"
+        >
+          <div className="flex items-center space-x-4">
+            <div className="h-12 w-12 rounded-lg bg-primary-100 flex items-center justify-center">
+              <span className="text-2xl">📸</span>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Fotos de tu página pública</h3>
+              <p className="text-sm text-gray-600">
+                Galería de confianza: entregas, clientes satisfechos y eventos en tu catálogo web
+              </p>
+            </div>
+          </div>
+        </Link>
+
+        <Link
           href="/settings/branding"
           className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
         >
@@ -193,20 +242,6 @@ export default function SettingsPage() {
           </div>
         </Link>
 
-        <Link
-          href="/settings/document-branding"
-          className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
-        >
-          <div className="flex items-center space-x-4">
-            <div className="h-12 w-12 rounded-lg bg-primary-100 flex items-center justify-center">
-              <span className="text-2xl">✒️</span>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">Marca en documentos PDF</h3>
-              <p className="text-sm text-gray-600">Contratos y PDFs</p>
-            </div>
-          </div>
-        </Link>
       </div>
     </div>
   );

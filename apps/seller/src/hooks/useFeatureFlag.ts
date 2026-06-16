@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { DashboardType } from '@autodealers/core';
+type DashboardType = 'admin' | 'dealer' | 'seller' | 'advertiser' | 'public';
 
 export function useFeatureFlag(featureKey: string, dashboard: DashboardType = 'seller'): boolean {
   const [enabled, setEnabled] = useState(true); // Por defecto habilitado

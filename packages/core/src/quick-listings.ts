@@ -1,6 +1,8 @@
 import { getFirestore } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
+import * as crypto from 'node:crypto';
 import { getFreePublicListingsSettings } from './free-public-listings';
+import { normalizeLoginEmail } from './user-auth-sync';
 
 /**
  * Quick Listings ("Publicar Gratis")
@@ -13,8 +15,8 @@ import { getFreePublicListingsSettings } from './free-public-listings';
  * Colección Firestore: quick_listings/{id}
  *
  * El sistema NO crea usuarios reales: cada anuncio guarda el
- * contacto (nombre/teléfono/email opcional) y se identifica el
- * límite de anuncios activos por número de teléfono normalizado.
+ * contacto (nombre/teléfono/email opcional) y aplica límites por
+ * teléfono, dispositivo (visitorId) e IP para evitar abuso sin registro.
  */
 
 const COLLECTION = 'quick_listings';
@@ -22,7 +24,7 @@ const COLLECTION = 'quick_listings';
 export interface QuickListingInput {
   contactName: string;
   contactPhone: string;
-  contactEmail?: string | null;
+  contactEmail: string;
   city?: string | null;
 
   make: string;
@@ -45,6 +47,8 @@ export interface QuickListingInput {
 
   ipHash?: string | null;
   userAgent?: string | null;
+  /** ID anónimo del navegador (localStorage) para detectar abuso sin registro. */
+  visitorId?: string | null;
   acceptTerms?: boolean;
 }
 
@@ -80,10 +84,22 @@ export interface QuickListing {
 
   source: 'public-web';
   promotedToSellerAt: Date | null;
+  /** Token secreto para consultar vistas y compartir sin cuenta. */
+  managementToken?: string | null;
 }
 
 function getDb() {
   return getFirestore();
+}
+
+/** Normaliza un email para comparación de límites. */
+export function normalizeQuickListingEmail(input: string): string {
+  return normalizeLoginEmail(String(input || ''));
+}
+
+function isValidEmailFormat(email: string): boolean {
+  const norm = normalizeQuickListingEmail(email);
+  return norm.length >= 5 && norm.length <= 200 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(norm);
 }
 
 /** Normaliza un teléfono para comparación (solo dígitos, mantiene + inicial). */
@@ -164,6 +180,10 @@ function mapDoc(
     expiresAt: tsToDate(d.expiresAt),
     source: 'public-web',
     promotedToSellerAt: tsToDate(d.promotedToSellerAt),
+    managementToken:
+      typeof d.managementToken === 'string' && d.managementToken.length >= 16
+        ? d.managementToken
+        : null,
   };
 }
 
@@ -173,22 +193,131 @@ function isExpired(item: QuickListing): boolean {
   return item.expiresAt.getTime() <= Date.now();
 }
 
+/** Hash estable del identificador de visitante (no reversible). */
+export function hashQuickListingVisitorId(visitorId: string): string {
+  const trimmed = String(visitorId || '').trim();
+  if (trimmed.length < 8) return '';
+  return crypto.createHash('sha256').update(`ql-v1:${trimmed}`).digest('hex').slice(0, 32);
+}
+
+type QuickListingIdentifierField =
+  | 'contactPhoneNorm'
+  | 'contactEmailNorm'
+  | 'visitorIdHash'
+  | 'ipHash';
+
+async function countQuickListingsByIdentifier(
+  field: QuickListingIdentifierField,
+  value: string,
+  opts: { activeOnly: boolean }
+): Promise<number> {
+  if (!value) return 0;
+  let q: admin.firestore.Query = getDb().collection(COLLECTION).where(field, '==', value);
+  if (opts.activeOnly) {
+    q = q.where('status', '==', 'active');
+  }
+  const snap = await q.limit(50).get();
+  let count = 0;
+  for (const d of snap.docs) {
+    const m = mapDoc(d);
+    if (!m || m.status === 'removed') continue;
+    if (opts.activeOnly) {
+      if (!isExpired(m)) count += 1;
+    } else {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+export interface QuickListingEligibilityResult {
+  allowed: boolean;
+  reason?: string;
+  code?: 'LIMIT_ACTIVE' | 'LIMIT_LIFETIME' | 'DISABLED' | 'MISSING_VISITOR';
+  maxFreeListings?: number;
+  durationDays?: number;
+  registerPath?: string;
+}
+
+export async function checkQuickListingEligibility(input: {
+  visitorId?: string | null;
+  contactPhone?: string | null;
+  contactEmail?: string | null;
+  ipHash?: string | null;
+}): Promise<QuickListingEligibilityResult> {
+  const settings = await getFreePublicListingsSettings();
+  const registerPath = settings.registerPath || '/register?type=seller';
+  const max = settings.maxActiveFreeVehiclesPerSeller;
+
+  if (!settings.enabled || max <= 0) {
+    return {
+      allowed: false,
+      code: 'DISABLED',
+      reason: 'Las publicaciones gratuitas no están disponibles en este momento.',
+      registerPath,
+    };
+  }
+
+  const visitorIdHash = hashQuickListingVisitorId(String(input.visitorId || ''));
+  if (!visitorIdHash) {
+    return {
+      allowed: false,
+      code: 'MISSING_VISITOR',
+      reason: 'No pudimos verificar tu dispositivo. Recarga la página e intenta de nuevo.',
+      registerPath,
+    };
+  }
+
+  const phoneNorm = input.contactPhone ? normalizePhone(input.contactPhone) : '';
+  const emailNorm = input.contactEmail ? normalizeQuickListingEmail(input.contactEmail) : '';
+  const ipHash = asStr(input.ipHash, 80) || '';
+
+  const identifiers: { field: QuickListingIdentifierField; value: string; label: string }[] = [
+    { field: 'visitorIdHash', value: visitorIdHash, label: 'este dispositivo' },
+    ...(phoneNorm ? [{ field: 'contactPhoneNorm' as const, value: phoneNorm, label: 'este teléfono' }] : []),
+    ...(emailNorm ? [{ field: 'contactEmailNorm' as const, value: emailNorm, label: 'este correo' }] : []),
+    ...(ipHash ? [{ field: 'ipHash' as const, value: ipHash, label: 'tu conexión' }] : []),
+  ];
+
+  for (const id of identifiers) {
+    const active = await countQuickListingsByIdentifier(id.field, id.value, { activeOnly: true });
+    if (active >= max) {
+      return {
+        allowed: false,
+        code: 'LIMIT_ACTIVE',
+        maxFreeListings: max,
+        durationDays: settings.durationDays,
+        registerPath,
+        reason: `Ya tienes ${max} anuncio(s) gratuito(s) activo(s) en ${id.label}. Cuando venzan, regístrate como vendedor para seguir publicando.`,
+      };
+    }
+
+    const lifetime = await countQuickListingsByIdentifier(id.field, id.value, { activeOnly: false });
+    if (lifetime >= max) {
+      return {
+        allowed: false,
+        code: 'LIMIT_LIFETIME',
+        maxFreeListings: max,
+        durationDays: settings.durationDays,
+        registerPath,
+        reason: `Ya usaste tus ${max} publicación(es) gratuita(s) sin cuenta. Crea tu cuenta de vendedor para seguir publicando sin límite.`,
+      };
+    }
+  }
+
+  return {
+    allowed: true,
+    maxFreeListings: max,
+    durationDays: settings.durationDays,
+    registerPath,
+  };
+}
+
 /** Cantidad de anuncios activos asociados a un número de teléfono normalizado. */
 export async function countActiveQuickListingsByPhone(phone: string): Promise<number> {
   const norm = normalizePhone(phone);
   if (!norm) return 0;
-  const snap = await getDb()
-    .collection(COLLECTION)
-    .where('contactPhoneNorm', '==', norm)
-    .where('status', '==', 'active')
-    .limit(50)
-    .get();
-  let count = 0;
-  for (const d of snap.docs) {
-    const m = mapDoc(d);
-    if (m && !isExpired(m)) count += 1;
-  }
-  return count;
+  return countQuickListingsByIdentifier('contactPhoneNorm', norm, { activeOnly: true });
 }
 
 export interface CreateQuickListingResult {
@@ -198,6 +327,7 @@ export interface CreateQuickListingResult {
   message?: string;
   expiresAt?: Date;
   durationDays?: number;
+  managementToken?: string;
 }
 
 /**
@@ -225,6 +355,7 @@ export async function createQuickListing(
 
   const name = asStr(input.contactName, 120);
   const phone = asStr(input.contactPhone, 40);
+  const email = asStr(input.contactEmail, 200);
   const make = asStr(input.make, 60);
   const model = asStr(input.model, 80);
   const year = asNum(input.year);
@@ -232,6 +363,10 @@ export async function createQuickListing(
 
   if (!name) return { ok: false, status: 400, message: 'Nombre requerido.' };
   if (!phone) return { ok: false, status: 400, message: 'Teléfono requerido.' };
+  if (!email) return { ok: false, status: 400, message: 'Correo electrónico requerido.' };
+  if (!isValidEmailFormat(email)) {
+    return { ok: false, status: 400, message: 'Correo electrónico inválido.' };
+  }
   if (!make) return { ok: false, status: 400, message: 'Marca requerida.' };
   if (!model) return { ok: false, status: 400, message: 'Modelo requerido.' };
   if (!year || year < 1900 || year > new Date().getFullYear() + 1) {
@@ -249,12 +384,19 @@ export async function createQuickListing(
     return { ok: false, status: 400, message: 'Teléfono inválido.' };
   }
 
-  const activeCount = await countActiveQuickListingsByPhone(phoneNorm);
-  if (activeCount >= settings.maxActiveFreeVehiclesPerSeller) {
+  const emailNorm = normalizeQuickListingEmail(email);
+  const visitorIdHash = hashQuickListingVisitorId(String(input.visitorId || ''));
+  const eligibility = await checkQuickListingEligibility({
+    visitorId: input.visitorId,
+    contactPhone: phone,
+    contactEmail: email,
+    ipHash: input.ipHash,
+  });
+  if (!eligibility.allowed) {
     return {
       ok: false,
-      status: 403,
-      message: `Ya tienes ${settings.maxActiveFreeVehiclesPerSeller} anuncio(s) activo(s) con este teléfono. Espera a que venzan o regístrate como vendedor para publicar más.`,
+      status: eligibility.code === 'MISSING_VISITOR' ? 400 : 403,
+      message: eligibility.reason || 'No puedes publicar más anuncios gratis.',
     };
   }
 
@@ -267,12 +409,15 @@ export async function createQuickListing(
   const now = new Date();
   const expires = new Date(now.getTime() + settings.durationDays * 24 * 60 * 60 * 1000);
 
+  const managementToken = crypto.randomUUID();
+
   const docRef = getDb().collection(COLLECTION).doc();
   await docRef.set({
     contactName: name,
     contactPhone: phone,
     contactPhoneNorm: phoneNorm,
-    contactEmail: asStr(input.contactEmail, 200),
+    contactEmail: email,
+    contactEmailNorm: emailNorm,
     city: asStr(input.city, 80),
 
     make,
@@ -305,6 +450,8 @@ export async function createQuickListing(
 
     ipHash: asStr(input.ipHash, 80),
     userAgent: asStr(input.userAgent, 240),
+    visitorIdHash: visitorIdHash || null,
+    managementToken,
   });
 
   return {
@@ -313,6 +460,7 @@ export async function createQuickListing(
     id: docRef.id,
     expiresAt: expires,
     durationDays: settings.durationDays,
+    managementToken,
   };
 }
 
@@ -391,4 +539,97 @@ export async function incrementQuickListingView(id: string): Promise<void> {
   } catch {
     /* ignore */
   }
+}
+
+export interface QuickListingOwnerSummary {
+  id: string;
+  make: string;
+  model: string;
+  year: number;
+  price: number;
+  currency: string;
+  views: number;
+  status: QuickListing['status'];
+  expiresAt: Date | null;
+  managementToken: string | null;
+}
+
+/** Anuncios activos del mismo dispositivo (visitorId en localStorage). */
+export async function listQuickListingsByVisitorId(
+  visitorId: string,
+  opts: { limit?: number } = {}
+): Promise<QuickListingOwnerSummary[]> {
+  const visitorIdHash = hashQuickListingVisitorId(visitorId);
+  if (!visitorIdHash) return [];
+
+  const limit = Math.min(Math.max(opts.limit || 10, 1), 20);
+  let snap: admin.firestore.QuerySnapshot;
+  try {
+    snap = await getDb()
+      .collection(COLLECTION)
+      .where('visitorIdHash', '==', visitorIdHash)
+      .orderBy('createdAt', 'desc')
+      .limit(limit)
+      .get();
+  } catch {
+    snap = await getDb()
+      .collection(COLLECTION)
+      .where('visitorIdHash', '==', visitorIdHash)
+      .limit(limit * 4)
+      .get();
+  }
+
+  const items: QuickListingOwnerSummary[] = [];
+  const mapped: QuickListing[] = [];
+  for (const d of snap.docs) {
+    const m = mapDoc(d);
+    if (m) mapped.push(m);
+  }
+  mapped.sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+
+  for (const m of mapped) {
+    if (m.status === 'removed' || isExpired(m)) continue;
+    items.push({
+      id: m.id,
+      make: m.make,
+      model: m.model,
+      year: m.year,
+      price: m.price,
+      currency: m.currency,
+      views: m.views,
+      status: m.status,
+      expiresAt: m.expiresAt,
+      managementToken: m.managementToken || null,
+    });
+    if (items.length >= limit) break;
+  }
+  return items;
+}
+
+/** Estadísticas del dueño si el token de gestión coincide. */
+export async function getQuickListingOwnerStats(
+  id: string,
+  managementToken: string
+): Promise<QuickListingOwnerSummary | null> {
+  const token = String(managementToken || '').trim();
+  if (!id || token.length < 16) return null;
+
+  const doc = await getDb().collection(COLLECTION).doc(id).get();
+  if (!doc.exists) return null;
+  const m = mapDoc(doc);
+  if (!m || m.managementToken !== token) return null;
+  if (isExpired(m)) return null;
+
+  return {
+    id: m.id,
+    make: m.make,
+    model: m.model,
+    year: m.year,
+    price: m.price,
+    currency: m.currency,
+    views: m.views,
+    status: m.status,
+    expiresAt: m.expiresAt,
+    managementToken: m.managementToken || null,
+  };
 }

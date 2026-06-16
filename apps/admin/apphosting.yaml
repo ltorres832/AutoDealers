@@ -40,6 +40,11 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_VAPID_KEY
+    secret: NEXT_PUBLIC_FIREBASE_VAPID_KEY
+    availability:
+      - BUILD
+      - RUNTIME
   - variable: FIREBASE_PROJECT_ID
     value: autodealers-7f62e
     availability:
@@ -59,5 +64,14 @@ env:
       - RUNTIME
   - variable: NODE_ENV
     value: production
+    availability:
+      - RUNTIME
+  - variable: NEXT_PUBLIC_APP_URL
+    value: https://admin-app--autodealers-7f62e.us-central1.hosted.app
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: CRON_SECRET
+    secret: CRON_SECRET
     availability:
       - RUNTIME

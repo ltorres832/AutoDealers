@@ -9,6 +9,12 @@ import {
   isVehicleVisibleOnPublicListing,
   PUBLIC_DEALER_USER_ROLES,
 } from '@/lib/public-catalog-visibility';
+import { formatPublicLocation } from '@/lib/format-public-location';
+import { countSellerPublicCatalogVehicles } from '@/lib/seller-public-catalog';
+import {
+  collectTenantIdsForPublicSeller,
+  resolveTenantPrimarySellerId,
+} from '@/lib/seller-tenant-scope';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 60; // Revalidar cada 60 segundos
@@ -217,7 +223,7 @@ export async function GET(request: NextRequest) {
           sellersCount: stats.sellersCount,
           dealerRating: ratings.rating,
           dealerRatingCount: ratings.ratingCount,
-          location: tenantData?.address || tenantData?.location || '',
+          location: formatPublicLocation(tenantData?.address || tenantData?.location),
         };
       });
 
@@ -245,13 +251,14 @@ export async function GET(request: NextRequest) {
             phone: data.phone || '',
             whatsapp: data.whatsapp || data.phone || '',
             tenantId: data.tenantId || '',
+            dealerId: data.dealerId || '',
+            associatedDealers: Array.isArray(data.associatedDealers) ? data.associatedDealers : [],
             sellerRating: data.sellerRating || 0,
             sellerRatingCount: data.sellerRatingCount || 0,
             _raw: data,
           };
         })
-        .filter((s: any) => isSellerVisibleOnPublicListing(s._raw || {}))
-        .map(({ _raw, ...rest }: any) => rest);
+        .filter((s: any) => isSellerVisibleOnPublicListing(s._raw || {}));
 
       // Filtrar por término de búsqueda si no es '*'
       if (q && q !== '*') {
@@ -266,22 +273,35 @@ export async function GET(request: NextRequest) {
 
       sellers = sellers.slice(0, limit);
 
-      // OPTIMIZADO: Obtener información del tenant y vehículos en batch
-      const sellerTenantIds = [...new Set(sellers.map((s: any) => s.tenantId).filter(Boolean))] as string[];
-
-      // Obtener todos los tenants en paralelo
-      const sellerTenantDocs = await Promise.all(
-        sellerTenantIds.map(id => db.collection('tenants').doc(id).get())
+      const sellerScopes = await Promise.all(
+        sellers.map(async (seller: any) => ({
+          sellerId: seller.id,
+          tenantIds: seller.tenantId
+            ? await collectTenantIdsForPublicSeller(
+                db,
+                seller.id,
+                (seller._raw || {}) as Record<string, unknown>,
+                seller.tenantId
+              )
+            : [],
+        }))
       );
 
-      const sellerTenantsMap = new Map();
+      const sellerTenantIds = [
+        ...new Set(sellerScopes.flatMap((scope) => scope.tenantIds)),
+      ] as string[];
+
+      const sellerTenantDocs = await Promise.all(
+        sellerTenantIds.map((id) => db.collection('tenants').doc(id).get())
+      );
+
+      const sellerTenantsMap = new Map<string, Record<string, unknown>>();
       sellerTenantDocs.forEach((doc, index) => {
         if (doc.exists) {
-          sellerTenantsMap.set(sellerTenantIds[index], doc.data());
+          sellerTenantsMap.set(sellerTenantIds[index], doc.data() as Record<string, unknown>);
         }
       });
 
-      // Obtener vehículos por tenant en paralelo
       const vehiclesByTenantPromises = sellerTenantIds.map(async (tenantId: string) => {
         try {
           const vehiclesSnapshot = await db
@@ -304,36 +324,31 @@ export async function GET(request: NextRequest) {
       });
 
       const vehiclesByTenant = await Promise.all(vehiclesByTenantPromises);
-      const vehiclesMap = new Map(vehiclesByTenant.map(v => [v.tenantId, v.vehicles]));
+      const vehiclesMap = new Map(vehiclesByTenant.map((v) => [v.tenantId, v.vehicles]));
+      const scopeBySellerId = new Map(
+        sellerScopes.map((scope) => [scope.sellerId, scope.tenantIds])
+      );
 
-      // Combinar información para cada seller
       const sellersWithInfo = sellers.map((seller: any) => {
         const tenantData = sellerTenantsMap.get(seller.tenantId);
-        const tenantVehicles = vehiclesMap.get(seller.tenantId) || [];
+        const scopedTenantIds = scopeBySellerId.get(seller.id) || [seller.tenantId].filter(Boolean);
+        const scopedVehicles = scopedTenantIds.flatMap(
+          (tenantId) => vehiclesMap.get(tenantId) || []
+        );
+        const tenantPrimarySellerId =
+          resolveTenantPrimarySellerId(tenantData) || seller.id;
 
-        // Filtrar vehículos del seller
-        const sellerVehicles = tenantVehicles.filter((vehicle: any) => {
-          const belongsToSeller = vehicle.sellerId === seller.id ||
-            (vehicle.assignedTo === seller.id && !vehicle.sellerId);
-          return belongsToSeller && isVehicleVisibleOnPublicListing(vehicle);
-        });
+        const publishedVehiclesCount = countSellerPublicCatalogVehicles(
+          scopedVehicles as Record<string, unknown>[],
+          seller.id,
+          { tenantPrimarySellerId }
+        );
 
-        const vehiclesWithAnySellerId = tenantVehicles.filter((v: any) => v.sellerId);
-
-        let publishedVehiclesCount = 0;
-        if (sellerVehicles.length > 0) {
-          publishedVehiclesCount = sellerVehicles.length;
-        } else if (vehiclesWithAnySellerId.length > 0) {
-          publishedVehiclesCount = 0;
-        } else {
-          publishedVehiclesCount = tenantVehicles.filter((v: any) =>
-            isVehicleVisibleOnPublicListing(v)
-          ).length;
-        }
+        const { _raw, dealerId, associatedDealers, ...publicSeller } = seller;
 
         return {
-          ...seller,
-          tenantName: tenantData?.name || '',
+          ...publicSeller,
+          tenantName: (tenantData?.name as string) || '',
           publishedVehiclesCount,
         };
       });

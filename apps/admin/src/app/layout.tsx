@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter, Poppins } from 'next/font/google';
 import './globals.css';
+import '../../../../packages/shared/src/styles/brand-surface.css';
 import { AuthProvider } from './auth-provider';
 import { BrandingHead } from '@/components/BrandingHead';
 
@@ -8,7 +9,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  themeColor: '#f9fafb',
+  themeColor: '#E10600',
 };
 
 const inter = Inter({ 
@@ -46,7 +47,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es" className={`${inter.variable} ${poppins.variable}`}>
-      <body className={`${inter.className} font-sans antialiased min-h-[100dvh] overflow-x-hidden`}>
+      <body className={`${inter.className} brand-top-accent font-sans antialiased min-h-[100dvh] overflow-x-hidden`}>
         <BrandingHead />
         <AuthProvider>
           {children}

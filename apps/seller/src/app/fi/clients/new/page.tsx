@@ -178,11 +178,11 @@ function NewFIClientPageContent() {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-2">
-        <Link href="/fi" className="text-blue-600 hover:text-blue-700 text-sm">
+        <Link href="/fi" className="text-primary-600 hover:text-primary-700 text-sm">
           ← Volver a F&amp;I
         </Link>
         <span className="text-gray-300 hidden sm:inline">|</span>
-        <Link href="/fi/clients/advanced" className="text-blue-600 hover:text-blue-700 text-sm">
+        <Link href="/fi/clients/advanced" className="text-primary-600 hover:text-primary-700 text-sm">
           Formulario avanzado (trade-in completo)
         </Link>
       </div>
@@ -206,7 +206,7 @@ function NewFIClientPageContent() {
                 required
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             <div>
@@ -218,7 +218,7 @@ function NewFIClientPageContent() {
                 required
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             <div>
@@ -229,7 +229,7 @@ function NewFIClientPageContent() {
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             <div>
@@ -240,7 +240,7 @@ function NewFIClientPageContent() {
                 type="text"
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             <div>
@@ -251,7 +251,7 @@ function NewFIClientPageContent() {
                 type="text"
                 value={formData.identification}
                 onChange={(e) => setFormData({ ...formData, identification: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
           </div>
@@ -269,7 +269,7 @@ function NewFIClientPageContent() {
                 type="text"
                 value={formData.vehicleMake}
                 onChange={(e) => setFormData({ ...formData, vehicleMake: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             <div>
@@ -280,7 +280,7 @@ function NewFIClientPageContent() {
                 type="text"
                 value={formData.vehicleModel}
                 onChange={(e) => setFormData({ ...formData, vehicleModel: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             <div>
@@ -291,7 +291,7 @@ function NewFIClientPageContent() {
                 type="number"
                 value={formData.vehicleYear}
                 onChange={(e) => setFormData({ ...formData, vehicleYear: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             <div>
@@ -303,7 +303,7 @@ function NewFIClientPageContent() {
                 step="0.01"
                 value={formData.vehiclePrice}
                 onChange={(e) => setFormData({ ...formData, vehiclePrice: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             <div>
@@ -315,7 +315,7 @@ function NewFIClientPageContent() {
                 step="0.01"
                 value={formData.downPayment}
                 onChange={(e) => setFormData({ ...formData, downPayment: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
           </div>
@@ -329,7 +329,7 @@ function NewFIClientPageContent() {
               id="hasTradeIn"
               checked={formData.hasTradeIn}
               onChange={(e) => setFormData({ ...formData, hasTradeIn: e.target.checked })}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
             />
             <label htmlFor="hasTradeIn" className="ml-2 text-sm font-medium text-gray-700">
               Tiene Trade-In
@@ -346,7 +346,7 @@ function NewFIClientPageContent() {
                   type="text"
                   value={formData.tradeInMake}
                   onChange={(e) => setFormData({ ...formData, tradeInMake: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
@@ -357,7 +357,7 @@ function NewFIClientPageContent() {
                   type="text"
                   value={formData.tradeInModel}
                   onChange={(e) => setFormData({ ...formData, tradeInModel: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
@@ -368,7 +368,7 @@ function NewFIClientPageContent() {
                   type="number"
                   value={formData.tradeInYear}
                   onChange={(e) => setFormData({ ...formData, tradeInYear: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
@@ -377,7 +377,7 @@ function NewFIClientPageContent() {
                   type="text"
                   value={formData.tradeInTrim}
                   onChange={(e) => setFormData({ ...formData, tradeInTrim: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
@@ -386,7 +386,7 @@ function NewFIClientPageContent() {
                   type="text"
                   value={formData.tradeInStockNumber}
                   onChange={(e) => setFormData({ ...formData, tradeInStockNumber: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
@@ -396,7 +396,7 @@ function NewFIClientPageContent() {
                   step="0.01"
                   value={formData.tradeInValue}
                   onChange={(e) => setFormData({ ...formData, tradeInValue: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
@@ -405,7 +405,7 @@ function NewFIClientPageContent() {
                   type="text"
                   value={formData.tradeInVin}
                   onChange={(e) => setFormData({ ...formData, tradeInVin: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
@@ -414,7 +414,7 @@ function NewFIClientPageContent() {
                   type="number"
                   value={formData.tradeInMileage}
                   onChange={(e) => setFormData({ ...formData, tradeInMileage: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
@@ -423,7 +423,7 @@ function NewFIClientPageContent() {
                   type="text"
                   value={formData.tradeInColor}
                   onChange={(e) => setFormData({ ...formData, tradeInColor: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
@@ -432,7 +432,7 @@ function NewFIClientPageContent() {
                   type="text"
                   value={formData.tradeInInteriorColor}
                   onChange={(e) => setFormData({ ...formData, tradeInInteriorColor: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
@@ -441,7 +441,7 @@ function NewFIClientPageContent() {
                   type="text"
                   value={formData.tradeInTransmission}
                   onChange={(e) => setFormData({ ...formData, tradeInTransmission: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
@@ -450,7 +450,7 @@ function NewFIClientPageContent() {
                   type="text"
                   value={formData.tradeInFuelType}
                   onChange={(e) => setFormData({ ...formData, tradeInFuelType: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
@@ -459,7 +459,7 @@ function NewFIClientPageContent() {
                   type="text"
                   value={formData.tradeInEngine}
                   onChange={(e) => setFormData({ ...formData, tradeInEngine: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
@@ -468,7 +468,7 @@ function NewFIClientPageContent() {
                   type="text"
                   value={formData.tradeInBodyType}
                   onChange={(e) => setFormData({ ...formData, tradeInBodyType: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
@@ -477,7 +477,7 @@ function NewFIClientPageContent() {
                   type="text"
                   value={formData.tradeInCondition}
                   onChange={(e) => setFormData({ ...formData, tradeInCondition: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div className="md:col-span-2 flex items-center gap-2 pt-1">
@@ -486,7 +486,7 @@ function NewFIClientPageContent() {
                   id="tradeInSvc"
                   checked={formData.tradeInServiceRecords}
                   onChange={(e) => setFormData({ ...formData, tradeInServiceRecords: e.target.checked })}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                 />
                 <label htmlFor="tradeInSvc" className="text-sm text-gray-700">
                   Tiene registros de servicio
@@ -499,7 +499,7 @@ function NewFIClientPageContent() {
                   step="0.01"
                   value={formData.tradeInPayoff}
                   onChange={(e) => setFormData({ ...formData, tradeInPayoff: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
@@ -508,7 +508,7 @@ function NewFIClientPageContent() {
                   type="text"
                   value={formData.tradeInLienholder}
                   onChange={(e) => setFormData({ ...formData, tradeInLienholder: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
@@ -521,7 +521,7 @@ function NewFIClientPageContent() {
                       tradeInTitleStatus: e.target.value as typeof formData.tradeInTitleStatus,
                     })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="">—</option>
                   <option value="clean">Limpio</option>
@@ -538,7 +538,7 @@ function NewFIClientPageContent() {
                   type="text"
                   value={formData.tradeInAccidentHistory}
                   onChange={(e) => setFormData({ ...formData, tradeInAccidentHistory: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div className="md:col-span-2">
@@ -547,7 +547,7 @@ function NewFIClientPageContent() {
                   rows={2}
                   value={formData.tradeInNotes}
                   onChange={(e) => setFormData({ ...formData, tradeInNotes: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
             </div>
@@ -565,7 +565,7 @@ function NewFIClientPageContent() {
           <button
             type="submit"
             disabled={loading}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50"
           >
             {loading ? 'Guardando...' : 'Crear Cliente y Continuar'}
           </button>

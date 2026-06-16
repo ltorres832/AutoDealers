@@ -16,8 +16,8 @@ interface AdminUser {
 }
 
 const ROLES = {
-  super_admin: { name: 'Super Admin', color: 'bg-purple-100 text-purple-800', icon: '👑' },
-  admin: { name: 'Administrador', color: 'bg-blue-100 text-blue-800', icon: '⚡' },
+  super_admin: { name: 'Super Admin', color: 'bg-primary-100 text-primary-800', icon: '👑' },
+  admin: { name: 'Administrador', color: 'bg-primary-100 text-primary-800', icon: '⚡' },
   moderator: { name: 'Moderador', color: 'bg-green-100 text-green-800', icon: '✓' },
   viewer: { name: 'Visor', color: 'bg-gray-100 text-gray-800', icon: '👁️' },
 };
@@ -108,7 +108,7 @@ export default function AdminUsersPage() {
           <h1 className="text-3xl font-bold text-gray-900">Usuarios Admin</h1>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+            className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 flex items-center gap-2"
           >
             <span>➕</span>
             Crear Usuario Admin
@@ -181,7 +181,7 @@ export default function AdminUsersPage() {
                   </td>
                   <td className="px-6 py-4">
                     <details className="cursor-pointer">
-                      <summary className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                      <summary className="text-sm text-primary-600 hover:text-primary-800 font-medium">
                         {user.permissions.length} permisos →
                       </summary>
                       <div className="mt-2 bg-gray-50 p-3 rounded max-h-40 overflow-y-auto">
@@ -199,7 +199,7 @@ export default function AdminUsersPage() {
                     <div className="flex gap-2">
                       <button
                         onClick={() => setEditingUser(user)}
-                        className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                        className="text-primary-600 hover:text-primary-800 text-sm font-medium"
                       >
                         Editar
                       </button>
@@ -397,7 +397,7 @@ function CreateUserModal({ onClose, onSuccess }: { onClose: () => void; onSucces
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+              className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:bg-gray-400"
             >
               {loading ? 'Creando...' : 'Crear Usuario'}
             </button>
@@ -570,7 +570,7 @@ function EditUserModal({
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+              className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:bg-gray-400"
             >
               {loading ? 'Guardando...' : 'Guardar Cambios'}
             </button>

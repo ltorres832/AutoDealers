@@ -178,7 +178,7 @@ export default function ReferralConfigPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
       </div>
     );
   }
@@ -382,7 +382,7 @@ export default function ReferralConfigPage() {
         <button
           onClick={saveConfig}
           disabled={saving}
-          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
         >
           {saving ? 'Guardando...' : 'Guardar Configuración'}
         </button>

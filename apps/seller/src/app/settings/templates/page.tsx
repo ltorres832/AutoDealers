@@ -269,7 +269,7 @@ export default function TemplatesPage() {
                         {template.variables.map((variable) => (
                           <span
                             key={variable}
-                            className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded"
+                            className="text-xs bg-primary-100 text-primary-700 px-2 py-1 rounded"
                           >
                             {`{{${variable}}}`}
                           </span>

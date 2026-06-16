@@ -17,6 +17,7 @@ import { MaintenanceScreen } from '@/components/MaintenanceScreen';
 import { MaintenanceBanner } from '@/components/MaintenanceBanner';
 import { AnnouncementsBanner } from '@/components/AnnouncementsBanner';
 import { PolicyAcceptanceModal } from '@/components/PolicyAcceptanceModal';
+import { NotificationAlertsBootstrap } from '@autodealers/shared/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useUpdateLastAccess } from '@/hooks/useUpdateLastAccess';
 
@@ -55,8 +56,13 @@ export default function AdminLayout({
 
   async function checkRequiredPolicies() {
     if (!auth?.userId || pathname === '/login') return;
-    
+
     try {
+      void fetch('/api/policies/notify-updates', {
+        method: 'POST',
+        credentials: 'include',
+      });
+
       const response = await fetch(
         `/api/policies/required?userId=${auth.userId}&role=admin`,
         { credentials: 'include' }
@@ -136,6 +142,8 @@ export default function AdminLayout({
 
   async function handleLogout() {
     try {
+      const { unregisterWebPushToken } = await import('@autodealers/shared/client');
+      await unregisterWebPushToken('/api/notifications/fcm-token');
       const response = await fetch('/api/auth/logout', {
         method: 'POST',
       });
@@ -169,11 +177,14 @@ export default function AdminLayout({
       { href: '/admin/admin-users', label: 'Usuarios Admin', icon: '👨‍💼' },
       { href: '/admin/tenants', label: 'Tenants', icon: '🏢' },
       { href: '/admin/memberships', label: 'Membresías', icon: '🎁' },
+      { href: '/admin/account-billing', label: 'Sin facturación / Demo', icon: '🎫' },
       { href: '/admin/subscriptions', label: 'Suscripciones', icon: '📋' },
       { href: '/admin/dynamic-features', label: 'Features Dinámicas', icon: '✨' },
       { href: '/admin/communication-templates', label: 'Templates', icon: '📧' },
+      { href: '/admin/newsletter', label: 'Newsletter / Boletines', icon: '📰' },
       { href: '/admin/communication-logs', label: 'Logs de Comunicaciones', icon: '📨' },
       { href: '/admin/public-chat', label: 'Chat Público', icon: '💬' },
+      { href: '/admin/contact-inquiries', label: 'Mensajes de contacto', icon: '✉️' },
       { href: '/admin/all-leads', label: 'Todos los Leads', icon: '📞' },
       { href: '/admin/all-leads/kanban', label: 'Pipeline Kanban', icon: '📋' },
       { href: '/admin/scoring', label: 'Scoring Avanzado', icon: '⭐' },
@@ -207,6 +218,7 @@ export default function AdminLayout({
       { href: '/admin/settings/why-choose-us', label: 'Por qué elegirnos (home)', icon: '✓' },
       { href: '/admin/settings', label: 'Configuración del Sistema', icon: '⚙️' },
       { href: '/admin/settings/general', label: 'General y credenciales', icon: '🔐' },
+      { href: '/admin/settings/notifications', label: 'Notificaciones', icon: '🔔' },
       { href: '/admin/settings/branding', label: 'Marca Personalizada', icon: '🎨' },
       { href: '/admin/settings/site-info', label: 'Info del Sitio', icon: '🌐' },
       { href: '/admin/settings/zoho-mail', label: 'Zoho Mail', icon: '📧' },
@@ -235,6 +247,7 @@ export default function AdminLayout({
 
   return (
     <>
+      <NotificationAlertsBootstrap />
       {showPolicyModal && auth?.userId && (
         <PolicyAcceptanceModal
           userId={auth.userId}
@@ -355,7 +368,7 @@ export default function AdminLayout({
             {/* Sección Empresas Externas */}
             {!sidebarCollapsed && (
               <div className="px-4 py-2 mb-2">
-                <p className="text-xs font-semibold text-purple-600 uppercase tracking-wider">
+                <p className="text-xs font-semibold text-primary-600 uppercase tracking-wider">
                   Empresas Externas
                 </p>
               </div>
@@ -369,8 +382,8 @@ export default function AdminLayout({
                   onClick={() => setMobileNavOpen(false)}
                   className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-start'} px-4 py-3 rounded-lg transition-all group ${
                     isActive
-                      ? 'bg-purple-50 text-purple-700 font-medium shadow-sm'
-                      : 'text-gray-700 hover:bg-purple-50 hover:text-purple-900'
+                      ? 'bg-primary-50 text-primary-700 font-medium shadow-sm'
+                      : 'text-gray-700 hover:bg-primary-50 hover:text-primary-900'
                   }`}
                   title={sidebarCollapsed ? item.label : undefined}
                 >
@@ -381,7 +394,7 @@ export default function AdminLayout({
                     <span className="ml-3 flex-1">{item.label}</span>
                   )}
                   {isActive && !sidebarCollapsed && (
-                    <div className="h-2 w-2 rounded-full bg-purple-600"></div>
+                    <div className="h-2 w-2 rounded-full bg-primary-600"></div>
                   )}
                 </Link>
               );

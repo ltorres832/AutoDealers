@@ -83,6 +83,9 @@ export interface Vehicle {
   createdAt: Date;
   updatedAt: Date;
   soldAt?: Date;
+  /** Vistas en catálogo público (contador en Firestore). */
+  views?: number;
+  lastViewedAt?: Date;
 }
 
 /**

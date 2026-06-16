@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getFirestore } from '@autodealers/core';
+import { getFirestore, isValidStripeWebhookSecret } from '@autodealers/core';
 import * as admin from 'firebase-admin';
 import { StripeService } from '@autodealers/billing';
 
@@ -156,6 +156,14 @@ export async function PUT(request: NextRequest) {
           
           // Si es un valor completo (no enmascarado y no vacío), actualizarlo
           if (value.length > 0) {
+            if (
+              (key === 'stripeWebhookSecret' || key === 'stripeAdvertiserWebhookSecret') &&
+              !isValidStripeWebhookSecret(value)
+            ) {
+              throw new Error(
+                `${key} debe ser el Signing secret de Stripe (whsec_...), no la URL del webhook.`
+              );
+            }
             updates[key] = value;
             console.log(`✅ Actualizando ${key}`);
           }

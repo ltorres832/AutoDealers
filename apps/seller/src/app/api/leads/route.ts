@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
+import { resolveIndependentSellerWorkspace } from '@/lib/seller-workspace';
 import { getLeads, createLead, normalizeLeadSource, sanitizeLeadTradeIn } from '@autodealers/crm';
 import { getVehicleById, buildVehicleStockSnapshot } from '@autodealers/inventory';
 import { createNotification, canPerformAction } from '@autodealers/core';
@@ -16,11 +17,12 @@ export async function GET(request: NextRequest) {
     const source = searchParams.get('source');
     const search = searchParams.get('search');
 
-    // Solo obtener leads asignados al vendedor    
-    const leads = await getLeads(auth.tenantId, {  
+    const independentWorkspace = await resolveIndependentSellerWorkspace(auth);
+
+    const leads = await getLeads(auth.tenantId, {
       status: status as any || undefined,
       source: source as any || undefined,
-      assignedTo: auth.userId,
+      assignedTo: independentWorkspace ? undefined : auth.userId,
     });
 
     // Filtrar por búsqueda
@@ -117,6 +119,9 @@ export async function POST(request: NextRequest) {
       body.notes || '',
       {
         assignedTo: auth.userId,
+        createdBy: auth.userId,
+        sellerOwned: true,
+        tags: ['vendedor_propio'],
         ...(vehicleId ? { vehicleId } : {}),
         ...(vehicleStockNumber ? { vehicleStockNumber: String(vehicleStockNumber) } : {}),
         ...(vehicleStockSnapshot ? { vehicleStockSnapshot } : {}),

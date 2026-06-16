@@ -326,7 +326,7 @@ export default function BrandingSettingsPage() {
           <button
             type="submit"
             disabled={saving || uploading}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
           >
             {saving ? 'Guardando...' : 'Guardar Cambios'}
           </button>

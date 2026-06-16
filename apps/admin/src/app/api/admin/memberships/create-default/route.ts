@@ -1,26 +1,11 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { initializeFirebase, getFirestore } from '@autodealers/shared';
+import { getFirestore } from '@autodealers/core';
 import { verifyAuth } from '@/lib/auth';
 import * as admin from 'firebase-admin';
-import Stripe from 'stripe';
 
-// Inicializar Firebase
-let db: admin.firestore.Firestore | null = null;
-
-function getDb() {
-  if (!db) {
-    try {
-      initializeFirebase();
-      db = getFirestore();
-    } catch (error) {
-      console.error('Error inicializando Firebase:', error);
-      throw error;
-    }
-  }
-  return db;
-}
+const db = getFirestore() as admin.firestore.Firestore;
 
 // Stripe se inicializará dinámicamente cuando sea necesario
 
@@ -801,15 +786,11 @@ export async function POST(request: NextRequest) {
 
         // Verificar si ya existe en Firestore
         // Usar una estrategia más robusta: buscar por tipo primero, luego filtrar por nombre
-        const dbInstance = getDb();
-        if (!dbInstance) {
-          throw new Error('Firestore no inicializado');
-        }
         let existing: admin.firestore.QuerySnapshot;
         
         try {
           // Intentar buscar con índice compuesto primero
-          existing = await dbInstance
+          existing = await db
             .collection('memberships')
             .where('name', '==', membership.name)
             .where('type', '==', membership.type)
@@ -818,7 +799,7 @@ export async function POST(request: NextRequest) {
         } catch (indexError: any) {
           // Si falla por índice faltante, buscar por tipo y filtrar manualmente
           console.warn(`⚠️ Índice compuesto faltante para membresías, usando fallback: ${indexError.message}`);
-          const allByType = await dbInstance
+          const allByType = await db
             .collection('memberships')
             .where('type', '==', membership.type)
             .get();
@@ -985,16 +966,16 @@ export async function POST(request: NextRequest) {
           
           console.log(`💾 Datos a actualizar:`, JSON.stringify(updateData, null, 2));
           
-          await dbInstance.collection('memberships').doc(docId).update(updateData);
+          await db.collection('memberships').doc(docId).update(updateData);
           
           // Verificar que se guardó correctamente - con múltiples intentos
-          let verifyDoc = await dbInstance.collection('memberships').doc(docId).get();
+          let verifyDoc = await db.collection('memberships').doc(docId).get();
           let attempts = 0;
           while (!verifyDoc.exists && attempts < 3) {
             attempts++;
             console.log(`⚠️ Intento ${attempts}: La membresía no existe, esperando 200ms...`);
             await new Promise(resolve => setTimeout(resolve, 200));
-            verifyDoc = await dbInstance.collection('memberships').doc(docId).get();
+            verifyDoc = await db.collection('memberships').doc(docId).get();
           }
           
           if (verifyDoc.exists) {
@@ -1018,7 +999,7 @@ export async function POST(request: NextRequest) {
           results.updated.push(`${membership.name} (${membership.type})`);
         } else {
           console.log(`✨ Creando nueva membresía: ${membership.name} (${membership.type})`);
-          const docRef = dbInstance.collection('memberships').doc();
+          const docRef = db.collection('memberships').doc();
           
           const newMembershipData = {
             ...finalMembership,
@@ -1033,13 +1014,13 @@ export async function POST(request: NextRequest) {
           await docRef.set(newMembershipData);
           
           // Verificar que se guardó correctamente - con múltiples intentos
-          let verifyDoc = await dbInstance.collection('memberships').doc(docRef.id).get();
+          let verifyDoc = await db.collection('memberships').doc(docRef.id).get();
           let attempts = 0;
           while (!verifyDoc.exists && attempts < 3) {
             attempts++;
             console.log(`⚠️ Intento ${attempts}: La membresía no existe, esperando 200ms...`);
             await new Promise(resolve => setTimeout(resolve, 200));
-            verifyDoc = await dbInstance.collection('memberships').doc(docRef.id).get();
+            verifyDoc = await db.collection('memberships').doc(docRef.id).get();
           }
           
           if (verifyDoc.exists) {

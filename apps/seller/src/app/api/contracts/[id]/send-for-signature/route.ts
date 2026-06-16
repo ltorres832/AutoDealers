@@ -54,7 +54,7 @@ export async function POST(
         content: `
           <h2>Firma de Contrato: ${contract.name}</h2>
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #4F46E5;">Solicitud de Firma de Contrato</h2>
+            <h2 style="color: #b80500;">Solicitud de Firma de Contrato</h2>
             <p>Estimado/a ${signerName},</p>
             <p>Se requiere tu firma en el siguiente contrato:</p>
             <div style="background-color: #f3f4f6; padding: 15px; border-radius: 5px; margin: 20px 0;">
@@ -63,7 +63,7 @@ export async function POST(
             </div>
             <p>Por favor, haz clic en el siguiente enlace para revisar y firmar el contrato:</p>
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${url}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
+              <a href="${url}" style="background-color: #b80500; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
                 Firmar Contrato
               </a>
             </div>

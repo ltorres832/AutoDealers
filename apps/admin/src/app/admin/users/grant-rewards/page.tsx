@@ -115,7 +115,7 @@ export default function GrantRewardsPage() {
             </p>
           </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
+          <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 text-sm text-primary-800">
             <p className="font-semibold mb-2">ℹ️ Información:</p>
             <ul className="list-disc list-inside space-y-1">
               <li>Los meses gratis se acumulan con los meses existentes del usuario</li>

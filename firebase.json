@@ -63,23 +63,94 @@
   "apphosting": [
     {
       "backendId": "public-web-app",
-      "rootDir": "apps/public-web"
+      "rootDir": "apps/public-web",
+      "ignore": [
+        "**/node_modules/**",
+        "**/.next/**",
+        "**/out/**",
+        "**/.git/**",
+        ".firebase/**",
+        "**/.turbo/**",
+        "**/coverage/**",
+        "**/*.tsbuildinfo",
+        "**/hosting/**",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "functions/**",
+        "autodealers_flutter/**",
+        "apps/admin/**",
+        "apps/dealer/**",
+        "apps/seller/**",
+        "apps/advertiser/**",
+        "apps/admin-web/**",
+        "packages/**/src/**/*.js",
+        "**/*.bak",
+        "**/*.bak.bak"
+      ]
     },
     {
       "backendId": "admin-app",
-      "rootDir": "apps/admin"
+      "rootDir": "apps/admin",
+      "ignore": [
+        "**/node_modules/**",
+        "**/.next/**",
+        "**/out/**",
+        ".firebase/**",
+        "functions/**",
+        "autodealers_flutter/**",
+        "apps/public-web/**",
+        "apps/dealer/**",
+        "apps/seller/**",
+        "apps/advertiser/**"
+      ]
     },
     {
       "backendId": "dealer-app",
-      "rootDir": "apps/dealer"
+      "rootDir": "apps/dealer",
+      "ignore": [
+        "**/node_modules/**",
+        "**/.next/**",
+        "**/out/**",
+        ".firebase/**",
+        "functions/**",
+        "autodealers_flutter/**",
+        "apps/public-web/**",
+        "apps/admin/**",
+        "apps/seller/**",
+        "apps/advertiser/**"
+      ]
     },
     {
       "backendId": "seller-app",
-      "rootDir": "apps/seller"
+      "rootDir": "apps/seller",
+      "ignore": [
+        "**/node_modules/**",
+        "**/.next/**",
+        "**/out/**",
+        ".firebase/**",
+        "functions/**",
+        "autodealers_flutter/**",
+        "apps/public-web/**",
+        "apps/admin/**",
+        "apps/dealer/**",
+        "apps/advertiser/**"
+      ]
     },
     {
       "backendId": "advertiser-app",
-      "rootDir": "apps/advertiser"
+      "rootDir": "apps/advertiser",
+      "ignore": [
+        "**/node_modules/**",
+        "**/.next/**",
+        "**/out/**",
+        ".firebase/**",
+        "functions/**",
+        "autodealers_flutter/**",
+        "apps/public-web/**",
+        "apps/admin/**",
+        "apps/dealer/**",
+        "apps/seller/**"
+      ]
     }
   ],
   "emulators": {

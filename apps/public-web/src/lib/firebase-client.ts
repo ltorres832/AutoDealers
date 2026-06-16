@@ -1,6 +1,16 @@
 // Firebase Client SDK para tiempo real
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
-import { getFirestore, Firestore, collection, query, where, orderBy, onSnapshot, Unsubscribe } from 'firebase/firestore';
+import {
+  getFirestore,
+  Firestore,
+  collection,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
+  Unsubscribe,
+} from 'firebase/firestore';
+import { getFirebaseWebClientConfig } from '@autodealers/shared/firebase-web-client-config';
 import { db as existingDb } from './firebase-config';
 
 let app: FirebaseApp | null = null;
@@ -8,7 +18,6 @@ let dbInstance: Firestore | null = null;
 let initializationError: Error | null = null;
 
 export function getFirebaseClient(): { app: FirebaseApp; db: Firestore } | null {
-  // Si ya tenemos una instancia de db, usarla
   if (dbInstance) {
     if (!app) {
       app = getApps()[0];
@@ -16,7 +25,6 @@ export function getFirebaseClient(): { app: FirebaseApp; db: Firestore } | null 
     return { app: app!, db: dbInstance };
   }
 
-  // Intentar usar la instancia existente de firebase-config.ts
   if (existingDb) {
     dbInstance = existingDb;
     app = getApps()[0];
@@ -28,17 +36,9 @@ export function getFirebaseClient(): { app: FirebaseApp; db: Firestore } | null 
   }
 
   try {
-    const firebaseConfig = {
-      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || '',
-      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || '',
-      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || '',
-      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || '',
-      messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '',
-      appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '',
-    };
+    const firebaseConfig = getFirebaseWebClientConfig();
 
     if (!firebaseConfig.projectId) {
-      console.warn('⚠️ Firebase Client no configurado. Usando polling.');
       initializationError = new Error('Firebase project ID is required');
       return null;
     }
@@ -50,28 +50,49 @@ export function getFirebaseClient(): { app: FirebaseApp; db: Firestore } | null 
     }
 
     dbInstance = getFirestore(app);
-
     return { app, db: dbInstance };
-  } catch (error: any) {
-    console.warn('⚠️ Error inicializando Firebase Client:', error);
-    initializationError = error;
+  } catch (error: unknown) {
+    initializationError = error instanceof Error ? error : new Error(String(error));
     return null;
   }
 }
 
-// Re-exportar db para compatibilidad con otros archivos
 export { existingDb as db };
+
+export interface PublicChatMessageRow {
+  id: string;
+  content: string;
+  fromClient: boolean;
+  createdAt: string;
+}
+
+function mapChatDoc(doc: { id: string; data: () => Record<string, unknown> }): PublicChatMessageRow {
+  const data = doc.data();
+  const createdAtRaw = data.createdAt as { toDate?: () => Date } | Date | undefined;
+  const createdAt =
+    createdAtRaw && typeof createdAtRaw === 'object' && 'toDate' in createdAtRaw && createdAtRaw.toDate
+      ? createdAtRaw.toDate()!.toISOString()
+      : new Date().toISOString();
+
+  return {
+    id: doc.id,
+    content: String(data.content || ''),
+    fromClient: data.fromClient === true,
+    createdAt,
+  };
+}
 
 export function subscribeToChatMessages(
   tenantId: string,
   sessionId: string,
-  callback: (messages: any[]) => void
+  callback: (messages: PublicChatMessageRow[]) => void,
+  onError?: (error: Error) => void
 ): Unsubscribe | null {
   const client = getFirebaseClient();
   if (!client) {
     return null;
   }
-  
+
   const { db } = client;
   const messagesRef = collection(db, 'tenants', tenantId, 'public_chat_messages');
   const q = query(
@@ -80,29 +101,28 @@ export function subscribeToChatMessages(
     orderBy('createdAt', 'asc')
   );
 
-  return onSnapshot(q, (snapshot) => {
-    const messages = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate()?.toISOString() || new Date().toISOString(),
-      readAt: doc.data().readAt?.toDate()?.toISOString(),
-    }));
-    callback(messages);
-  }, (error) => {
-    console.error('Error en listener de chat:', error);
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      callback(snapshot.docs.map(mapChatDoc));
+    },
+    (error) => {
+      console.error('Error en listener de chat:', error);
+      onError?.(error);
+    }
+  );
 }
 
 export function subscribeToNotifications(
   tenantId: string,
   userId: string,
-  callback: (notifications: any[]) => void
+  callback: (notifications: Record<string, unknown>[]) => void
 ): Unsubscribe | null {
   const client = getFirebaseClient();
   if (!client) {
     return null;
   }
-  
+
   const { db } = client;
   const notificationsRef = collection(db, 'tenants', tenantId, 'notifications');
   const q = query(
@@ -111,16 +131,20 @@ export function subscribeToNotifications(
     orderBy('createdAt', 'desc')
   );
 
-  return onSnapshot(q, (snapshot) => {
-    const notifications = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate()?.toISOString() || new Date().toISOString(),
-      readAt: doc.data().readAt?.toDate()?.toISOString(),
-    }));
-    callback(notifications);
-  }, (error) => {
-    console.error('Error en listener de notificaciones:', error);
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const notifications = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt:
+          doc.data().createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+        readAt: doc.data().readAt?.toDate?.()?.toISOString(),
+      }));
+      callback(notifications);
+    },
+    (error) => {
+      console.error('Error en listener de notificaciones:', error);
+    }
+  );
 }
-

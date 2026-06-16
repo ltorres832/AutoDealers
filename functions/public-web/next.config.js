@@ -61,13 +61,28 @@ const nextConfig = {
       },
     ];
   },
-  webpack: (config, { isServer }) => {
-    // Configuración básica para monorepo - Mejor usar dependencias estándar
+  webpack: (config, { isServer, webpack }) => {
+    const sharedSrc = path.join(__dirname, '../../packages/shared/src');
+
+    // Monorepo: alias por subpath. No mapear `@autodealers/shared` al barrel (incluye firebase-admin).
     config.resolve.alias = {
       ...config.resolve.alias,
       '@': path.join(__dirname, 'src'),
       '@autodealers/core': path.join(__dirname, '../../packages/core/src'),
-      '@autodealers/shared': path.join(__dirname, '../../packages/shared/src'),
+      '@autodealers/shared/client': path.join(sharedSrc, 'client.ts'),
+      '@autodealers/shared/firebase-server': path.join(sharedSrc, 'firebase-server.ts'),
+      '@autodealers/shared/firebase-web-client-config': path.join(
+        sharedSrc,
+        'firebase-web-client-config.ts'
+      ),
+      '@autodealers/shared/platform-branding-client': path.join(
+        sharedSrc,
+        'platform-branding-client.ts'
+      ),
+      '@autodealers/shared/components/StripePaymentForm': path.join(
+        sharedSrc,
+        'components/StripePaymentForm.tsx'
+      ),
       '@autodealers/crm': path.join(__dirname, '../../packages/crm/src'),
       '@autodealers/inventory': path.join(__dirname, '../../packages/inventory/src'),
       '@autodealers/billing': path.join(__dirname, '../../packages/billing/src'),
@@ -75,14 +90,21 @@ const nextConfig = {
       '@autodealers/ai': path.join(__dirname, '../../packages/ai/src'),
     };
 
-    // serverExternalPackages ya maneja la mayoría de los casos en Next.js moderno.
-    // Solo agregamos fallbacks para el lado del cliente si es necesario.
-    if (!isServer) {
+    if (isServer) {
+      config.resolve.alias['@autodealers/shared'] = path.join(sharedSrc, 'index.ts');
+    } else {
+      config.resolve.alias['@autodealers/shared$'] = path.join(sharedSrc, 'client.ts');
+      config.plugins.push(
+        new webpack.IgnorePlugin({
+          resourceRegExp: /firebase-admin|@google-cloud\/firestore|@google-cloud\/storage/,
+        })
+      );
       config.resolve.fallback = {
         ...config.resolve.fallback,
         fs: false,
         net: false,
         tls: false,
+        http2: false,
         child_process: false,
         'firebase-admin': false,
         'google-auth-library': false,

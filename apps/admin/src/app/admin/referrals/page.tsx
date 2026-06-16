@@ -39,6 +39,13 @@ export default function ReferralsAdminPage() {
   const [stats, setStats] = useState<ReferralStats | null>(null);
   const [filter, setFilter] = useState<string>('all');
   const [showGrantCreditModal, setShowGrantCreditModal] = useState(false);
+  const [cronRunning, setCronRunning] = useState(false);
+  const [cronResult, setCronResult] = useState<{
+    processed: number;
+    skipped: number;
+    errors: Array<{ taskId: string; referralId?: string; message: string }>;
+  } | null>(null);
+  const [cronError, setCronError] = useState<string | null>(null);
 
   // Hook en tiempo real para referidos
   const { referrals, loading } = useRealtimeReferrals({
@@ -66,10 +73,42 @@ export default function ReferralsAdminPage() {
     }
   }, [referrals]);
 
+  async function runReferralConfirmationCron() {
+    if (
+      !confirm(
+        '¿Procesar referidos que ya cumplieron 14 días y otorgar recompensas pendientes?'
+      )
+    ) {
+      return;
+    }
+    setCronRunning(true);
+    setCronError(null);
+    setCronResult(null);
+    try {
+      const response = await fetch('/api/admin/referrals/process-due-confirmations', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || `Error ${response.status}`);
+      }
+      setCronResult({
+        processed: data.processed ?? 0,
+        skipped: data.skipped ?? 0,
+        errors: data.errors ?? [],
+      });
+    } catch (err) {
+      setCronError(err instanceof Error ? err.message : 'No se pudo ejecutar el cron');
+    } finally {
+      setCronRunning(false);
+    }
+  }
+
   function getStatusBadge(status: string) {
     const styles: Record<string, string> = {
       pending: 'bg-yellow-100 text-yellow-800',
-      confirmed: 'bg-blue-100 text-blue-800',
+      confirmed: 'bg-primary-100 text-primary-800',
       rewarded: 'bg-green-100 text-green-800',
       cancelled: 'bg-red-100 text-red-800',
     };
@@ -89,7 +128,7 @@ export default function ReferralsAdminPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
       </div>
     );
   }
@@ -98,19 +137,28 @@ export default function ReferralsAdminPage() {
     <div className="p-6">
       <div className="mb-6 flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gray-900">Gestión de Referidos</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
+            type="button"
+            onClick={runReferralConfirmationCron}
+            disabled={cronRunning}
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+            title="Otorga recompensas a referidos confirmados que ya cumplieron 14 días"
+          >
+            {cronRunning ? 'Procesando…' : '⏱️ Procesar recompensas (14 días)'}
+          </button>
+          <button
+            type="button"
             onClick={(e) => {
               e.preventDefault();
-              console.log('🔘 Click en Configurar Recompensas');
-              // Usar window.location directamente para asegurar la navegación
               window.location.href = '/admin/referrals/config';
             }}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors cursor-pointer"
           >
             ⚙️ Configurar Recompensas
           </button>
           <button
+            type="button"
             onClick={() => setShowGrantCreditModal(true)}
             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
           >
@@ -118,6 +166,32 @@ export default function ReferralsAdminPage() {
           </button>
         </div>
       </div>
+
+      {cronError && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {cronError}
+        </div>
+      )}
+      {cronResult && (
+        <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
+          <p className="font-semibold">Cron ejecutado</p>
+          <p>
+            Procesados: {cronResult.processed} · Omitidos: {cronResult.skipped}
+            {cronResult.errors.length > 0
+              ? ` · Errores: ${cronResult.errors.length}`
+              : ''}
+          </p>
+          {cronResult.errors.length > 0 && (
+            <ul className="mt-2 list-disc pl-5 text-red-700">
+              {cronResult.errors.map((e) => (
+                <li key={e.taskId}>
+                  {e.referralId || e.taskId}: {e.message}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {/* Estadísticas */}
       {stats && (
@@ -132,7 +206,7 @@ export default function ReferralsAdminPage() {
           </div>
           <div className="bg-white rounded-lg shadow p-4">
             <div className="text-sm text-gray-600 mb-1">Confirmados</div>
-            <div className="text-2xl font-bold text-blue-600">{stats.confirmed}</div>
+            <div className="text-2xl font-bold text-primary-600">{stats.confirmed}</div>
           </div>
           <div className="bg-white rounded-lg shadow p-4">
             <div className="text-sm text-gray-600 mb-1">Recompensados</div>
@@ -152,7 +226,7 @@ export default function ReferralsAdminPage() {
             onClick={() => setFilter('all')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               filter === 'all'
-                ? 'bg-blue-600 text-white'
+                ? 'bg-primary-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -162,7 +236,7 @@ export default function ReferralsAdminPage() {
             onClick={() => setFilter('pending')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               filter === 'pending'
-                ? 'bg-blue-600 text-white'
+                ? 'bg-primary-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -172,7 +246,7 @@ export default function ReferralsAdminPage() {
             onClick={() => setFilter('confirmed')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               filter === 'confirmed'
-                ? 'bg-blue-600 text-white'
+                ? 'bg-primary-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -182,7 +256,7 @@ export default function ReferralsAdminPage() {
             onClick={() => setFilter('rewarded')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               filter === 'rewarded'
-                ? 'bg-blue-600 text-white'
+                ? 'bg-primary-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -192,7 +266,7 @@ export default function ReferralsAdminPage() {
             onClick={() => setFilter('cancelled')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               filter === 'cancelled'
-                ? 'bg-blue-600 text-white'
+                ? 'bg-primary-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -362,7 +436,7 @@ function GrantCreditModal({ onClose, onSuccess }: { onClose: () => void; onSucce
             </select>
           </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+          <div className="bg-primary-50 border border-primary-200 rounded-lg p-3 text-sm text-primary-800">
             <p className="font-semibold mb-1">ℹ️ Información sobre expiración:</p>
             <ul className="list-disc list-inside space-y-1">
               <li><strong>Promociones:</strong> No expiran hasta que se usen</li>

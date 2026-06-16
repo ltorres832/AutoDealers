@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getFirestore } from '@autodealers/core';
+import {
+  canPerformAction,
+  getFirestore,
+  isTenantSubdomainSlugAvailable,
+  validateTenantSubdomainSlug,
+} from '@autodealers/core';
 import * as admin from 'firebase-admin';
 
 const db = getFirestore();
@@ -17,30 +22,31 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { subdomain } = body;
 
-    if (!subdomain || !/^[a-z0-9-]+$/.test(subdomain)) {
-      return NextResponse.json({ error: 'Subdomain format invalid' }, { status: 400 });
+    const validation = await canPerformAction(auth.tenantId, 'useSubdomain');
+    if (!validation.allowed) {
+      return NextResponse.json(
+        { error: validation.reason || 'Su membresía no incluye subdominio personalizado' },
+        { status: 403 }
+      );
     }
 
-    // Verificar que el subdominio no esté en uso
-    const existingSnapshot = await db
-      .collection('tenants')
-      .where('subdomain', '==', subdomain)
-      .get();
-
-    if (!existingSnapshot.empty) {
-      const existing = existingSnapshot.docs[0];
-      if (existing.id !== auth.tenantId) {
-        return NextResponse.json({ error: 'Subdomain already in use' }, { status: 400 });
-      }
+    const format = validateTenantSubdomainSlug(String(subdomain || ''));
+    if (!format.ok) {
+      return NextResponse.json({ error: format.error }, { status: 400 });
     }
 
-    // Actualizar tenant con el subdominio
+    const available = await isTenantSubdomainSlugAvailable(format.slug, auth.tenantId);
+    if (!available) {
+      return NextResponse.json({ error: 'Subdomain already in use' }, { status: 400 });
+    }
+
     await db.collection('tenants').doc(auth.tenantId).update({
-      subdomain,
+      subdomain: format.slug,
+      pendingSubdomain: admin.firestore.FieldValue.delete(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    return NextResponse.json({ success: true, subdomain });
+    return NextResponse.json({ success: true, subdomain: format.slug });
   } catch (error: any) {
     console.error('Error updating subdomain:', error);
     return NextResponse.json(

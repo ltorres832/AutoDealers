@@ -5,14 +5,14 @@ import { useRef } from 'react';
 
 const POPULAR_BRANDS = [
     { name: 'Toyota', logo: 'T', color: 'bg-red-600' },
-    { name: 'Honda', logo: 'H', color: 'bg-blue-700' },
-    { name: 'Ford', logo: 'F', color: 'bg-blue-600' },
+    { name: 'Honda', logo: 'H', color: 'bg-primary-700' },
+    { name: 'Ford', logo: 'F', color: 'bg-primary-600' },
     { name: 'Chevrolet', logo: 'C', color: 'bg-yellow-500' },
     { name: 'Nissan', logo: 'N', color: 'bg-red-700' },
-    { name: 'BMW', logo: 'B', color: 'bg-blue-500' },
+    { name: 'BMW', logo: 'B', color: 'bg-primary-500' },
     { name: 'Mercedes', logo: 'M', color: 'bg-gray-800' },
     { name: 'Audi', logo: 'A', color: 'bg-black' },
-    { name: 'Hyundai', logo: 'H', color: 'bg-blue-800' },
+    { name: 'Hyundai', logo: 'H', color: 'bg-primary-800' },
     { name: 'Kia', logo: 'K', color: 'bg-red-600' },
     { name: 'Jeep', logo: 'J', color: 'bg-green-700' },
     { name: 'Ram', logo: 'R', color: 'bg-black' },
@@ -77,7 +77,7 @@ export default function BrowseByBrand() {
                             <div className={`w-16 h-16 ${brand.color} rounded-full flex items-center justify-center text-white text-2xl font-bold mb-3 shadow-md group-hover:shadow-xl transition-shadow`}>
                                 {brand.logo}
                             </div>
-                            <span className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">{brand.name}</span>
+                            <span className="font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">{brand.name}</span>
                         </Link>
                     ))}
                 </div>

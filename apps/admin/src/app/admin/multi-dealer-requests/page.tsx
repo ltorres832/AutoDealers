@@ -337,7 +337,7 @@ export default function MultiDealerRequestsPage() {
                             // Mostrar detalles en modal
                             alert(`Detalles:\n\nRazón: ${request.reasonForMultiDealer}\n\nInformación adicional: ${request.additionalInfo || 'N/A'}`);
                           }}
-                          className="text-blue-600 hover:text-blue-900"
+                          className="text-primary-600 hover:text-primary-900"
                         >
                           Ver
                         </button>

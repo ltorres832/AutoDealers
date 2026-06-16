@@ -22,7 +22,7 @@ interface AdvancedReportsProps {
   tenantId: string;
 }
 
-const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
+const COLORS = ['#E10600', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
 
 export default function AdvancedReports({ tenantId }: AdvancedReportsProps) {
   const [loading, setLoading] = useState(true);
@@ -114,7 +114,7 @@ export default function AdvancedReports({ tenantId }: AdvancedReportsProps) {
         </div>
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-sm font-medium text-gray-500">ROI por Canal</h3>
-          <p className="text-3xl font-bold text-purple-600 mt-2">
+          <p className="text-3xl font-bold text-primary-600 mt-2">
             {reportData.topROIChannel || 'N/A'}
           </p>
         </div>
@@ -131,7 +131,7 @@ export default function AdvancedReports({ tenantId }: AdvancedReportsProps) {
               <YAxis />
               <Tooltip />
               <Legend />
-              <Bar dataKey="leads" fill="#3B82F6" name="Leads" />
+              <Bar dataKey="leads" fill="#E10600" name="Leads" />
               <Bar dataKey="converted" fill="#10B981" name="Convertidos" />
             </BarChart>
           </ResponsiveContainer>
@@ -152,7 +152,7 @@ export default function AdvancedReports({ tenantId }: AdvancedReportsProps) {
               <Line
                 type="monotone"
                 dataKey="new"
-                stroke="#3B82F6"
+                stroke="#E10600"
                 name="Nuevos"
               />
               <Line

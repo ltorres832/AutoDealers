@@ -36,14 +36,14 @@ export default function BrandGrid() {
                             href={`/search?make=${brand.name}`}
                             className="group flex flex-col items-center gap-4 transition-all duration-300"
                         >
-                            <div className="w-24 h-24 bg-white rounded-2xl flex items-center justify-center p-6 shadow-sm border border-slate-200 transition-all duration-500 group-hover:shadow-xl group-hover:border-blue-400 group-hover:-translate-y-2">
+                            <div className="w-24 h-24 bg-white rounded-2xl flex items-center justify-center p-6 shadow-sm border border-slate-200 transition-all duration-500 group-hover:shadow-xl group-hover:border-primary-400 group-hover:-translate-y-2">
                                 <img
                                     src={brand.logo}
                                     alt={brand.name}
                                     className="max-w-full max-h-full object-contain grayscale group-hover:grayscale-0 transition-all duration-500 group-hover:scale-110"
                                 />
                             </div>
-                            <span className="text-xs font-black text-slate-500 group-hover:text-blue-600 transition-colors uppercase tracking-widest">
+                            <span className="text-xs font-black text-slate-500 group-hover:text-primary-600 transition-colors uppercase tracking-widest">
                                 {brand.name}
                             </span>
                         </Link>
@@ -53,7 +53,7 @@ export default function BrandGrid() {
                 <div className="text-center mt-16">
                     <Link
                         href="/search"
-                        className="inline-flex items-center gap-2 text-slate-900 font-black text-sm uppercase tracking-widest hover:text-blue-600 transition-colors"
+                        className="inline-flex items-center gap-2 text-slate-900 font-black text-sm uppercase tracking-widest hover:text-primary-600 transition-colors"
                     >
                         Ver Todas las Marcas
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

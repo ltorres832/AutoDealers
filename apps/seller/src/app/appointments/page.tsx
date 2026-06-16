@@ -102,7 +102,7 @@ export default function AppointmentsPage() {
           ? '#6B7280'
           : apt.status === 'cancelled'
           ? '#EF4444'
-          : '#3B82F6',
+          : '#E10600',
       extendedProps: {
         appointment: apt,
         lead: lead,
@@ -202,7 +202,7 @@ export default function AppointmentsPage() {
                             ? 'bg-yellow-100 text-yellow-700'
                             : apt.status === 'cancelled'
                             ? 'bg-red-100 text-red-700'
-                            : 'bg-blue-100 text-blue-700'
+                            : 'bg-primary-100 text-primary-700'
                         }`}
                       >
                         {apt.status === 'confirmed' ? 'Confirmada' : apt.status === 'pending' ? 'Pendiente' : apt.status === 'cancelled' ? 'Cancelada' : apt.status}
@@ -531,7 +531,7 @@ function AppointmentDetailModal({
                   ? 'bg-yellow-100 text-yellow-700'
                   : appointment.status === 'cancelled'
                   ? 'bg-red-100 text-red-700'
-                  : 'bg-blue-100 text-blue-700'
+                  : 'bg-primary-100 text-primary-700'
               }`}
             >
               {appointment.status === 'confirmed' ? 'Confirmada' : appointment.status === 'pending' ? 'Pendiente' : appointment.status === 'cancelled' ? 'Cancelada' : appointment.status}

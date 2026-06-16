@@ -9,6 +9,8 @@ import ChatWidget from '@/components/ChatWidget';
 import { getFirstPhoto, handleImageError } from '@/lib/vehicle-image';
 import { getPublicVehicleConditionLabel } from '@/lib/vehicle-condition-label';
 import { pingCatalogVehicleClick } from '@/lib/catalog-vehicle-click';
+import { buildPublicVehicleDetailHref, vehicleCatalogTenantId } from '@/lib/public-vehicle-detail-href';
+import { PublicTrustGallery } from '@autodealers/shared/components/PublicTrustGallery';
 import {
   DEFAULT_HERO_CTA,
   DEFAULT_HERO_SUBTITLE,
@@ -34,11 +36,13 @@ export interface SellerPublicWebsiteSeller {
   website?: string;
   publicPromoVideoUrl?: string;
   publicPromoVideoUrls?: string[];
+  publicTrustGalleryPhotos?: string[];
   socialMedia?: SocialMediaMap;
 }
 
 export interface SellerPublicWebsiteVehicle {
   id: string;
+  tenantId?: string;
   make: string;
   model: string;
   year: number;
@@ -218,7 +222,7 @@ function SellerContactFormModal({
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
+            className="w-full bg-primary-600 text-white py-3 rounded-lg font-medium hover:bg-primary-700 disabled:opacity-50"
           >
             {loading ? 'Enviando…' : 'Enviar mensaje'}
           </button>
@@ -238,8 +242,8 @@ export default function SellerPublicWebsite({
 }: SellerPublicWebsiteProps) {
   const [showContactForm, setShowContactForm] = useState(false);
 
-  const primaryColor = branding.primaryColor || '#2563EB';
-  const secondaryColor = branding.secondaryColor || '#1E40AF';
+  const primaryColor = branding.primaryColor || '#E10600';
+  const secondaryColor = branding.secondaryColor || '#0A0A0A';
   const settingsView = websiteSettings
     ? toWebsiteSettingsView(websiteSettings as unknown as Record<string, unknown>)
     : toWebsiteSettingsView({});
@@ -282,6 +286,7 @@ export default function SellerPublicWebsite({
   const aboutEnabled = sections?.about?.enabled !== false;
   const aboutContent = sections?.about?.content?.trim() || bio;
   const contactEnabled = sections?.contact?.enabled !== false;
+  const catalogUrl = `/seller/${seller.id}`;
   return (
     <div className="min-h-screen bg-white">
       <header className="text-white py-6 px-4 sm:px-6" style={{ backgroundColor: primaryColor }}>
@@ -358,6 +363,10 @@ export default function SellerPublicWebsite({
         titlePrefix={`Video — ${seller.name}`}
       />
 
+      <div className="max-w-6xl mx-auto px-4 sm:px-6">
+        <PublicTrustGallery photos={seller.publicTrustGalleryPhotos || []} />
+      </div>
+
       <section className="bg-gray-50 py-12 px-4 sm:px-6" id="inventory">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl font-bold mb-8">Mi Inventario</h2>
@@ -372,18 +381,24 @@ export default function SellerPublicWebsite({
                 const showSold =
                   v.status === 'sold' || v.showSoldBadge === true || v.showPublicSoldBadge === true;
                 const photo = getFirstPhoto(v);
+                const catalogTenantId = vehicleCatalogTenantId(v, seller.tenantId);
+                const detailHref = buildPublicVehicleDetailHref({
+                  vehicleId: v.id,
+                  tenantId: catalogTenantId,
+                  sellerId: seller.id,
+                });
                 return (
                   <div
                     key={v.id}
                     className="bg-white rounded-lg shadow overflow-hidden hover:shadow-lg transition flex flex-col"
                   >
                     <Link
-                      href={`/${seller.tenantId}/vehicle/${v.id}`}
+                      href={detailHref}
                       className="block group"
                       onClick={() =>
                         pingCatalogVehicleClick({
                           vehicleId: v.id,
-                          tenantId: seller.tenantId,
+                          tenantId: catalogTenantId,
                           surface: 'seller_inventory',
                         })
                       }
@@ -427,7 +442,7 @@ export default function SellerPublicWebsite({
                     </Link>
                     <div className="px-6 pb-6">
                       <Link
-                        href={`/${seller.tenantId}/vehicle/${v.id}`}
+                        href={detailHref}
                         className="block w-full text-center text-white px-4 py-2 rounded font-medium hover:opacity-90"
                         style={{ backgroundColor: primaryColor }}
                       >

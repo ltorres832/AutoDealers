@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getFirestore, encodeSocialOAuthState } from '@autodealers/core';
-import * as admin from 'firebase-admin';
+import {
+  encodeSocialOAuthState,
+  isPlatformWhatsAppConfigured,
+  provisionTenantWhatsAppFromPlatform,
+} from '@autodealers/core';
+import { buildMetaOAuthDialogUrl } from '@autodealers/core/meta-oauth-scopes';
+import {
+  auditMetaUserAccess,
+  type MetaTokenHealth,
+} from '@autodealers/core/meta-token-health';
+import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
 
 const db = getFirestore();
 
@@ -52,23 +61,58 @@ export async function GET(request: NextRequest) {
       .collection('integrations')
       .get();
 
-    const integrations = integrationsSnapshot.docs.map((doc) => {
+    const whatsappPlatformConfigured = await isPlatformWhatsAppConfigured();
+    let integrations = integrationsSnapshot.docs.map((doc) => {
       const data = doc.data();
+      const creds = data.credentials as Record<string, unknown> | undefined;
+      const rawHealth = creds?.metaTokenHealth as MetaTokenHealth | undefined;
+      const metaTokenHealth = rawHealth
+        ? {
+            readyForOrganic: !!rawHealth.readyForOrganic,
+            readyForPaidAds: !!rawHealth.readyForPaidAds,
+            readyForInstagram: !!rawHealth.readyForInstagram,
+            missingScopes: rawHealth.missingScopes ?? [],
+            warnings: rawHealth.warnings ?? [],
+            adAccountId: rawHealth.adAccountId,
+            checkedAt: rawHealth.checkedAt,
+          }
+        : undefined;
       return {
         id: doc.id,
         type: data.type,
         status: data.status || 'inactive',
         tenantId: auth.tenantId,
-        credentials: data.credentials ? {
-          appId: data.credentials.appId || undefined,
-          hasAppSecret: !!data.credentials.appSecret, // Indicar si existe sin devolverlo
-        } : undefined,
+        platformManaged: data.platformManaged === true,
+        metaTokenHealth: data.type === 'facebook' ? metaTokenHealth : undefined,
+        credentials: creds
+          ? {
+              appId: creds.appId || undefined,
+              hasAppSecret: !!creds.appSecret,
+              pageName: typeof creds.pageName === 'string' ? creds.pageName : undefined,
+            }
+          : undefined,
         createdAt: data.createdAt,
         updatedAt: data.updatedAt,
       };
     });
 
-    return NextResponse.json({ integrations: integrations || [] });
+    const hasActiveWhatsApp = integrations.some(
+      (i) => i.type === 'whatsapp' && i.status === 'active'
+    );
+    if (whatsappPlatformConfigured && !hasActiveWhatsApp) {
+      integrations = [
+        ...integrations,
+        {
+          id: 'platform-whatsapp',
+          type: 'whatsapp',
+          status: 'active',
+          tenantId: auth.tenantId,
+          platformManaged: true,
+        },
+      ];
+    }
+
+    return NextResponse.json({ integrations, whatsappPlatformConfigured });
   } catch (error: any) {
     console.error('Error fetching integrations:', error);
     return NextResponse.json(
@@ -86,7 +130,61 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { type, action, credentials } = body;
+    const { type, action, credentials, reauthorize } = body;
+
+    if (action === 'verify_meta') {
+      const fbSnap = await db
+        .collection('tenants')
+        .doc(auth.tenantId)
+        .collection('integrations')
+        .where('type', '==', 'facebook')
+        .where('status', '==', 'active')
+        .limit(1)
+        .get();
+      if (fbSnap.empty) {
+        return NextResponse.json(
+          { error: 'Facebook no está conectado' },
+          { status: 400 }
+        );
+      }
+      const fbDoc = fbSnap.docs[0];
+      const creds = (fbDoc.data().credentials || {}) as Record<string, unknown>;
+      const userToken = creds.accessToken != null ? String(creds.accessToken) : '';
+      if (!userToken) {
+        return NextResponse.json(
+          { error: 'Sin token de usuario. Reconecta Meta.' },
+          { status: 400 }
+        );
+      }
+      const credentialsDoc = await db.collection('system_settings').doc('credentials').get();
+      const appId = credentialsDoc.data()?.metaAppId as string | undefined;
+      const appSecret = credentialsDoc.data()?.metaAppSecret as string | undefined;
+      if (!appId || !appSecret) {
+        return NextResponse.json(
+          { error: 'Credenciales de la app Meta no configuradas en admin' },
+          { status: 400 }
+        );
+      }
+      const tokenHealth = await auditMetaUserAccess({
+        appId,
+        appSecret,
+        userAccessToken: userToken,
+        pageAccessToken:
+          creds.pageAccessToken != null ? String(creds.pageAccessToken) : undefined,
+        pageId: creds.pageId != null ? String(creds.pageId) : undefined,
+        adAccountId: creds.adAccountId != null ? String(creds.adAccountId) : undefined,
+      });
+      await fbDoc.ref.update({
+        credentials: {
+          ...creds,
+          metaTokenHealth: tokenHealth,
+          scopesGranted: tokenHealth.grantedScopes,
+          ...(tokenHealth.adAccountId ? { adAccountId: tokenHealth.adAccountId } : {}),
+        },
+        updatedAt: getFirestoreFieldValue().serverTimestamp(),
+      });
+      return NextResponse.json({ success: true, metaTokenHealth: tokenHealth });
+    }
 
     if (action === 'save_credentials') {
       // Guardar credenciales de Meta (App ID y App Secret) del tenant
@@ -107,7 +205,7 @@ export async function POST(request: NextRequest) {
               appId: credentials.appId,
               appSecret: credentials.appSecret,
             },
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: getFirestoreFieldValue().serverTimestamp(),
           });
         } else {
           integrationRef = db.collection('tenants').doc(auth.tenantId).collection('integrations').doc();
@@ -119,8 +217,8 @@ export async function POST(request: NextRequest) {
               appSecret: credentials.appSecret,
             },
             settings: {},
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            createdAt: getFirestoreFieldValue().serverTimestamp(),
+            updatedAt: getFirestoreFieldValue().serverTimestamp(),
           });
         }
 
@@ -135,8 +233,30 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'connect') {
-      // Para integraciones manuales (WhatsApp), guardar las credenciales
-      if (type === 'whatsapp' && credentials) {
+      if (type === 'whatsapp') {
+        if (!credentials) {
+          const platformResult = await provisionTenantWhatsAppFromPlatform(
+            auth.tenantId,
+            auth.userId
+          );
+          if (platformResult.ok) {
+            return NextResponse.json({
+              success: true,
+              platformManaged: true,
+              integrationId: platformResult.integrationId,
+              message: 'WhatsApp conectado con la configuración de la plataforma.',
+            });
+          }
+          return NextResponse.json(
+            {
+              error: 'manual_credentials_required',
+              message:
+                'WhatsApp no está configurado en el panel de administración. Contacta al admin o ingresa credenciales propias.',
+            },
+            { status: 400 }
+          );
+        }
+
         const cred = credentials as Record<string, unknown>;
         const phoneNumberId = String(
           cred.phoneNumberId ?? cred.phone_number_id ?? ''
@@ -165,7 +285,7 @@ export async function POST(request: NextRequest) {
             status: 'active',
             credentials: credentials,
             ...whatsappFlat,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: getFirestoreFieldValue().serverTimestamp(),
           });
         } else {
           integrationRef = db.collection('tenants').doc(auth.tenantId).collection('integrations').doc();
@@ -175,15 +295,15 @@ export async function POST(request: NextRequest) {
             credentials: credentials,
             ...whatsappFlat,
             settings: {},
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            createdAt: getFirestoreFieldValue().serverTimestamp(),
+            updatedAt: getFirestoreFieldValue().serverTimestamp(),
           });
         }
 
-        return NextResponse.json({ 
-          success: true, 
+        return NextResponse.json({
+          success: true,
           integrationId: integrationRef.id,
-          message: 'WhatsApp conectado exitosamente'
+          message: 'WhatsApp conectado exitosamente',
         });
       }
 
@@ -226,33 +346,24 @@ export async function POST(request: NextRequest) {
             }, { status: 400 });
           }
 
-          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3003';
-          
-          if (!baseUrl) {
-            return NextResponse.json({ 
-              error: 'URL base no configurada',
-              message: 'La variable de entorno NEXT_PUBLIC_APP_URL no está configurada.',
-              details: 'Por favor configura NEXT_PUBLIC_APP_URL en las variables de entorno del servidor.'
-            }, { status: 500 });
-          }
-
-          const redirectUri = `${baseUrl}/api/settings/integrations/callback`;
-          const metaScopes =
-            'pages_show_list,pages_manage_posts,pages_read_engagement,pages_messaging,instagram_basic,instagram_content_publish,instagram_manage_messages,ads_read,ads_management';
-          const scope =
-            type === 'instagram'
-              ? 'instagram_basic,instagram_content_publish,instagram_manage_messages,pages_show_list'
-              : metaScopes;
-          const oauthType = type === 'meta' ? 'meta' : type;
+          const { getIntegrationsOAuthCallbackUrl } = await import('@/lib/app-origin');
+          const redirectUri = getIntegrationsOAuthCallbackUrl(request);
+          const oauthType = type === 'meta' ? 'meta' : type === 'facebook' ? 'facebook' : 'instagram';
 
           const statePayload = encodeSocialOAuthState({
-            type: oauthType,
+            type: oauthType === 'facebook' ? 'meta' : oauthType,
             tenantId: auth.tenantId,
             leadOwnerUserId: auth.userId,
           });
-          const authUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&response_type=code&state=${encodeURIComponent(statePayload)}`;
-          
-          console.log('Generando URL de OAuth:', { type, appId, redirectUri, scope });
+          const authUrl = buildMetaOAuthDialogUrl({
+            appId,
+            redirectUri,
+            state: statePayload,
+            type: oauthType,
+            reauthorize: reauthorize === true,
+          });
+
+          console.log('Generando URL de OAuth:', { type, appId, redirectUri, reauthorize: !!reauthorize });
           
           return NextResponse.json({ authUrl });
         } catch (dbError: any) {

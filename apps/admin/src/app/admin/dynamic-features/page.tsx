@@ -24,6 +24,7 @@ export default function DynamicFeaturesPage() {
   const [features, setFeatures] = useState<DynamicFeature[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingFeature, setEditingFeature] = useState<DynamicFeature | null>(null);
 
   useEffect(() => {
     fetchFeatures();
@@ -100,7 +101,7 @@ export default function DynamicFeaturesPage() {
               <div className="space-y-2 mb-4">
                 <div className="flex items-center gap-2 text-xs">
                   <span className="font-medium">Tipo:</span>
-                  <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                  <span className="px-2 py-1 bg-primary-100 text-primary-700 rounded">
                     {feature.type}
                   </span>
                 </div>
@@ -133,24 +134,31 @@ export default function DynamicFeaturesPage() {
 
               <div className="flex gap-2">
                 <button
-                  onClick={() => {
-                    // TODO: Editar feature
-                    alert('Funcionalidad de edición próximamente');
-                  }}
+                  onClick={() => setEditingFeature(feature)}
                   className="flex-1 px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 text-sm"
                 >
                   Editar
                 </button>
                 <button
                   onClick={async () => {
-                    if (confirm('¿Desactivar esta feature?')) {
+                    if (feature.isActive) {
+                      if (!confirm('¿Desactivar esta feature?')) return;
                       try {
                         const response = await fetch(`/api/admin/dynamic-features/${feature.id}`, {
                           method: 'DELETE',
                         });
-                        if (response.ok) {
-                          fetchFeatures();
-                        }
+                        if (response.ok) fetchFeatures();
+                      } catch (error) {
+                        console.error('Error:', error);
+                      }
+                    } else {
+                      try {
+                        const response = await fetch(`/api/admin/dynamic-features/${feature.id}`, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ isActive: true }),
+                        });
+                        if (response.ok) fetchFeatures();
                       } catch (error) {
                         console.error('Error:', error);
                       }
@@ -172,6 +180,267 @@ export default function DynamicFeaturesPage() {
           onSuccess={fetchFeatures}
         />
       )}
+
+      {editingFeature && (
+        <EditDynamicFeatureModal
+          feature={editingFeature}
+          onClose={() => setEditingFeature(null)}
+          onSuccess={() => {
+            setEditingFeature(null);
+            fetchFeatures();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function EditDynamicFeatureModal({
+  feature,
+  onClose,
+  onSuccess,
+}: {
+  feature: DynamicFeature;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [formData, setFormData] = useState({
+    name: feature.name,
+    description: feature.description,
+    type: feature.type,
+    category: feature.category,
+    defaultValue:
+      feature.defaultValue !== undefined ? String(feature.defaultValue) : '',
+    options: feature.options?.join(', ') || '',
+    min: feature.min !== undefined ? String(feature.min) : '',
+    max: feature.max !== undefined ? String(feature.max) : '',
+    unit: feature.unit || '',
+    isActive: feature.isActive,
+  });
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const payload: Record<string, unknown> = {
+        name: formData.name,
+        description: formData.description,
+        category: formData.category,
+        isActive: formData.isActive,
+      };
+
+      if (formData.defaultValue) {
+        if (formData.type === 'boolean') {
+          payload.defaultValue = formData.defaultValue === 'true';
+        } else if (formData.type === 'number') {
+          payload.defaultValue = parseFloat(formData.defaultValue);
+        } else {
+          payload.defaultValue = formData.defaultValue;
+        }
+      }
+
+      if (formData.type === 'select' && formData.options) {
+        payload.options = formData.options.split(',').map((o) => o.trim()).filter(Boolean);
+      }
+
+      if (formData.type === 'number') {
+        if (formData.min) payload.min = parseFloat(formData.min);
+        if (formData.max) payload.max = parseFloat(formData.max);
+        if (formData.unit) payload.unit = formData.unit;
+      }
+
+      const response = await fetch(`/api/admin/dynamic-features/${feature.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok) {
+        onSuccess();
+        alert('Feature actualizada correctamente.');
+      } else {
+        const error = await response.json();
+        alert('Error: ' + (error.error || 'Error al actualizar feature'));
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error al actualizar feature');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b">
+          <h2 className="text-2xl font-bold">Editar Feature Dinámica</h2>
+          <p className="text-sm text-gray-600 mt-2 font-mono">{feature.key}</p>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Nombre para Mostrar</label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="w-full border rounded px-3 py-2"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Descripción</label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              className="w-full border rounded px-3 py-2"
+              rows={3}
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Categoría</label>
+            <select
+              value={formData.category}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              className="w-full border rounded px-3 py-2"
+              required
+            >
+              <option value="domains">Dominios</option>
+              <option value="ai">IA</option>
+              <option value="social">Redes Sociales</option>
+              <option value="marketplace">Marketplace</option>
+              <option value="reports">Reportes</option>
+              <option value="api">API</option>
+              <option value="marketing">Marketing</option>
+              <option value="crm">CRM</option>
+              <option value="content">Contenido</option>
+              <option value="services">Servicios</option>
+              <option value="support">Soporte</option>
+              <option value="custom">Personalizada</option>
+            </select>
+          </div>
+
+          {formData.type === 'boolean' && (
+            <div>
+              <label className="block text-sm font-medium mb-2">Valor por Defecto</label>
+              <select
+                value={formData.defaultValue}
+                onChange={(e) => setFormData({ ...formData, defaultValue: e.target.value })}
+                className="w-full border rounded px-3 py-2"
+              >
+                <option value="">Sin valor por defecto</option>
+                <option value="true">true (Sí)</option>
+                <option value="false">false (No)</option>
+              </select>
+            </div>
+          )}
+
+          {formData.type === 'number' && (
+            <>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Valor Mínimo</label>
+                  <input
+                    type="number"
+                    value={formData.min}
+                    onChange={(e) => setFormData({ ...formData, min: e.target.value })}
+                    className="w-full border rounded px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Valor Máximo</label>
+                  <input
+                    type="number"
+                    value={formData.max}
+                    onChange={(e) => setFormData({ ...formData, max: e.target.value })}
+                    className="w-full border rounded px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Unidad</label>
+                  <input
+                    type="text"
+                    value={formData.unit}
+                    onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                    className="w-full border rounded px-3 py-2"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Valor por Defecto</label>
+                <input
+                  type="number"
+                  value={formData.defaultValue}
+                  onChange={(e) => setFormData({ ...formData, defaultValue: e.target.value })}
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+            </>
+          )}
+
+          {formData.type === 'string' && (
+            <div>
+              <label className="block text-sm font-medium mb-2">Valor por Defecto</label>
+              <input
+                type="text"
+                value={formData.defaultValue}
+                onChange={(e) => setFormData({ ...formData, defaultValue: e.target.value })}
+                className="w-full border rounded px-3 py-2"
+              />
+            </div>
+          )}
+
+          {formData.type === 'select' && (
+            <>
+              <div>
+                <label className="block text-sm font-medium mb-2">Opciones</label>
+                <input
+                  type="text"
+                  value={formData.options}
+                  onChange={(e) => setFormData({ ...formData, options: e.target.value })}
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Valor por Defecto</label>
+                <input
+                  type="text"
+                  value={formData.defaultValue}
+                  onChange={(e) => setFormData({ ...formData, defaultValue: e.target.value })}
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+            </>
+          )}
+
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={formData.isActive}
+              onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+            />
+            Feature activa
+          </label>
+
+          <div className="flex gap-2 justify-end pt-4">
+            <button type="button" onClick={onClose} className="px-4 py-2 border rounded">
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700"
+            >
+              {loading ? 'Guardando...' : 'Guardar cambios'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

@@ -36,9 +36,9 @@ export default function SubscriptionsPage() {
       past_due: 'bg-yellow-100 text-yellow-700',
       suspended: 'bg-red-100 text-red-700',
       cancelled: 'bg-gray-100 text-gray-700',
-      trialing: 'bg-blue-100 text-blue-700',
+      trialing: 'bg-primary-100 text-primary-700',
       unpaid: 'bg-orange-100 text-orange-700',
-      incomplete: 'bg-purple-100 text-purple-700',
+      incomplete: 'bg-primary-100 text-primary-700',
       incomplete_expired: 'bg-gray-100 text-gray-700',
     };
     return colors[status] || 'bg-gray-100 text-gray-700';
@@ -229,15 +229,13 @@ export default function SubscriptionsPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {sub.nextPaymentDate
                         ? (() => {
-                            const nextDate = sub.nextPaymentDate instanceof Date 
-                              ? sub.nextPaymentDate 
-                              : new Date(sub.nextPaymentDate);
+                            const nextDate = new Date(sub.nextPaymentDate);
                             const daysUntil = Math.ceil((nextDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
                             return (
                               <div>
                                 <div>{nextDate.toLocaleDateString('es-ES')}</div>
                                 {daysUntil > 0 && (
-                                  <div className="text-xs text-blue-600">
+                                  <div className="text-xs text-primary-600">
                                     En {daysUntil} día{daysUntil !== 1 ? 's' : ''}
                                   </div>
                                 )}

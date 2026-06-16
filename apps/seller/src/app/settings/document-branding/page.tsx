@@ -176,7 +176,7 @@ export default function DocumentBrandingPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
       </div>
     );
   }
@@ -186,9 +186,11 @@ export default function DocumentBrandingPage() {
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Branding en Documentos</h1>
+        <h1 className="text-3xl font-bold text-gray-900">PDF F&I — Branding en documentos</h1>
         <p className="mt-2 text-gray-600">
-          Configura qué logos y nombres aparecen en tus documentos
+          Define qué logos y nombres aparecen en los PDFs de financiamiento (solicitud de crédito, paquete para banco, contratos).
+          El logo del concesionario también se configura en{' '}
+          <a href="/settings/branding" className="text-primary-600 hover:underline">Marca web</a>.
         </p>
       </div>
 
@@ -207,7 +209,7 @@ export default function DocumentBrandingPage() {
               onClick={() => setActiveTab(tab.id as any)}
               className={`py-4 px-1 border-b-2 font-medium text-sm ${
                 activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600'
+                  ? 'border-primary-500 text-primary-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
@@ -227,7 +229,7 @@ export default function DocumentBrandingPage() {
                 type="checkbox"
                 checked={(currentConfig as any).showPlatformLogo !== false}
                 onChange={(e) => updateCurrentConfig({ showPlatformLogo: e.target.checked })}
-                className="h-5 w-5 text-blue-600 rounded"
+                className="h-5 w-5 text-primary-600 rounded"
               />
               <span className="text-sm font-medium text-gray-700">Mostrar Logo de la Plataforma</span>
             </label>
@@ -237,7 +239,7 @@ export default function DocumentBrandingPage() {
                 type="checkbox"
                 checked={(currentConfig as any).showDealerLogo !== false}
                 onChange={(e) => updateCurrentConfig({ showDealerLogo: e.target.checked })}
-                className="h-5 w-5 text-blue-600 rounded"
+                className="h-5 w-5 text-primary-600 rounded"
               />
               <span className="text-sm font-medium text-gray-700">Mostrar Logo del Dealer</span>
             </label>
@@ -247,7 +249,7 @@ export default function DocumentBrandingPage() {
                 type="checkbox"
                 checked={(currentConfig as any).showSellerLogo === true}
                 onChange={(e) => updateCurrentConfig({ showSellerLogo: e.target.checked })}
-                className="h-5 w-5 text-blue-600 rounded"
+                className="h-5 w-5 text-primary-600 rounded"
               />
               <span className="text-sm font-medium text-gray-700">Mostrar Logo del Vendedor</span>
             </label>
@@ -263,7 +265,7 @@ export default function DocumentBrandingPage() {
                 type="checkbox"
                 checked={(currentConfig as any).showPlatformName !== false}
                 onChange={(e) => updateCurrentConfig({ showPlatformName: e.target.checked })}
-                className="h-5 w-5 text-blue-600 rounded"
+                className="h-5 w-5 text-primary-600 rounded"
               />
               <span className="text-sm font-medium text-gray-700">Mostrar Nombre de la Plataforma</span>
             </label>
@@ -273,7 +275,7 @@ export default function DocumentBrandingPage() {
                 type="checkbox"
                 checked={(currentConfig as any).showDealerName !== false}
                 onChange={(e) => updateCurrentConfig({ showDealerName: e.target.checked })}
-                className="h-5 w-5 text-blue-600 rounded"
+                className="h-5 w-5 text-primary-600 rounded"
               />
               <span className="text-sm font-medium text-gray-700">Mostrar Nombre del Dealer</span>
             </label>
@@ -283,7 +285,7 @@ export default function DocumentBrandingPage() {
                 type="checkbox"
                 checked={(currentConfig as any).showSellerName === true}
                 onChange={(e) => updateCurrentConfig({ showSellerName: e.target.checked })}
-                className="h-5 w-5 text-blue-600 rounded"
+                className="h-5 w-5 text-primary-600 rounded"
               />
               <span className="text-sm font-medium text-gray-700">Mostrar Nombre del Vendedor</span>
             </label>
@@ -303,7 +305,7 @@ export default function DocumentBrandingPage() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+            className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50"
           >
             {saving ? 'Guardando...' : 'Guardar Configuración'}
           </button>

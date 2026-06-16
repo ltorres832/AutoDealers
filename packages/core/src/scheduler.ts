@@ -38,12 +38,20 @@ export async function processPendingReminders(): Promise<void> {
 
         const leadData = leadDoc.data();
         const customerName = leadData?.contact?.name || 'Cliente';
+        const assignedUserId =
+          leadData?.assignedTo ||
+          leadData?.assignedUserId;
+
+        if (!assignedUserId) {
+          console.warn(`Reminder ${reminder.id}: no assigned user, skipping notification`);
+          continue;
+        }
 
         // Enviar notificaciones por los canales configurados
         for (const channel of reminder.channels) {
           await createNotification({
             tenantId,
-            userId: '', // Se debe obtener del vendedor asignado
+            userId: assignedUserId,
             type: 'reminder_due',
             title: `Recordatorio: ${getReminderTypeName(reminder.type)}`,
             message: `Es momento de recordar a ${customerName} sobre ${getReminderTypeName(reminder.type)}`,

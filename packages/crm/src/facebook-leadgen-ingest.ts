@@ -5,6 +5,7 @@ import {
   createNotification,
 } from '@autodealers/core';
 import { createLead, findLeadByMetaLeadGenId, updateLead, assignLead } from './leads';
+import { resolveSellerOwnedForUserId } from './seller-owned-leads';
 
 export type FacebookLeadgenIngestResult =
   | { ok: true; leadId: string; duplicate?: boolean }
@@ -178,6 +179,8 @@ export async function ingestFacebookLeadgenWebhook(
     }
   }
 
+  const owned = await resolveSellerOwnedForUserId(leadOwnerUserId);
+
   const lead = await createLead(
     tenantId,
     'facebook',
@@ -191,6 +194,13 @@ export async function ingestFacebookLeadgenWebhook(
     notes,
     {
       assignedTo: leadOwnerUserId,
+      ...(owned.sellerOwned
+        ? {
+            sellerOwned: true,
+            createdBy: owned.assignedTo,
+            tags: ['vendedor_propio', 'meta_lead_ads'],
+          }
+        : {}),
       vehicleInterest: vehicleInterestExtra,
       vehicleId: vehicleIdFromCampaign,
       leadFormResponses: mapped.leadFormResponses,

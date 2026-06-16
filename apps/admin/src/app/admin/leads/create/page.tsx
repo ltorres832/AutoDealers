@@ -134,7 +134,7 @@ export default function CreateLeadPage() {
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
                   required
                 />
               </div>
@@ -148,7 +148,7 @@ export default function CreateLeadPage() {
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
 
@@ -160,7 +160,7 @@ export default function CreateLeadPage() {
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
                     required
                   />
                 </div>
@@ -174,7 +174,7 @@ export default function CreateLeadPage() {
                   type="text"
                   value={formData.vehicleInterest}
                   onChange={(e) => setFormData({ ...formData, vehicleInterest: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
                   placeholder="Ej: Toyota Camry 2024"
                 />
               </div>
@@ -187,7 +187,7 @@ export default function CreateLeadPage() {
                   type="text"
                   value={formData.budget}
                   onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
                   placeholder="Ej: $25,000 - $30,000"
                 />
               </div>
@@ -199,7 +199,7 @@ export default function CreateLeadPage() {
                 <textarea
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
                   rows={3}
                   placeholder="Información adicional..."
                 />
@@ -231,7 +231,7 @@ export default function CreateLeadPage() {
                     }
                     className={`p-4 border-2 rounded-lg transition-all ${
                       formData.assignmentType === 'dealer'
-                        ? 'border-blue-500 bg-blue-50'
+                        ? 'border-primary-500 bg-primary-50'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                   >
@@ -252,7 +252,7 @@ export default function CreateLeadPage() {
                     }
                     className={`p-4 border-2 rounded-lg transition-all ${
                       formData.assignmentType === 'seller'
-                        ? 'border-blue-500 bg-blue-50'
+                        ? 'border-primary-500 bg-primary-50'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                   >
@@ -282,7 +282,7 @@ export default function CreateLeadPage() {
                         sellerId: '', // Reset seller cuando cambia dealer
                       })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
                     required={formData.assignmentType === 'dealer'}
                   >
                     <option value="">-- Selecciona un dealer --</option>
@@ -310,7 +310,7 @@ export default function CreateLeadPage() {
                   <select
                     value={formData.sellerId}
                     onChange={(e) => setFormData({ ...formData, sellerId: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
                     required
                   >
                     <option value="">-- Selecciona un vendedor --</option>
@@ -330,8 +330,8 @@ export default function CreateLeadPage() {
 
               {/* Información de asignación */}
               {formData.assignmentType && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <p className="text-sm text-blue-800">
+                <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+                  <p className="text-sm text-primary-800">
                     {formData.assignmentType === 'dealer' ? (
                       <>
                         <strong>💡 Asignación a Dealer:</strong> El lead se asignará al dealer
@@ -362,7 +362,7 @@ export default function CreateLeadPage() {
             <button
               type="submit"
               disabled={loading || !formData.assignmentType}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               {loading ? 'Creando...' : 'Crear Lead'}
             </button>

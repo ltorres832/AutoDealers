@@ -78,7 +78,7 @@ function SubmitReviewPageContent() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-50 flex items-center justify-center px-4">
         <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
           <div className="text-6xl mb-4">✅</div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">¡Reseña Enviada!</h1>
@@ -86,7 +86,7 @@ function SubmitReviewPageContent() {
             Gracias por tu reseña. Será revisada y publicada pronto.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <PublicBackButton className="inline-block bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-indigo-700 font-semibold transition-all">
+            <PublicBackButton className="inline-block bg-gradient-to-r from-primary-600 to-primary-600 text-white px-6 py-3 rounded-lg hover:from-primary-700 hover:to-primary-700 font-semibold transition-all">
               Volver
             </PublicBackButton>
             <Link
@@ -102,16 +102,16 @@ function SubmitReviewPageContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-50 py-12 px-4">
       <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-xl shadow-lg p-8">
           <div className="mb-6">
             <div className="mb-4 flex flex-wrap items-center gap-3">
-              <PublicBackButton className="text-blue-600 hover:text-blue-700 font-medium">
+              <PublicBackButton className="text-primary-600 hover:text-primary-700 font-medium">
                 ← Volver
               </PublicBackButton>
               <span className="text-gray-300">|</span>
-              <Link href="/" className="text-sm text-gray-500 hover:text-blue-700">
+              <Link href="/" className="text-sm text-gray-500 hover:text-primary-700">
                 Inicio
               </Link>
             </div>
@@ -140,7 +140,7 @@ function SubmitReviewPageContent() {
                   type="text"
                   value={formData.customerName}
                   onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                   required
                   placeholder="Ej: Juan Pérez"
                 />
@@ -155,7 +155,7 @@ function SubmitReviewPageContent() {
                     type="email"
                     value={formData.customerEmail}
                     onChange={(e) => setFormData({ ...formData, customerEmail: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     required
                     placeholder="tu@email.com"
                   />
@@ -169,7 +169,7 @@ function SubmitReviewPageContent() {
                     type="tel"
                     value={formData.customerPhone}
                     onChange={(e) => setFormData({ ...formData, customerPhone: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     placeholder="+1 (555) 123-4567"
                   />
                 </div>
@@ -199,7 +199,7 @@ function SubmitReviewPageContent() {
                   type="text"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="Ej: Excelente servicio y atención"
                 />
               </div>
@@ -211,7 +211,7 @@ function SubmitReviewPageContent() {
                 <textarea
                   value={formData.comment}
                   onChange={(e) => setFormData({ ...formData, comment: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                   rows={6}
                   required
                   placeholder="Comparte tu experiencia detallada..."
@@ -236,7 +236,7 @@ function SubmitReviewPageContent() {
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-indigo-700 font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 bg-gradient-to-r from-primary-600 to-primary-600 text-white px-6 py-3 rounded-lg hover:from-primary-700 hover:to-primary-700 font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? 'Enviando...' : 'Enviar Reseña'}
               </button>

@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getSubscriptionByTenantId } from '@autodealers/billing';
-import { getMembershipById } from '@autodealers/billing';
+import {
+  getSubscriptionByTenantId,
+  getMembershipById,
+  isDealerManagedSeller,
+  resolveBillingTenantId,
+} from '@autodealers/billing';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,59 +13,86 @@ export async function GET(request: NextRequest) {
   try {
     const auth = await verifyAuth(request);
     if (!auth || !auth.tenantId) {
-      console.error('❌ [SELLER MEMBERSHIP] Unauthorized - No auth or tenantId');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    console.log(`🔍 [SELLER MEMBERSHIP] Obteniendo membresía para tenant: ${auth.tenantId}`);
-    
-    const subscription = await getSubscriptionByTenantId(auth.tenantId);
-    
-    if (!subscription) {
-      console.warn(`⚠️ [SELLER MEMBERSHIP] No subscription found for tenant: ${auth.tenantId}`);
-      return NextResponse.json({ 
-        error: 'No subscription found',
-        message: 'No tienes una suscripción activa. Por favor, selecciona un plan de membresía.'
-      }, { status: 404 });
+    if (isDealerManagedSeller(auth.dealerId)) {
+      return NextResponse.json(
+        {
+          error: 'dealer_managed',
+          message: 'Tu acceso lo gestiona tu concesionario. No hay información de membresía en tu cuenta.',
+        },
+        { status: 403 }
+      );
     }
 
-    console.log(`📦 [SELLER MEMBERSHIP] Subscription found - membershipId: ${subscription.membershipId}`);
-    
+    const billingTenantId = resolveBillingTenantId(auth.tenantId, auth.dealerId);
+
+    if (!billingTenantId) {
+      return NextResponse.json(
+        {
+          error: 'No billing tenant',
+          message: 'No tienes una suscripción activa. Selecciona un plan de membresía.',
+        },
+        { status: 404 }
+      );
+    }
+
+    const subscription = await getSubscriptionByTenantId(billingTenantId);
+
+    if (!subscription) {
+      return NextResponse.json(
+        {
+          error: 'No subscription found',
+          dealerManaged: false,
+          message: 'No tienes una suscripción activa. Selecciona un plan de membresía.',
+        },
+        { status: 404 }
+      );
+    }
+
     if (!subscription.membershipId) {
-      console.error(`❌ [SELLER MEMBERSHIP] Subscription exists but has no membershipId`);
-      return NextResponse.json({ 
-        error: 'Invalid subscription',
-        message: 'Tu suscripción no tiene un plan de membresía asociado. Contacta al soporte.'
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: 'Invalid subscription',
+          dealerManaged: false,
+          message: 'La suscripción no tiene un plan asociado. Contacta a soporte.',
+        },
+        { status: 400 }
+      );
     }
 
     const membership = await getMembershipById(subscription.membershipId);
-    
+
     if (!membership) {
-      console.error(`❌ [SELLER MEMBERSHIP] Membership not found - ID: ${subscription.membershipId}`);
-      return NextResponse.json({ 
-        error: 'Membership not found',
-        message: 'No se encontró información de membresía. Contacta al soporte.',
-        membershipId: subscription.membershipId
-      }, { status: 404 });
+      return NextResponse.json(
+        {
+          error: 'Membership not found',
+          dealerManaged: false,
+          membershipId: subscription.membershipId,
+          message: 'No se encontró información del plan. Contacta a soporte.',
+        },
+        { status: 404 }
+      );
     }
 
-    console.log(`✅ [SELLER MEMBERSHIP] Membership found: ${membership.name} (${membership.type}) - Activa: ${membership.isActive}`);
-    
-    return NextResponse.json({ membership });
-  } catch (error: any) {
-    console.error('❌ [SELLER MEMBERSHIP] Error fetching membership:', error);
-    console.error('Stack:', error.stack);
-    return NextResponse.json(
-      { 
-        error: 'Internal server error', 
-        details: error.message,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    return NextResponse.json({
+      membership,
+      subscription: {
+        id: subscription.id,
+        status: subscription.status,
+        currentPeriodStart: subscription.currentPeriodStart,
+        currentPeriodEnd: subscription.currentPeriodEnd,
+        cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+        daysPastDue: subscription.daysPastDue,
+        statusReason: subscription.statusReason,
       },
-      { status: 500 }
-    );
+      dealerManaged: false,
+      billingTenantId,
+    });
+  } catch (error: unknown) {
+    console.error('❌ [SELLER MEMBERSHIP] Error fetching membership:', error);
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-
-
-

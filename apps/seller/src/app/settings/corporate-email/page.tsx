@@ -93,18 +93,18 @@ export default function CorporateEmailPage() {
 
       {/* Uso de emails */}
       {usage && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+        <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 mb-6">
           <div className="flex items-center gap-4">
             <div>
               <p className="text-sm text-gray-600">Emails disponibles</p>
-              <p className="text-2xl font-bold text-blue-600">
+              <p className="text-2xl font-bold text-primary-600">
                 {usage.emailsLimit - usage.emailsUsed} / {usage.emailsLimit}
               </p>
             </div>
             <div className="flex-1">
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
-                  className="bg-blue-600 h-2 rounded-full"
+                  className="bg-primary-600 h-2 rounded-full"
                   style={{
                     width: `${(usage.emailsUsed / usage.emailsLimit) * 100}%`,
                   }}
@@ -152,7 +152,7 @@ export default function CorporateEmailPage() {
                       alert('La contraseña debe tener al menos 8 caracteres');
                     }
                   }}
-                  className="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                  className="w-full bg-primary-600 text-white px-4 py-2 rounded hover:bg-primary-700"
                 >
                   🔑 Cambiar Contraseña
                 </button>
@@ -351,8 +351,8 @@ function CreateEmailModal({ onClose }: { onClose: () => void }) {
             )}
           </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded p-4">
-            <p className="text-sm text-blue-800">
+          <div className="bg-primary-50 border border-primary-200 rounded p-4">
+            <p className="text-sm text-primary-800">
               <strong>ℹ️ Información:</strong>
               <br />
               • Recibirás una contraseña temporal

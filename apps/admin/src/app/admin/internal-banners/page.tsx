@@ -108,19 +108,19 @@ export default function InternalBannersPage() {
         </div>
         <div className="bg-white rounded-lg shadow p-4">
           <div className="text-sm text-gray-600 mb-1">Vistas Totales</div>
-          <div className="text-2xl font-bold text-blue-600">
+          <div className="text-2xl font-bold text-primary-600">
             {banners.reduce((sum, b) => sum + (b.views || 0), 0)}
           </div>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
           <div className="text-sm text-gray-600 mb-1">Clics Totales</div>
-          <div className="text-2xl font-bold text-purple-600">
+          <div className="text-2xl font-bold text-primary-600">
             {banners.reduce((sum, b) => sum + (b.clicks || 0), 0)}
           </div>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
           <div className="text-sm text-gray-600 mb-1">CTR Promedio</div>
-          <div className="text-2xl font-bold text-indigo-600">
+          <div className="text-2xl font-bold text-primary-600">
             {banners.length > 0
               ? ((banners.reduce((sum, b) => sum + (b.clicks || 0), 0) /
                   banners.reduce((sum, b) => sum + (b.views || 0), 1)) * 100).toFixed(2)
@@ -173,11 +173,11 @@ export default function InternalBannersPage() {
                     <div className="grid grid-cols-2 gap-4 mb-4 text-xs">
                       <div>
                         <div className="text-gray-500">Vistas</div>
-                        <div className="font-bold text-blue-600">{banner.views || 0}</div>
+                        <div className="font-bold text-primary-600">{banner.views || 0}</div>
                       </div>
                       <div>
                         <div className="text-gray-500">Clics</div>
-                        <div className="font-bold text-purple-600">{banner.clicks || 0}</div>
+                        <div className="font-bold text-primary-600">{banner.clicks || 0}</div>
                       </div>
                     </div>
 
@@ -207,7 +207,7 @@ export default function InternalBannersPage() {
                         onClick={() => {
                           router.push(`/admin/internal-banners/${banner.id}/edit`);
                         }}
-                        className="flex-1 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm font-medium"
+                        className="flex-1 bg-primary-600 text-white px-4 py-2 rounded hover:bg-primary-700 text-sm font-medium"
                       >
                         ✏️ Editar
                       </button>

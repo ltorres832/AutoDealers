@@ -149,14 +149,15 @@ export default function LandingPage() {
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const [landingConfig, setLandingConfig] = useState<any>(null);
   const [scrolled, setScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [siteInfo, setSiteInfo] = useState(DEFAULT_SITE_INFO);
   const [freeListingsCta, setFreeListingsCta] = useState({
     enabled: true,
     maxActiveFreeVehiclesPerSeller: 2,
     quickListingPath: '/publicar-gratis',
-    durationDays: 14,
+    durationDays: 7,
     ctaTitle: '¿Quieres vender?',
-    ctaSubtitle: 'Publica tu auto hoy mismo y llega a millones',
+    ctaSubtitle: 'Publica tu auto hoy mismo y llega a miles de compradores',
     ctaButtonLabel: 'Publicar Gratis',
     registerPath: '/register?type=seller',
   });
@@ -169,6 +170,17 @@ export default function LandingPage() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [mobileMenuOpen]);
+
+  const closeMobileMenu = () => setMobileMenuOpen(false);
 
   useEffect(() => {
     async function loadSiteInfo() {
@@ -713,44 +725,101 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-white">
 
-      {/* Navbar Profesional y Corporativo */}
-      <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-white shadow-md border-b border-gray-200' : 'bg-white/80 backdrop-blur-sm'}`}>
+      {/* Header blanco — logo de plataforma legible */}
+      <nav
+        className={`fixed top-0 z-50 w-full border-b transition-all duration-300 ${
+          scrolled
+            ? 'border-gray-200 bg-white shadow-md'
+            : 'border-gray-100 bg-white/98 backdrop-blur-md'
+        }`}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
-            <div className="flex items-center gap-4">
-              <PublicSiteNavbarBrand siteInfo={siteInfo as PublicSiteBrandingInfo} />
+          <div className="flex justify-between items-center h-16 sm:h-20">
+            <div className="flex items-center gap-4 min-w-0">
+              <PublicSiteNavbarBrand
+                siteInfo={siteInfo as PublicSiteBrandingInfo}
+                href="/"
+                nameClassName="text-xl font-bold text-brand-black tracking-tight"
+                taglineClassName="text-xs text-gray-500 font-normal"
+              />
             </div>
             <div className="hidden lg:flex items-center gap-8">
-              <a href="#vehicles" className="text-slate-700 hover:text-slate-900 transition font-medium text-sm tracking-wide">Vehículos</a>
-              <a href="#promotions" className="text-slate-700 hover:text-slate-900 transition font-medium text-sm flex items-center gap-2">
+              <a href="#vehicles" className="text-gray-700 hover:text-primary-600 transition font-medium text-sm tracking-wide">Vehículos</a>
+              <a href="#promotions" className="text-gray-700 hover:text-primary-600 transition font-medium text-sm flex items-center gap-2">
                 Promociones
                 {promotions.length > 0 && (
-                  <span className="px-2 py-0.5 bg-amber-500 text-white text-xs font-semibold rounded">
+                  <span className="px-2 py-0.5 bg-primary-600 text-white text-xs font-semibold rounded">
                     {promotions.length}
                   </span>
                 )}
               </a>
-              <Link href="/dealers" className="text-slate-700 hover:text-slate-900 transition font-medium text-sm">Concesionarios</Link>
-              <Link href="/dealers?tab=vendedores" className="text-slate-700 hover:text-slate-900 transition font-medium text-sm">Vendedores</Link>
-              <a href="#contact" className="text-slate-700 hover:text-slate-900 transition font-medium text-sm">Contacto</a>
+              <Link href="/dealers" className="text-gray-700 hover:text-primary-600 transition font-medium text-sm">Concesionarios</Link>
+              <Link href="/dealers?tab=vendedores" className="text-gray-700 hover:text-primary-600 transition font-medium text-sm">Vendedores</Link>
+              <a href="#contact" className="text-gray-700 hover:text-primary-600 transition font-medium text-sm">Contacto</a>
               <Link
                 href="/login"
-                className="bg-slate-900 text-white px-6 py-2.5 rounded-md hover:bg-slate-800 transition-all font-medium text-sm tracking-wide"
+                className="bg-primary-600 text-white px-6 py-2.5 rounded-md hover:bg-primary-700 transition-all font-medium text-sm tracking-wide"
               >
                 Iniciar Sesión
               </Link>
             </div>
-            <button className="lg:hidden text-slate-700 p-2">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
+            <button
+              type="button"
+              className="lg:hidden text-gray-700 p-2 rounded-lg hover:bg-gray-100"
+              aria-label={mobileMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
+              aria-expanded={mobileMenuOpen}
+              onClick={() => setMobileMenuOpen((open) => !open)}
+            >
+              {mobileMenuOpen ? (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              )}
             </button>
           </div>
         </div>
+
+        {mobileMenuOpen && (
+          <>
+            <button
+              type="button"
+              className="fixed inset-0 top-16 sm:top-20 z-40 bg-black/40 lg:hidden"
+              aria-label="Cerrar menú"
+              onClick={closeMobileMenu}
+            />
+            <div className="lg:hidden relative z-50 border-t border-gray-200 bg-white shadow-lg">
+              <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-1">
+                <a href="#vehicles" onClick={closeMobileMenu} className="rounded-lg px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-primary-600 font-medium text-sm">Vehículos</a>
+                <a href="#promotions" onClick={closeMobileMenu} className="rounded-lg px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-primary-600 font-medium text-sm flex items-center gap-2">
+                  Promociones
+                  {promotions.length > 0 && (
+                    <span className="px-2 py-0.5 bg-primary-600 text-white text-xs font-semibold rounded">
+                      {promotions.length}
+                    </span>
+                  )}
+                </a>
+                <Link href="/dealers" onClick={closeMobileMenu} className="rounded-lg px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-primary-600 font-medium text-sm">Concesionarios</Link>
+                <Link href="/dealers?tab=vendedores" onClick={closeMobileMenu} className="rounded-lg px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-primary-600 font-medium text-sm">Vendedores</Link>
+                <a href="#contact" onClick={closeMobileMenu} className="rounded-lg px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-primary-600 font-medium text-sm">Contacto</a>
+                <Link
+                  href="/login"
+                  onClick={closeMobileMenu}
+                  className="mt-2 bg-primary-600 text-white px-4 py-3 rounded-lg hover:bg-primary-700 transition-all font-medium text-sm text-center"
+                >
+                  Iniciar Sesión
+                </Link>
+              </div>
+            </div>
+          </>
+        )}
       </nav>
 
       {/* Hero Banner - Spacing adjusted for fixed header to prevent overlap */}
-      <div className="pt-40 pb-8 bg-slate-900 border-b border-slate-800">
+      <div className="pt-28 sm:pt-36 lg:pt-40 pb-8 bg-brand-black border-b border-brand-black-deep">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <HeroBanner />
         </div>
@@ -759,7 +828,8 @@ export default function LandingPage() {
       {/* Hero Section Ultra Profesional con Imagen de Fondo */}
       <section className="relative pt-12 pb-24 min-h-[85vh] flex items-center overflow-hidden">
         {/* Background con gradiente profesional */}
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-brand-black via-brand-black-deep to-brand-black"></div>
+        <div className="absolute inset-0 bg-gradient-to-tr from-primary-600/40 via-transparent to-primary-600/20 pointer-events-none"></div>
         <div
           className="absolute inset-0 opacity-20"
           style={{
@@ -779,7 +849,7 @@ export default function LandingPage() {
               </div>
               <div className="w-px h-4 bg-white/30"></div>
               <div className="flex items-center gap-2">
-                <svg className="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-5 h-5 text-primary-400" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
                 <span className="text-white font-semibold text-sm">100% Garantizado</span>
@@ -789,7 +859,7 @@ export default function LandingPage() {
             <h1 className="text-6xl md:text-7xl lg:text-8xl font-extrabold mb-8 leading-tight tracking-tight">
               <span className="text-white">Encuentra tu</span>
               <br />
-              <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-primary-500 via-primary-600 to-brand-red-bright bg-clip-text text-transparent">
                 vehículo perfecto
               </span>
             </h1>
@@ -825,7 +895,7 @@ export default function LandingPage() {
               {(siteInfo.statisticsVisibility?.verifiedVehicles ?? true) && (
                 <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20 hover:bg-white/15 transition-all">
                   <div className="flex items-center justify-center mb-3">
-                    <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+                    <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center shadow-lg">
                       <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                       </svg>
@@ -840,7 +910,7 @@ export default function LandingPage() {
               {(siteInfo.statisticsVisibility?.certifiedDealers ?? true) && (
                 <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20 hover:bg-white/15 transition-all">
                   <div className="flex items-center justify-center mb-3">
-                    <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                    <div className="w-16 h-16 bg-gradient-to-br from-primary-700 to-primary-900 rounded-xl flex items-center justify-center shadow-lg">
                       <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                       </svg>
@@ -912,23 +982,23 @@ export default function LandingPage() {
       <section id="vehicles" className="py-32 bg-slate-50 relative overflow-hidden">
         {/* Subtle Decorative Elements */}
         <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent"></div>
-        <div className="absolute top-[20%] right-0 w-[500px] h-[500px] bg-blue-100/30 rounded-full blur-[120px] -z-0"></div>
-        <div className="absolute bottom-[20%] -left-24 w-[400px] h-[400px] bg-indigo-100/30 rounded-full blur-[100px] -z-0"></div>
+        <div className="absolute top-[20%] right-0 w-[500px] h-[500px] bg-primary-100/30 rounded-full blur-[120px] -z-0"></div>
+        <div className="absolute bottom-[20%] -left-24 w-[400px] h-[400px] bg-gray-100/40 rounded-full blur-[100px] -z-0"></div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="flex flex-col mb-20">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-10 pb-12 border-b border-slate-200/60">
               <div className="relative">
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="h-1.5 w-12 bg-blue-600 rounded-full"></div>
-                  <span className="text-blue-600 font-black text-[10px] uppercase tracking-[0.4em] mb-0.5">Marketplace Nacional</span>
+                  <div className="h-1.5 w-12 bg-primary-600 rounded-full"></div>
+                  <span className="text-primary-600 font-black text-[10px] uppercase tracking-[0.4em] mb-0.5">Marketplace Nacional</span>
                 </div>
                 <h2 className="text-5xl md:text-7xl font-black text-slate-900 tracking-tight leading-[0.9] mb-8">
                   Explora Nuestro <br />
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-800">Inventario Premium</span>
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 via-primary-600 to-primary-800">Inventario Premium</span>
                 </h2>
                 <p className="text-xl text-slate-500 max-w-xl font-medium leading-relaxed">
-                  Accede a la selección más rigurosa del mercado. Más de <span className="text-slate-900 font-black underline decoration-blue-500/30 underline-offset-4">{vehicles.length}</span> unidades certificadas con garantía de satisfacción total.
+                  Accede a la selección más rigurosa del mercado. Más de <span className="text-slate-900 font-black underline decoration-primary-500/30 underline-offset-4">{vehicles.length}</span> unidades certificadas con garantía de satisfacción total.
                 </p>
               </div>
 
@@ -938,7 +1008,7 @@ export default function LandingPage() {
                   <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Coincidencias</span>
                 </div>
                 <div className="flex-1 text-center px-4">
-                  <div className="flex items-center justify-center gap-1 text-blue-600 mb-0.5">
+                  <div className="flex items-center justify-center gap-1 text-primary-600 mb-0.5">
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
                     <span className="text-sm font-black tracking-tighter italic">CERTIFIED</span>
                   </div>
@@ -953,11 +1023,11 @@ export default function LandingPage() {
             <div className="flex overflow-x-auto gap-6 pb-8 scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
               {[
                 { id: 'all', label: 'Todos los Vehículos', img: '/sedan_category_1773634522734.png', color: 'bg-slate-900' },
-                { id: 'sedan', label: 'Sedán', img: '/sedan_category_1773634522734.png', color: 'bg-blue-600' },
+                { id: 'sedan', label: 'Sedán', img: '/sedan_category_1773634522734.png', color: 'bg-primary-600' },
                 { id: 'suv', label: 'SUV', img: '/suv_category_1773634541924.png', color: 'bg-emerald-600' },
                 { id: 'pickup', label: 'Pickup', img: '/pickup_category_1773634558726.png', color: 'bg-amber-600' },
                 { id: 'coupe', label: 'Deportivo', img: '/sports_category_1773634575517.png', color: 'bg-rose-600' },
-                { id: 'van', label: 'Miniván', img: '/minivan_category_1773634597825.png', color: 'bg-indigo-600' },
+                { id: 'van', label: 'Miniván', img: '/minivan_category_1773634597825.png', color: 'bg-brand-black' },
                 { id: 'hybrid', label: 'Híbrido / EV', img: '/electric_category_1773634619169.png', color: 'bg-teal-500' },
               ].map((cat) => (
                 <button
@@ -965,7 +1035,7 @@ export default function LandingPage() {
                   onClick={() => setFilters({ ...filters, bodyType: cat.id })}
                   className={`flex-shrink-0 relative group flex flex-col items-center justify-center w-36 h-44 rounded-[2.5rem] transition-all duration-500 ${filters.bodyType === cat.id
                     ? `${cat.color} text-white shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] -translate-y-3 scale-110 ring-4 ring-white`
-                    : 'bg-white text-slate-600 border border-slate-100 hover:border-blue-400/50 hover:shadow-2xl hover:shadow-slate-200/60 hover:-translate-y-2'
+                    : 'bg-white text-slate-600 border border-slate-100 hover:border-primary-400/50 hover:shadow-2xl hover:shadow-slate-200/60 hover:-translate-y-2'
                     }`}
                 >
                   <div className="w-24 h-24 rounded-2xl overflow-hidden mb-4 shadow-md group-hover:scale-110 transition-transform duration-500 border border-white/20">
@@ -991,7 +1061,7 @@ export default function LandingPage() {
             <div className="flex gap-16 animate-marquee whitespace-nowrap py-8">
               {CERTIFIED_BRANDS.map((brand) => (
                 <div key={brand.name} className="flex flex-col items-center gap-4 group/brand">
-                  <div className="w-24 h-24 bg-white rounded-3xl shadow-md border border-slate-100 flex items-center justify-center p-5 grayscale group-hover/brand:grayscale-0 transition-all duration-700 hover:shadow-xl hover:border-blue-200">
+                  <div className="w-24 h-24 bg-white rounded-3xl shadow-md border border-slate-100 flex items-center justify-center p-5 grayscale group-hover/brand:grayscale-0 transition-all duration-700 hover:shadow-xl hover:border-primary-200">
                     <img
                       src={brand.logo}
                       alt={brand.name}
@@ -1001,7 +1071,7 @@ export default function LandingPage() {
                       className="max-w-full max-h-full object-contain transform group-hover/brand:scale-110 transition-transform duration-500"
                     />
                   </div>
-                  <span className="text-[11px] font-black text-slate-400 group-hover/brand:text-blue-600 uppercase tracking-widest transition-colors">{brand.name}</span>
+                  <span className="text-[11px] font-black text-slate-400 group-hover/brand:text-primary-600 uppercase tracking-widest transition-colors">{brand.name}</span>
                 </div>
               ))}
             </div>
@@ -1009,7 +1079,7 @@ export default function LandingPage() {
             <div className="flex gap-16 animate-marquee whitespace-nowrap py-8" aria-hidden="true">
               {CERTIFIED_BRANDS.map((brand) => (
                 <div key={`${brand.name}-loop`} className="flex flex-col items-center gap-4 group/brand">
-                  <div className="w-24 h-24 bg-white rounded-3xl shadow-md border border-slate-100 flex items-center justify-center p-5 grayscale group-hover/brand:grayscale-0 transition-all duration-700 hover:shadow-xl hover:border-blue-200">
+                  <div className="w-24 h-24 bg-white rounded-3xl shadow-md border border-slate-100 flex items-center justify-center p-5 grayscale group-hover/brand:grayscale-0 transition-all duration-700 hover:shadow-xl hover:border-primary-200">
                     <img
                       src={brand.logo}
                       alt=""
@@ -1019,7 +1089,7 @@ export default function LandingPage() {
                       className="max-w-full max-h-full object-contain transform group-hover/brand:scale-110 transition-transform duration-500"
                     />
                   </div>
-                  <span className="text-[11px] font-black text-slate-400 group-hover/brand:text-blue-600 uppercase tracking-widest transition-colors">{brand.name}</span>
+                  <span className="text-[11px] font-black text-slate-400 group-hover/brand:text-primary-600 uppercase tracking-widest transition-colors">{brand.name}</span>
                 </div>
               ))}
             </div>
@@ -1059,13 +1129,13 @@ export default function LandingPage() {
                     </p>
                     <Link
                       href={freeListingsCta.quickListingPath?.startsWith('/') ? freeListingsCta.quickListingPath : '/publicar-gratis'}
-                      className="block w-full py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-blue-600 transition-colors"
+                      className="block w-full py-2.5 bg-primary-600 text-white rounded-xl text-xs font-bold hover:bg-primary-700 transition-colors"
                     >
                       {freeListingsCta.ctaButtonLabel}
                     </Link>
                     <Link
                       href={freeListingsCta.registerPath?.startsWith('/') ? freeListingsCta.registerPath : '/register?type=seller'}
-                      className="block w-full py-2 mt-2 text-[11px] font-medium text-slate-600 underline underline-offset-2 hover:text-blue-600"
+                      className="block w-full py-2 mt-2 text-[11px] font-medium text-slate-600 underline underline-offset-2 hover:text-primary-600"
                     >
                       O regístrate como vendedor para más beneficios
                     </Link>
@@ -1082,7 +1152,7 @@ export default function LandingPage() {
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as any)}
-                    className="w-full sm:w-auto border-0 bg-gray-50 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white text-gray-700 font-semibold cursor-pointer transition-colors appearance-none"
+                    className="w-full sm:w-auto border-0 bg-gray-50 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-600 focus:bg-white text-gray-700 font-semibold cursor-pointer transition-colors appearance-none"
                     style={{ backgroundImage: 'url("data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 20 20\'%3e%3cpath stroke=\'%236b7280\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'M6 8l4 4 4-4\'/%3e%3c/svg%3e")', backgroundPosition: 'right 0.5rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em', paddingRight: '2.5rem' }}
                   >
                     <option value="price-asc">Precio: Menor a Mayor</option>
@@ -1096,7 +1166,7 @@ export default function LandingPage() {
                   <button
                     onClick={() => setViewMode('grid')}
                     className={`flex-1 sm:flex-none px-6 py-2.5 transition-all text-sm font-bold rounded-lg ${viewMode === 'grid'
-                      ? 'bg-white text-blue-600 shadow-sm'
+                      ? 'bg-white text-primary-600 shadow-sm'
                       : 'text-gray-500 hover:text-gray-900'
                       }`}
                   >
@@ -1105,7 +1175,7 @@ export default function LandingPage() {
                   <button
                     onClick={() => setViewMode('list')}
                     className={`flex-1 sm:flex-none px-6 py-2.5 transition-all text-sm font-bold rounded-lg ${viewMode === 'list'
-                      ? 'bg-white text-blue-600 shadow-sm'
+                      ? 'bg-white text-primary-600 shadow-sm'
                       : 'text-gray-500 hover:text-gray-900'
                       }`}
                   >
@@ -1129,8 +1199,8 @@ export default function LandingPage() {
               {loading && vehicles.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-32 bg-white rounded-3xl border border-slate-100 shadow-sm">
                   <div className="relative w-20 h-20 mb-6">
-                    <div className="absolute inset-0 border-4 border-blue-600/20 rounded-full"></div>
-                    <div className="absolute inset-0 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    <div className="absolute inset-0 border-4 border-primary-600/20 rounded-full"></div>
+                    <div className="absolute inset-0 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
                   </div>
                   <p className="text-slate-500 font-bold tracking-wide">Actualizando inventario...</p>
                 </div>
@@ -1158,7 +1228,7 @@ export default function LandingPage() {
                       location: '',
                       bodyType: 'all',
                     })}
-                    className="px-10 py-4 bg-slate-900 text-white rounded-2xl hover:bg-blue-600 font-bold transition-all shadow-xl hover:shadow-blue-500/20"
+                    className="px-10 py-4 bg-primary-600 text-white rounded-2xl hover:bg-primary-700 font-bold transition-all shadow-xl hover:shadow-primary-500/20"
                   >
                     Reiniciar Búsqueda
                   </button>
@@ -1208,7 +1278,7 @@ export default function LandingPage() {
                               })()}
 
                               {getPublicVehicleConditionLabel(vehicle) ? (
-                                <span className="absolute top-3 left-3 rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-blue-700 shadow-sm border border-slate-100">
+                                <span className="absolute top-3 left-3 rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-primary-700 shadow-sm border border-slate-100">
                                   {getPublicVehicleConditionLabel(vehicle)}
                                 </span>
                               ) : null}
@@ -1219,7 +1289,7 @@ export default function LandingPage() {
                                 <p className="text-xl sm:text-2xl font-bold text-slate-900 tabular-nums">
                                   {vehicle.currency} {vehicle.price.toLocaleString()}
                                 </p>
-                                <h3 className="mt-2 text-base sm:text-lg font-semibold text-slate-800 leading-snug line-clamp-2 group-hover:text-blue-600 transition-colors">
+                                <h3 className="mt-2 text-base sm:text-lg font-semibold text-slate-800 leading-snug line-clamp-2 group-hover:text-primary-600 transition-colors">
                                   {vehicle.year} {vehicle.make} {vehicle.model}
                                 </h3>
                                 <p className="mt-3 text-sm text-slate-500 mb-1">
@@ -1231,7 +1301,7 @@ export default function LandingPage() {
                               <div className="mt-auto flex items-center gap-3 pt-4 border-t border-slate-100">
                                 <button
                                   type="button"
-                                  className="flex-1 rounded-xl bg-slate-900 text-white text-sm font-semibold py-3 px-4 hover:bg-blue-600 transition-colors"
+                                  className="flex-1 rounded-xl bg-primary-600 text-white text-sm font-semibold py-3 px-4 hover:bg-primary-700 transition-colors"
                                 >
                                   Ver detalles
                                 </button>
@@ -1257,8 +1327,8 @@ export default function LandingPage() {
                                     <span
                                       className={`w-11 h-11 rounded-xl flex items-center justify-center border-2 transition-colors ${
                                         selectedVehicles.includes(vehicle.id)
-                                          ? 'bg-blue-600 border-blue-600 text-white'
-                                          : 'border-slate-200 text-slate-400 hover:border-blue-300 hover:text-blue-500'
+                                          ? 'bg-primary-600 border-primary-600 text-white'
+                                          : 'border-slate-200 text-slate-400 hover:border-primary-300 hover:text-primary-500'
                                       }`}
                                     >
                                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
@@ -1310,7 +1380,7 @@ export default function LandingPage() {
                             {/* Badges on Image */}
                             <div className="absolute top-6 left-6 z-10 flex flex-col gap-2">
                               {getPublicVehicleConditionLabel(vehicle) ? (
-                                <span className="bg-blue-600/90 backdrop-blur-md text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-600/20">
+                                <span className="bg-primary-600/90 backdrop-blur-md text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary-600/20">
                                   {getPublicVehicleConditionLabel(vehicle)}
                                 </span>
                               ) : null}
@@ -1340,7 +1410,7 @@ export default function LandingPage() {
                                 }}
                                 className="peer sr-only"
                               />
-                              <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border-2 transition-all shadow-sm ${selectedVehicles.includes(vehicle.id) ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white/80 backdrop-blur-md border-white/40 text-slate-400'}`}>
+                              <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border-2 transition-all shadow-sm ${selectedVehicles.includes(vehicle.id) ? 'bg-primary-600 border-primary-600 text-white' : 'bg-white/80 backdrop-blur-md border-white/40 text-slate-400'}`}>
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
                               </div>
                             </label>
@@ -1351,11 +1421,11 @@ export default function LandingPage() {
                             <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-6">
                               <div className="space-y-2">
                                 <div className="flex items-center gap-2 mb-1">
-                                  <span className="text-blue-600 font-extrabold text-[10px] uppercase tracking-[0.2em]">{vehicle.make}</span>
+                                  <span className="text-primary-600 font-extrabold text-[10px] uppercase tracking-[0.2em]">{vehicle.make}</span>
                                   <div className="w-1 h-1 bg-slate-300 rounded-full"></div>
                                   <span className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">STOCK: #{vehicle.stockNumber || 'PREMIUM'}</span>
                                 </div>
-                                <h3 className="text-3xl font-black text-slate-900 group-hover:text-blue-600 transition-colors tracking-tight leading-tight">
+                                <h3 className="text-3xl font-black text-slate-900 group-hover:text-primary-600 transition-colors tracking-tight leading-tight">
                                   {vehicle.year} {vehicle.make} {vehicle.model}
                                 </h3>
                               </div>
@@ -1363,35 +1433,35 @@ export default function LandingPage() {
                                 <span className="text-3xl font-black text-slate-900 tracking-tighter">
                                   {vehicle.currency} {vehicle.price.toLocaleString()}
                                 </span>
-                                <span className="text-blue-500 text-[10px] font-black uppercase tracking-widest mt-1">Precio Online</span>
+                                <span className="text-primary-500 text-[10px] font-black uppercase tracking-widest mt-1">Precio Online</span>
                               </div>
                             </div>
 
                             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                               <div className="flex items-center gap-2.5 p-2 bg-slate-50 rounded-xl border border-slate-100/50">
-                                <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                                <svg className="w-4 h-4 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                                 <span className="text-xs font-bold text-slate-600">Millaje: {vehicle.mileage ? vehicle.mileage.toLocaleString() : '0'} millas</span>
                               </div>
                               <div className="flex items-center gap-2.5 p-2 bg-slate-50 rounded-xl border border-slate-100/50">
-                                <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
+                                <svg className="w-4 h-4 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
                                 <span className="text-xs font-bold text-slate-600">{vehicle.specifications?.transmission || 'Auto'}</span>
                               </div>
                               <div className="flex items-center gap-2.5 p-2 bg-slate-50 rounded-xl border border-slate-100/50">
-                                <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.99 7.99 0 0120 13a7.989 7.989 0 01-2.343 5.657z" /></svg>
+                                <svg className="w-4 h-4 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.99 7.99 0 0120 13a7.989 7.989 0 01-2.343 5.657z" /></svg>
                                 <span className="text-xs font-bold text-slate-600">{vehicle.specifications?.fuelType || 'Gas'}</span>
                               </div>
                               <div className="flex items-center gap-2.5 p-2 bg-slate-50 rounded-xl border border-slate-100/50">
-                                <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /></svg>
+                                <svg className="w-4 h-4 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /></svg>
                                 <span className="text-xs font-bold text-slate-600 whitespace-nowrap overflow-hidden text-ellipsis">{vehicle.location || 'Nacional'}</span>
                               </div>
                             </div>
 
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-4">
-                                <button className="px-10 py-4 bg-slate-900 text-white rounded-2xl font-black text-sm hover:bg-blue-600 transition-all shadow-xl hover:shadow-blue-500/20 active:scale-95">
+                                <button className="px-10 py-4 bg-primary-600 text-white rounded-2xl font-black text-sm hover:bg-primary-700 transition-all shadow-xl hover:shadow-primary-500/20 active:scale-95">
                                   Ver Detalles
                                 </button>
-                                <button className="p-4 bg-slate-50 text-slate-400 rounded-2xl border border-slate-100 hover:text-blue-600 hover:bg-white transition-all">
+                                <button className="p-4 bg-slate-50 text-slate-400 rounded-2xl border border-slate-100 hover:text-primary-600 hover:bg-white transition-all">
                                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
                                 </button>
                               </div>
@@ -1467,7 +1537,7 @@ export default function LandingPage() {
               href={`https://wa.me/${siteInfo.contact.whatsapp}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="bg-slate-900 text-white p-8 rounded-lg text-center hover:bg-slate-800 transition-all shadow-md hover:shadow-lg"
+              className="bg-primary-600 text-white p-8 rounded-lg text-center hover:bg-primary-700 transition-all shadow-md hover:shadow-lg"
             >
               <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center mx-auto mb-4">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1479,7 +1549,7 @@ export default function LandingPage() {
             </a>
             <a
               href={`tel:${siteInfo.contact.phone.replace(/\s/g, '')}`}
-              className="bg-slate-900 text-white p-8 rounded-lg text-center hover:bg-slate-800 transition-all shadow-md hover:shadow-lg"
+              className="bg-primary-600 text-white p-8 rounded-lg text-center hover:bg-primary-700 transition-all shadow-md hover:shadow-lg"
             >
               <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center mx-auto mb-4">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1491,7 +1561,7 @@ export default function LandingPage() {
             </a>
             <button
               onClick={() => document.getElementById('contact-form')?.scrollIntoView({ behavior: 'smooth' })}
-              className="bg-slate-900 text-white p-8 rounded-lg text-center hover:bg-slate-800 transition-all shadow-md hover:shadow-lg"
+              className="bg-primary-600 text-white p-8 rounded-lg text-center hover:bg-primary-700 transition-all shadow-md hover:shadow-lg"
             >
               <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center mx-auto mb-4">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1511,7 +1581,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <LandingFooter />
+      <LandingFooter siteInfo={siteInfo as PublicSiteBrandingInfo} />
       {/* Comparison Error Notification */}
       {comparisonError && (
         <div className="fixed top-24 right-8 z-[100] animate-fade-in-right">
@@ -1536,11 +1606,11 @@ export default function LandingPage() {
       <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-[90] transition-all duration-700 ease-out w-[95%] max-w-4xl ${selectedVehicles.length > 0 ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-32 opacity-0 scale-95 pointer-events-none'}`}>
         <div className="bg-slate-900/90 backdrop-blur-2xl px-1 sm:px-1 py-1 rounded-[2.5rem] shadow-[0_40px_100px_-20px_rgba(0,0,0,0.6)] border border-white/10 overflow-hidden relative group">
           {/* Background effects */}
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 via-purple-600/10 to-transparent opacity-50"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-primary-600/15 via-brand-black/10 to-transparent opacity-50"></div>
 
           <div className="relative z-10 flex items-center justify-between pl-8 pr-2 py-4">
             <div className="flex items-center gap-6">
-              <div className="flex items-center justify-center w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full text-white shadow-xl shadow-blue-500/30">
+              <div className="flex items-center justify-center w-14 h-14 bg-gradient-to-br from-primary-500 to-primary-700 rounded-full text-white shadow-xl shadow-primary-500/30">
                 <span className="text-xl font-black">{selectedVehicles.length}</span>
               </div>
               <div className="hidden sm:block">
@@ -1560,7 +1630,7 @@ export default function LandingPage() {
                 onClick={() => {
                   window.location.href = `/compare?vehicles=${selectedVehicles.join(',')}`;
                 }}
-                className="bg-white text-slate-900 px-10 py-5 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-500 hover:text-white transition-all shadow-2xl shadow-white/5 hover:shadow-blue-500/20 active:scale-95"
+                className="bg-white text-slate-900 px-10 py-5 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] hover:bg-primary-500 hover:text-white transition-all shadow-2xl shadow-white/5 hover:shadow-primary-500/20 active:scale-95"
               >
                 Comparar Ahora
               </button>

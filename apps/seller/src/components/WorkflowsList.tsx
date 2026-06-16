@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Workflow } from '@autodealers/crm';
+import type { Workflow } from '@autodealers/crm';
 import { useRealtimeWorkflows } from '@/hooks/useRealtimeWorkflows';
 
 interface WorkflowsListProps {
@@ -121,7 +121,7 @@ export default function WorkflowsList({ tenantId }: WorkflowsListProps) {
                     {workflow.actions.map((action, idx) => (
                       <span
                         key={idx}
-                        className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded"
+                        className="text-xs bg-primary-100 text-primary-700 px-2 py-1 rounded"
                       >
                         {action.type}
                       </span>
@@ -140,7 +140,7 @@ export default function WorkflowsList({ tenantId }: WorkflowsListProps) {
                   >
                     {workflow.enabled ? 'Desactivar' : 'Activar'}
                   </button>
-                  <button className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
+                  <button className="px-3 py-1 text-sm bg-primary-100 text-primary-700 rounded hover:bg-primary-200">
                     Editar
                   </button>
                 </div>

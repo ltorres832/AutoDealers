@@ -39,6 +39,7 @@ export default function LeadDetailPage() {
   const [aiAnalysis, setAiAnalysis] = useState<any>(null);
   const [suggestedVehicles, setSuggestedVehicles] = useState<string[]>([]);
   const [loadingAI, setLoadingAI] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Sincronización en tiempo real del lead
   useEffect(() => {
@@ -152,6 +153,32 @@ export default function LeadDetailPage() {
     }
   }
 
+  async function deleteLeadRecord() {
+    if (!lead || deleting) return;
+    const name = lead.contact?.name || 'este lead';
+    if (
+      !window.confirm(
+        `¿Eliminar permanentemente a ${name}? Esta acción no se puede deshacer.`
+      )
+    ) {
+      return;
+    }
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/leads/${lead.id}`, { method: 'DELETE' });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error || 'No se pudo eliminar');
+      }
+      router.push('/leads');
+    } catch (error) {
+      console.error('Error:', error);
+      alert(error instanceof Error ? error.message : 'Error al eliminar');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center p-8">
@@ -170,7 +197,7 @@ export default function LeadDetailPage() {
         ← Volver a Leads
       </Link>
 
-      <div className="bg-white rounded-lg shadow-lg p-6 mb-6 border-l-4 border-blue-500">
+      <div className="bg-white rounded-lg shadow-lg p-6 mb-6 border-l-4 border-primary-500">
         <div className="flex justify-between items-start mb-4">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
@@ -207,6 +234,14 @@ export default function LeadDetailPage() {
               <option value="closed">Cerrado</option>
               <option value="lost">Perdido</option>
             </select>
+            <button
+              type="button"
+              onClick={deleteLeadRecord}
+              disabled={deleting}
+              className="rounded border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+            >
+              {deleting ? 'Eliminando…' : 'Eliminar lead'}
+            </button>
           </div>
         </div>
 
@@ -224,7 +259,7 @@ export default function LeadDetailPage() {
         </div>
 
         {lead.aiClassification && (
-          <div className="bg-blue-50 p-4 rounded mb-4">
+          <div className="bg-primary-50 p-4 rounded mb-4">
             <h3 className="font-bold mb-2">🤖 Clasificación IA</h3>
             <div className="grid grid-cols-3 gap-4">
               <div>
@@ -248,7 +283,7 @@ export default function LeadDetailPage() {
           <button
             onClick={analyzeConversationWithAI}
             disabled={loadingAI}
-            className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-4 py-2 rounded hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 flex items-center gap-2"
+            className="bg-gradient-to-r from-primary-600 to-primary-600 text-white px-4 py-2 rounded hover:from-primary-700 hover:to-primary-700 disabled:opacity-50 flex items-center gap-2"
           >
             {loadingAI ? (
               <>
@@ -280,16 +315,16 @@ export default function LeadDetailPage() {
         </div>
 
         {aiAnalysis && (
-          <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 p-4 rounded-lg mb-4">
-            <h3 className="font-bold mb-3 text-purple-900">📊 Análisis de Conversación (IA)</h3>
+          <div className="bg-gradient-to-r from-primary-50 to-primary-50 border border-primary-200 p-4 rounded-lg mb-4">
+            <h3 className="font-bold mb-3 text-primary-900">📊 Análisis de Conversación (IA)</h3>
             <div className="space-y-3">
               <div>
-                <p className="text-sm font-medium text-purple-800 mb-1">Resumen:</p>
+                <p className="text-sm font-medium text-primary-800 mb-1">Resumen:</p>
                 <p className="text-sm text-gray-700">{aiAnalysis.summary}</p>
               </div>
               {aiAnalysis.keyPoints && aiAnalysis.keyPoints.length > 0 && (
                 <div>
-                  <p className="text-sm font-medium text-purple-800 mb-1">Puntos Clave:</p>
+                  <p className="text-sm font-medium text-primary-800 mb-1">Puntos Clave:</p>
                   <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
                     {aiAnalysis.keyPoints.map((point: string, idx: number) => (
                       <li key={idx}>{point}</li>
@@ -299,7 +334,7 @@ export default function LeadDetailPage() {
               )}
               {aiAnalysis.nextSteps && aiAnalysis.nextSteps.length > 0 && (
                 <div>
-                  <p className="text-sm font-medium text-purple-800 mb-1">Próximos Pasos:</p>
+                  <p className="text-sm font-medium text-primary-800 mb-1">Próximos Pasos:</p>
                   <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
                     {aiAnalysis.nextSteps.map((step: string, idx: number) => (
                       <li key={idx}>{step}</li>
@@ -308,7 +343,7 @@ export default function LeadDetailPage() {
                 </div>
               )}
               <div>
-                <span className="text-sm font-medium text-purple-800">Sentimiento: </span>
+                <span className="text-sm font-medium text-primary-800">Sentimiento: </span>
                 <span className={`text-sm font-medium capitalize ${
                   aiAnalysis.sentiment === 'positive' ? 'text-green-600' :
                   aiAnalysis.sentiment === 'negative' ? 'text-red-600' :

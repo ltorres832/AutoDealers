@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import BackButton from '@/components/BackButton';
+import { AdminMembershipAccessPanel } from '@/components/AdminMembershipAccessPanel';
 
 interface TenantDetails {
   id: string;
@@ -20,6 +21,36 @@ interface TenantDetails {
   vehicles: any[];
   leads: any[];
   sales: any[];
+}
+
+function normalizeTenantDetails(raw: Record<string, unknown>): TenantDetails {
+  const base = raw as unknown as TenantDetails;
+  return {
+    ...base,
+    id: typeof raw.id === 'string' ? raw.id : base.id,
+    users: Array.isArray(raw.users) ? raw.users : [],
+    vehicles: Array.isArray(raw.vehicles) ? raw.vehicles : [],
+    leads: Array.isArray(raw.leads) ? raw.leads : [],
+    sales: Array.isArray(raw.sales) ? raw.sales : [],
+    branding: raw.branding ?? {},
+    settings: raw.settings ?? {},
+    name: typeof raw.name === 'string' ? raw.name : 'Sin nombre',
+    type: typeof raw.type === 'string' ? raw.type : 'seller',
+    status: typeof raw.status === 'string' ? raw.status : 'unknown',
+  };
+}
+
+function formatMoney(value: unknown): string {
+  const n = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(n)) return '—';
+  return n.toLocaleString();
+}
+
+function formatDate(value: unknown): string {
+  if (!value) return '—';
+  const d = value instanceof Date ? value : new Date(String(value));
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString();
 }
 
 export default function TenantDetailPage() {
@@ -104,8 +135,20 @@ export default function TenantDetailPage() {
     );
   }
 
+  const users = tenant.users;
+  const vehicles = tenant.vehicles;
+  const leads = tenant.leads;
+  const sales = tenant.sales;
+
   const sellerIdForCreate =
-    tenant.ownerId || tenant.users?.find((u: { role?: string }) => u.role === 'seller')?.id;
+    tenant.ownerId || users.find((u: { role?: string }) => u.role === 'seller')?.id;
+  const ownerUser =
+    tenant.ownerId && users.find((u: { id?: string }) => u.id === tenant.ownerId);
+  const ownerRole =
+    (ownerUser?.role as string) ||
+    (tenant.type === 'dealer' ? 'dealer' : 'seller');
+  const ownerDealerId =
+    typeof ownerUser?.dealerId === 'string' ? ownerUser.dealerId : undefined;
   const createVehicleHref =
     tenant.type === 'dealer'
       ? `/admin/vehicles/create?dealerId=${encodeURIComponent(tenant.id)}`
@@ -148,6 +191,16 @@ export default function TenantDetailPage() {
           </span>
         </div>
       </div>
+
+      {tenant.ownerId && (ownerRole === 'seller' || ownerRole === 'dealer') ? (
+        <div className="mb-6">
+          <AdminMembershipAccessPanel
+            userId={tenant.ownerId}
+            role={ownerRole}
+            dealerId={ownerDealerId}
+          />
+        </div>
+      ) : null}
 
       <div className="bg-slate-50 border border-slate-200 rounded-lg p-5 mb-6">
         <h2 className="text-lg font-semibold text-slate-900 mb-2">Soporte: inventario y ficha</h2>
@@ -211,26 +264,27 @@ export default function TenantDetailPage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="bg-white rounded-lg shadow p-6">
             <p className="text-sm text-gray-600 mb-2">Usuarios</p>
-            <p className="text-3xl font-bold">{tenant.users.length}</p>
+            <p className="text-3xl font-bold">{users.length}</p>
           </div>
           <div className="bg-white rounded-lg shadow p-6">
             <p className="text-sm text-gray-600 mb-2">Vehículos</p>
-            <p className="text-3xl font-bold">{tenant.vehicles.length}</p>
+            <p className="text-3xl font-bold">{vehicles.length}</p>
           </div>
           <div className="bg-white rounded-lg shadow p-6">
             <p className="text-sm text-gray-600 mb-2">Leads</p>
-            <p className="text-3xl font-bold">{tenant.leads.length}</p>
+            <p className="text-3xl font-bold">{leads.length}</p>
           </div>
           <div className="bg-white rounded-lg shadow p-6">
             <p className="text-sm text-gray-600 mb-2">Ventas</p>
-            <p className="text-3xl font-bold">{tenant.sales.length}</p>
+            <p className="text-3xl font-bold">{sales.length}</p>
           </div>
         </div>
       )}
 
       {activeTab === 'users' && (
         <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="w-full">
+          <div className="table-scroll">
+          <table className="w-full min-w-[640px]">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -248,7 +302,7 @@ export default function TenantDetailPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {tenant.users.map((user) => (
+              {users.map((user) => (
                 <tr key={user.id}>
                   <td className="px-6 py-4">{user.name}</td>
                   <td className="px-6 py-4">{user.email}</td>
@@ -265,12 +319,14 @@ export default function TenantDetailPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
       {activeTab === 'inventory' && (
         <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="w-full">
+          <div className="table-scroll">
+          <table className="w-full min-w-[640px]">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -288,13 +344,13 @@ export default function TenantDetailPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {tenant.vehicles.map((vehicle) => (
+              {vehicles.map((vehicle) => (
                 <tr key={vehicle.id}>
                   <td className="px-6 py-4">
                     {vehicle.year} {vehicle.make} {vehicle.model}
                   </td>
                   <td className="px-6 py-4">
-                    ${vehicle.price.toLocaleString()}
+                    ${formatMoney(vehicle.price)}
                   </td>
                   <td className="px-6 py-4 capitalize">{vehicle.status}</td>
                   <td className="px-6 py-4">
@@ -309,12 +365,14 @@ export default function TenantDetailPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
       {activeTab === 'leads' && (
         <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="w-full">
+          <div className="table-scroll">
+          <table className="w-full min-w-[640px]">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -332,12 +390,12 @@ export default function TenantDetailPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {tenant.leads.map((lead) => (
+              {leads.map((lead) => (
                 <tr key={lead.id}>
                   <td className="px-6 py-4">
                     <div>
-                      <div className="font-medium">{lead.contact.name}</div>
-                      <div className="text-sm text-gray-500">{lead.contact.phone}</div>
+                      <div className="font-medium">{lead.contact?.name ?? '—'}</div>
+                      <div className="text-sm text-gray-500">{lead.contact?.phone ?? '—'}</div>
                     </div>
                   </td>
                   <td className="px-6 py-4 capitalize">{lead.source}</td>
@@ -354,12 +412,14 @@ export default function TenantDetailPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
       {activeTab === 'sales' && (
         <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="w-full">
+          <div className="table-scroll">
+          <table className="w-full min-w-[640px]">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -377,22 +437,23 @@ export default function TenantDetailPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {tenant.sales.map((sale) => (
+              {sales.map((sale) => (
                 <tr key={sale.id}>
                   <td className="px-6 py-4">
                     {sale.vehicleYear} {sale.vehicleMake} {sale.vehicleModel}
                   </td>
                   <td className="px-6 py-4">{sale.customerName}</td>
                   <td className="px-6 py-4">
-                    ${sale.price.toLocaleString()}
+                    ${formatMoney(sale.price)}
                   </td>
                   <td className="px-6 py-4">
-                    {new Date(sale.createdAt).toLocaleDateString()}
+                    {formatDate(sale.createdAt)}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

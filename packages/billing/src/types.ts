@@ -92,6 +92,8 @@ export interface MembershipFeatures {
   multipleDealers?: boolean;
   maxDealers?: number | null; // Concesionarios en la red (principal + asociados); null/omitido = ilimitado
   requiresAdminApproval?: boolean; // Si requiere aprobación de admin (para multi_dealer)
+  /** Solo admin puede asignar (demos/cortesía). Oculto en catálogo seller/dealer y registro público. */
+  adminAssignOnly?: boolean;
 }
 
 export interface Membership {
@@ -116,6 +118,12 @@ export interface Subscription {
   tenantId: string;
   userId: string;
   membershipId: string;
+  /** stripe = pago normal; admin_grant = acceso otorgado por admin sin cobro */
+  billingSource?: 'stripe' | 'admin_grant';
+  adminGrantedBy?: string;
+  adminGrantedAt?: Date;
+  adminRevokedBy?: string;
+  adminRevokedAt?: Date;
   stripeSubscriptionId: string;
   stripeCustomerId: string;
   status: SubscriptionStatus;
@@ -126,6 +134,8 @@ export interface Subscription {
   lastPaymentDate?: Date;
   nextPaymentDate?: Date;
   daysPastDue?: number; // Días desde que venció el pago
+  /** Fin del período de prueba Stripe (primer cobro automático) */
+  trialEndsAt?: Date;
   suspendedAt?: Date; // Fecha de suspensión
   reactivatedAt?: Date; // Fecha de reactivación
   paymentAttempts?: number; // Intentos de pago fallidos

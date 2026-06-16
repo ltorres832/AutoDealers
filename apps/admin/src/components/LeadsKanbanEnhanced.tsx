@@ -14,12 +14,12 @@ interface LeadsKanbanEnhancedProps {
 }
 
 const STATUS_COLUMNS: { status: LeadStatus; label: string; color: string; bgColor: string }[] = [
-  { status: 'new', label: 'Nuevos', color: 'border-blue-300', bgColor: 'bg-blue-50' },
+  { status: 'new', label: 'Nuevos', color: 'border-primary-300', bgColor: 'bg-primary-50' },
   { status: 'contacted', label: 'Contactados', color: 'border-yellow-300', bgColor: 'bg-yellow-50' },
   { status: 'qualified', label: 'Calificados', color: 'border-green-300', bgColor: 'bg-green-50' },
-  { status: 'pre_qualified', label: 'Pre-Calificados', color: 'border-purple-300', bgColor: 'bg-purple-50' },
-  { status: 'appointment', label: 'Citas', color: 'border-indigo-300', bgColor: 'bg-indigo-50' },
-  { status: 'test_drive', label: 'Pruebas', color: 'border-pink-300', bgColor: 'bg-pink-50' },
+  { status: 'pre_qualified', label: 'Pre-Calificados', color: 'border-primary-300', bgColor: 'bg-primary-50' },
+  { status: 'appointment', label: 'Citas', color: 'border-primary-300', bgColor: 'bg-primary-50' },
+  { status: 'test_drive', label: 'Pruebas', color: 'border-primary-300', bgColor: 'bg-primary-50' },
   { status: 'negotiation', label: 'Negociación', color: 'border-orange-300', bgColor: 'bg-orange-50' },
   { status: 'closed', label: 'Cerrados', color: 'border-gray-300', bgColor: 'bg-gray-50' },
   { status: 'lost', label: 'Perdidos', color: 'border-red-300', bgColor: 'bg-red-50' },
@@ -288,7 +288,7 @@ export default function LeadsKanbanEnhanced({ tenantId, onLeadClick }: LeadsKanb
             return (
               <div
                 key={column.status}
-                className={`flex-shrink-0 w-80 rounded-lg border-2 ${getStatusColor(column.status)} ${getStatusBgColor(column.status)} p-4 transition-all ${
+                className={`flex-shrink-0 w-[min(20rem,85vw)] sm:w-80 rounded-lg border-2 ${getStatusColor(column.status)} ${getStatusBgColor(column.status)} p-4 transition-all ${
                   isDraggingOver ? 'ring-2 ring-primary-500 ring-offset-2' : ''
                 }`}
                 onDragOver={(e) => handleDragOver(e, column.status)}
@@ -368,7 +368,7 @@ export default function LeadsKanbanEnhanced({ tenantId, onLeadClick }: LeadsKanb
                              {(lead as any).tags.slice(0, 3).map((tag: string, idx: number) => (
                               <span
                                 key={idx}
-                                className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded"
+                                className="text-xs bg-primary-100 text-primary-700 px-2 py-0.5 rounded"
                               >
                                 {tag}
                               </span>

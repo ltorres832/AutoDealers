@@ -65,21 +65,17 @@ export async function createInternalMessage(
 
     // Crear notificación (no bloquear si falla)
     try {
-      const notificationsModule = await import('@autodealers/core');
-      if (notificationsModule.createNotification) {
-        await notificationsModule.createNotification({
-          tenantId,
-          userId: toUserId,
-          type: 'message_received',
-          title: 'Nuevo mensaje',
-          message: `${fromUserName}: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`,
-          channels: ['system'],
-          metadata: {
-            messageId: docRef.id,
-            fromUserId,
-          },
-        });
-      }
+      const { notifyUser } = await import('@autodealers/core');
+      await notifyUser(tenantId, toUserId, {
+        type: 'internal_chat',
+        title: 'Nuevo mensaje interno',
+        message: `${fromUserName}: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`,
+        metadata: {
+          messageId: docRef.id,
+          fromUserId,
+          route: '/internal-chat',
+        },
+      });
     } catch (notifError: any) {
       console.warn('⚠️ Error creando notificación (no crítico):', notifError.message);
     }

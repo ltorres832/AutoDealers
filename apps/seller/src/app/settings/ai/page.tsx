@@ -694,7 +694,7 @@ export default function AISettingsPage() {
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <div className="mb-6">
-        <Link href="/settings" className="text-blue-600 hover:text-blue-700 mb-4 inline-block">
+        <Link href="/settings" className="text-primary-600 hover:text-primary-700 mb-4 inline-block">
           ← Volver a Configuración
         </Link>
         <h1 className="text-2xl font-bold mb-2">Configuración de IA</h1>
@@ -719,7 +719,7 @@ export default function AISettingsPage() {
               onChange={(e) => setConfig(prev => ({ ...prev, enabled: e.target.checked }))}
               className="sr-only peer"
             />
-            <div className="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-blue-600"></div>
+            <div className="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-primary-600"></div>
           </label>
         </div>
       </div>
@@ -738,7 +738,7 @@ export default function AISettingsPage() {
               }))}
               className="sr-only peer"
             />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
           </label>
         </div>
         <p className="text-sm text-gray-600 mb-4">
@@ -746,7 +746,7 @@ export default function AISettingsPage() {
         </p>
         
         {config.autoResponses.enabled && (
-          <div className="space-y-4 pl-4 border-l-2 border-blue-200">
+          <div className="space-y-4 pl-4 border-l-2 border-primary-200">
             <div>
               <label className="block text-sm font-medium mb-2">Canales</label>
               <div className="flex flex-wrap gap-2">
@@ -811,7 +811,7 @@ export default function AISettingsPage() {
               }))}
               className="sr-only peer"
             />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
           </label>
         </div>
         <p className="text-sm text-gray-600 mb-4">
@@ -819,7 +819,7 @@ export default function AISettingsPage() {
         </p>
         
         {config.socialContent.enabled && (
-          <div className="space-y-3 pl-4 border-l-2 border-blue-200">
+          <div className="space-y-3 pl-4 border-l-2 border-primary-200">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -886,7 +886,7 @@ export default function AISettingsPage() {
               }))}
               className="sr-only peer"
             />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
           </label>
         </div>
         <p className="text-sm text-gray-600 mb-4">
@@ -894,7 +894,7 @@ export default function AISettingsPage() {
         </p>
         
         {config.leadClassification.enabled && (
-          <div className="space-y-3 pl-4 border-l-2 border-blue-200">
+          <div className="space-y-3 pl-4 border-l-2 border-primary-200">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -949,7 +949,7 @@ export default function AISettingsPage() {
               }))}
               className="sr-only peer"
             />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
           </label>
         </div>
         <p className="text-sm text-gray-600 mb-4">
@@ -957,7 +957,7 @@ export default function AISettingsPage() {
         </p>
         
         {config.responseSuggestions.enabled && (
-          <div className="space-y-3 pl-4 border-l-2 border-blue-200">
+          <div className="space-y-3 pl-4 border-l-2 border-primary-200">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -1000,7 +1000,7 @@ export default function AISettingsPage() {
               }))}
               className="sr-only peer"
             />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
           </label>
         </div>
         <p className="text-sm text-gray-600 mb-4">
@@ -1008,7 +1008,7 @@ export default function AISettingsPage() {
         </p>
         
         {config.autoFollowups.enabled && (
-          <div className="space-y-4 pl-4 border-l-2 border-blue-200">
+          <div className="space-y-4 pl-4 border-l-2 border-primary-200">
             <div>
               <label className="block text-sm font-medium mb-2">Retraso entre seguimientos (días)</label>
               <input
@@ -1073,7 +1073,7 @@ export default function AISettingsPage() {
               }))}
               className="sr-only peer"
             />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
           </label>
         </div>
         <p className="text-sm text-gray-600 mb-4">
@@ -1081,7 +1081,7 @@ export default function AISettingsPage() {
         </p>
         
         {config.emailGeneration.enabled && (
-          <div className="space-y-3 pl-4 border-l-2 border-blue-200">
+          <div className="space-y-3 pl-4 border-l-2 border-primary-200">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -1136,7 +1136,7 @@ export default function AISettingsPage() {
               }))}
               className="sr-only peer"
             />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
           </label>
         </div>
         <p className="text-sm text-gray-600 mb-4">
@@ -1144,7 +1144,7 @@ export default function AISettingsPage() {
         </p>
         
         {config.analytics.enabled && (
-          <div className="space-y-3 pl-4 border-l-2 border-blue-200">
+          <div className="space-y-3 pl-4 border-l-2 border-primary-200">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -1192,7 +1192,7 @@ export default function AISettingsPage() {
           <p className="text-sm text-gray-600 mb-2">
             Completa esta información detallada para que la IA trabaje de manera autónoma 24/7, tomando decisiones inteligentes y ahorrándote tiempo en todos los aspectos de tu negocio.
           </p>
-          <p className="text-xs text-blue-600 font-medium">
+          <p className="text-xs text-primary-600 font-medium">
             💡 Mientras más información proporciones, más eficiente y autónoma será la IA trabajando por ti
           </p>
         </div>
@@ -1485,7 +1485,7 @@ export default function AISettingsPage() {
 
           {/* SECCIÓN EXPANDIDA: Información de Contacto y Ubicación Detallada */}
           <div className="border-t pt-6 mt-6">
-            <h3 className="text-lg font-semibold mb-4 text-blue-600">📍 Información de Contacto y Ubicación</h3>
+            <h3 className="text-lg font-semibold mb-4 text-primary-600">📍 Información de Contacto y Ubicación</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Dirección Completa</label>
@@ -1639,7 +1639,7 @@ export default function AISettingsPage() {
 
           {/* SECCIÓN EXPANDIDA: Procesos y Workflows */}
           <div className="border-t pt-6 mt-6">
-            <h3 className="text-lg font-semibold mb-4 text-blue-600">⚙️ Procesos y Workflows (Para Automatización)</h3>
+            <h3 className="text-lg font-semibold mb-4 text-primary-600">⚙️ Procesos y Workflows (Para Automatización)</h3>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Proceso de Venta Paso a Paso</label>
@@ -1702,7 +1702,7 @@ export default function AISettingsPage() {
 
           {/* SECCIÓN EXPANDIDA: Reglas de Automatización */}
           <div className="border-t pt-6 mt-6">
-            <h3 className="text-lg font-semibold mb-4 text-blue-600">🤖 Reglas de Automatización 24/7</h3>
+            <h3 className="text-lg font-semibold mb-4 text-primary-600">🤖 Reglas de Automatización 24/7</h3>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Cuándo Responder Automáticamente</label>
@@ -1789,7 +1789,7 @@ export default function AISettingsPage() {
 
           {/* SECCIÓN EXPANDIDA: Preferencias de Comunicación por Canal */}
           <div className="border-t pt-6 mt-6">
-            <h3 className="text-lg font-semibold mb-4 text-blue-600">💬 Preferencias de Comunicación por Canal</h3>
+            <h3 className="text-lg font-semibold mb-4 text-primary-600">💬 Preferencias de Comunicación por Canal</h3>
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -1874,7 +1874,7 @@ export default function AISettingsPage() {
 
           {/* SECCIÓN EXPANDIDA: Información Adicional para Automatización */}
           <div className="border-t pt-6 mt-6">
-            <h3 className="text-lg font-semibold mb-4 text-blue-600">📊 Información Adicional para Mejor Automatización</h3>
+            <h3 className="text-lg font-semibold mb-4 text-primary-600">📊 Información Adicional para Mejor Automatización</h3>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Número de Empleados</label>
@@ -1966,14 +1966,14 @@ export default function AISettingsPage() {
               }))}
               className="sr-only peer"
             />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
           </label>
         </div>
         <p className="text-sm text-gray-600 mb-4">
           La IA predice probabilidades de conversión, tiempos de venta y demanda de vehículos
         </p>
         {config.predictive?.enabled && (
-          <div className="space-y-3 pl-4 border-l-2 border-blue-200">
+          <div className="space-y-3 pl-4 border-l-2 border-primary-200">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -2040,14 +2040,14 @@ export default function AISettingsPage() {
               }))}
               className="sr-only peer"
             />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
           </label>
         </div>
         <p className="text-sm text-gray-600 mb-4">
           La IA optimiza presupuestos, audiencias y horarios de publicación automáticamente
         </p>
         {config.campaignOptimization?.enabled && (
-          <div className="space-y-3 pl-4 border-l-2 border-blue-200">
+          <div className="space-y-3 pl-4 border-l-2 border-primary-200">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -2114,14 +2114,14 @@ export default function AISettingsPage() {
               }))}
               className="sr-only peer"
             />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
           </label>
         </div>
         <p className="text-sm text-gray-600 mb-4">
           La IA personaliza mensajes, recomienda vehículos y adapta promociones según el perfil del cliente
         </p>
         {config.advancedPersonalization?.enabled && (
-          <div className="space-y-3 pl-4 border-l-2 border-blue-200">
+          <div className="space-y-3 pl-4 border-l-2 border-primary-200">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -2188,14 +2188,14 @@ export default function AISettingsPage() {
               }))}
               className="sr-only peer"
             />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
           </label>
         </div>
         <p className="text-sm text-gray-600 mb-4">
           La IA analiza precios de mercado, compara con competidores e identifica oportunidades
         </p>
         {config.competitorAnalysis?.enabled && (
-          <div className="space-y-3 pl-4 border-l-2 border-blue-200">
+          <div className="space-y-3 pl-4 border-l-2 border-primary-200">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -2262,14 +2262,14 @@ export default function AISettingsPage() {
               }))}
               className="sr-only peer"
             />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
           </label>
         </div>
         <p className="text-sm text-gray-600 mb-4">
           La IA escala leads críticos, asigna leads a vendedores y programa seguimientos automáticamente
         </p>
         {config.advancedAutomation?.enabled && (
-          <div className="space-y-3 pl-4 border-l-2 border-blue-200">
+          <div className="space-y-3 pl-4 border-l-2 border-primary-200">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -2336,14 +2336,14 @@ export default function AISettingsPage() {
               }))}
               className="sr-only peer"
             />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
           </label>
         </div>
         <p className="text-sm text-gray-600 mb-4">
           La IA detecta emociones, alerta sobre insatisfacción y predice abandono de leads
         </p>
         {config.advancedSentiment?.enabled && (
-          <div className="space-y-3 pl-4 border-l-2 border-blue-200">
+          <div className="space-y-3 pl-4 border-l-2 border-primary-200">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -2410,14 +2410,14 @@ export default function AISettingsPage() {
               }))}
               className="sr-only peer"
             />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
           </label>
         </div>
         <p className="text-sm text-gray-600 mb-4">
           La IA sugiere qué vehículos comprar, analiza rentabilidad y optimiza el mix de inventario
         </p>
         {config.inventoryOptimization?.enabled && (
-          <div className="space-y-3 pl-4 border-l-2 border-blue-200">
+          <div className="space-y-3 pl-4 border-l-2 border-primary-200">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -2484,14 +2484,14 @@ export default function AISettingsPage() {
               }))}
               className="sr-only peer"
             />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
           </label>
         </div>
         <p className="text-sm text-gray-600 mb-4">
           La IA analiza rendimiento de vendedores, identifica mejores prácticas y realiza benchmarking
         </p>
         {config.performanceAnalysis?.enabled && (
-          <div className="space-y-3 pl-4 border-l-2 border-blue-200">
+          <div className="space-y-3 pl-4 border-l-2 border-primary-200">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -2558,14 +2558,14 @@ export default function AISettingsPage() {
               }))}
               className="sr-only peer"
             />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
           </label>
         </div>
         <p className="text-sm text-gray-600 mb-4">
           Chatbot conversacional 24/7 con integración de inventario en tiempo real y multi-idioma
         </p>
         {config.advancedChatbot?.enabled && (
-          <div className="space-y-3 pl-4 border-l-2 border-blue-200">
+          <div className="space-y-3 pl-4 border-l-2 border-primary-200">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -2632,14 +2632,14 @@ export default function AISettingsPage() {
               }))}
               className="sr-only peer"
             />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
           </label>
         </div>
         <p className="text-sm text-gray-600 mb-4">
           La IA calcula ROI por campaña, analiza costo por lead y optimiza inversión en marketing
         </p>
         {config.roiAnalysis?.enabled && (
-          <div className="space-y-3 pl-4 border-l-2 border-blue-200">
+          <div className="space-y-3 pl-4 border-l-2 border-primary-200">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -2756,7 +2756,7 @@ export default function AISettingsPage() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+          className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
         >
           {saving ? 'Guardando...' : 'Guardar Configuración'}
         </button>

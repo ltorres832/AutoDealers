@@ -25,7 +25,8 @@ export default function ContactForm() {
         alert('¡Gracias por contactarnos! Te responderemos pronto.');
         setFormData({ name: '', email: '', phone: '', message: '' });
       } else {
-        alert('Error al enviar mensaje');
+        const data = await response.json().catch(() => ({}));
+        alert(data.error || 'Error al enviar mensaje');
       }
     } catch (error) {
       console.error('Error:', error);
@@ -70,19 +71,21 @@ export default function ContactForm() {
         />
       </div>
       <div>
-        <label className="block text-sm font-medium mb-2">Mensaje</label>
+        <label className="block text-sm font-medium mb-2">Mensaje *</label>
         <textarea
           value={formData.message}
           onChange={(e) => setFormData({ ...formData, message: e.target.value })}
           className="w-full border rounded px-3 py-2"
           rows={4}
+          required
+          minLength={10}
           placeholder="Cuéntanos qué tipo de vehículo buscas..."
         />
       </div>
       <button
         type="submit"
         disabled={loading}
-        className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 px-6 rounded-lg hover:shadow-xl transition-all font-semibold text-lg disabled:opacity-50"
+        className="w-full bg-gradient-to-r from-primary-600 to-brand-black-deep text-white py-4 px-6 rounded-lg hover:shadow-xl hover:from-primary-700 transition-all font-semibold text-lg disabled:opacity-50"
       >
         {loading ? 'Enviando...' : 'Enviar Mensaje'}
       </button>

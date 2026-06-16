@@ -85,7 +85,7 @@ export default function ReferralsPage() {
   function getStatusBadge(status: string) {
     const styles: Record<string, string> = {
       pending: 'bg-yellow-100 text-yellow-800',
-      confirmed: 'bg-blue-100 text-blue-800',
+      confirmed: 'bg-primary-100 text-primary-800',
       rewarded: 'bg-green-100 text-green-800',
       cancelled: 'bg-red-100 text-red-800',
     };
@@ -107,7 +107,7 @@ export default function ReferralsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
       </div>
     );
   }
@@ -131,7 +131,7 @@ export default function ReferralsPage() {
               />
               <button
                 onClick={() => copyToClipboard(referralCode)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
               >
                 {copied ? '✓ Copiado' : 'Copiar'}
               </button>
@@ -148,7 +148,7 @@ export default function ReferralsPage() {
               />
               <button
                 onClick={() => copyToClipboard(referralLink)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
               >
                 {copied ? '✓ Copiado' : 'Copiar'}
               </button>
@@ -162,9 +162,9 @@ export default function ReferralsPage() {
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Mis Recompensas</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-blue-50 rounded-lg p-4">
+            <div className="bg-primary-50 rounded-lg p-4">
               <div className="text-sm text-gray-600 mb-1">Descuento Próximo Mes</div>
-              <div className="text-2xl font-bold text-blue-600">
+              <div className="text-2xl font-bold text-primary-600">
                 {rewards.activeRewards.nextMonthDiscount > 0 ? `${rewards.activeRewards.nextMonthDiscount}%` : '0%'}
               </div>
             </div>
@@ -174,9 +174,9 @@ export default function ReferralsPage() {
                 {rewards.activeRewards.freeMonthsRemaining}
               </div>
             </div>
-            <div className="bg-purple-50 rounded-lg p-4">
+            <div className="bg-primary-50 rounded-lg p-4">
               <div className="text-sm text-gray-600 mb-1">Promociones Disponibles</div>
-              <div className="text-2xl font-bold text-purple-600">
+              <div className="text-2xl font-bold text-primary-600">
                 {rewards.activeRewards.promotionCredits}
               </div>
             </div>

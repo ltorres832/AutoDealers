@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getFirestore } from '@autodealers/core';
-import * as admin from 'firebase-admin';
+import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
 
 const db = getFirestore();
 
@@ -36,7 +35,7 @@ export async function DELETE(
     // Marcar como inactiva en lugar de eliminar
     await db.collection('integrations').doc(integrationId).update({
       status: 'inactive',
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: getFirestoreFieldValue().serverTimestamp(),
     });
 
     return NextResponse.json({ success: true });

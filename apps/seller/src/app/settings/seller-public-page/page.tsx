@@ -3,13 +3,17 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { PromoVideosEditor } from '@autodealers/shared/components/PromoVideosEditor';
+import { PublicTrustGallerySection } from '@/components/PublicTrustGallerySection';
 
 export default function SellerPublicPageSettings() {
   const [publicPromoVideoUrls, setPublicPromoVideoUrls] = useState<string[]>([]);
+  const [publicTrustGalleryPhotos, setPublicTrustGalleryPhotos] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadingGallery, setUploadingGallery] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [galleryUploadError, setGalleryUploadError] = useState<string | null>(null);
 
   useEffect(() => {
     load();
@@ -38,6 +42,9 @@ export default function SellerPublicPageSettings() {
             ? [data.publicPromoVideoUrl]
             : []
       );
+      setPublicTrustGalleryPhotos(
+        Array.isArray(data.publicTrustGalleryPhotos) ? data.publicTrustGalleryPhotos : []
+      );
     } catch {
       setMessage('Error de red');
     } finally {
@@ -45,7 +52,9 @@ export default function SellerPublicPageSettings() {
     }
   }
 
-  async function save() {
+  async function save(overrides?: { photos?: string[]; videos?: string[] }) {
+    const photos = overrides?.photos ?? publicTrustGalleryPhotos;
+    const videos = overrides?.videos ?? publicPromoVideoUrls;
     setSaving(true);
     setMessage(null);
     try {
@@ -53,16 +62,24 @@ export default function SellerPublicPageSettings() {
       const res = await fetchWithAuth('/api/settings/seller-public-catalog', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ publicPromoVideoUrls }),
+        body: JSON.stringify({ publicPromoVideoUrls: videos, publicTrustGalleryPhotos: photos }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         setMessage(err.error || 'Error al guardar');
-        return;
+        return false;
       }
-      setMessage('Videos guardados correctamente');
+      setPublicTrustGalleryPhotos(photos);
+      setPublicPromoVideoUrls(videos);
+      setMessage(
+        overrides?.photos && !overrides?.videos
+          ? 'Galería guardada correctamente'
+          : 'Contenido público guardado correctamente'
+      );
+      return true;
     } catch {
       setMessage('Error al guardar');
+      return false;
     } finally {
       setSaving(false);
     }
@@ -91,6 +108,33 @@ export default function SellerPublicPageSettings() {
     }
   }
 
+  async function uploadGalleryFile(file: File): Promise<string | null> {
+    setUploadingGallery(true);
+    setGalleryUploadError(null);
+    try {
+      const { fetchWithAuth } = await import('@/lib/fetch-with-auth');
+      const form = new FormData();
+      form.append('file', file);
+      form.append('type', 'seller_public_trust_gallery');
+      const res = await fetchWithAuth('/api/upload', { method: 'POST', body: form });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = data.error || data.details || 'Error al subir foto';
+        setGalleryUploadError(msg);
+        setMessage(msg);
+        return null;
+      }
+      return typeof data.url === 'string' ? data.url : null;
+    } catch {
+      const msg = 'Error de conexión al subir foto';
+      setGalleryUploadError(msg);
+      setMessage(msg);
+      return null;
+    } finally {
+      setUploadingGallery(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center py-16">
@@ -102,9 +146,9 @@ export default function SellerPublicPageSettings() {
   return (
     <div className="mx-auto max-w-2xl space-y-6 p-4">
       <div>
-        <h1 className="text-2xl font-bold">Videos en tu página pública</h1>
+        <h1 className="text-2xl font-bold">Tu página pública</h1>
         <p className="mt-2 text-gray-600">
-          Se muestran en la web en filas de dos, antes del inventario.
+          Fotos y videos que ven los clientes en tu perfil web antes del inventario.
         </p>
       </div>
 
@@ -120,15 +164,37 @@ export default function SellerPublicPageSettings() {
         </div>
       )}
 
+      <div id="fotos" className="rounded-lg border-2 border-primary-200 bg-white p-6 shadow-sm">
+        <PublicTrustGallerySection
+          photos={publicTrustGalleryPhotos}
+          onChange={setPublicTrustGalleryPhotos}
+          onUploadFile={uploadGalleryFile}
+          onUploadComplete={(photos) => save({ photos })}
+          uploading={uploadingGallery}
+          saving={saving}
+          onSave={() => void save()}
+          error={galleryUploadError}
+        />
+      </div>
+
       <div className="rounded-lg border bg-white p-6 shadow-sm">
         <PromoVideosEditor
           urls={publicPromoVideoUrls}
           onChange={setPublicPromoVideoUrls}
           onUploadFile={uploadPromoFile}
           uploading={uploading}
-          saving={saving}
-          onSave={save}
         />
+      </div>
+
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => void save()}
+          disabled={saving || uploading || uploadingGallery}
+          className="rounded-lg bg-primary-600 px-6 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
+        >
+          {saving ? 'Guardando…' : 'Guardar todo'}
+        </button>
       </div>
 
       <p className="text-center text-sm">

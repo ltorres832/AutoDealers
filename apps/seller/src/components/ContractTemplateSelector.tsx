@@ -132,7 +132,7 @@ export default function ContractTemplateSelector({
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
       </div>
     );
   }
@@ -154,7 +154,7 @@ export default function ContractTemplateSelector({
               <div
                 key={template.id}
                 onClick={() => handleTemplateSelect(template)}
-                className="border-2 border-gray-200 rounded-lg p-4 cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors"
+                className="border-2 border-gray-200 rounded-lg p-4 cursor-pointer hover:border-primary-500 hover:bg-primary-50 transition-colors"
               >
                 <h4 className="font-semibold text-gray-900 mb-1">{template.name}</h4>
                 {template.description && (
@@ -197,8 +197,8 @@ export default function ContractTemplateSelector({
         </button>
       </div>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <p className="text-blue-800 text-sm">
+      <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+        <p className="text-primary-800 text-sm">
           <strong>💡 Tip:</strong> Los campos marcados con * son obligatorios. 
           Algunos campos pueden estar pre-llenados con la información del comprador.
         </p>
@@ -217,7 +217,7 @@ export default function ContractTemplateSelector({
                 onChange={(e) => handleFieldChange(field.id, e.target.value)}
                 placeholder={field.placeholder || field.name}
                 required={field.required}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             ) : field.type === 'number' ? (
               <input
@@ -226,7 +226,7 @@ export default function ContractTemplateSelector({
                 onChange={(e) => handleFieldChange(field.id, e.target.value)}
                 placeholder={field.placeholder || field.name}
                 required={field.required}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             ) : field.type === 'date' ? (
               <input
@@ -234,7 +234,7 @@ export default function ContractTemplateSelector({
                 value={fieldValues[field.id] || ''}
                 onChange={(e) => handleFieldChange(field.id, e.target.value)}
                 required={field.required}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             ) : field.type === 'address' ? (
               <textarea
@@ -243,7 +243,7 @@ export default function ContractTemplateSelector({
                 placeholder={field.placeholder || field.name}
                 required={field.required}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             ) : (
               <input
@@ -252,7 +252,7 @@ export default function ContractTemplateSelector({
                 onChange={(e) => handleFieldChange(field.id, e.target.value)}
                 placeholder={field.placeholder || field.name}
                 required={field.required}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             )}
           </div>
@@ -274,7 +274,7 @@ export default function ContractTemplateSelector({
           type="button"
           onClick={handleGenerate}
           disabled={generating}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+          className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50"
         >
           {generating ? 'Generando...' : '✓ Generar Contrato'}
         </button>

@@ -66,12 +66,12 @@ export default function ContractSigningModal({
 
           {step === 'review' && (
             <div className="space-y-6">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h3 className="font-semibold text-blue-900 mb-2">Información del Firmante</h3>
-                <p className="text-blue-800"><strong>Nombre:</strong> {signer.name}</p>
-                {signer.email && <p className="text-blue-800"><strong>Email:</strong> {signer.email}</p>}
-                {signer.phone && <p className="text-blue-800"><strong>Teléfono:</strong> {signer.phone}</p>}
-                <p className="text-blue-800"><strong>Rol:</strong> <span className="capitalize">{signer.role}</span></p>
+              <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+                <h3 className="font-semibold text-primary-900 mb-2">Información del Firmante</h3>
+                <p className="text-primary-800"><strong>Nombre:</strong> {signer.name}</p>
+                {signer.email && <p className="text-primary-800"><strong>Email:</strong> {signer.email}</p>}
+                {signer.phone && <p className="text-primary-800"><strong>Teléfono:</strong> {signer.phone}</p>}
+                <p className="text-primary-800"><strong>Rol:</strong> <span className="capitalize">{signer.role}</span></p>
               </div>
 
               <div>
@@ -105,7 +105,7 @@ export default function ContractSigningModal({
                 </button>
                 <button
                   onClick={() => setStep('sign')}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
                 >
                   Continuar para Firmar
                 </button>

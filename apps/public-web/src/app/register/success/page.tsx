@@ -38,6 +38,8 @@ function SuccessContent() {
   const sessionId = searchParams.get('session_id');
   const [loading, setLoading] = useState(true);
   const [verified, setVerified] = useState(false);
+  const [trialing, setTrialing] = useState(false);
+  const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null);
 
   useEffect(() => {
     if (sessionId) {
@@ -62,6 +64,8 @@ function SuccessContent() {
         const data = await response.json();
         if (data.verified && data.paid) {
           setVerified(true);
+          setTrialing(Boolean(data.trialing));
+          setTrialEndsAt(data.trialEndsAt ?? null);
           setLoading(false);
           return;
         } else {
@@ -86,11 +90,11 @@ function SuccessContent() {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 overflow-hidden relative">
-        <div className="absolute top-0 left-0 w-full h-[300px] bg-gradient-to-b from-blue-50/50 to-transparent"></div>
+        <div className="absolute top-0 left-0 w-full h-[300px] bg-gradient-to-b from-primary-50/50 to-transparent"></div>
         <div className="text-center relative z-10">
           <div className="relative w-20 h-20 mx-auto mb-8">
-            <div className="absolute inset-0 border-4 border-blue-600/20 rounded-full"></div>
-            <div className="absolute inset-0 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            <div className="absolute inset-0 border-4 border-primary-600/20 rounded-full"></div>
+            <div className="absolute inset-0 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
           </div>
           <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase mb-2">Validando Transacción</h2>
           <p className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.3em]">Por favor, no cierres esta ventana</p>
@@ -101,7 +105,7 @@ function SuccessContent() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center py-20 px-4 relative overflow-hidden">
-      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-blue-100/30 rounded-full blur-[120px] pointer-events-none"></div>
+      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary-100/30 rounded-full blur-[120px] pointer-events-none"></div>
 
       <div className="max-w-xl w-full bg-white rounded-[4rem] shadow-[0_50px_100px_-30px_rgba(0,0,0,0.12)] p-12 md:p-16 relative z-10 border border-slate-100 text-center">
         {verified ? (
@@ -111,17 +115,19 @@ function SuccessContent() {
             </div>
 
             <h1 className="text-4xl font-black text-slate-900 mb-4 tracking-tighter uppercase leading-none">
-              ¡Bienvenido a la <span className="text-blue-600">Élite</span>!
+              ¡Bienvenido a la <span className="text-primary-600">Élite</span>!
             </h1>
 
             <p className="text-slate-500 font-medium text-lg leading-relaxed mb-12">
-              Tu cuenta ha sido activada con éxito. Prepárate para dominar el mercado automotriz con nuestras herramientas premium.
+              {trialing
+                ? `Tu prueba gratuita de 7 días está activa. El primer cobro mensual se realizará automáticamente${trialEndsAt ? ` el ${new Date(trialEndsAt).toLocaleDateString('es')}` : ' al terminar la prueba'}.`
+                : 'Tu cuenta ha sido activada con éxito. Prepárate para dominar el mercado automotriz con nuestras herramientas premium.'}
             </p>
 
             <div className="space-y-6">
               <Link
                 href="/login"
-                className="group block w-full bg-slate-900 text-white h-20 rounded-[2rem] font-black text-xs uppercase tracking-[0.4em] relative overflow-hidden shadow-2xl hover:bg-blue-600 transition-all duration-500 active:scale-[0.98] flex items-center justify-center"
+                className="group block w-full bg-primary-600 text-white h-20 rounded-[2rem] font-black text-xs uppercase tracking-[0.4em] relative overflow-hidden shadow-2xl hover:bg-primary-700 transition-all duration-500 active:scale-[0.98] flex items-center justify-center"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:animate-shimmer"></div>
                 Comenzar Ahora
@@ -129,7 +135,9 @@ function SuccessContent() {
 
               <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100/50">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-relaxed">
-                  Recibirás los detalles de tu suscripción y el acceso a tu panel administrativo en tu correo electrónico.
+                  {trialing
+                    ? 'Tu tarjeta quedó registrada en Stripe. La facturación mensual continuará automáticamente al terminar la prueba.'
+                    : 'Recibirás los detalles de tu suscripción y el acceso a tu panel administrativo en tu correo electrónico.'}
                 </p>
               </div>
             </div>
@@ -158,7 +166,7 @@ function SuccessContent() {
 
               <Link
                 href="/login"
-                className="block text-blue-600 font-black text-[10px] uppercase tracking-widest hover:text-blue-700 transition-colors"
+                className="block text-primary-600 font-black text-[10px] uppercase tracking-widest hover:text-primary-700 transition-colors"
               >
                 O ir al Inicio de Sesión
               </Link>
@@ -174,7 +182,7 @@ export default function RegisterSuccessPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-12 h-12 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
       </div>
     }>
       <SuccessContent />

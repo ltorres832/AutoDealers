@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import StarRating from '@/components/StarRating';
+import { getDashboardLoginUrl, getDashboardLabel } from '@/lib/dashboard-login-urls';
 
 interface User {
   id: string;
@@ -164,7 +165,8 @@ export default function AdminUsersPage() {
             <p className="text-gray-400 text-sm mt-2">Los usuarios aparecerán aquí cuando se creen</p>
           </div>
         ) : (
-          <table className="w-full">
+          <div className="table-scroll">
+          <table className="w-full min-w-[720px]">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -205,7 +207,7 @@ export default function AdminUsersPage() {
                       user.role === 'admin'
                         ? 'bg-red-100 text-red-700'
                         : user.role === 'dealer'
-                        ? 'bg-blue-100 text-blue-700'
+                        ? 'bg-primary-100 text-primary-700'
                         : 'bg-green-100 text-green-700'
                     }`}
                   >
@@ -289,6 +291,7 @@ export default function AdminUsersPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
@@ -448,6 +451,12 @@ function CreateUserModal({
   const [postWarnings, setPostWarnings] = useState<string[]>([]);
   const [useManualDealerId, setUseManualDealerId] = useState(false);
   const [manualDealerId, setManualDealerId] = useState('');
+  const [createdUser, setCreatedUser] = useState<{
+    email: string;
+    role: string;
+    dealerManaged: boolean;
+    welcomeEmailSent?: boolean;
+  } | null>(null);
 
   const selectedTenant = tenants.find((t) => t.id === formData.tenantId);
 
@@ -504,8 +513,16 @@ function CreateUserModal({
           setPostWarnings(data.warnings);
           return;
         }
-        onClose();
-        onSuccess();
+        const dealerManaged =
+          formData.role === 'seller' &&
+          (selectedTenant?.type === 'dealer' ||
+            Boolean(useManualDealerId && manualDealerId.trim()));
+        setCreatedUser({
+          email: formData.email.trim().toLowerCase(),
+          role: formData.role,
+          dealerManaged,
+          welcomeEmailSent: data.welcomeEmailSent === true,
+        });
       } else {
         const err = await response.json().catch(() => ({}));
         setSubmitError(typeof err.error === 'string' ? err.error : 'Error al crear usuario');
@@ -516,6 +533,64 @@ function CreateUserModal({
     } finally {
       setLoading(false);
     }
+  }
+
+  if (createdUser) {
+    const loginUrl = getDashboardLoginUrl(createdUser.role);
+    const panelLabel = getDashboardLabel(createdUser.role);
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-lg max-w-lg w-full shadow-xl p-6">
+          <div className="rounded-lg bg-green-50 border border-green-200 text-green-900 px-4 py-3 mb-4">
+            <p className="font-semibold">Usuario creado correctamente</p>
+            <p className="text-sm mt-2">
+              Email de acceso: <strong>{createdUser.email}</strong>
+            </p>
+            <p className="text-sm mt-2 text-green-800">
+              Entrega el <strong>email</strong> y la <strong>contraseña temporal</strong> que definiste. Sin esos datos no
+              podrá entrar a la plataforma. En el primer acceso deberá <strong>cambiar la contraseña</strong>.
+            </p>
+            {createdUser.welcomeEmailSent ? (
+              <p className="text-sm mt-2 text-green-700">
+                Se envió un email de bienvenida con el enlace de acceso (sin la contraseña, por seguridad).
+              </p>
+            ) : (
+              <p className="text-sm mt-2 text-amber-800">
+                No se pudo enviar el email de bienvenida; comparte manualmente el enlace y la contraseña.
+              </p>
+            )}
+            <p className="text-sm mt-3">
+              {panelLabel}:{' '}
+              <a href={loginUrl} className="text-primary-700 underline break-all" target="_blank" rel="noreferrer">
+                {loginUrl}
+              </a>
+            </p>
+            {createdUser.dealerManaged ? (
+              <p className="text-sm mt-3 text-primary-900 bg-primary-50 border border-primary-200 rounded px-3 py-2">
+                Vendedor del concesionario: no paga membresía propia; hereda el plan del dealer.
+              </p>
+            ) : createdUser.role !== 'admin' ? (
+              <p className="text-sm mt-3 text-amber-900 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                Tras el primer login deberá <strong>elegir y pagar su membresía</strong> si aún no tiene una activa.
+              </p>
+            ) : null}
+          </div>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => {
+                setCreatedUser(null);
+                onSuccess();
+                onClose();
+              }}
+              className="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700"
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -652,7 +727,7 @@ function CreateUserModal({
                     </p>
                   )}
                   {selectedTenant?.type === 'seller' && formData.tenantId && (
-                    <p className="text-xs text-blue-700 mt-2 bg-blue-50 border border-blue-100 rounded px-2 py-1.5">
+                    <p className="text-xs text-primary-700 mt-2 bg-primary-50 border border-primary-100 rounded px-2 py-1.5">
                       Vendedor independiente: sin <code className="text-[11px]">dealerId</code> de concesionario; se
                       usa la membresía del tenant vendedor si existe.
                     </p>

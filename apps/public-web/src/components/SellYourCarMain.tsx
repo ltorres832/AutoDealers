@@ -21,7 +21,7 @@ export default function SellYourCarMain() {
                             <div className="flex flex-col sm:flex-row gap-4">
                                 <Link
                                     href="/register?type=seller"
-                                    className="px-8 py-4 bg-blue-600 text-white rounded-xl font-bold text-lg hover:bg-blue-700 transition-all shadow-lg hover:shadow-blue-500/50 text-center"
+                                    className="px-8 py-4 bg-primary-600 text-white rounded-xl font-bold text-lg hover:bg-primary-700 transition-all shadow-lg hover:shadow-primary-500/50 text-center"
                                 >
                                     Obtener Oferta Instantánea
                                 </Link>
@@ -32,7 +32,7 @@ export default function SellYourCarMain() {
                                     Vender por mi Cuenta
                                 </Link>
                             </div>
-                            <p className="text-sm text-blue-200 mt-4">
+                            <p className="text-sm text-primary-200 mt-4">
                                 * Requiere cuenta verificada con membresía activa para publicar.
                             </p>
                         </div>

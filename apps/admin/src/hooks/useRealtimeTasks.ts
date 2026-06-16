@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase-client';
-import { collection, query, where, onSnapshot, orderBy, limit as firestoreLimit, Timestamp, QuerySnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, limit as firestoreLimit, collectionGroup } from 'firebase/firestore';
 import { Task } from '@autodealers/crm';
 
 interface UseRealtimeTasksOptions {
@@ -98,18 +98,51 @@ export function useRealtimeTasks(options: UseRealtimeTasksOptions = {}) {
         );
 
         return () => unsubscribe();
-      } else {
-        // Si no hay tenantId, obtener tareas de todos los tenants (solo lectura, no tiempo real completo)
-        // Para admin sin tenantId, usar fetch en lugar de tiempo real multi-tenant
-        setLoading(false);
-        setTasks([]);
       }
+
+      const q = query(collectionGroup(db, 'tasks'), orderBy('dueDate', 'asc'));
+      const unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          const tasksData: Task[] = [];
+          snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            const task: Task = {
+              id: docSnap.id,
+              ...data,
+              dueDate: data.dueDate?.toDate?.() || new Date(),
+              completedAt: data.completedAt?.toDate?.(),
+              reminderDate: data.reminderDate?.toDate?.(),
+              recurrenceEndDate: data.recurrenceEndDate?.toDate?.(),
+              createdAt: data.createdAt?.toDate?.() || new Date(),
+              updatedAt: data.updatedAt?.toDate?.() || new Date(),
+            } as Task;
+            if (options.status && task.status !== options.status) return;
+            if (options.assignedTo && task.assignedTo !== options.assignedTo) return;
+            if (options.leadId && task.leadId !== options.leadId) return;
+            if (options.type && task.type !== options.type) return;
+            if (options.priority && task.priority !== options.priority) return;
+            tasksData.push(task);
+          });
+          const capped = options.limit ? tasksData.slice(0, options.limit) : tasksData;
+          setTasks(capped);
+          setLoading(false);
+          setError(null);
+        },
+        (err) => {
+          console.error('Error en tiempo real tasks (collectionGroup):', err);
+          setError(err.message);
+          setLoading(false);
+        }
+      );
+
+      return () => unsubscribe();
     } catch (err: any) {
       console.error('Error configurando listener tasks:', err);
       setError(err.message);
       setLoading(false);
     }
-  }, [options.tenantId, options.status, options.assignedTo, options.leadId, options.limit]);
+  }, [options.tenantId, options.status, options.assignedTo, options.leadId, options.type, options.priority, options.limit]);
 
   return { tasks, loading, error };
 }

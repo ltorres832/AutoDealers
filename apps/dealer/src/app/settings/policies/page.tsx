@@ -345,10 +345,10 @@ export default function PoliciesSettingsPage() {
                   </div>
                 </div>
 
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <p className="text-sm text-blue-800">
+                <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+                  <p className="text-sm text-primary-800">
                     💡 <strong>Consejo:</strong> Usa la vista previa para ver cómo se verá el contenido formateado.
-                    El contenido se mostrará en tu página web pública en la ruta <code className="bg-blue-100 px-1 rounded">/policies/[tipo]</code>
+                    El contenido se mostrará en tu página web pública en la ruta <code className="bg-primary-100 px-1 rounded">/policies/[tipo]</code>
                   </p>
                 </div>
               </div>

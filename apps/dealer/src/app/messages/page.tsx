@@ -138,11 +138,15 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">Mensajería</h1>
+    <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
+      <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">Mensajería</h1>
 
-      <div className="grid grid-cols-3 gap-6 h-[calc(100vh-200px)]">
-        <div className="bg-white rounded-lg shadow overflow-y-auto">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 min-h-[calc(100dvh-12rem)] md:h-[calc(100dvh-200px)]">
+        <div
+          className={`${
+            selectedConversation ? 'hidden md:block' : 'block'
+          } bg-white rounded-lg shadow overflow-y-auto min-h-0`}
+        >
           <div className="p-4 border-b">
             <h2 className="font-bold">Conversaciones</h2>
           </div>
@@ -192,11 +196,27 @@ export default function MessagesPage() {
           </div>
         </div>
 
-        <div className="col-span-2 bg-white rounded-lg shadow flex flex-col">
+        <div
+          className={`${
+            selectedConversation ? 'flex' : 'hidden md:flex'
+          } md:col-span-2 bg-white rounded-lg shadow flex-col min-h-[calc(100dvh-14rem)] md:min-h-0 min-w-0`}
+        >
           {selectedConversation ? (
             <>
-              <div className="p-4 border-b flex flex-wrap items-center justify-between gap-2">
-                <h2 className="font-bold">{selectedConversation.leadName}</h2>
+              <div className="p-4 border-b flex flex-wrap items-center justify-between gap-2 shrink-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedConversation(null)}
+                    className="md:hidden shrink-0 p-2 -ml-1 text-gray-600 hover:bg-gray-100 rounded-lg"
+                    aria-label="Volver a conversaciones"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  <h2 className="font-bold truncate">{selectedConversation.leadName}</h2>
+                </div>
                 <Link
                   href={`/leads/${selectedConversation.leadId}`}
                   className="text-sm font-medium text-primary-600 hover:underline"
@@ -259,7 +279,7 @@ export default function MessagesPage() {
                   <button
                     onClick={generateAIResponse}
                     disabled={generatingAI || !selectedConversation}
-                    className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+                    className="bg-primary-600 text-white px-4 py-2 rounded hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
                     title="Generar respuesta automática con IA"
                   >
                     {generatingAI ? (

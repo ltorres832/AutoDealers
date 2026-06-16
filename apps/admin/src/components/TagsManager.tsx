@@ -112,7 +112,7 @@ export default function TagsManager({ tenantId }: TagsManagerProps) {
                   <p className="text-sm text-gray-500 mb-2">{tag.description}</p>
                 )}
                 {tag.autoApply && (
-                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                  <span className="text-xs bg-primary-100 text-primary-700 px-2 py-1 rounded">
                     Aplicación automática
                   </span>
                 )}
@@ -144,7 +144,7 @@ function CreateTagModal({
 }) {
   const [formData, setFormData] = useState({
     name: '',
-    color: '#3b82f6',
+    color: '#E10600',
     description: '',
     autoApply: false,
   });
@@ -204,7 +204,7 @@ function CreateTagModal({
                 value={formData.color}
                 onChange={(e) => setFormData({ ...formData, color: e.target.value })}
                 className="flex-1 border rounded px-3 py-2"
-                placeholder="#3b82f6"
+                placeholder="#E10600"
               />
             </div>
           </div>

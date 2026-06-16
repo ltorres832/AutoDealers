@@ -81,12 +81,12 @@ export function CollaborationIndicator({
   if (viewers.length === 0) return null;
 
   return (
-    <div className="flex items-center gap-2 text-xs text-gray-600 bg-blue-50 px-3 py-1 rounded-full">
+    <div className="flex items-center gap-2 text-xs text-gray-600 bg-primary-50 px-3 py-1 rounded-full">
       <div className="flex -space-x-2">
         {viewers.slice(0, 3).map((userId, idx) => (
           <div
             key={userId}
-            className="w-6 h-6 bg-blue-500 rounded-full border-2 border-white flex items-center justify-center text-white text-xs font-bold"
+            className="w-6 h-6 bg-primary-500 rounded-full border-2 border-white flex items-center justify-center text-white text-xs font-bold"
             style={{ zIndex: 10 - idx }}
             title={`Usuario ${idx + 1} viendo`}
           >

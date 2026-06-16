@@ -158,7 +158,7 @@ export default function AdminAllPromotionsPage() {
           )}
           <Link
             href="/admin/promotions/assign"
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium"
+            className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 font-medium"
           >
             ➕ Asignar Promoción
           </Link>
@@ -172,7 +172,7 @@ export default function AdminAllPromotionsPage() {
       </div>
 
       {/* Progreso y Estadísticas de Todas las Promociones - SECCIÓN PRINCIPAL */}
-      <div className="mb-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 border-2 border-blue-200">
+      <div className="mb-6 bg-gradient-to-r from-primary-50 to-primary-50 rounded-lg p-4 border-2 border-primary-200">
         <div className="flex items-center gap-3">
           <div className="text-4xl">📊</div>
           <div>
@@ -409,7 +409,7 @@ function PromotionProgressSection({ promotions }: { promotions: Promotion[] }) {
                            promotion.status}
                         </span>
                         {promotion.promotionScope && (
-                          <span className="px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
+                          <span className="px-2 py-1 rounded text-xs bg-primary-100 text-primary-800">
                             {promotion.promotionScope === 'vehicle' ? '🚗 Vehículo' : 
                              promotion.promotionScope === 'dealer' ? '🏢 Dealer' : 
                              '👤 Vendedor'}
@@ -442,7 +442,7 @@ function PromotionProgressSection({ promotions }: { promotions: Promotion[] }) {
                     </div>
                     <button
                       onClick={() => setSelectedPromotion(selectedPromotion?.id === promotion.id ? null : promotion)}
-                      className="ml-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                      className="ml-4 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm"
                     >
                       {selectedPromotion?.id === promotion.id ? 'Ocultar' : 'Ver Detalles'}
                     </button>
@@ -450,13 +450,13 @@ function PromotionProgressSection({ promotions }: { promotions: Promotion[] }) {
 
                   {/* Métricas Principales */}
                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-3">
-                    <div className="bg-blue-50 rounded p-3">
+                    <div className="bg-primary-50 rounded p-3">
                       <div className="text-xs text-gray-600 mb-1">👁️ Vistas Totales</div>
-                      <div className="text-xl font-bold text-blue-600">{metrics.totalViews}</div>
+                      <div className="text-xl font-bold text-primary-600">{metrics.totalViews}</div>
                     </div>
-                    <div className="bg-purple-50 rounded p-3">
+                    <div className="bg-primary-50 rounded p-3">
                       <div className="text-xs text-gray-600 mb-1">🖱️ Clics Totales</div>
-                      <div className="text-xl font-bold text-purple-600">{metrics.totalClicks}</div>
+                      <div className="text-xl font-bold text-primary-600">{metrics.totalClicks}</div>
                     </div>
                     <div className="bg-green-50 rounded p-3">
                       <div className="text-xs text-gray-600 mb-1">❤️ Likes</div>
@@ -466,13 +466,13 @@ function PromotionProgressSection({ promotions }: { promotions: Promotion[] }) {
                       <div className="text-xs text-gray-600 mb-1">📤 Compartidos</div>
                       <div className="text-xl font-bold text-yellow-600">{metrics.totalShares}</div>
                     </div>
-                    <div className="bg-pink-50 rounded p-3">
+                    <div className="bg-primary-50 rounded p-3">
                       <div className="text-xs text-gray-600 mb-1">💬 Comentarios</div>
-                      <div className="text-xl font-bold text-pink-600">{metrics.totalComments}</div>
+                      <div className="text-xl font-bold text-primary-600">{metrics.totalComments}</div>
                     </div>
-                    <div className="bg-indigo-50 rounded p-3">
+                    <div className="bg-primary-50 rounded p-3">
                       <div className="text-xs text-gray-600 mb-1">📈 Conversión</div>
-                      <div className="text-xl font-bold text-indigo-600">{metrics.conversionRate}%</div>
+                      <div className="text-xl font-bold text-primary-600">{metrics.conversionRate}%</div>
                     </div>
                   </div>
 
@@ -504,13 +504,13 @@ function PromotionProgressSection({ promotions }: { promotions: Promotion[] }) {
                                 href={`https://facebook.com/posts/${promotion.socialPostIds.facebook}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-blue-600 hover:underline text-xs"
+                                className="text-primary-600 hover:underline text-xs"
                               >
                                 Ver Post
                               </a>
                             )}
                           </h4>
-                          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm bg-blue-50 p-3 rounded">
+                          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm bg-primary-50 p-3 rounded">
                             <div>
                               <span className="text-gray-600">Vistas:</span>
                               <span className="ml-1 font-bold">{promotion.socialMetrics.facebook.views || 0}</span>
@@ -545,13 +545,13 @@ function PromotionProgressSection({ promotions }: { promotions: Promotion[] }) {
                                 href={`https://instagram.com/p/${promotion.socialPostIds.instagram}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-pink-600 hover:underline text-xs"
+                                className="text-primary-600 hover:underline text-xs"
                               >
                                 Ver Post
                               </a>
                             )}
                           </h4>
-                          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm bg-pink-50 p-3 rounded">
+                          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm bg-primary-50 p-3 rounded">
                             <div>
                               <span className="text-gray-600">Vistas:</span>
                               <span className="ml-1 font-bold">{promotion.socialMetrics.instagram.views || 0}</span>

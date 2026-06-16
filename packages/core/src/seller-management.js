@@ -110,11 +110,6 @@ async function getAllSellersForAdmin(filters = {}) {
   if (filters.status) {
     rows = rows.filter((s) => (s.status || "active") === filters.status);
   }
-  if (filters.linkType === "independent") {
-    rows = rows.filter((s) => !s.dealerId);
-  } else if (filters.linkType === "linked") {
-    rows = rows.filter((s) => !!s.dealerId);
-  }
   if (filters.search) {
     const q = filters.search.trim().toLowerCase();
     rows = rows.filter(
@@ -136,21 +131,34 @@ async function getAllSellersForAdmin(filters = {}) {
           const d = snap.data();
           tenantNames.set(tid, {
             name: d?.name || d?.companyName || tid,
-            type: d?.type
+            type: d?.type,
+            ownerId: d?.ownerId || void 0
           });
         }
       } catch {
       }
     })
   );
-  const enriched = rows.map((s) => ({
-    ...s,
-    tenantName: s.tenantId ? tenantNames.get(s.tenantId)?.name ?? null : null,
-    tenantType: s.tenantId ? tenantNames.get(s.tenantId)?.type ?? null : null,
-    dealerName: s.dealerId ? tenantNames.get(s.dealerId)?.name ?? null : null
-  }));
-  enriched.sort((a, b) => (a.name || "").localeCompare(b.name || "", "es"));
-  return enriched;
+  const enriched = rows.map((s) => {
+    const tenantMeta = s.tenantId ? tenantNames.get(s.tenantId) : void 0;
+    const isIndependentSeller = tenantMeta?.type === "seller" && tenantMeta?.ownerId === s.id;
+    return {
+      ...s,
+      tenantName: s.tenantId ? tenantNames.get(s.tenantId)?.name ?? null : null,
+      tenantType: tenantMeta?.type ?? null,
+      tenantOwnerId: tenantMeta?.ownerId ?? null,
+      isIndependentSeller,
+      dealerName: s.dealerId ? tenantNames.get(s.dealerId)?.name ?? null : null
+    };
+  });
+  let filtered = enriched;
+  if (filters.linkType === "independent") {
+    filtered = enriched.filter((s) => s.isIndependentSeller || !s.dealerId);
+  } else if (filters.linkType === "linked") {
+    filtered = enriched.filter((s) => !!s.dealerId && !s.isIndependentSeller);
+  }
+  filtered.sort((a, b) => (a.name || "").localeCompare(b.name || "", "es"));
+  return filtered;
 }
 async function assertSellerUser(sellerId) {
   const seller = await getDb().collection("users").doc(sellerId).get();
