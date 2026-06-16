@@ -13,6 +13,7 @@ import { pingCatalogVehicleClick } from '@/lib/catalog-vehicle-click';
 import { buildPublicVehicleDetailHref, vehicleCatalogTenantId } from '@/lib/public-vehicle-detail-href';
 import PublicPromoVideo from '@/components/PublicPromoVideo';
 import { PublicTrustGallery } from '@autodealers/shared/components/PublicTrustGallery';
+import type { PublicTrustGalleryItem } from '@autodealers/shared/public-trust-gallery';
 import { resolveBusinessHours } from '@/lib/resolve-business-hours';
 
 interface Seller {
@@ -31,6 +32,7 @@ interface Seller {
   /** YouTube, Vimeo o URL HTTPS a .mp4/.webm — antes del inventario en la página pública del vendedor */
   publicPromoVideoUrl?: string;
   publicTrustGalleryPhotos?: string[];
+  publicTrustGalleryItems?: PublicTrustGalleryItem[];
   socialMedia?: SocialMediaMap;
 }
 
@@ -745,7 +747,7 @@ export default function SellerPublicCatalogPage({
         />
 
         <div className="mb-10">
-          <PublicTrustGallery photos={seller.publicTrustGalleryPhotos || []} />
+          <PublicTrustGallery items={seller.publicTrustGalleryItems || seller.publicTrustGalleryPhotos || []} />
         </div>
 
         <PublicReviewsList

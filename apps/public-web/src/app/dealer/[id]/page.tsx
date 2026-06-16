@@ -6,6 +6,7 @@ import Link from 'next/link';
 import StarRating from '../../../components/StarRating';
 import PublicReviewsList, { type PublicReviewItem } from '@/components/PublicReviewsList';
 import { PublicTrustGallery } from '@autodealers/shared/components/PublicTrustGallery';
+import type { PublicTrustGalleryItem } from '@autodealers/shared/public-trust-gallery';
 import { buildPublicVehicleDetailHref } from '@/lib/public-vehicle-detail-href';
 import { getFirstPhoto, handleImageError } from '@/lib/vehicle-image';
 
@@ -22,6 +23,7 @@ interface Dealer {
   whatsapp?: string;
   website?: string;
   publicTrustGalleryPhotos?: string[];
+  publicTrustGalleryItems?: PublicTrustGalleryItem[];
 }
 
 interface Seller {
@@ -274,9 +276,9 @@ export default function DealerPublicPage() {
           className="mb-8"
         />
 
-        {dealer.publicTrustGalleryPhotos && dealer.publicTrustGalleryPhotos.length > 0 ? (
+        {(dealer.publicTrustGalleryItems?.length || dealer.publicTrustGalleryPhotos?.length) ? (
           <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
-            <PublicTrustGallery photos={dealer.publicTrustGalleryPhotos} />
+            <PublicTrustGallery items={dealer.publicTrustGalleryItems || dealer.publicTrustGalleryPhotos || []} />
           </div>
         ) : null}
 

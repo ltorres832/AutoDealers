@@ -6,17 +6,25 @@ import {
 } from '@/lib/public-catalog-visibility';
 import { filterVehiclesForSellerPublicCatalog } from '@/lib/seller-public-catalog';
 import { resolvePublicCatalogTenantId } from '@/lib/public-tenant-resolve';
+import {
+  collectTenantIdsForPublicSeller,
+  resolveTenantPrimarySellerId,
+} from '@/lib/seller-tenant-scope';
 
 export function isVehicleVisibleOnPublicDetail(
   vehicle: Record<string, unknown>,
-  options?: { sellerId?: string | null }
+  options?: { sellerId?: string | null; tenantPrimarySellerId?: string | null }
 ): boolean {
-  if (isVehicleVisibleOnPublicListing(vehicle as Parameters<typeof isVehicleVisibleOnPublicListing>[0])) {
-    return true;
-  }
   const sellerId = options?.sellerId?.trim();
-  if (!sellerId) return false;
-  return filterVehiclesForSellerPublicCatalog([vehicle], sellerId).length > 0;
+  if (sellerId) {
+    const inSellerCatalog = filterVehiclesForSellerPublicCatalog([vehicle], sellerId, {
+      tenantPrimarySellerId: options?.tenantPrimarySellerId?.trim() || sellerId,
+    }).length;
+    if (inSellerCatalog > 0) return true;
+  }
+  return isVehicleVisibleOnPublicListing(
+    vehicle as Parameters<typeof isVehicleVisibleOnPublicListing>[0]
+  );
 }
 
 export async function findPublicVehicleById(
@@ -24,12 +32,49 @@ export async function findPublicVehicleById(
   options?: { hintTenantId?: string | null; sellerId?: string | null }
 ): Promise<{ vehicle: Record<string, unknown>; tenantId: string } | null> {
   const db = getFirestore();
+  const sellerId = options?.sellerId?.trim() || '';
   const hinted = options?.hintTenantId
     ? await resolvePublicCatalogTenantId(options.hintTenantId)
     : null;
 
   const tenantIdsToTry: string[] = [];
   if (hinted) tenantIdsToTry.push(hinted);
+
+  let tenantPrimarySellerId = '';
+  if (sellerId) {
+    try {
+      const sellerSnap = await db.collection('users').doc(sellerId).get();
+      if (sellerSnap.exists) {
+        const sellerData = sellerSnap.data() as Record<string, unknown>;
+        const primaryTenantId =
+          typeof sellerData.tenantId === 'string' ? sellerData.tenantId.trim() : '';
+        if (primaryTenantId) {
+          const scopeIds = await collectTenantIdsForPublicSeller(
+            db,
+            sellerId,
+            sellerData,
+            primaryTenantId
+          );
+          for (const tid of scopeIds) {
+            if (!tenantIdsToTry.includes(tid)) tenantIdsToTry.push(tid);
+          }
+        }
+      }
+    } catch {
+      // continuar con búsqueda global
+    }
+  }
+
+  if (hinted) {
+    try {
+      const tenantSnap = await db.collection('tenants').doc(hinted).get();
+      tenantPrimarySellerId = resolveTenantPrimarySellerId(
+        tenantSnap.data() as Record<string, unknown> | undefined
+      );
+    } catch {
+      tenantPrimarySellerId = '';
+    }
+  }
 
   const tenantsSnapshot = await db.collection('tenants').get();
   for (const doc of tenantsSnapshot.docs) {
@@ -46,7 +91,12 @@ export async function findPublicVehicleById(
         id: vehicleId,
         tenantId: tId,
       } as Record<string, unknown>;
-      if (isVehicleVisibleOnPublicDetail(row, options)) {
+      if (
+        isVehicleVisibleOnPublicDetail(row, {
+          sellerId,
+          tenantPrimarySellerId: tenantPrimarySellerId || sellerId,
+        })
+      ) {
         return { vehicle: row, tenantId: tId };
       }
     } catch {

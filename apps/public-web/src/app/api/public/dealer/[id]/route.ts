@@ -7,7 +7,7 @@ import {
 } from '@autodealers/crm';
 import { normalizeVehiclesArray } from '@/lib/vehicle-photos-normalize';
 import { isVehicleVisibleOnPublicListing } from '@/lib/public-catalog-visibility';
-import { normalizePublicTrustGalleryPhotos } from '@autodealers/shared/public-trust-gallery';
+import { normalizePublicTrustGalleryPhotos, normalizePublicTrustGalleryItems } from '@autodealers/shared/public-trust-gallery';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -188,6 +188,9 @@ export async function GET(
         whatsapp: dealerData.whatsapp || dealerData.phone || tenantData?.phone || '',
         website: dealerData.website || tenantData?.website || tenantData?.domain || '',
         publicTrustGalleryPhotos: normalizePublicTrustGalleryPhotos(
+          dealerData.publicTrustGalleryPhotos
+        ),
+        publicTrustGalleryItems: normalizePublicTrustGalleryItems(
           dealerData.publicTrustGalleryPhotos
         ),
       },

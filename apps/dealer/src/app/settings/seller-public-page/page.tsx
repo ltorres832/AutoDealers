@@ -3,11 +3,15 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { PromoVideosEditor } from '@autodealers/shared/components/PromoVideosEditor';
+import {
+  normalizePublicTrustGalleryItems,
+  type PublicTrustGalleryItem,
+} from '@autodealers/shared/public-trust-gallery';
 import { PublicTrustGallerySection } from '@/components/PublicTrustGallerySection';
 
 export default function DealerSellerPublicPageSettings() {
   const [publicPromoVideoUrls, setPublicPromoVideoUrls] = useState<string[]>([]);
-  const [publicTrustGalleryPhotos, setPublicTrustGalleryPhotos] = useState<string[]>([]);
+  const [publicTrustGalleryItems, setPublicTrustGalleryItems] = useState<PublicTrustGalleryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -38,8 +42,8 @@ export default function DealerSellerPublicPageSettings() {
             ? [data.publicPromoVideoUrl]
             : []
       );
-      setPublicTrustGalleryPhotos(
-        Array.isArray(data.publicTrustGalleryPhotos) ? data.publicTrustGalleryPhotos : []
+      setPublicTrustGalleryItems(
+        normalizePublicTrustGalleryItems(data.publicTrustGalleryPhotos)
       );
     } catch {
       setMessage('Error de red');
@@ -48,8 +52,8 @@ export default function DealerSellerPublicPageSettings() {
     }
   }
 
-  async function save(overrides?: { photos?: string[]; videos?: string[] }) {
-    const photos = overrides?.photos ?? publicTrustGalleryPhotos;
+  async function save(overrides?: { galleryItems?: PublicTrustGalleryItem[]; videos?: string[] }) {
+    const galleryItems = overrides?.galleryItems ?? publicTrustGalleryItems;
     const videos = overrides?.videos ?? publicPromoVideoUrls;
     setSaving(true);
     setMessage(null);
@@ -58,14 +62,17 @@ export default function DealerSellerPublicPageSettings() {
       const res = await fetchWithAuth('/api/settings/seller-public-catalog', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ publicPromoVideoUrls: videos, publicTrustGalleryPhotos: photos }),
+        body: JSON.stringify({
+          publicPromoVideoUrls: videos,
+          publicTrustGalleryPhotos: galleryItems,
+        }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         setMessage(err.error || 'Error al guardar');
         return false;
       }
-      setPublicTrustGalleryPhotos(photos);
+      setPublicTrustGalleryItems(galleryItems);
       setPublicPromoVideoUrls(videos);
       setMessage('Fotos y videos guardados correctamente');
       return true;
@@ -158,10 +165,10 @@ export default function DealerSellerPublicPageSettings() {
 
       <div id="fotos" className="rounded-lg border-2 border-primary-200 bg-white p-6 shadow-sm">
         <PublicTrustGallerySection
-          photos={publicTrustGalleryPhotos}
-          onChange={setPublicTrustGalleryPhotos}
+          items={publicTrustGalleryItems}
+          onChange={setPublicTrustGalleryItems}
           onUploadFile={uploadGalleryFile}
-          onUploadComplete={(photos) => save({ photos })}
+          onUploadComplete={(galleryItems) => save({ galleryItems })}
           uploading={uploadingGallery}
           saving={saving}
           onSave={() => void save()}

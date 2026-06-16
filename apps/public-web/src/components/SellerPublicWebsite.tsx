@@ -11,6 +11,7 @@ import { getPublicVehicleConditionLabel } from '@/lib/vehicle-condition-label';
 import { pingCatalogVehicleClick } from '@/lib/catalog-vehicle-click';
 import { buildPublicVehicleDetailHref, vehicleCatalogTenantId } from '@/lib/public-vehicle-detail-href';
 import { PublicTrustGallery } from '@autodealers/shared/components/PublicTrustGallery';
+import type { PublicTrustGalleryItem } from '@autodealers/shared/public-trust-gallery';
 import {
   DEFAULT_HERO_CTA,
   DEFAULT_HERO_SUBTITLE,
@@ -37,6 +38,7 @@ export interface SellerPublicWebsiteSeller {
   publicPromoVideoUrl?: string;
   publicPromoVideoUrls?: string[];
   publicTrustGalleryPhotos?: string[];
+  publicTrustGalleryItems?: PublicTrustGalleryItem[];
   socialMedia?: SocialMediaMap;
 }
 
@@ -364,7 +366,7 @@ export default function SellerPublicWebsite({
       />
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        <PublicTrustGallery photos={seller.publicTrustGalleryPhotos || []} />
+        <PublicTrustGallery items={seller.publicTrustGalleryItems || seller.publicTrustGalleryPhotos || []} />
       </div>
 
       <section className="bg-gray-50 py-12 px-4 sm:px-6" id="inventory">

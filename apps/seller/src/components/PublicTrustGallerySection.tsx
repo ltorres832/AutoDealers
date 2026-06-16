@@ -1,14 +1,16 @@
 'use client';
 
 import { useRef } from 'react';
-
-const MAX_PHOTOS = 24;
+import {
+  MAX_PUBLIC_TRUST_GALLERY_PHOTOS,
+  type PublicTrustGalleryItem,
+} from '@autodealers/shared/public-trust-gallery';
 
 type Props = {
-  photos: string[];
-  onChange: (photos: string[]) => void;
+  items: PublicTrustGalleryItem[];
+  onChange: (items: PublicTrustGalleryItem[]) => void;
   onUploadFile: (file: File) => Promise<string | null>;
-  onUploadComplete?: (photos: string[]) => void | Promise<void>;
+  onUploadComplete?: (items: PublicTrustGalleryItem[]) => void | Promise<void>;
   uploading?: boolean;
   saving?: boolean;
   onSave?: () => void;
@@ -16,7 +18,7 @@ type Props = {
 };
 
 export function PublicTrustGallerySection({
-  photos,
+  items,
   onChange,
   onUploadFile,
   onUploadComplete,
@@ -26,19 +28,25 @@ export function PublicTrustGallerySection({
   error = null,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const atLimit = photos.length >= MAX_PHOTOS;
+  const atLimit = items.length >= MAX_PUBLIC_TRUST_GALLERY_PHOTOS;
+
+  function updateCaption(index: number, caption: string) {
+    onChange(
+      items.map((item, i) => (i === index ? { ...item, caption: caption.trim() || undefined } : item))
+    );
+  }
 
   async function handleFiles(fileList: FileList | null) {
     if (!fileList?.length) return;
-    let next = [...photos];
+    let next = [...items];
     let uploaded = 0;
     for (let i = 0; i < fileList.length; i++) {
-      if (next.length >= MAX_PHOTOS) break;
+      if (next.length >= MAX_PUBLIC_TRUST_GALLERY_PHOTOS) break;
       const file = fileList[i]!;
       if (!file.type.startsWith('image/')) continue;
       const url = await onUploadFile(file);
-      if (url && !next.includes(url)) {
-        next = [...next, url];
+      if (url && !next.some((item) => item.url === url)) {
+        next = [...next, { url }];
         uploaded += 1;
       }
     }
@@ -55,9 +63,13 @@ export function PublicTrustGallerySection({
           Galería de confianza — fotos
         </h2>
         <p className="mt-1 text-sm text-gray-600">
-          Sube fotos de entregas, clientes satisfechos o tu equipo. Se muestran en tu página pública.
+          Sube fotos en alta calidad (JPG, PNG o WebP). Añade una descripción en cada una: los clientes la
+          verán en tu página pública sin abrir la foto.
         </p>
-        <p className="mt-1 text-xs text-gray-500">JPG, PNG o WebP · máximo {MAX_PHOTOS} fotos</p>
+        <p className="mt-1 text-xs text-gray-500">
+          Recomendado: fotos horizontales, mínimo 1200 px de ancho · máximo {MAX_PUBLIC_TRUST_GALLERY_PHOTOS}{' '}
+          fotos
+        </p>
       </div>
 
       {error ? (
@@ -97,19 +109,44 @@ export function PublicTrustGallerySection({
         ) : null}
       </div>
 
-      {photos.length > 0 ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {photos.map((url, index) => (
-            <div key={`${url}-${index}`} className="relative overflow-hidden rounded-xl border bg-gray-50">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={url} alt={`Foto ${index + 1}`} className="aspect-[4/3] w-full object-cover" />
-              <button
-                type="button"
-                onClick={() => onChange(photos.filter((_, i) => i !== index))}
-                className="absolute right-2 top-2 rounded bg-black/70 px-2 py-1 text-xs font-medium text-white hover:bg-black"
-              >
-                Quitar
-              </button>
+      {items.length > 0 ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {items.map((item, index) => (
+            <div
+              key={`${item.url}-${index}`}
+              className="overflow-hidden rounded-xl border bg-white shadow-sm"
+            >
+              <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={item.url}
+                  alt={item.caption || `Foto ${index + 1}`}
+                  className="h-full w-full object-cover object-center"
+                />
+                <button
+                  type="button"
+                  onClick={() => onChange(items.filter((_, i) => i !== index))}
+                  className="absolute right-2 top-2 rounded bg-black/70 px-2 py-1 text-xs font-medium text-white hover:bg-black"
+                >
+                  Quitar
+                </button>
+              </div>
+              <label className="block p-3">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Descripción pública
+                </span>
+                <textarea
+                  value={item.caption || ''}
+                  onChange={(e) => updateCaption(index, e.target.value)}
+                  rows={2}
+                  maxLength={200}
+                  placeholder="Ej: Entrega del Toyota Corolla 2024 a la familia Rivera"
+                  className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                />
+                <span className="mt-1 block text-right text-xs text-gray-400">
+                  {(item.caption || '').length}/200
+                </span>
+              </label>
             </div>
           ))}
         </div>

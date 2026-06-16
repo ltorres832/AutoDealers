@@ -4,9 +4,13 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { PublicTrustGallerySection } from '@/components/PublicTrustGallerySection';
 import { fetchWithAuth } from '@/lib/fetch-with-auth';
+import {
+  normalizePublicTrustGalleryItems,
+  type PublicTrustGalleryItem,
+} from '@autodealers/shared/public-trust-gallery';
 
 export default function DealerTrustGallerySettingsPage() {
-  const [publicTrustGalleryPhotos, setPublicTrustGalleryPhotos] = useState<string[]>([]);
+  const [publicTrustGalleryItems, setPublicTrustGalleryItems] = useState<PublicTrustGalleryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -28,8 +32,8 @@ export default function DealerTrustGallerySettingsPage() {
         return;
       }
       const data = await res.json();
-      setPublicTrustGalleryPhotos(
-        Array.isArray(data.publicTrustGalleryPhotos) ? data.publicTrustGalleryPhotos : []
+      setPublicTrustGalleryItems(
+        normalizePublicTrustGalleryItems(data.publicTrustGalleryPhotos)
       );
     } catch {
       setMessage('Error de red');
@@ -38,21 +42,21 @@ export default function DealerTrustGallerySettingsPage() {
     }
   }
 
-  async function save(photos = publicTrustGalleryPhotos) {
+  async function save(items = publicTrustGalleryItems) {
     setSaving(true);
     setMessage(null);
     try {
       const res = await fetchWithAuth('/api/settings/public-trust-gallery', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ publicTrustGalleryPhotos: photos }),
+        body: JSON.stringify({ publicTrustGalleryPhotos: items }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         setMessage(err.error || 'Error al guardar');
         return false;
       }
-      setPublicTrustGalleryPhotos(photos);
+      setPublicTrustGalleryItems(items);
       setMessage('Galería guardada correctamente');
       return true;
     } catch {
@@ -120,10 +124,10 @@ export default function DealerTrustGallerySettingsPage() {
 
       <div className="rounded-lg border bg-white p-6 shadow-sm">
         <PublicTrustGallerySection
-          photos={publicTrustGalleryPhotos}
-          onChange={setPublicTrustGalleryPhotos}
+          items={publicTrustGalleryItems}
+          onChange={setPublicTrustGalleryItems}
           onUploadFile={uploadGalleryFile}
-          onUploadComplete={(photos) => save(photos)}
+          onUploadComplete={(items) => save(items)}
           uploading={uploading}
           saving={saving}
           onSave={() => void save()}

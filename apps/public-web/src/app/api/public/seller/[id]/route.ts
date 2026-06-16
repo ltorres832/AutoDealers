@@ -14,7 +14,7 @@ import {
   resolveTenantPrimarySellerId,
 } from '@/lib/seller-tenant-scope';
 import { normalizePromoVideoUrls } from '@autodealers/shared/promo-video-urls';
-import { normalizePublicTrustGalleryPhotos } from '@autodealers/shared/public-trust-gallery';
+import { normalizePublicTrustGalleryPhotos, normalizePublicTrustGalleryItems } from '@autodealers/shared/public-trust-gallery';
 import { resolveBusinessHours } from '@/lib/resolve-business-hours';
 
 // Exportar configuración de runtime
@@ -281,6 +281,9 @@ export async function GET(
           normalizePromoVideoUrls(sellerData.publicPromoVideoUrls, sellerData.publicPromoVideoUrl)[0] ||
           '',
         publicTrustGalleryPhotos: normalizePublicTrustGalleryPhotos(
+          sellerData.publicTrustGalleryPhotos
+        ),
+        publicTrustGalleryItems: normalizePublicTrustGalleryItems(
           sellerData.publicTrustGalleryPhotos
         ),
         socialMedia: {
