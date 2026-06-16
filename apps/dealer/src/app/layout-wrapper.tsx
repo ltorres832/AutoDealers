@@ -267,6 +267,7 @@ export default function DealerLayoutWrapper({
   }, [pathname]);
 
   useEffect(() => {
+    void import('@/lib/fetch-interceptor');
     // No ejecutar en rutas públicas
     if (publicRoutes.includes(pathname || '')) {
       return;

@@ -1,31 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { getFirestore, normalizeLoginEmail, syncLoginEmail } from '@autodealers/core';
+import {
+  businessHoursForStorage,
+  normalizeBusinessHoursForForm,
+  safeTrim,
+  sanitizeSocialMedia,
+} from '@autodealers/shared/settings-profile';
 import * as admin from 'firebase-admin';
 
 const db = getFirestore();
 
 export const dynamic = 'force-dynamic';
-
-function safeTrim(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : '';
-}
-
-function sanitizeSocialMedia(raw: unknown): Record<string, string> {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
-  const out: Record<string, string> = {};
-  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
-    if (typeof value === 'string' && value.trim()) {
-      out[key] = value.trim();
-    }
-  }
-  return out;
-}
-
-function formatBusinessHoursFromFirestore(value: unknown): string {
-  if (typeof value === 'string' && value.trim()) return value.trim();
-  return '';
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -74,8 +60,8 @@ export async function GET(request: NextRequest) {
       website: safeTrim(userData.website) || (dealerManaged ? '' : safeTrim(tenantData?.website)),
       description: safeTrim(userData.description) || (dealerManaged ? '' : safeTrim(tenantData?.description)),
       businessHours:
-        formatBusinessHoursFromFirestore(userData.businessHours) ||
-        (dealerManaged ? '' : formatBusinessHoursFromFirestore(tenantData?.businessHours)),
+        normalizeBusinessHoursForForm(userData.businessHours) ||
+        (dealerManaged ? '' : normalizeBusinessHoursForForm(tenantData?.businessHours)),
       socialMedia: dealerManaged
         ? sanitizeSocialMedia(userData.socialMedia)
         : {
@@ -183,7 +169,7 @@ export async function PUT(request: NextRequest) {
     }
     if (businessHours !== undefined) {
       userUpdate.businessHours =
-        safeTrim(businessHours) || admin.firestore.FieldValue.delete();
+        businessHoursForStorage(businessHours) || admin.firestore.FieldValue.delete();
     }
     if (title !== undefined) {
       userUpdate.title = safeTrim(title) || admin.firestore.FieldValue.delete();
@@ -229,7 +215,7 @@ export async function PUT(request: NextRequest) {
         },
         website: safeTrim(website) || admin.firestore.FieldValue.delete(),
         description: safeTrim(description) || admin.firestore.FieldValue.delete(),
-        businessHours: safeTrim(businessHours) || admin.firestore.FieldValue.delete(),
+        businessHours: businessHoursForStorage(businessHours) || admin.firestore.FieldValue.delete(),
         socialMedia: cleanSocial,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       };

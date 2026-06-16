@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { getFirestore, mergeNotificationPrefs } from '@autodealers/core';
+import * as admin from 'firebase-admin';
 
 const db = getFirestore();
 
@@ -51,11 +52,14 @@ export async function PATCH(request: NextRequest) {
       ...(body.businessNotifications || {}),
     };
 
-    await userRef.update({
-      'settings.notifications': notifications,
-      'settings.businessNotifications': businessNotifications,
-      updatedAt: new Date(),
-    });
+    await userRef.set(
+      {
+        'settings.notifications': notifications,
+        'settings.businessNotifications': businessNotifications,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
 
     return NextResponse.json({
       prefs: {

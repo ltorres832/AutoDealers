@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuthIncludingSeller } from '@/lib/auth';
 import { getFirestore, mergeNotificationPrefs } from '@autodealers/core';
+import * as admin from 'firebase-admin';
 
 const db = getFirestore();
 
@@ -8,7 +9,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    const auth = await verifyAuth(request);
+    const auth = await verifyAuthIncludingSeller(request);
     if (!auth?.userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const auth = await verifyAuth(request);
+    const auth = await verifyAuthIncludingSeller(request);
     if (!auth?.userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -51,11 +52,14 @@ export async function PATCH(request: NextRequest) {
       ...(body.businessNotifications || {}),
     };
 
-    await userRef.update({
-      'settings.notifications': notifications,
-      'settings.businessNotifications': businessNotifications,
-      updatedAt: new Date(),
-    });
+    await userRef.set(
+      {
+        'settings.notifications': notifications,
+        'settings.businessNotifications': businessNotifications,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
 
     return NextResponse.json({
       prefs: {

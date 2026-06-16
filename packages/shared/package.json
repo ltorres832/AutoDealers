@@ -51,6 +51,11 @@
       "require": "./dist/public-trust-gallery.js",
       "types": "./dist/public-trust-gallery.d.ts"
     },
+    "./settings-profile": {
+      "import": "./dist/settings-profile.js",
+      "require": "./dist/settings-profile.js",
+      "types": "./dist/settings-profile.d.ts"
+    },
     "./components/PublicTrustGallery": {
       "import": "./dist/components/PublicTrustGallery.js",
       "require": "./dist/components/PublicTrustGallery.js",

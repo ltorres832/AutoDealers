@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { fetchWithAuth } from '@/lib/fetch-with-auth';
 
 interface ProfileData {
   name: string;
@@ -53,7 +54,7 @@ export default function ProfileSettingsPage() {
   async function fetchProfile() {
     setLoading(true);
     try {
-      const response = await fetch('/api/settings/profile');
+      const response = await fetchWithAuth('/api/settings/profile');
       if (response.ok) {
         const data = await response.json();
         setProfileData(data.profile || profileData);
@@ -69,7 +70,7 @@ export default function ProfileSettingsPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      const response = await fetch('/api/settings/profile', {
+      const response = await fetchWithAuth('/api/settings/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(profileData),
@@ -78,7 +79,8 @@ export default function ProfileSettingsPage() {
       if (response.ok) {
         alert('Perfil actualizado exitosamente');
       } else {
-        alert('Error al actualizar perfil');
+        const err = await response.json().catch(() => ({}));
+        alert(err.error || err.details || 'Error al actualizar perfil');
       }
     } catch (error) {
       console.error('Error:', error);

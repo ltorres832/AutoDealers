@@ -25,7 +25,7 @@ const TOKEN_REFRESH_INTERVAL = 50 * 60 * 1000; // 50 minutos (renovar antes de q
  * Obtiene un token fresco de Firebase Auth y actualiza la cookie
  * SIEMPRE renueva el token para asegurar que nunca esté expirado
  */
-async function getFreshToken(): Promise<string | null> {
+export async function getFreshToken(): Promise<string | null> {
   try {
     if (!auth) {
       console.error('❌ getFreshToken: auth no está disponible');
