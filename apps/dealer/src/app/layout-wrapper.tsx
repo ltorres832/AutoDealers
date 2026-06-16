@@ -439,7 +439,7 @@ export default function DealerLayoutWrapper({
       React.createElement(
         'aside',
         { className: `fixed inset-y-0 left-0 z-50 flex h-full shrink-0 flex-col border-r border-gray-200 bg-white shadow-elegant transition-transform duration-200 ease-out md:static md:z-auto md:translate-x-0 ${mobileNavOpen ? 'translate-x-0' : '-translate-x-full'} w-[min(20rem,92vw)] ${sidebarCollapsed ? 'md:w-20' : 'md:w-64'}` },
-        React.createElement('div', { className: 'flex flex-col h-full' },
+        React.createElement('div', { className: 'flex flex-col h-full min-h-0' },
           React.createElement('div', { className: `flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'} px-6 py-4 border-b border-gray-200` },
             !sidebarCollapsed && React.createElement(Link, { href: homeHref, onClick: () => setMobileNavOpen(false), className: 'flex items-center space-x-3' },
               React.createElement(TenantLogo, { size: 'sm' }),
@@ -469,7 +469,7 @@ export default function DealerLayoutWrapper({
               React.createElement('svg', { className: 'h-6 w-6', fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor' },
                 React.createElement('path', { strokeLinecap: 'round', strokeLinejoin: 'round', strokeWidth: 2, d: 'M6 18L18 6M6 6l12 12' })))
           ),
-          React.createElement('nav', { className: 'flex-1 px-4 py-6 space-y-1 overflow-y-auto custom-scrollbar' },
+          React.createElement('nav', { className: 'flex-1 min-h-0 px-4 py-6 space-y-1 overflow-y-auto custom-scrollbar' },
             React.createElement(NavigationWithFeatureFlags, {
               items: sidebarNavItems,
               sidebarCollapsed: sidebarCollapsed,
@@ -477,7 +477,7 @@ export default function DealerLayoutWrapper({
             })
           ),
 
-          React.createElement('div', { className: 'px-4 py-4 border-t border-gray-200' },
+          React.createElement('div', { className: 'shrink-0 border-t border-gray-200 px-4 py-3' },
             React.createElement(Link, {
               href: settingsHref,
               onClick: () => setMobileNavOpen(false),

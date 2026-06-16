@@ -340,7 +340,7 @@ export default function SellerLayoutWrapper({
         { className: `fixed inset-y-0 left-0 z-50 flex h-full shrink-0 flex-col border-r border-gray-200 bg-white shadow-elegant transition-transform duration-200 ease-out md:static md:z-auto md:translate-x-0 ${mobileNavOpen ? 'translate-x-0' : '-translate-x-full'} w-[min(20rem,92vw)] ${sidebarCollapsed ? 'md:w-20' : 'md:w-64'}` },
         React.createElement(
           'div',
-          { className: 'flex flex-col h-full' },
+          { className: 'flex flex-col h-full min-h-0' },
           React.createElement(
             'div',
             { className: `flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'} px-6 py-4 border-b border-gray-200` },
@@ -390,7 +390,7 @@ export default function SellerLayoutWrapper({
           ),
           React.createElement(
             'nav',
-            { className: 'flex-1 px-4 py-6 space-y-1 overflow-y-auto custom-scrollbar' },
+            { className: 'flex-1 min-h-0 px-4 py-6 space-y-1 overflow-y-auto custom-scrollbar' },
             React.createElement(NavigationWithFeatureFlags, {
               items: visibleNavigationItems,
               sidebarCollapsed: sidebarCollapsed,
@@ -399,11 +399,11 @@ export default function SellerLayoutWrapper({
           ),
           React.createElement(
             'div',
-            { className: 'px-4 py-4 border-t border-gray-200' },
+            { className: 'shrink-0 border-t border-gray-200 px-4 py-3' },
             React.createElement(
               Link,
               {
-                href: '/settings/branding',
+                href: '/settings',
                 onClick: () => setMobileNavOpen(false),
                 className: `flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-start'} px-4 py-3 rounded-lg transition-all ${
                   pathname?.startsWith('/settings')
@@ -414,110 +414,11 @@ export default function SellerLayoutWrapper({
               },
               React.createElement('span', { className: 'text-xl' }, '⚙️'),
               !sidebarCollapsed && React.createElement('span', { className: 'ml-3' }, 'Configuración')
-            ),
-            !sidebarCollapsed && React.createElement(
-              'div',
-              { className: 'mt-2 ml-4 space-y-1' },
-              React.createElement(Link, {
-                href: '/settings/seller-public-page',
-                onClick: () => setMobileNavOpen(false),
-                className: `block px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                  pathname === '/settings/seller-public-page'
-                    ? 'bg-primary-100 text-primary-700'
-                    : 'text-primary-700 hover:bg-primary-50'
-                }`,
-              }, '📸 Fotos y videos'),
-            ),
-            !sidebarCollapsed && pathname?.startsWith('/settings') && React.createElement(
-              'div',
-              { className: 'mt-2 ml-4 space-y-1' },
-              React.createElement(Link, {
-                href: '/settings/branding',
-                onClick: () => setMobileNavOpen(false),
-                className: `block px-4 py-2 rounded-lg text-sm transition-colors ${
-                  pathname === '/settings/branding'
-                    ? 'bg-primary-100 text-primary-700 font-medium'
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`,
-              }, 'Branding'),
-              React.createElement(Link, {
-                href: '/settings/document-branding',
-                onClick: () => setMobileNavOpen(false),
-                className: `block px-4 py-2 rounded-lg text-sm transition-colors ${
-                  pathname === '/settings/document-branding'
-                    ? 'bg-primary-100 text-primary-700 font-medium'
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`,
-              }, 'PDF F&I (documentos)'),
-              React.createElement(Link, {
-                href: '/settings/profile',
-                onClick: () => setMobileNavOpen(false),
-                className: `block px-4 py-2 rounded-lg text-sm transition-colors ${
-                  pathname === '/settings/profile'
-                    ? 'bg-primary-100 text-primary-700 font-medium'
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`,
-              }, 'Perfil'),
-              React.createElement(Link, {
-                href: '/settings/seller-public-page',
-                onClick: () => setMobileNavOpen(false),
-                className: `block px-4 py-2 rounded-lg text-sm transition-colors ${
-                  pathname === '/settings/seller-public-page'
-                    ? 'bg-primary-100 text-primary-700 font-medium'
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`,
-              }, 'Fotos y videos (página pública)'),
-              React.createElement(Link, {
-                href: '/settings/integrations',
-                onClick: () => setMobileNavOpen(false),
-                className: `block px-4 py-2 rounded-lg text-sm transition-colors ${
-                  pathname === '/settings/integrations'
-                    ? 'bg-primary-100 text-primary-700 font-medium'
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`,
-              }, 'Integraciones'),
-              React.createElement(Link, {
-                href: '/settings/templates',
-                onClick: () => setMobileNavOpen(false),
-                className: `block px-4 py-2 rounded-lg text-sm transition-colors ${
-                  pathname === '/settings/templates'
-                    ? 'bg-primary-100 text-primary-700 font-medium'
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`,
-              }, 'Templates'),
-              React.createElement(Link, {
-                href: '/settings/website',
-                onClick: () => setMobileNavOpen(false),
-                className: `block px-4 py-2 rounded-lg text-sm transition-colors ${
-                  pathname === '/settings/website'
-                    ? 'bg-primary-100 text-primary-700 font-medium'
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`,
-              }, 'Página Web'),
-              !user?.dealerId &&
-                React.createElement(Link, {
-                  href: '/settings/membership',
-                  onClick: () => setMobileNavOpen(false),
-                  className: `block px-4 py-2 rounded-lg text-sm transition-colors ${
-                    pathname === '/settings/membership'
-                      ? 'bg-primary-100 text-primary-700 font-medium'
-                      : 'text-gray-600 hover:bg-gray-50'
-                  }`,
-                }, 'Membresía'),
-              React.createElement(Link, {
-                href: '/settings/policies',
-                onClick: () => setMobileNavOpen(false),
-                className: `block px-4 py-2 rounded-lg text-sm transition-colors ${
-                  pathname === '/settings/policies'
-                    ? 'bg-primary-100 text-primary-700 font-medium'
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`,
-              }, 'Políticas'),
             )
           ),
           user && React.createElement(
             'div',
-            { className: 'px-4 py-4 border-t border-gray-200' },
+            { className: 'shrink-0 border-t border-gray-200 px-4 py-4' },
             !sidebarCollapsed ? React.createElement(
               'div',
               null,
