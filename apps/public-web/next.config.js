@@ -79,6 +79,9 @@ const nextConfig = {
         sharedSrc,
         'platform-branding-client.ts'
       ),
+      '@autodealers/shared/settings-profile': path.join(sharedSrc, 'settings-profile.ts'),
+      '@autodealers/shared/public-trust-gallery': path.join(sharedSrc, 'public-trust-gallery.ts'),
+      '@autodealers/shared/promo-video-urls': path.join(sharedSrc, 'promo-video-urls.ts'),
       '@autodealers/shared/components/StripePaymentForm': path.join(
         sharedSrc,
         'components/StripePaymentForm.tsx'

@@ -349,6 +349,8 @@ export default function SellerPublicCatalogPage({
   const [loading, setLoading] = useState(true);
   const [websiteSettings, setWebsiteSettings] = useState<TenantWebsiteSettingsForSellerPage | null>(null);
   const [businessHours, setBusinessHours] = useState('');
+  const [profileBio, setProfileBio] = useState('');
+  const [profileDescription, setProfileDescription] = useState('');
 
   const inventoryByMakeModel = useMemo(
     () => groupSellerInventoryByMakeAndModel(vehicles),
@@ -365,6 +367,11 @@ export default function SellerPublicCatalogPage({
     }
     return { rating: seller?.sellerRating ?? 0, count: seller?.sellerRatingCount ?? 0 };
   }, [seller, reviews]);
+
+  const showProfileBio =
+    profileBio.length > 0 &&
+    profileBio !== profileDescription;
+  const showAboutSection = profileDescription.length > 0 || (profileBio.length > 0 && !profileDescription);
 
   useEffect(() => {
     if (sellerId) {
@@ -454,6 +461,14 @@ export default function SellerPublicCatalogPage({
             data.profile?.businessHours,
             data.seller?.businessHours
           )
+        );
+        setProfileBio(typeof data.profile?.bio === 'string' ? data.profile.bio.trim() : '');
+        setProfileDescription(
+          typeof data.profile?.description === 'string'
+            ? data.profile.description.trim()
+            : typeof data.profile?.aboutText === 'string'
+              ? data.profile.aboutText.trim()
+              : ''
         );
       } catch (fetchError: any) {
         clearTimeout(timeoutId);
@@ -586,7 +601,10 @@ export default function SellerPublicCatalogPage({
             {/* Información */}
             <div className="flex-1 text-center md:text-left">
               <h1 className="text-3xl font-bold mb-2">{seller.name}</h1>
-              <p className="text-lg text-gray-600 mb-4">{seller.title || 'Vendedor'}</p>
+              <p className="text-lg text-gray-600 mb-2">{seller.title || 'Vendedor'}</p>
+              {showProfileBio ? (
+                <p className="text-base text-gray-700 mb-4 italic leading-relaxed">{profileBio}</p>
+              ) : null}
 
               {/* Información de contacto */}
               <div className="space-y-3 text-sm">
@@ -739,6 +757,17 @@ export default function SellerPublicCatalogPage({
             </div>
           </div>
         </div>
+
+        {showAboutSection ? (
+          <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
+            <h2 className="text-2xl font-bold mb-4">Sobre mí</h2>
+            {profileDescription ? (
+              <p className="text-gray-700 whitespace-pre-line leading-relaxed">{profileDescription}</p>
+            ) : (
+              <p className="text-gray-700 whitespace-pre-line leading-relaxed">{profileBio}</p>
+            )}
+          </div>
+        ) : null}
 
         <PublicPromoVideo
           url={seller.publicPromoVideoUrl}

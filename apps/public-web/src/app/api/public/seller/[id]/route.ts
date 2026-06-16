@@ -15,6 +15,7 @@ import {
 } from '@/lib/seller-tenant-scope';
 import { normalizePromoVideoUrls } from '@autodealers/shared/promo-video-urls';
 import { normalizePublicTrustGalleryPhotos, normalizePublicTrustGalleryItems } from '@autodealers/shared/public-trust-gallery';
+import { resolvePublicProfileText } from '@autodealers/shared/settings-profile';
 import { resolveBusinessHours } from '@/lib/resolve-business-hours';
 
 // Exportar configuración de runtime
@@ -257,6 +258,19 @@ export async function GET(
         ? approvedRatings.length
         : Number(sellerData.sellerRatingCount) || 0;
 
+    const dealerManagedSeller = Boolean(sellerData.dealerId);
+    const websiteSettingsRaw =
+      (tenantData?.websiteSettings as Record<string, unknown>) || {};
+    const websiteAboutContent = (
+      websiteSettingsRaw.sections as { about?: { content?: unknown } } | undefined
+    )?.about?.content;
+    const profileText = resolvePublicProfileText({
+      bio: sellerData.bio,
+      description: sellerData.description,
+      tenantDescription: dealerManagedSeller ? undefined : tenantData?.description,
+      websiteAboutContent,
+    });
+
     const responseData = {
       seller: {
         id: sellerDoc.id,
@@ -301,8 +315,9 @@ export async function GET(
           (tenantData?.branding as { secondaryColor?: string })?.secondaryColor || '#0A0A0A',
       },
       profile: {
-        bio: typeof sellerData.bio === 'string' ? sellerData.bio : '',
-        description: typeof sellerData.description === 'string' ? sellerData.description : '',
+        bio: profileText.bio,
+        description: profileText.description,
+        aboutText: profileText.aboutText,
         address: sellerData.address,
         city: typeof sellerData.city === 'string' ? sellerData.city : '',
         state: typeof sellerData.state === 'string' ? sellerData.state : '',

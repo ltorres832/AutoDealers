@@ -40,3 +40,20 @@ export function normalizeBusinessHoursForForm(value: unknown): string {
 export function businessHoursForStorage(value: unknown): string {
   return normalizeBusinessHoursForForm(value);
 }
+
+/** Texto público de perfil (bio corta + descripción), con fallback al tenant. */
+export function resolvePublicProfileText(input: {
+  bio?: unknown;
+  description?: unknown;
+  tenantDescription?: unknown;
+  websiteAboutContent?: unknown;
+}): { bio: string; description: string; aboutText: string } {
+  const bio = safeTrim(input.bio);
+  let description = safeTrim(input.description);
+  if (!description) {
+    description = safeTrim(input.tenantDescription);
+  }
+  const websiteAbout = safeTrim(input.websiteAboutContent);
+  const aboutText = websiteAbout || description || bio;
+  return { bio, description, aboutText };
+}

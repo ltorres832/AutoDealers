@@ -260,10 +260,9 @@ export default function SellerPublicWebsite({
   const address = parseAddress(profile);
   const businessHours = resolveBusinessHours(profile.businessHours);
   const socialMedia = seller.socialMedia || {};
-  const bio =
-    (profile.description && profile.description.trim()) ||
-    (profile.bio && profile.bio.trim()) ||
-    '';
+  const profileBio = (profile.bio && profile.bio.trim()) || '';
+  const profileDescription = (profile.description && profile.description.trim()) || '';
+  const bio = profileDescription || profileBio;
 
   const whatsappDigits = String(seller.whatsapp || seller.phone || '').replace(/[^0-9]/g, '');
 
@@ -296,6 +295,9 @@ export default function SellerPublicWebsite({
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold">{seller.name}</h1>
             <p className="text-white/80 mt-1">{roleLine}</p>
+            {profileBio && profileBio !== profileDescription ? (
+              <p className="text-white/90 mt-2 text-sm sm:text-base italic max-w-xl">{profileBio}</p>
+            ) : null}
           </div>
           <div className="flex gap-3 flex-wrap">
             {whatsappDigits ? (
@@ -352,6 +354,9 @@ export default function SellerPublicWebsite({
               {sections?.about?.title || 'Sobre Mí'}
             </h2>
             <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+              {profileBio && profileDescription && profileBio !== profileDescription ? (
+                <p className="text-gray-600 italic mb-4 leading-relaxed">{profileBio}</p>
+              ) : null}
               <p className="text-gray-700 text-lg leading-relaxed whitespace-pre-line">{aboutContent}</p>
             </div>
           </div>

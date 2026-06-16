@@ -8,6 +8,7 @@ import {
 import { normalizeVehiclesArray } from '@/lib/vehicle-photos-normalize';
 import { isVehicleVisibleOnPublicListing } from '@/lib/public-catalog-visibility';
 import { normalizePublicTrustGalleryPhotos, normalizePublicTrustGalleryItems } from '@autodealers/shared/public-trust-gallery';
+import { resolvePublicProfileText } from '@autodealers/shared/settings-profile';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -174,11 +175,20 @@ export async function GET(
 
     const publicReviews = await getPublicReviewsForDealer(tenantId, dealerId, 12);
 
+    const profileText = resolvePublicProfileText({
+      bio: dealerData.bio,
+      description: dealerData.description,
+      tenantDescription: tenantData?.description,
+    });
+
     return NextResponse.json({
       dealer: {
         id: dealerDoc.id,
         name: dealerData.name || tenantData?.name || 'Dealer',
         companyName: tenantData?.companyName || tenantData?.name || 'Dealer',
+        bio: profileText.bio,
+        description: profileText.description,
+        aboutText: profileText.aboutText,
         tenantId: tenantId,
         tenantName: tenantData?.name || 'Dealer',
         dealerRating,

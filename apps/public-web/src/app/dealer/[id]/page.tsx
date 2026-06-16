@@ -18,6 +18,9 @@ interface Dealer {
   tenantName: string;
   dealerRating: number;
   dealerRatingCount: number;
+  bio?: string;
+  description?: string;
+  aboutText?: string;
   email?: string;
   phone?: string;
   whatsapp?: string;
@@ -158,6 +161,17 @@ export default function DealerPublicPage() {
             {dealer.companyName && dealer.name !== dealer.companyName && (
               <p className="text-xl text-gray-600 mb-4">{dealer.name}</p>
             )}
+
+            {(dealer.description || dealer.aboutText || dealer.bio) ? (
+              <div className="max-w-3xl mx-auto mb-6 text-left">
+                {dealer.bio && dealer.bio !== (dealer.description || dealer.aboutText) ? (
+                  <p className="text-gray-600 italic mb-3 leading-relaxed">{dealer.bio}</p>
+                ) : null}
+                <p className="text-gray-700 whitespace-pre-line leading-relaxed">
+                  {dealer.description || dealer.aboutText || dealer.bio}
+                </p>
+              </div>
+            ) : null}
             
             {/* Información de contacto */}
             <div className="space-y-3 mb-6 text-sm">
