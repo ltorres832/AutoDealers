@@ -1,11 +1,14 @@
 /**
  * URL del panel de anunciantes (App Hosting). Override con NEXT_PUBLIC_ADVERTISER_APP_URL en .env
  */
-const DEFAULT_ORIGIN = 'https://advertiser-app--autodealers-7f62e.us-central1.hosted.app';
+const DEFAULT_ORIGIN = 'https://ads.autodealers-online.com';
 
 export function getAdvertiserAppOrigin(): string {
-  if (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_ADVERTISER_APP_URL) {
-    return process.env.NEXT_PUBLIC_ADVERTISER_APP_URL.replace(/\/$/, '');
+  const fromEnv =
+    process.env.NEXT_PUBLIC_ADVERTISER_APP_URL ||
+    process.env.NEXT_PUBLIC_ADVERTISER_URL;
+  if (fromEnv) {
+    return fromEnv.replace(/\/$/, '');
   }
   return DEFAULT_ORIGIN;
 }

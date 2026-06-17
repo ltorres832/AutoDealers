@@ -1,5 +1,46 @@
+/** Subdominios reservados para paneles de la plataforma (no son tenants). */
+export const PLATFORM_APP_SUBDOMAINS = [
+  'www',
+  'admin',
+  'dealers',
+  'sellers',
+  'ads',
+  'app',
+  'dealer',
+  'seller',
+  'advertiser',
+  'api',
+  'public-web',
+  'public-web-app',
+  'dealer-app',
+  'seller-app',
+  'admin-app',
+  'advertiser-app',
+] as const;
+
+export const PLATFORM_APEX = 'autodealers-online.com';
+
+/** URLs de producción por app (override con env en cada apphosting.yaml). */
+export const PLATFORM_APP_URLS = {
+  public: 'https://www.autodealers-online.com',
+  admin: 'https://admin.autodealers-online.com',
+  dealer: 'https://dealers.autodealers-online.com',
+  seller: 'https://sellers.autodealers-online.com',
+  advertiser: 'https://ads.autodealers-online.com',
+} as const;
+
 /** Dominio público de producción (www). */
-export const PUBLIC_PRODUCTION_BASE_URL = 'https://www.autodealers-online.com';
+export const PUBLIC_PRODUCTION_BASE_URL = PLATFORM_APP_URLS.public;
+
+export function isPlatformAppSubdomain(subdomain: string): boolean {
+  return (PLATFORM_APP_SUBDOMAINS as readonly string[]).includes(subdomain.toLowerCase());
+}
+
+export function isPlatformApexHost(hostname: string): boolean {
+  const host = normalizeHostname(hostname);
+  return host === PLATFORM_APEX || host.endsWith(`.${PLATFORM_APEX}`);
+}
+
 
 /** Hosts donde `/` puede mostrar la web del vendedor raíz (sin subdominio de tenant). */
 export const PUBLIC_ROOT_HOSTS = new Set([

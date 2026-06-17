@@ -69,7 +69,12 @@ env:
     availability:
       - RUNTIME
   - variable: NEXT_PUBLIC_ADVERTISER_URL
-    value: https://advertiser-app--autodealers-7f62e.us-central1.hosted.app
+    value: https://ads.autodealers-online.com
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_APP_URL
+    value: https://ads.autodealers-online.com
     availability:
       - BUILD
       - RUNTIME

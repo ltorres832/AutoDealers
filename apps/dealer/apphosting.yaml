@@ -74,7 +74,7 @@ env:
     availability:
       - RUNTIME
   - variable: NEXT_PUBLIC_APP_URL
-    value: https://dealer-app--autodealers-7f62e.us-central1.hosted.app
+    value: https://dealers.autodealers-online.com
     availability:
       - BUILD
       - RUNTIME

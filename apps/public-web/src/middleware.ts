@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import {
   getDefaultRootSellerId,
+  isPlatformAppSubdomain,
   isPublicRootHost,
 } from '@/lib/default-root-seller-website';
 
@@ -130,15 +131,15 @@ export function middleware(request: NextRequest) {
         }
       } else {
         // Para dominios normales (ej: tenant.autodealers-online.com)
-        if (firstPart !== 'www' && firstPart !== 'autodealers' && firstPart !== 'autodealers-online') {
+        if (firstPart !== 'www' && firstPart !== 'autodealers' && firstPart !== 'autodealers-online' && !isPlatformAppSubdomain(firstPart)) {
           subdomain = firstPart;
         }
       }
     }
   }
 
-  // Si hay subdominio y no es 'www' ni 'admin' ni 'app' ni 'seller' ni 'advertiser', redirigir a la página del tenant
-  if (subdomain && subdomain !== 'www' && subdomain !== 'admin' && subdomain !== 'app' && subdomain !== 'seller' && subdomain !== 'advertiser') {
+  // Si hay subdominio de tenant (no panel reservado), reescribir a /[subdomain]
+  if (subdomain && !isPlatformAppSubdomain(subdomain)) {
     if (isPlatformRootPath(pathname)) {
       return NextResponse.next();
     }

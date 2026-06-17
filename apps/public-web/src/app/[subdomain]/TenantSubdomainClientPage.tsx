@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import SubdomainSellerWebsite from '@/components/SubdomainSellerWebsite';
-import { isMarketplaceRootHost } from '@/lib/public-production-hosts';
+import { isMarketplaceRootHost, isPlatformAppSubdomain } from '@/lib/public-production-hosts';
 import ChatWidget from '../../components/ChatWidget';
 import VehicleDetailModal from './VehicleDetailModal';
 import { getFirstPhoto, handleImageError } from '../../lib/vehicle-image';
@@ -205,8 +205,6 @@ export default function TenantSubdomainClientPage() {
       if (typeof window !== 'undefined') {
         const hostname = window.location.hostname;
         const parts = hostname.split('.');
-        const fixedSubdomains = ['admin', 'dealers', 'sellers', 'ads', 'www'];
-
         if (hostname.includes('---') || hostname.includes('amplifyapp') || hostname.includes('us-central1.hosted.app')) {
           detectedSubdomain = null;
         } else if (hostname.includes('localhost')) {
@@ -216,7 +214,7 @@ export default function TenantSubdomainClientPage() {
           }
         } else if (parts.length >= 3) {
           const sub = parts[0];
-          if (!fixedSubdomains.includes(sub.toLowerCase()) && !sub.includes('---')) {
+          if (!isPlatformAppSubdomain(sub) && !sub.includes('---')) {
             detectedSubdomain = sub;
           }
         }

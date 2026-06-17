@@ -85,7 +85,32 @@ env:
     availability:
       - BUILD
       - RUNTIME
-  # Web azul del vendedor en https://autodealers-7f62e.web.app/ (vacío = marketplace en la raíz)
+  - variable: NEXT_PUBLIC_PUBLIC_WEB_URL
+    value: https://www.autodealers-online.com
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_ADMIN_URL
+    value: https://admin.autodealers-online.com
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_DEALER_URL
+    value: https://dealers.autodealers-online.com
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_SELLER_URL
+    value: https://sellers.autodealers-online.com
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_ADVERTISER_URL
+    value: https://ads.autodealers-online.com
+    availability:
+      - BUILD
+      - RUNTIME
+  # Web azul del vendedor en la raíz de www (vacío = marketplace en la raíz)
   - variable: NEXT_PUBLIC_DEFAULT_ROOT_SELLER_ID
     value: "BRaL9edMRfNhEXNsMou0l7oCHFI2"
     availability:

@@ -1,5 +1,7 @@
 # Dominio personalizado: www.autodealers-online.com
 
+Guía completa: [MULTI_APP_DOMAINS.md](./MULTI_APP_DOMAINS.md) (todas las apps).
+
 Sitio público (`public-web-app`) en producción con dominio **https://www.autodealers-online.com**.
 
 ## 1. Firebase Console — conectar dominio

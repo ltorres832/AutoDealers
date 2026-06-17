@@ -8,6 +8,7 @@ import { FirebaseError } from 'firebase/app';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth, firebaseConfig } from '@/lib/firebase-config';
 import { ForgotPasswordPanel } from '@/components/ForgotPasswordPanel';
+import { isPlatformApexHost, PLATFORM_APP_URLS } from '@/lib/public-production-hosts';
 
 const PROJECT_ID = 'autodealers-7f62e';
 const APP_HOSTING_REGION = 'us-central1';
@@ -125,27 +126,27 @@ function LoginPageContent() {
       hostname.includes('.web.app') ||
       hostname.includes('.firebaseapp.com') ||
       hostname.includes('.hosted.app');
+    const useConfiguredPortalUrls = (isFirebase && !isLocalhost) || isPlatformApexHost(hostname);
 
     let targetUrl = '';
 
-    if (isFirebase && !isLocalhost) {
+    if (useConfiguredPortalUrls) {
       switch (portal) {
         case 'admin':
           targetUrl =
-            process.env.NEXT_PUBLIC_ADMIN_URL || defaultAppHostingDashboard('admin-app', '/dashboard');
+            process.env.NEXT_PUBLIC_ADMIN_URL || `${PLATFORM_APP_URLS.admin}/dashboard`;
           break;
         case 'dealer':
           targetUrl =
-            process.env.NEXT_PUBLIC_DEALER_URL || defaultAppHostingDashboard('dealer-app', '/dashboard');
+            process.env.NEXT_PUBLIC_DEALER_URL || `${PLATFORM_APP_URLS.dealer}/dashboard`;
           break;
         case 'seller':
           targetUrl =
-            process.env.NEXT_PUBLIC_SELLER_URL || defaultAppHostingDashboard('seller-app', '/dashboard');
+            process.env.NEXT_PUBLIC_SELLER_URL || `${PLATFORM_APP_URLS.seller}/dashboard`;
           break;
         case 'advertiser':
           targetUrl =
-            process.env.NEXT_PUBLIC_ADVERTISER_URL ||
-            defaultAppHostingDashboard('advertiser-app', '/dashboard');
+            process.env.NEXT_PUBLIC_ADVERTISER_URL || `${PLATFORM_APP_URLS.advertiser}/dashboard`;
           break;
       }
     } else if (isLocalhost) {
@@ -169,14 +170,14 @@ function LoginPageContent() {
           targetUrl = process.env.NEXT_PUBLIC_ADMIN_URL || `${protocol}//admin.${hostname}/dashboard`;
           break;
         case 'dealer':
-          targetUrl = process.env.NEXT_PUBLIC_DEALER_URL || `${protocol}//app.${hostname}/dashboard`;
+          targetUrl = process.env.NEXT_PUBLIC_DEALER_URL || `${protocol}//dealers.${hostname.replace(/^www\./, '')}/dashboard`;
           break;
         case 'seller':
-          targetUrl = process.env.NEXT_PUBLIC_SELLER_URL || `${protocol}//seller.${hostname}/dashboard`;
+          targetUrl = process.env.NEXT_PUBLIC_SELLER_URL || `${protocol}//sellers.${hostname.replace(/^www\./, '')}/dashboard`;
           break;
         case 'advertiser':
           targetUrl =
-            process.env.NEXT_PUBLIC_ADVERTISER_URL || `${protocol}//advertiser.${hostname}/dashboard`;
+            process.env.NEXT_PUBLIC_ADVERTISER_URL || `${protocol}//ads.${hostname.replace(/^www\./, '')}/dashboard`;
           break;
       }
     }
