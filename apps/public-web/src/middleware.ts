@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import {
   getDefaultRootSellerId,
-  isFirebasePublicRootHost,
+  isPublicRootHost,
 } from '@/lib/default-root-seller-website';
 
 /** Rutas raíz de la app (no bajo /[tenant]/). Sin esto, `tenant.dominio/register` → 404. */
@@ -82,21 +82,17 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Dominios base de Firebase (NO tienen subdominio)
-  const firebaseBaseDomains = [
+  const publicRootHosts = [
     'autodealers-7f62e.web.app',
     'autodealers-7f62e.firebaseapp.com',
+    'www.autodealers-online.com',
+    'autodealers-online.com',
     'localhost',
   ];
 
-  // Si es el dominio base de Firebase, NO buscar subdominio
-  if (firebaseBaseDomains.includes(hostname) || firebaseBaseDomains.some(base => hostname.startsWith(base + ':'))) {
+  if (publicRootHosts.includes(hostname) || publicRootHosts.some((base) => hostname.startsWith(base + ':'))) {
     const rootSellerId = getDefaultRootSellerId();
-    if (
-      rootSellerId &&
-      isFirebasePublicRootHost(hostname) &&
-      (pathname === '/' || pathname === '')
-    ) {
+    if (rootSellerId && isPublicRootHost(hostname) && (pathname === '/' || pathname === '')) {
       const url = request.nextUrl.clone();
       url.pathname = `/home-seller/${rootSellerId}`;
       return NextResponse.rewrite(url);
@@ -133,9 +129,8 @@ export function middleware(request: NextRequest) {
           subdomain = firstPart;
         }
       } else {
-        // Para dominios normales (ej: subdomain.autodealers.com)
-        // Verificar que la primera parte no sea parte del dominio base
-        if (firstPart !== 'www' && firstPart !== 'autodealers') {
+        // Para dominios normales (ej: tenant.autodealers-online.com)
+        if (firstPart !== 'www' && firstPart !== 'autodealers' && firstPart !== 'autodealers-online') {
           subdomain = firstPart;
         }
       }

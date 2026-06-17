@@ -78,3 +78,5 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  - variable: NEXT_PUBLIC_PUBLIC_WEB_URL
+    value: https://www.autodealers-online.com

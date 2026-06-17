@@ -26,6 +26,13 @@ Añade **cada dominio sin `https://`** (solo el host). Los de App Hosting en `us
 - `localhost`
 - `127.0.0.1`
 
+**Dominio de negocio (producción):**
+
+- `www.autodealers-online.com`
+- `autodealers-online.com`
+
+Guía completa: [CUSTOM_DOMAIN_AUTODEALERS_ONLINE.md](./CUSTOM_DOMAIN_AUTODEALERS_ONLINE.md)
+
 **Dominios de negocio personalizados** (cuando los tengáis en DNS y en Hosting/App Hosting): añadid también el host raíz, por ejemplo `www.tudominio.com` y `tudominio.com`.
 
 ## 2. Google Cloud → API key (solo si restringiste por HTTP referrer)

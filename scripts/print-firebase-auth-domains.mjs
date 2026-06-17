@@ -5,6 +5,7 @@
  */
 const PROJECT_ID = 'autodealers-7f62e';
 const REGION = 'us-central1';
+const CUSTOM_PUBLIC_HOSTS = ['www.autodealers-online.com', 'autodealers-online.com'];
 const BACKENDS = [
   'public-web-app',
   'admin-app',
@@ -19,6 +20,9 @@ for (const id of BACKENDS) {
 }
 console.log('autodealers-7f62e.web.app');
 console.log('autodealers-7f62e.firebaseapp.com');
+for (const host of CUSTOM_PUBLIC_HOSTS) {
+  console.log(host);
+}
 console.log('localhost');
 console.log('127.0.0.1');
 
@@ -28,5 +32,8 @@ for (const id of BACKENDS) {
 }
 console.log('https://autodealers-7f62e.web.app/*');
 console.log('https://autodealers-7f62e.firebaseapp.com/*');
+for (const host of CUSTOM_PUBLIC_HOSTS) {
+  console.log(`https://${host}/*`);
+}
 console.log('http://localhost:*/*');
 console.log('\n(Opcional, más amplio: https://*.hosted.app/* — valorar seguridad.)\n');

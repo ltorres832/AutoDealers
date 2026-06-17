@@ -84,6 +84,8 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  - variable: NEXT_PUBLIC_PUBLIC_WEB_URL
+    value: https://www.autodealers-online.com
   - variable: STRIPE_SECRET_KEY
     secret: STRIPE_SECRET_KEY
     availability:

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import SubdomainSellerWebsite from '@/components/SubdomainSellerWebsite';
+import { isMarketplaceRootHost } from '@/lib/public-production-hosts';
 import ChatWidget from '../../components/ChatWidget';
 import VehicleDetailModal from './VehicleDetailModal';
 import { getFirstPhoto, handleImageError } from '../../lib/vehicle-image';
@@ -126,10 +127,9 @@ export default function TenantSubdomainClientPage() {
       const parts = hostname.split('.');
 
       // Verificar si es el dominio base de Firebase o un dominio t├⌐cnico de App Hosting
-      const isRootDomain = hostname === 'autodealers-7f62e.web.app' ||
-        hostname === 'autodealers-7f62e.firebaseapp.com' ||
-        hostname === 'localhost' ||
-        hostname.includes('---') || // Evitar subdominios t├⌐cnicos
+      const isRootDomain =
+        isMarketplaceRootHost(hostname) ||
+        hostname.includes('---') ||
         hostname.includes('amplifyapp') ||
         (parts.length <= 2 && !hostname.includes('localhost:'));
 
@@ -174,8 +174,8 @@ export default function TenantSubdomainClientPage() {
       const hostname = window.location.hostname;
       const parts = hostname.split('.');
       // Si es el dominio ra├¡z (sin subdominio), NO es esta p├ígina
-      const isRootDomain = hostname === 'autodealers-7f62e.web.app' ||
-        hostname === 'localhost' ||
+      const isRootDomain =
+        isMarketplaceRootHost(hostname) ||
         (parts.length <= 2 && !hostname.includes('localhost:'));
 
       if (isRootDomain) {
@@ -238,8 +238,8 @@ export default function TenantSubdomainClientPage() {
         const hostname = window.location.hostname;
         // Solo redirigir si estamos en el dominio ra├¡z (sin subdominio real)
         const parts = hostname.split('.');
-        const isRootDomain = hostname === 'autodealers-7f62e.web.app' ||
-          hostname === 'localhost' ||
+        const isRootDomain =
+          isMarketplaceRootHost(hostname) ||
           (parts.length <= 2 && !hostname.includes('localhost'));
 
         if (isRootDomain) {
@@ -417,8 +417,8 @@ export default function TenantSubdomainClientPage() {
       const pathname = window.location.pathname;
       const parts = hostname.split('.');
 
-      const isRootDomain = hostname === 'autodealers-7f62e.web.app' ||
-        hostname === 'localhost' ||
+      const isRootDomain =
+        isMarketplaceRootHost(hostname) ||
         (parts.length <= 2 && !hostname.includes('localhost:'));
 
       // Si es dominio ra├¡z en "/" y no hay subdominio v├ílido, redirigir
@@ -447,8 +447,8 @@ export default function TenantSubdomainClientPage() {
     if (!subdomain && typeof window !== 'undefined') {
       const hostname = window.location.hostname;
       const parts = hostname.split('.');
-      const isRootDomain = hostname === 'autodealers-7f62e.web.app' ||
-        hostname === 'localhost' ||
+      const isRootDomain =
+        isMarketplaceRootHost(hostname) ||
         (parts.length <= 2 && !hostname.includes('localhost:'));
 
       if (isRootDomain && window.location.pathname === '/') {
