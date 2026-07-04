@@ -122,6 +122,7 @@ export default function MembershipsPageClient({
   };
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creatingDefaults, setCreatingDefaults] = useState(false);
+  const [normalizingFeatures, setNormalizingFeatures] = useState(false);
   const [debugInfo, setDebugInfo] = useState<string[]>([]);
   const [errorModal, setErrorModal] = useState<{
     isOpen: boolean;
@@ -304,6 +305,35 @@ export default function MembershipsPageClient({
     }
   }
 
+  async function normalizeAllMembershipFeatures() {
+    if (
+      !confirm(
+        '¿Normalizar features de TODAS las membresías?\n\nEsto elimina nulls heredados y deja solo lo configurado explícitamente (checkboxes marcados y límites con número).'
+      )
+    ) {
+      return;
+    }
+
+    setNormalizingFeatures(true);
+    try {
+      const response = await fetchWithAuth('/api/admin/memberships/normalize-all', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || `HTTP ${response.status}`);
+      }
+      alert(data.message || 'Membresías normalizadas.');
+      refresh();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Error desconocido';
+      alert(`Error al normalizar: ${message}`);
+    } finally {
+      setNormalizingFeatures(false);
+    }
+  }
+
   if (loading && memberships.length === 0) {
     return (
       <div className="flex justify-center p-8">
@@ -327,7 +357,14 @@ export default function MembershipsPageClient({
             (se listan aquí como dealer; en la tarjeta verás “Multi Dealer” si aplica).
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap">
+          <button
+            onClick={normalizeAllMembershipFeatures}
+            disabled={normalizingFeatures}
+            className="bg-amber-600 text-white px-5 py-3 rounded-lg hover:bg-amber-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {normalizingFeatures ? 'Normalizando...' : 'Limpiar features legacy'}
+          </button>
           <button
             onClick={createDefaultMemberships}
             disabled={creatingDefaults}

@@ -115,7 +115,39 @@ function num(f: MembershipFeaturesLoose, key: string): number | null | undefined
   return undefined;
 }
 
-/** Límites numéricos (null = ilimitado; undefined = no mostrar fila). */
+/** Solo deja claves que el admin configuró explícitamente para mostrar en catálogo. */
+export function compactFeaturesForCatalogDisplay(
+  f: MembershipFeaturesLoose | undefined
+): MembershipFeaturesLoose {
+  if (!f || typeof f !== 'object') return {};
+  const out: MembershipFeaturesLoose = {};
+
+  for (const key of ADMIN_BOOLEAN_FEATURE_KEYS) {
+    if (isTruthyBoolean(f[key])) out[key] = true;
+  }
+
+  for (const key of ADMIN_NUMERIC_LIMIT_KEYS) {
+    const v = num(f, key);
+    if (typeof v === 'number' && Number.isFinite(v)) out[key] = v;
+  }
+
+  const known = new Set<string>([
+    ...ADMIN_BOOLEAN_FEATURE_KEYS,
+    ...ADMIN_NUMERIC_LIMIT_KEYS,
+    ...INTERNAL_FEATURE_KEYS,
+  ]);
+
+  for (const [key, raw] of Object.entries(f)) {
+    if (known.has(key)) continue;
+    if (isTruthyBoolean(raw)) out[key] = true;
+    else if (typeof raw === 'number' && Number.isFinite(raw)) out[key] = raw;
+    else if (typeof raw === 'string' && raw.trim()) out[key] = raw.trim();
+  }
+
+  return out;
+}
+
+/** Límites numéricos (solo número explícito; null/undefined no se muestran). */
 export function buildMembershipLimitLines(
   f: MembershipFeaturesLoose,
   options?: { planKind?: MembershipPlanKind }
@@ -364,9 +396,10 @@ export function buildMembershipDisplayLines(
   if (!f || typeof f !== 'object') {
     return { limits: [], features: [] };
   }
-  const limits = buildMembershipLimitLines(f, options);
-  const features = buildMembershipFeatureLines(f, options);
-  const extra = buildExtraDynamicDisplayLines(f, options);
+  const compact = compactFeaturesForCatalogDisplay(f);
+  const limits = buildMembershipLimitLines(compact, options);
+  const features = buildMembershipFeatureLines(compact, options);
+  const extra = buildExtraDynamicDisplayLines(compact, options);
   return {
     limits: [...limits, ...extra.limits],
     features: [...features, ...extra.features],

@@ -95,8 +95,9 @@ function main() {
     maxCampaigns: null,
     maxLeadsPerMonth: null,
     publicWebsite: true,
+    crmAdvanced: true,
   };
-  const sparse = buildMembershipDisplayLines(sparsePlan, { planKind: 'dealer' });
+  const sparse = buildMembershipDisplayLines(sparsePlan, { planKind: 'seller' });
   if (sparse.limits.some((l) => /ilimitad/i.test(l))) {
     console.error('❌ No debe mostrar límites "ilimitado" si el admin no puso un número');
     failed = true;
@@ -109,8 +110,15 @@ function main() {
     console.error('❌ No debe inferir subdominio desde publicWebsite');
     failed = true;
   }
-  if (sparse.limits.length !== 1 || !sparse.features.some((l) => l.includes('Redes sociales'))) {
-    console.error('❌ Plan sparse: límites/beneficios no coinciden con lo configurado');
+  const expectedLimits = ['25 vehículos', '1000 promociones'];
+  for (const needle of ['25 vehículos']) {
+    if (!sparse.limits.some((l) => l.includes(needle))) {
+      console.error(`❌ Falta límite esperado: ${needle}`);
+      failed = true;
+    }
+  }
+  if (!sparse.features.some((l) => l.includes('Redes sociales'))) {
+    console.error('❌ Plan sparse: falta beneficio socialMediaEnabled');
     failed = true;
   }
 
