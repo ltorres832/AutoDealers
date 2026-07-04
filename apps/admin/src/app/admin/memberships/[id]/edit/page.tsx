@@ -134,7 +134,11 @@ export default function EditMembershipPage() {
           price: coerceMembershipNumber(data.price),
         }));
         if (data.features && typeof data.features === 'object') {
-          setFeatures(normalizeFeaturesForAdminEdit(data.features as Record<string, unknown>) as MembershipFeatures);
+          setFeatures(
+            normalizeFeaturesForAdminEdit(
+              data.features as Record<string, unknown>
+            ) as unknown as MembershipFeatures
+          );
         }
       });
     }
@@ -206,7 +210,7 @@ export default function EditMembershipPage() {
         setFeatures(
           normalizeFeaturesForAdminEdit(
             (data.membership.features as Record<string, unknown> | undefined) || {}
-          ) as MembershipFeatures
+          ) as unknown as MembershipFeatures
         );
         setError(null);
       } else {
