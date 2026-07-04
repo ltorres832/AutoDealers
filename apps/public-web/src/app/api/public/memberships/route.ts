@@ -3,8 +3,10 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { checkMultiDealerAccess } from '@autodealers/core';
 import { getFirestore } from '@autodealers/core';
-import { getMemberships } from '@autodealers/billing';
+import { getSelfServiceActiveMemberships } from '@autodealers/billing';
+import { serializeMembershipForApi } from '@autodealers/billing/membership-coerce';
 import { getMembershipTrialDays } from '@autodealers/billing/membership-trial';
+import { getActiveDynamicFeatureCatalog } from '@autodealers/billing/dynamic-feature-catalog';
 import { isMultiDealerPlan } from '@/lib/membership-flags';
 
 export async function GET(request: NextRequest) {
@@ -16,8 +18,7 @@ export async function GET(request: NextRequest) {
   const showMultiDealer = searchParams.get('showMultiDealer') === 'true';
 
   try {
-    const allMemberships = await getMemberships(type || undefined);
-    const memberships = allMemberships.filter((m) => m.isActive !== false);
+    const memberships = await getSelfServiceActiveMemberships(type || undefined);
     const filteredMemberships: typeof memberships = [];
 
     for (const membership of memberships) {
@@ -28,9 +29,11 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
+      // Multi-dealer: solo si admin aprobó una solicitud concreta (no autoservicio en registro).
       if (showMultiDealer) {
-        filteredMemberships.push(membership);
-      } else if (userId) {
+        continue;
+      }
+      if (userId) {
         const access = await checkMultiDealerAccess(userId);
         if (access.hasAccess && !access.isExpired) {
           const requestDoc = await db.collection('multi_dealer_requests').doc(userId).get();
@@ -44,10 +47,15 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const dynamicFeatureCatalog = await getActiveDynamicFeatureCatalog();
+
     return NextResponse.json({
-      memberships: filteredMemberships,
+      memberships: filteredMemberships.map((m) =>
+        serializeMembershipForApi(m as unknown as Record<string, unknown> & { id: string })
+      ),
       total: filteredMemberships.length,
       trialDays: getMembershipTrialDays(),
+      dynamicFeatureCatalog,
     });
   } catch (error: unknown) {
     console.error('Error fetching memberships:', error);

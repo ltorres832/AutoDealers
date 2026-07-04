@@ -23,11 +23,17 @@ export function isCatalogMembership(membership: MembershipLike): boolean {
   return true;
 }
 
-/** Mismo catálogo que Admin: activas + schema válido (sin legacy). */
+/** Mismo catálogo que Admin: activas + schema válido (sin legacy ni custom/admin-only). */
 export function filterPublicCatalogMemberships<T extends MembershipLike>(
   memberships: T[]
 ): T[] {
-  return memberships.filter((m) => isCatalogMembership(m) && m.isActive !== false);
+  return memberships.filter(
+    (m) =>
+      isCatalogMembership(m) &&
+      m.isActive !== false &&
+      m.features?.adminAssignOnly !== true &&
+      m.features?.customMembership !== true
+  );
 }
 
 /** @deprecated Alias de filterPublicCatalogMemberships — mismo catálogo que admin. */
@@ -48,6 +54,9 @@ export function assertSelfServiceMembership(
   }
   if (membership.isActive === false) {
     return { ok: false, error: 'Este plan está inactivo.' };
+  }
+  if (membership.features?.adminAssignOnly === true) {
+    return { ok: false, error: 'Este plan solo puede ser asignado por admin.' };
   }
   return { ok: true };
 }

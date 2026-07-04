@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { buildMembershipDisplayLines } from '@/lib/membership-display';
+import { buildMembershipDisplayLines, type DynamicFeatureCatalogEntry } from '@/lib/membership-display';
 import { isMultiDealerPlan } from '@/lib/membership-flags';
 
 interface Membership {
@@ -58,7 +58,8 @@ function MembershipSelectionContent() {
   }, [urlType]);
 
   const [memberships, setMemberships] = useState<Membership[]>([]);
-  const [trialDays, setTrialDays] = useState(7);
+  const [trialDays, setTrialDays] = useState(14);
+  const [dynamicCatalog, setDynamicCatalog] = useState<DynamicFeatureCatalogEntry[]>([]);
   const [loadingList, setLoadingList] = useState(true);
   const [selectedMembership, setSelectedMembership] = useState<string>('');
   const [loading, setLoading] = useState(false);
@@ -73,14 +74,15 @@ function MembershipSelectionContent() {
   async function fetchMemberships(type: 'dealer' | 'seller') {
     setLoadingList(true);
     try {
-      const showMulti = type === 'dealer' ? '&showMultiDealer=true' : '';
       const response = await fetch(
-        `/api/public/memberships?type=${type}&userId=${encodeURIComponent(userId)}${showMulti}`
+        `/api/public/memberships?type=${type}&userId=${encodeURIComponent(userId)}`,
+        { cache: 'no-store' }
       );
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
       setMemberships(data.memberships || []);
       if (typeof data.trialDays === 'number') setTrialDays(data.trialDays);
+      if (Array.isArray(data.dynamicFeatureCatalog)) setDynamicCatalog(data.dynamicFeatureCatalog);
     } catch (error) {
       console.error('Error fetching memberships:', error);
       setError('Error al cargar las membresías.');
@@ -205,11 +207,11 @@ function MembershipSelectionContent() {
           <>
             {accountType === 'dealer' && (
               <p className="text-center text-sm text-slate-500 mb-8 max-w-2xl mx-auto">
-                Los planes <strong>Multi concesionario</strong> gestionan varios dealers bajo una cuenta; el alta puede requerir{' '}
+                ¿Gestionas varios concesionarios?{' '}
                 <Link href="/register/multi-dealer" className="text-primary-600 font-semibold hover:underline">
-                  solicitud dedicada
+                  Solicita un plan multi concesionario
                 </Link>
-                .
+                ; el alta no es por autoservicio en esta pantalla.
               </p>
             )}
 
@@ -277,6 +279,7 @@ function MembershipSelectionContent() {
                     {(() => {
                       const { limits, features } = buildMembershipDisplayLines(membership.features, {
                         planKind: membership.type ?? accountType ?? 'dealer',
+                        dynamicCatalog,
                       });
                       return (
                         <>
@@ -377,7 +380,7 @@ function MembershipSelectionContent() {
           </p>
 
           <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">
-            ¿Tienes dudas? <Link href="/soporte" className="text-primary-600 hover:text-primary-700">Habla con un asesor</Link>
+            ¿Tienes dudas? <Link href="/contacto" className="text-primary-600 hover:text-primary-700">Habla con un asesor</Link>
           </p>
         </div>
       </div>

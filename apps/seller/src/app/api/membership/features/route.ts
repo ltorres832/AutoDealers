@@ -1,8 +1,11 @@
 export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { getTenantFeatures, getTenantMembership } from '@autodealers/core';
-import { resolveBillingTenantId } from '@autodealers/billing';
+import { resolveBillingTenantId } from '@/lib/billing-tenant';
+import { getActiveDynamicFeatureCatalog } from '@autodealers/billing/dynamic-feature-catalog';
+import { normalizeMembershipFeatures } from '@autodealers/billing/membership-coerce';
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,22 +15,17 @@ export async function GET(request: NextRequest) {
     }
 
     const featureTenantId =
-      resolveBillingTenantId(auth.tenantId, auth.dealerId) ?? auth.tenantId;
+      resolveBillingTenantId(auth.tenantId, auth.dealerId, auth.billingMode) ?? auth.tenantId;
 
     const features = await getTenantFeatures(featureTenantId);
     const membership = await getTenantMembership(featureTenantId);
 
     if (!membership) {
-      return NextResponse.json(
-        { error: 'No active membership' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'No active membership' }, { status: 404 });
     }
 
-    // Los sellers no tienen límites numéricos complejos, pero pueden tener algunos
-    const limits: any[] = [];
+    const limits: Array<{ name: string; current: number; limit: number | null; icon: string }> = [];
 
-    // Si el seller tiene su propio inventario (algunos planes lo permiten)
     if (features.maxInventory && features.maxInventory > 0 && auth.role === 'seller') {
       const {
         filterVehiclesOwnedBySeller,
@@ -43,25 +41,21 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    const normalizedFeatures = normalizeMembershipFeatures(
+      membership.features as unknown as Record<string, unknown>
+    );
+    const dynamicFeatureCatalog = await getActiveDynamicFeatureCatalog();
+
     return NextResponse.json({
       membershipName: membership.name,
       membershipType: membership.type,
-      features: {
-        customSubdomain: features.customSubdomain,
-        aiEnabled: features.aiEnabled,
-        socialMediaEnabled: features.socialMediaEnabled,
-        marketplaceEnabled: features.marketplaceEnabled,
-        advancedReports: features.advancedReports,
-      },
+      features: normalizedFeatures,
+      dynamicFeatureCatalog,
       limits,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
     console.error('Error fetching membership features:', error);
-    return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error', details: message }, { status: 500 });
   }
 }
-
-

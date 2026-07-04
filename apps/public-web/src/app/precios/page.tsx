@@ -6,6 +6,7 @@ import Link from 'next/link';
 import PublicBackButton from '@/components/PublicBackButton';
 import { PublicMarketingNav } from '@/components/PublicMarketingNav';
 import MembershipCard from '../../components/MembershipCard';
+import type { DynamicFeatureCatalogEntry } from '@/lib/membership-display';
 
 interface Membership {
   id: string;
@@ -29,6 +30,8 @@ export default function PreciosPage() {
   const [loading, setLoading] = useState(true);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [user, setUser] = useState<User | null>(null);
+  const [trialDays, setTrialDays] = useState(14);
+  const [dynamicCatalog, setDynamicCatalog] = useState<DynamicFeatureCatalogEntry[]>([]);
 
   useEffect(() => {
     checkAuth();
@@ -57,10 +60,11 @@ export default function PreciosPage() {
   const fetchMemberships = async (type: 'dealer' | 'seller') => {
     setLoading(true);
     try {
-      const showMulti = type === 'dealer' ? '&showMultiDealer=true' : '';
-      const response = await fetch(`/api/public/memberships?type=${type}${showMulti}`, { cache: 'no-store' });
+      const response = await fetch(`/api/public/memberships?type=${type}`, { cache: 'no-store' });
       const data = await response.json();
       setMemberships(data.memberships || []);
+      if (typeof data.trialDays === 'number') setTrialDays(data.trialDays);
+      if (Array.isArray(data.dynamicFeatureCatalog)) setDynamicCatalog(data.dynamicFeatureCatalog);
     } catch (error) {
       console.error('Error cargando membresías:', error);
       setMemberships([]);
@@ -102,7 +106,7 @@ export default function PreciosPage() {
                 </span>
               </h1>
               <p className="text-xl text-gray-600 mb-4">
-                Elige el plan perfecto para tu negocio. Todos incluyen prueba gratuita de 7 días.
+                Elige el plan perfecto para tu negocio. Todos incluyen prueba gratuita de {trialDays} días.
               </p>
               <p className="text-sm text-gray-500">
                 Mostrando planes para: <span className="font-semibold">{user.type === 'dealer' ? 'Concesionarios' : 'Vendedores'}</span>
@@ -132,6 +136,8 @@ export default function PreciosPage() {
                       key={membership.id}
                       membership={membership}
                       showFeatures={true}
+                      trialDays={trialDays}
+                      dynamicCatalog={dynamicCatalog}
                     />
                   ))}
                 </div>

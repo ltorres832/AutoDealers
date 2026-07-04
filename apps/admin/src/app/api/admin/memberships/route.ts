@@ -19,11 +19,19 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') as 'dealer' | 'seller' | null;
     const activeOnly = searchParams.get('activeOnly') === 'true';
+    const selfServiceOnly = searchParams.get('selfServiceOnly') === 'true';
 
-    const memberships = await queryMembershipsFromFirestore({
+    let memberships = await queryMembershipsFromFirestore({
       type: type ?? undefined,
       activeOnly,
     });
+
+    if (selfServiceOnly) {
+      memberships = memberships.filter((membership) => {
+        const features = membership.features as Record<string, unknown> | undefined;
+        return features?.adminAssignOnly !== true && features?.customMembership !== true;
+      });
+    }
 
     const membershipsWithCount = await Promise.all(
       memberships.map(async (membership) => {

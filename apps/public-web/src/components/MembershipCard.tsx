@@ -1,6 +1,6 @@
 'use client';
 
-import { buildMembershipDisplayLines } from '@/lib/membership-display';
+import { buildMembershipDisplayLines, type DynamicFeatureCatalogEntry } from '@/lib/membership-display';
 
 interface Membership {
   id: string;
@@ -28,6 +28,8 @@ interface MembershipCardProps {
   selected?: boolean;
   showFeatures?: boolean;
   compact?: boolean;
+  trialDays?: number;
+  dynamicCatalog?: DynamicFeatureCatalogEntry[];
 }
 
 export default function MembershipCard({
@@ -36,6 +38,8 @@ export default function MembershipCard({
   selected = false,
   showFeatures = true,
   compact = false,
+  trialDays = 14,
+  dynamicCatalog,
 }: MembershipCardProps) {
   const formatPrice = (price: number, currency: string) => {
     return new Intl.NumberFormat('es-ES', {
@@ -47,7 +51,7 @@ export default function MembershipCard({
 
   const { limits: limitLines, features: featureLines } = buildMembershipDisplayLines(
     membership.features as Record<string, unknown>,
-    { planKind: membership.type }
+    { planKind: membership.type, dynamicCatalog }
   );
   const features = [...limitLines, ...featureLines];
   const isPopular = membership.name.toLowerCase().includes('professional') || 
@@ -78,6 +82,11 @@ export default function MembershipCard({
           <span className="text-3xl font-bold">{formatPrice(membership.price, membership.currency)}</span>
           <span className="text-gray-600 text-sm">/{period}</span>
         </div>
+        {trialDays > 0 && (
+          <div className="mb-4 rounded-full bg-green-50 px-3 py-2 text-center text-xs font-bold text-green-700">
+            {trialDays} días de prueba gratis
+          </div>
+        )}
         {showFeatures && features.length > 0 && (
           <ul className="space-y-2 text-sm mb-6">
             {features.slice(0, 5).map((feature, i) => (
@@ -143,6 +152,11 @@ export default function MembershipCard({
         <span className="text-5xl font-bold">{formatPrice(membership.price, membership.currency)}</span>
         <span className="text-gray-600">/{period}</span>
       </div>
+      {trialDays > 0 && (
+        <div className="mb-6 rounded-full bg-green-50 px-4 py-2 text-center text-sm font-bold text-green-700">
+          {trialDays} días de prueba gratis
+        </div>
+      )}
       {showFeatures && features.length > 0 && (
         <ul className="space-y-3 mb-8">
           {features.map((feature, i) => (

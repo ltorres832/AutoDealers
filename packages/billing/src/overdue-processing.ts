@@ -5,7 +5,11 @@ import {
   suspendAccountForNonPayment,
   updateSubscriptionStatus,
 } from './subscription-management';
-import { getSubscriptionGraceDays } from './billing-access';
+import {
+  computeEffectiveDaysPastDue,
+  getSubscriptionGraceDays,
+  shouldSuspendAfterGrace,
+} from './billing-access';
 import type { Subscription, SubscriptionStatus } from './types';
 
 export type ProcessOverdueResult = {
@@ -15,31 +19,6 @@ export type ProcessOverdueResult = {
   skipped: number;
   errors: string[];
 };
-
-function daysSince(date: Date, now = new Date()): number {
-  const diff = now.getTime() - date.getTime();
-  if (diff <= 0) return 0;
-  return Math.floor(diff / (1000 * 60 * 60 * 24));
-}
-
-function effectiveDaysPastDue(sub: Subscription, now = new Date()): number {
-  const stored = sub.daysPastDue ?? 0;
-  const fromPeriodEnd = sub.currentPeriodEnd ? daysSince(sub.currentPeriodEnd, now) : 0;
-  return Math.max(stored, fromPeriodEnd);
-}
-
-function shouldSuspendNow(sub: Subscription, now = new Date()): boolean {
-  const grace = getSubscriptionGraceDays();
-  const days = effectiveDaysPastDue(sub, now);
-
-  if (sub.status === 'unpaid') return true;
-  if (sub.status === 'suspended') return false;
-  if (sub.status === 'past_due') return days >= grace;
-  if (sub.status === 'active' && sub.currentPeriodEnd && sub.currentPeriodEnd < now) {
-    return days >= grace;
-  }
-  return false;
-}
 
 /**
  * Procesa suscripciones vencidas: marca past_due y suspende cuentas tras el período de gracia.
@@ -72,7 +51,7 @@ export async function processOverdueSubscriptions(
 
       // Período vencido sin renovación → past_due
       if (sub.status === 'active' && periodEnded) {
-        const days = effectiveDaysPastDue(sub, now);
+        const days = computeEffectiveDaysPastDue(sub, now);
         await updateSubscriptionStatus(sub.id, 'past_due', {
           daysPastDue: days,
           statusReason: 'Período de facturación vencido sin pago',
@@ -94,7 +73,7 @@ export async function processOverdueSubscriptions(
           });
         }
         const refreshed = await getSubscriptionById(sub.id);
-        if (refreshed && shouldSuspendNow(refreshed, now)) {
+        if (refreshed && shouldSuspendAfterGrace(refreshed, now)) {
           await suspendAccountForNonPayment(
             sub.id,
             'Suspensión automática: período vencido sin pago'
@@ -109,14 +88,14 @@ export async function processOverdueSubscriptions(
       }
 
       if (sub.status === 'past_due' || sub.status === 'unpaid') {
-        const days = effectiveDaysPastDue(sub, now);
+        const days = computeEffectiveDaysPastDue(sub, now);
         if (days !== (sub.daysPastDue ?? 0)) {
           await updateSubscriptionStatus(sub.id, sub.status as SubscriptionStatus, {
             daysPastDue: days,
           });
         }
 
-        if (shouldSuspendNow(sub, now)) {
+        if (shouldSuspendAfterGrace(sub, now)) {
           await suspendAccountForNonPayment(
             sub.id,
             `Suspensión automática: ${days} día(s) sin pago (gracia: ${getSubscriptionGraceDays()})`

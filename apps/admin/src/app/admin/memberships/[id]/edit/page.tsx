@@ -3,9 +3,19 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import { doc, onSnapshot } from 'firebase/firestore';
 import type { MembershipFeatures } from '@autodealers/billing/types';
 import { fetchWithAuth } from '@/lib/fetch-with-auth';
 import { coerceMembershipNumber } from '@/lib/membership-number-utils';
+import { db } from '@/lib/firebase-client';
+import {
+  ensureFirebaseClientAuth,
+  isFirebaseClientReady,
+} from '@/lib/ensure-firebase-client-auth';
+import {
+  normalizeFeaturesForAdminEdit,
+  prepareAdminMembershipFeaturesForSave,
+} from '@/lib/membership-features-admin';
 
 export default function EditMembershipPage() {
   const router = useRouter();
@@ -80,7 +90,7 @@ export default function EditMembershipPage() {
     emailSignatureBasic: false,
     emailSignatureAdvanced: false,
     emailAliases: false,
-    customerDocumentRequestsEnabled: true,
+    customerDocumentRequestsEnabled: false,
     maxCustomerDocumentRequestsPerMonth: undefined,
     multiDealerEnabled: false,
     maxDealers: undefined as number | null | undefined,
@@ -90,7 +100,51 @@ export default function EditMembershipPage() {
 
   useEffect(() => {
     fetchMembership();
+    void fetchDynamicFeatures();
   }, [membershipId]);
+
+  async function fetchDynamicFeatures() {
+    try {
+      const response = await fetchWithAuth('/api/admin/dynamic-features');
+      if (!response.ok) return;
+      const data = await response.json();
+      setDynamicFeatures(data.features || []);
+    } catch {
+      /* non-critical */
+    }
+  }
+
+  useEffect(() => {
+    if (!membershipId || !isFirebaseClientReady()) return undefined;
+
+    let unsubscribe: (() => void) | undefined;
+    let cancelled = false;
+
+    async function subscribe() {
+      const authed = await ensureFirebaseClientAuth();
+      if (cancelled || !authed) return;
+
+      unsubscribe = onSnapshot(doc(db, 'memberships', membershipId), (snap) => {
+        if (!snap.exists() || saving) return;
+        const data = snap.data();
+        setMembership((prev: Record<string, unknown> | null) => ({
+          ...(prev || {}),
+          id: snap.id,
+          ...data,
+          price: coerceMembershipNumber(data.price),
+        }));
+        if (data.features && typeof data.features === 'object') {
+          setFeatures(normalizeFeaturesForAdminEdit(data.features as Record<string, unknown>) as MembershipFeatures);
+        }
+      });
+    }
+
+    void subscribe();
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
+  }, [membershipId, saving]);
 
   async function fetchMembership() {
     console.log('🔍 fetchMembership called with membershipId:', membershipId);
@@ -149,7 +203,11 @@ export default function EditMembershipPage() {
           ...data.membership,
           price: coerceMembershipNumber(data.membership.price),
         });
-        setFeatures(data.membership.features || features);
+        setFeatures(
+          normalizeFeaturesForAdminEdit(
+            (data.membership.features as Record<string, unknown> | undefined) || {}
+          ) as MembershipFeatures
+        );
         setError(null);
       } else {
         console.error('❌ Membership not found in response:', data);
@@ -204,7 +262,9 @@ export default function EditMembershipPage() {
           billingCycle: membership.billingCycle,
           isActive: membership.isActive,
           stripePriceId: membership.stripePriceId,
-          features,
+          features: prepareAdminMembershipFeaturesForSave(
+            features as unknown as Record<string, unknown>
+          ),
         }),
       });
 
@@ -332,7 +392,7 @@ export default function EditMembershipPage() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
         <h2 className="text-xl font-bold mb-4">Límites Numéricos</h2>
         <p className="text-sm text-gray-600 mb-4">
-          Deja en blanco o 0 para ilimitado
+          Solo los límites con un número aparecen en las tarjetas del catálogo. Vacío = sin tope en la app (no se lista en la tarjeta).
         </p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>
@@ -473,7 +533,7 @@ export default function EditMembershipPage() {
               onChange={(v) => updateFeature('customDomain', v)}
             />
             <FeatureToggle
-              label="White Label (Sin branding AutoDealers)"
+              label="White Label (Sin branding AutoDealersOnline)"
               value={features.whiteLabel}
               onChange={(v) => updateFeature('whiteLabel', v)}
             />
@@ -653,11 +713,29 @@ export default function EditMembershipPage() {
             />
             <FeatureToggle
               label="Solicitar documentos al cliente (expediente / portal)"
-              value={features.customerDocumentRequestsEnabled !== false}
+              value={features.customerDocumentRequestsEnabled === true}
               onChange={(v) => updateFeature('customerDocumentRequestsEnabled', v)}
             />
           </div>
         </div>
+
+        {membership?.type === 'dealer' && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 className="text-xl font-bold mb-4">Módulo F&amp;I</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <FeatureToggle
+                label="Módulo F&I (finanzas y seguros)"
+                value={features.fiModule === true}
+                onChange={(v) => updateFeature('fiModule', v)}
+              />
+              <FeatureToggle
+                label="Varios gerentes F&I"
+                value={features.fiMultipleManagers === true}
+                onChange={(v) => updateFeature('fiMultipleManagers', v)}
+              />
+            </div>
+          </div>
+        )}
 
         {membership?.type === 'dealer' && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -688,7 +766,7 @@ export default function EditMembershipPage() {
                       onChange={(e) => {
                         const raw = e.target.value.trim();
                         if (raw === '') {
-                          updateFeature('maxDealers', null);
+                          updateFeature('maxDealers', undefined);
                           return;
                         }
                         const n = parseInt(raw, 10);

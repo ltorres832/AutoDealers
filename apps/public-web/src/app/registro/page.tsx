@@ -5,8 +5,9 @@ import Link from 'next/link';
 import PublicBackButton from '@/components/PublicBackButton';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { StripePaymentForm } from '@autodealers/shared/client';
-import { buildMembershipDisplayLines } from '@/lib/membership-display';
+import { buildMembershipDisplayLines, type DynamicFeatureCatalogEntry } from '@/lib/membership-display';
 import { isMultiDealerPlan } from '@/lib/membership-flags';
+import { formatTenantHostname, tenantHostSuffix } from '@autodealers/shared/platform-urls';
 
 interface Membership {
   id: string;
@@ -55,6 +56,7 @@ function RegistroPageContent() {
   const [registrationData, setRegistrationData] = useState<any>(null);
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [termsError, setTermsError] = useState('');
+  const [dynamicCatalog, setDynamicCatalog] = useState<DynamicFeatureCatalogEntry[]>([]);
 
   // Cargar membresías cuando cambie el tipo de cuenta o al montar
   useEffect(() => {
@@ -64,13 +66,13 @@ function RegistroPageContent() {
   async function fetchMemberships() {
     setLoadingMemberships(true);
     try {
-      const showMulti =
-        formData.accountType === 'dealer' ? '&showMultiDealer=true' : '';
       const response = await fetch(
-        `/api/public/memberships?type=${formData.accountType}${showMulti}`
+        `/api/public/memberships?type=${formData.accountType}`,
+        { cache: 'no-store' }
       );
       const data = await response.json();
       setMemberships(data.memberships || []);
+      if (Array.isArray(data.dynamicFeatureCatalog)) setDynamicCatalog(data.dynamicFeatureCatalog);
     } catch (error) {
       console.error('Error cargando membresías:', error);
       // En caso de error, usar planes por defecto
@@ -170,7 +172,7 @@ function RegistroPageContent() {
           <h1 className="text-4xl font-bold mb-2">
             Crea tu cuenta en{' '}
             <span className="bg-gradient-to-r from-primary-600 to-primary-600 bg-clip-text text-transparent">
-              AutoDealers
+              AutoDealersOnline
             </span>
           </h1>
           <p className="text-gray-600">En solo 4 pasos tendrás tu plataforma lista</p>
@@ -249,7 +251,7 @@ function RegistroPageContent() {
                     >
                       ¿Gestionas varios concesionarios?{' '}
                       <span className="font-semibold text-primary-600 underline-offset-2 hover:underline">
-                        Solicitud Multi Dealer
+                        Solicitar información
                       </span>
                     </Link>
                   </div>
@@ -375,9 +377,9 @@ function RegistroPageContent() {
                         placeholder="mi-negocio"
                         required
                       />
-                      <span className="text-gray-600">.autodealers.com</span>
+                      <span className="text-gray-600">{tenantHostSuffix()}</span>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">Tu sitio web será: {formData.subdomain || 'subdominio'}.autodealers.com</p>
+                    <p className="text-xs text-gray-500 mt-1">Tu sitio web será: {formatTenantHostname(formData.subdomain || 'subdominio')}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -428,7 +430,7 @@ function RegistroPageContent() {
                       const isPopular = index === Math.floor(memberships.length / 2);
                       const { limits, features } = buildMembershipDisplayLines(
                         membership.features as Record<string, unknown>,
-                        { planKind: formData.accountType }
+                        { planKind: formData.accountType, dynamicCatalog }
                       );
 
                       return (
@@ -522,7 +524,7 @@ function RegistroPageContent() {
                       <Link href="/privacidad" className="font-semibold text-primary-600 hover:underline" target="_blank" rel="noopener noreferrer">
                         Política de Privacidad
                       </Link>{' '}
-                      de la plataforma AutoDealers.
+                      de la plataforma AutoDealersOnline.
                     </label>
                   </div>
                 )}

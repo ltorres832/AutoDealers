@@ -6,7 +6,7 @@ import { verifyAuth } from '@/lib/auth';
 import { syncMembershipFeaturesToTenants, getFirestore } from '@autodealers/core';
 import {
   assertUniqueMembershipPrice,
-  mergeAndNormalizeMembershipFeatures,
+  prepareAdminMembershipFeaturesForSave,
 } from '@/lib/membership-features-admin';
 import {
   coerceMembershipNumber,
@@ -157,8 +157,7 @@ export async function PUT(
 
     let mergedFeatures: Record<string, unknown> | undefined;
     if (features !== undefined) {
-      mergedFeatures = mergeAndNormalizeMembershipFeatures(
-        existingMembership.features as unknown as Record<string, unknown> | undefined,
+      mergedFeatures = prepareAdminMembershipFeaturesForSave(
         features as Record<string, unknown>
       );
     }

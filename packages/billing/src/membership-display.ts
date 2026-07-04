@@ -124,10 +124,11 @@ export function buildMembershipLimitLines(
   const planKind = options?.planKind ?? 'dealer';
   const multiDealer = isMultiDealerPlan(f);
 
-  const push = (key: string, lineNum: (n: number) => string, lineUnlimited: string) => {
+  const push = (key: string, lineNum: (n: number) => string) => {
     const v = num(f, key);
-    if (typeof v === 'number') limits.push(lineNum(v));
-    else if (v === null) limits.push(lineUnlimited);
+    if (typeof v === 'number' && Number.isFinite(v)) {
+      limits.push(lineNum(v));
+    }
   };
 
   if (planKind === 'dealer') {
@@ -137,72 +138,59 @@ export function buildMembershipLimitLines(
         (n) =>
           n === 1
             ? '\u{1F3E2} 1 concesionario en la red'
-            : `\u{1F3E2} ${n.toLocaleString('es-ES')} concesionarios en la red`,
-        '\u{1F3E2} Concesionarios ilimitados en la red'
+            : `\u{1F3E2} ${n.toLocaleString('es-ES')} concesionarios en la red`
       );
       push(
         'maxSellers',
         (n) =>
           n === 1
             ? '\u{1F465} 1 vendedor por concesionario'
-            : `\u{1F465} Hasta ${n.toLocaleString('es-ES')} vendedores por concesionario`,
-        '\u{1F465} Vendedores ilimitados por concesionario'
+            : `\u{1F465} Hasta ${n.toLocaleString('es-ES')} vendedores por concesionario`
       );
     } else {
       push(
         'maxSellers',
-        (n) => `\u{1F465} ${n.toLocaleString('es-ES')} vendedores`,
-        '\u{1F465} Vendedores ilimitados'
+        (n) => `\u{1F465} ${n.toLocaleString('es-ES')} vendedores`
       );
     }
   }
 
   push(
     'maxInventory',
-    (n) => `\u{1F697} ${n.toLocaleString('es-ES')} vehículos`,
-    '\u{1F697} Inventario ilimitado'
+    (n) => `\u{1F697} ${n.toLocaleString('es-ES')} vehículos`
   );
   push(
     'maxCampaigns',
-    (n) => `\u{1F4E2} ${n.toLocaleString('es-ES')} campañas`,
-    '\u{1F4E2} Campañas ilimitadas'
+    (n) => `\u{1F4E2} ${n.toLocaleString('es-ES')} campañas`
   );
   push(
     'maxPromotions',
-    (n) => `\u{1F3AF} ${n.toLocaleString('es-ES')} promociones`,
-    '\u{1F3AF} Promociones ilimitadas'
+    (n) => `\u{1F3AF} ${n.toLocaleString('es-ES')} promociones`
   );
   push(
     'maxLeadsPerMonth',
-    (n) => `\u{1F4DE} ${n.toLocaleString('es-ES')} leads/mes`,
-    '\u{1F4DE} Leads ilimitados/mes'
+    (n) => `\u{1F4DE} ${n.toLocaleString('es-ES')} leads/mes`
   );
   push(
     'maxAppointmentsPerMonth',
-    (n) => `\u{1F4C5} ${n.toLocaleString('es-ES')} citas/mes`,
-    '\u{1F4C5} Citas ilimitadas/mes'
+    (n) => `\u{1F4C5} ${n.toLocaleString('es-ES')} citas/mes`
   );
   push(
     'maxStorageGB',
-    (n) => `\u{1F4BE} ${n.toLocaleString('es-ES')} GB de almacenamiento`,
-    '\u{1F4BE} Almacenamiento ilimitado'
+    (n) => `\u{1F4BE} ${n.toLocaleString('es-ES')} GB de almacenamiento`
   );
   push(
     'maxApiCallsPerMonth',
-    (n) => `\u{1F50C} ${n.toLocaleString('es-ES')} llamadas API/mes`,
-    '\u{1F50C} Llamadas API ilimitadas/mes'
+    (n) => `\u{1F50C} ${n.toLocaleString('es-ES')} llamadas API/mes`
   );
   push(
     'maxCustomerDocumentRequestsPerMonth',
     (n) =>
-      `\u{1F4CE} ${n.toLocaleString('es-ES')} solicitudes de documento al cliente/mes (expediente)`,
-    '\u{1F4CE} Solicitudes de documento al cliente ilimitadas/mes'
+      `\u{1F4CE} ${n.toLocaleString('es-ES')} solicitudes de documento al cliente/mes (expediente)`
   );
 
-  if (typeof f.maxCorporateEmails === 'number') {
+  if (typeof f.maxCorporateEmails === 'number' && Number.isFinite(f.maxCorporateEmails)) {
     limits.push(`\u{1F4E7} ${f.maxCorporateEmails} correo(s) corporativo(s)`);
-  } else if (f.maxCorporateEmails === null) {
-    limits.push('\u{1F4E7} Correos corporativos ilimitados');
   }
 
   return limits;
@@ -219,8 +207,7 @@ export function buildMembershipFeatureLines(
     if (isTruthyBoolean(cond)) out.push(label);
   };
 
-  const hasPublicSite =
-    isTruthyBoolean(f.customSubdomain) || isTruthyBoolean(f.publicWebsite);
+  const hasPublicSite = isTruthyBoolean(f.customSubdomain);
 
   t(hasPublicSite, '\u{1F310} Página web con subdominio propio (URL pública del concesionario)');
   t(f.customDomain, '\u{1F517} Dominio personalizado (marca propia en la web)');
@@ -352,7 +339,6 @@ export function buildExtraDynamicDisplayLines(
     }
 
     if (raw === null && catalog?.type === 'number') {
-      limits.push(`\u{1F4CA} ${label}: ilimitado`);
       continue;
     }
 

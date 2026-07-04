@@ -1,9 +1,16 @@
 // Gestión de membresías
 
 import { Membership, MembershipType } from './types';
-import { isCatalogMembership } from './membership-visibility';
+import {
+  filterPublicCatalogMemberships,
+  isCatalogMembership,
+} from './membership-visibility';
+import {
+  coerceMembershipPrice,
+  normalizeMembershipFeatures,
+} from './membership-coerce';
 import { getFirestoreFieldValue } from '@autodealers/shared';
-import { getFirestore } from '@autodealers/shared';
+import { getFirestore } from '@autodealers/core';
 
 // NO inicializar db aquí - se inicializa en cada función
 let db: any = null;
@@ -15,19 +22,6 @@ function getDb() {
   return db;
 }
 
-/** Repara precios guardados como epoch ISO (299 → "1970-01-01T00:00:00.299Z"). */
-function coerceMembershipPrice(value: unknown): number {
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    if (/^1970-01-01T00:00:00\.\d{3}Z$/.test(trimmed)) {
-      const ms = new Date(trimmed).getTime();
-      if (Number.isFinite(ms) && ms < 86_400_000) return ms;
-    }
-  }
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
-}
-
 function isCatalogMembershipRow(
   id: string,
   data: Record<string, unknown>
@@ -37,6 +31,7 @@ function isCatalogMembershipRow(
     name: String(data.name || ''),
     type: String(data.type || ''),
     billingCycle: (data.billingCycle as string | null | undefined) ?? null,
+    features: (data.features as any) || undefined,
   });
 }
 
@@ -74,6 +69,9 @@ function mapMembershipDoc(doc: { id: string; data: () => Record<string, unknown>
     id: doc.id,
     ...data,
     price: coerceMembershipPrice(data.price),
+    features: normalizeMembershipFeatures(
+      (data.features as Record<string, unknown> | undefined) ?? undefined
+    ) as unknown as Membership['features'],
     isActive,
     createdAt: createdAt?.toDate?.() || new Date(),
   } as Membership;
@@ -103,7 +101,8 @@ export async function getActiveMemberships(
 export async function getSelfServiceActiveMemberships(
   type?: MembershipType
 ): Promise<Membership[]> {
-  return getActiveMemberships(type);
+  const all = await getActiveMemberships(type);
+  return filterPublicCatalogMemberships(all);
 }
 
 export async function getMembershipById(
@@ -182,4 +181,3 @@ export function checkLimit(
   }
   return currentCount < maxLimit;
 }
-

@@ -1,10 +1,16 @@
 import { getSubscriptionByTenantId } from './subscription-management';
 import type { Subscription, SubscriptionStatus } from './types';
 
-export const DEFAULT_SUBSCRIPTION_GRACE_DAYS = 3;
+/** Período de gracia: 1 día calendario (~24 h) antes de suspender por falta de pago. */
+export const DEFAULT_SUBSCRIPTION_GRACE_DAYS = 1;
 
 /** Vendedor creado por un dealer: la suscripción la paga el concesionario. */
-export function isDealerManagedSeller(dealerId?: string | null): boolean {
+export function isDealerManagedSeller(
+  dealerId?: string | null,
+  billingMode?: string | null
+): boolean {
+  if (billingMode === 'self_service') return false;
+  if (billingMode === 'dealer_managed') return true;
   return Boolean(dealerId?.trim());
 }
 
@@ -14,9 +20,10 @@ export function isDealerManagedSeller(dealerId?: string | null): boolean {
  */
 export function resolveBillingTenantId(
   tenantId?: string | null,
-  dealerId?: string | null
+  dealerId?: string | null,
+  billingMode?: string | null
 ): string | undefined {
-  if (isDealerManagedSeller(dealerId)) return dealerId!.trim();
+  if (isDealerManagedSeller(dealerId, billingMode)) return dealerId!.trim();
   return tenantId?.trim() || undefined;
 }
 
@@ -24,6 +31,34 @@ export function getSubscriptionGraceDays(): number {
   const raw = process.env.SUBSCRIPTION_GRACE_DAYS;
   const n = raw ? Number(raw) : DEFAULT_SUBSCRIPTION_GRACE_DAYS;
   return Number.isFinite(n) && n >= 0 ? Math.floor(n) : DEFAULT_SUBSCRIPTION_GRACE_DAYS;
+}
+
+function daysSince(date: Date, now = new Date()): number {
+  const diff = now.getTime() - date.getTime();
+  if (diff <= 0) return 0;
+  return Math.floor(diff / (1000 * 60 * 60 * 24));
+}
+
+/** Días sin pago efectivos (máximo entre contador guardado y vencimiento del período). */
+export function computeEffectiveDaysPastDue(
+  sub: { daysPastDue?: number; currentPeriodEnd?: Date | null },
+  now = new Date()
+): number {
+  const stored = sub.daysPastDue ?? 0;
+  const fromPeriodEnd =
+    sub.currentPeriodEnd instanceof Date ? daysSince(sub.currentPeriodEnd, now) : 0;
+  return Math.max(stored, fromPeriodEnd);
+}
+
+/** True cuando ya se agotó el período de gracia y corresponde suspender. */
+export function shouldSuspendAfterGrace(
+  sub: { daysPastDue?: number; currentPeriodEnd?: Date | null; status?: string },
+  now = new Date()
+): boolean {
+  if (sub.status === 'unpaid') return true;
+  if (sub.status === 'suspended') return false;
+  const days = computeEffectiveDaysPastDue(sub, now);
+  return days >= getSubscriptionGraceDays();
 }
 
 /** Estados que siempre bloquean el acceso a la plataforma. */
@@ -46,7 +81,7 @@ export function isSubscriptionAccessAllowed(
 ): boolean {
   if (status === 'active' || status === 'trialing') return true;
   if (status === 'past_due') {
-    return daysPastDue < getSubscriptionGraceDays();
+    return daysPastDue < getSubscriptionGraceDays(); // 0 = dentro de las ~24 h de gracia
   }
   return false;
 }
@@ -106,6 +141,7 @@ export async function assertTenantHasActiveBilling(tenantId: string): Promise<{
 export async function assertSellerAuthHasActiveBilling(auth: {
   tenantId?: string;
   dealerId?: string;
+  billingMode?: string;
 }): Promise<{
   allowed: boolean;
   reason?: string;
@@ -113,8 +149,8 @@ export async function assertSellerAuthHasActiveBilling(auth: {
   billingTenantId?: string;
   dealerManaged: boolean;
 }> {
-  const billingTenantId = resolveBillingTenantId(auth.tenantId, auth.dealerId);
-  const dealerManaged = isDealerManagedSeller(auth.dealerId);
+  const billingTenantId = resolveBillingTenantId(auth.tenantId, auth.dealerId, auth.billingMode);
+  const dealerManaged = isDealerManagedSeller(auth.dealerId, auth.billingMode);
 
   if (!billingTenantId) {
     return {

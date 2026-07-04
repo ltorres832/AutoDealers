@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { useRealtimeMemberships } from '@/hooks/useRealtimeMemberships';
 import { MembershipOnboardingNotice } from '@autodealers/shared/client';
+import { MembershipBenefitsDisplay } from '@autodealers/billing/client';
 
 interface Membership {
   id: string;
@@ -535,120 +536,12 @@ export default function MembershipPage() {
               </div>
             )}
 
-            {/* Límites */}
-            {(membershipToShow.features.maxInventory !== undefined || 
-              membershipToShow.features.maxStorageGB !== undefined || 
-              membershipToShow.features.maxSellers !== undefined) && (
-              <div className="mt-6 pt-6 border-t">
-                <h4 className="font-semibold mb-3">📊 Límites:</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {membershipToShow.features.maxSellers !== undefined && (
-                    <div className="text-sm">
-                      <span className="text-gray-600">👥</span>{' '}
-                      <span className="font-medium">
-                        {membershipToShow.features.maxSellers === null
-                          ? '∞ Vendedores'
-                          : `${membershipToShow.features.maxSellers} Vendedores`}
-                      </span>
-                    </div>
-                  )}
-                  {membershipToShow.features.maxInventory !== undefined && (
-                    <div className="text-sm">
-                      <span className="text-gray-600">🚗</span>{' '}
-                      <span className="font-medium">
-                        {membershipToShow.features.maxInventory === null
-                          ? '∞ Vehículos'
-                          : `${membershipToShow.features.maxInventory} Vehículos`}
-                      </span>
-                    </div>
-                  )}
-                  {membershipToShow.features.maxStorageGB !== undefined && (
-                    <div className="text-sm">
-                      <span className="text-gray-600">💾</span>{' '}
-                      <span className="font-medium">
-                        {membershipToShow.features.maxStorageGB === null
-                          ? '∞ Almacenamiento'
-                          : `${membershipToShow.features.maxStorageGB} GB Almacenamiento`}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Features */}
             <div className="mt-6 pt-6 border-t">
-              <h4 className="font-semibold mb-3">✅ Incluye:</h4>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                {membershipToShow.features.publicWebsite && (
-                  <div className="text-sm">
-                    <span className="text-green-600">✓</span> Página Web con Subdominio
-                  </div>
-                )}
-                {membershipToShow.features.crmAdvanced && (
-                  <div className="text-sm">
-                    <span className="text-green-600">✓</span> CRM Completo
-                  </div>
-                )}
-                {membershipToShow.features.socialMediaEnabled && (
-                  <div className="text-sm">
-                    <span className="text-green-600">✓</span> Publicaciones en Redes Sociales
-                  </div>
-                )}
-                {membershipToShow.features.videoUploads && (
-                  <div className="text-sm">
-                    <span className="text-green-600">✓</span> Subida de Videos
-                  </div>
-                )}
-                {membershipToShow.features.liveChat && (
-                  <div className="text-sm">
-                    <span className="text-green-600">✓</span> Chat en Vivo
-                  </div>
-                )}
-                {membershipToShow.features.appointmentScheduling && (
-                  <div className="text-sm">
-                    <span className="text-green-600">✓</span> Sistema de Citas
-                  </div>
-                )}
-                {membershipToShow.features.customTemplates && (
-                  <div className="text-sm">
-                    <span className="text-green-600">✓</span> Templates Personalizados
-                  </div>
-                )}
-                {membershipToShow.features.customBranding && (
-                  <div className="text-sm">
-                    <span className="text-green-600">✓</span> Branding Personalizado
-                  </div>
-                )}
-                {membershipToShow.features.socialMediaScheduling && (
-                  <div className="text-sm">
-                    <span className="text-green-600">✓</span> Campañas Ilimitadas en Redes Sociales
-                  </div>
-                )}
-                {membershipToShow.features.aiEnabled && (
-                  <div className="text-sm">
-                    <span className="text-green-600">✓</span> IA Habilitada
-                  </div>
-                )}
-                {membershipToShow.features.advancedReports && (
-                  <div className="text-sm">
-                    <span className="text-green-600">✓</span> Reportes Avanzados
-                  </div>
-                )}
-                {membershipToShow.features.customSubdomain && (
-                  <div className="text-sm">
-                    <span className="text-green-600">✓</span> Subdominio Personalizado
-                  </div>
-                )}
-              </div>
-              {(membershipToShow.features.maxInventory === null && 
-                membershipToShow.features.maxStorageGB === null) && (
-                <div className="mt-4 p-3 bg-primary-50 border border-primary-200 rounded-lg">
-                  <p className="text-sm text-primary-800 font-medium">
-                    🎉 Todo Ilimitado - Sin Restricciones
-                  </p>
-                </div>
-              )}
+              <MembershipBenefitsDisplay
+                features={membershipToShow.features as Record<string, unknown>}
+                planKind={membershipToShow.type === 'seller' ? 'seller' : 'dealer'}
+                maxFeatureHeight="360px"
+              />
             </div>
           </div>
           );
@@ -683,97 +576,13 @@ export default function MembershipPage() {
                 </div>
               </div>
 
-              {/* Límites */}
-              {(membership.features.maxInventory !== undefined || 
-                membership.features.maxStorageGB !== undefined || 
-                membership.features.maxSellers !== undefined) && (
-                <div className="mb-4">
-                  <h5 className="text-sm font-semibold mb-2">📊 Límites:</h5>
-                  <div className="space-y-1">
-                    {membership.features.maxSellers !== undefined && (
-                      <div className="text-sm">
-                        <span className="text-gray-600">👥</span>{' '}
-                        <span className="font-medium">
-                          {membership.features.maxSellers === null
-                            ? '∞ Vendedores'
-                            : `${membership.features.maxSellers} Vendedores`}
-                        </span>
-                      </div>
-                    )}
-                    {membership.features.maxInventory !== undefined && (
-                      <div className="text-sm">
-                        <span className="text-gray-600">🚗</span>{' '}
-                        <span className="font-medium">
-                          {membership.features.maxInventory === null
-                            ? '∞ Vehículos'
-                            : `${membership.features.maxInventory} Vehículos`}
-                        </span>
-                      </div>
-                    )}
-                    {membership.features.maxStorageGB !== undefined && (
-                      <div className="text-sm">
-                        <span className="text-gray-600">💾</span>{' '}
-                        <span className="font-medium">
-                          {membership.features.maxStorageGB === null
-                            ? '∞ Almacenamiento'
-                            : `${membership.features.maxStorageGB} GB Almacenamiento`}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Features */}
-              <div className="mb-4">
-                <h5 className="text-sm font-semibold mb-2">✅ Incluye:</h5>
-                <div className="space-y-1">
-                  {membership.features.publicWebsite && (
-                    <div className="text-sm text-green-600">✓ Página Web con Subdominio</div>
-                  )}
-                  {membership.features.crmAdvanced && (
-                    <div className="text-sm text-green-600">✓ CRM Completo</div>
-                  )}
-                  {membership.features.socialMediaEnabled && (
-                    <div className="text-sm text-green-600">✓ Publicaciones en Redes Sociales</div>
-                  )}
-                  {membership.features.videoUploads && (
-                    <div className="text-sm text-green-600">✓ Subida de Videos</div>
-                  )}
-                  {membership.features.liveChat && (
-                    <div className="text-sm text-green-600">✓ Chat en Vivo</div>
-                  )}
-                  {membership.features.appointmentScheduling && (
-                    <div className="text-sm text-green-600">✓ Sistema de Citas</div>
-                  )}
-                  {membership.features.customTemplates && (
-                    <div className="text-sm text-green-600">✓ Templates Personalizados</div>
-                  )}
-                  {membership.features.customBranding && (
-                    <div className="text-sm text-green-600">✓ Branding Personalizado</div>
-                  )}
-                  {membership.features.socialMediaScheduling && (
-                    <div className="text-sm text-green-600">✓ Campañas Ilimitadas en Redes Sociales</div>
-                  )}
-                  {membership.features.aiEnabled && (
-                    <div className="text-sm text-green-600">✓ IA Habilitada</div>
-                  )}
-                  {membership.features.advancedReports && (
-                    <div className="text-sm text-green-600">✓ Reportes Avanzados</div>
-                  )}
-                  {membership.features.customSubdomain && (
-                    <div className="text-sm text-green-600">✓ Subdominio Personalizado</div>
-                  )}
-                </div>
-                {(membership.features.maxInventory === null && 
-                  membership.features.maxStorageGB === null) && (
-                  <div className="mt-2 p-2 bg-primary-50 border border-primary-200 rounded">
-                    <p className="text-xs text-primary-800 font-medium">
-                      🎉 Todo Ilimitado - Sin Restricciones
-                    </p>
-                  </div>
-                )}
-              </div>
+              <MembershipBenefitsDisplay
+                features={membership.features as Record<string, unknown>}
+                planKind={membership.type === 'seller' ? 'seller' : 'dealer'}
+                hideSectionTitles={false}
+                maxFeatureHeight="280px"
+                className="mb-4"
+              />
 
               {currentMembership?.id === membership.id ? (
                 <button

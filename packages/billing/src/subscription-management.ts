@@ -157,10 +157,18 @@ export async function getSubscriptionByTenantId(tenantId: string): Promise<Subsc
     return null;
   }
   
-  // Priorizar suscripción activa
-  const active = subscriptions.find(s => s.status === 'active');
+  // Priorizar suscripciones que realmente dan acceso. Custom/admin-grant ganan sobre datos viejos.
+  const activeSubscriptions = subscriptions.filter(
+    (s) => s.status === 'active' || s.status === 'trialing'
+  );
+  const active =
+    activeSubscriptions.find(
+      (s) =>
+        s.customMembershipAssignmentId?.trim?.() ||
+        s.billingSource === 'admin_grant'
+    ) || activeSubscriptions[0];
   if (active) {
-    console.log('✅ [getSubscriptionByTenantId] Encontrada suscripción activa:', {
+    console.log('✅ [getSubscriptionByTenantId] Encontrada suscripción con acceso:', {
       id: active.id,
       status: active.status,
       membershipId: active.membershipId,

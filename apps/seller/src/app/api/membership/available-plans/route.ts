@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
       return response;
     }
 
-    if (isDealerManagedSeller(auth.dealerId)) {
+    if (isDealerManagedSeller(auth.dealerId, auth.billingMode)) {
       return NextResponse.json({ plans: [], memberships: [], dealerManaged: true });
     }
 

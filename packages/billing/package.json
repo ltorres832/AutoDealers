@@ -23,7 +23,9 @@
       "import": "./src/dynamic-feature-catalog.ts",
       "require": "./src/dynamic-feature-catalog.ts",
       "default": "./src/dynamic-feature-catalog.ts"
-    }
+    },
+    "./client": "./src/client.ts",
+    "./components/MembershipBenefitsDisplay": "./src/components/MembershipBenefitsDisplay.tsx"
   },
   "scripts": {
     "build": "node -e \"const {execSync} = require('child_process'); try { execSync('tsc --skipLibCheck --noEmitOnError false', {stdio: 'inherit'}); } catch(e) {} process.exit(0);\"",

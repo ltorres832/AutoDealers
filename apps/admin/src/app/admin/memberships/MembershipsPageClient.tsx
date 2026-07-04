@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { fetchWithAuth } from '@/lib/fetch-with-auth';
+import { AdminDeleteButton } from '@/components/AdminDeleteButton';
 import { useRealtimeMemberships, type RealtimeMembership } from '@/hooks/useRealtimeMemberships';
 import { RealtimeIndicator } from '@/components/RealtimeIndicator';
 import CreateMembershipModal from '@/components/CreateMembershipModal';
@@ -95,11 +96,15 @@ export default function MembershipsPageClient({
   initialMemberships,
   initialError = null,
 }: Props) {
+  const [showInactivePlans, setShowInactivePlans] = useState(false);
   const { memberships: realtimeMemberships, loading, error: realtimeError, refresh } =
     useRealtimeMemberships(initialMemberships as RealtimeMembership[]);
   const memberships = (
     realtimeMemberships.length > 0 ? realtimeMemberships : initialMemberships
   ) as Membership[];
+  const visibleMemberships = showInactivePlans
+    ? memberships
+    : memberships.filter((m) => m.isActive !== false);
   const displayError =
     realtimeError && memberships.length === 0
       ? realtimeError
@@ -347,6 +352,15 @@ export default function MembershipsPageClient({
             + Crear Membresía
           </button>
         </div>
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <input
+            type="checkbox"
+            checked={showInactivePlans}
+            onChange={(e) => setShowInactivePlans(e.target.checked)}
+            className="rounded border-gray-300"
+          />
+          Mostrar planes desactivados
+        </label>
       </div>
 
       {/* Debug info - Siempre visible */}
@@ -390,11 +404,11 @@ export default function MembershipsPageClient({
       ) : (
         <div>
           {/* Agrupar por tipo */}
-          {memberships.filter((m) => m.type === 'dealer').length > 0 && (
+          {visibleMemberships.filter((m) => m.type === 'dealer').length > 0 && (
             <div className="mb-8">
               <h2 className="text-2xl font-bold mb-4">🏢 Planes para Dealers</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                {memberships
+                {visibleMemberships
                   .filter((m) => m.type === 'dealer')
                   .map((membership, index) => (
                   <div key={membership.id}>
@@ -440,6 +454,17 @@ export default function MembershipsPageClient({
                       >
                         ✏️ Editar
                       </Link>
+                      <AdminDeleteButton
+                        deleteUrl={`/api/admin/memberships/${membership.id}`}
+                        label="🗑️ Desactivar plan"
+                        confirmMessage={`¿Desactivar el plan "${membership.name}"? Dejará de mostrarse a nuevos registros.`}
+                        successMessage={false}
+                        onDeleted={() => {
+                          alert(`Plan "${membership.name}" desactivado. Activa "Mostrar planes desactivados" para verlo de nuevo.`);
+                          void fetchMemberships();
+                        }}
+                        className="w-full px-4 py-2 rounded-lg text-sm font-medium bg-red-100 text-red-700 hover:bg-red-200"
+                      />
                     </div>
                   </div>
                   ))}
@@ -447,11 +472,11 @@ export default function MembershipsPageClient({
             </div>
           )}
 
-          {memberships.filter((m) => m.type === 'seller').length > 0 && (
+          {visibleMemberships.filter((m) => m.type === 'seller').length > 0 && (
             <div>
               <h2 className="text-2xl font-bold mb-4">👤 Planes para Vendedores</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {memberships
+                {visibleMemberships
                   .filter((m) => m.type === 'seller')
                   .map((membership, index) => (
                   <div key={membership.id}>
@@ -497,6 +522,17 @@ export default function MembershipsPageClient({
                       >
                         ✏️ Editar
                       </Link>
+                      <AdminDeleteButton
+                        deleteUrl={`/api/admin/memberships/${membership.id}`}
+                        label="🗑️ Desactivar plan"
+                        confirmMessage={`¿Desactivar el plan "${membership.name}"? Dejará de mostrarse a nuevos registros.`}
+                        successMessage={false}
+                        onDeleted={() => {
+                          alert(`Plan "${membership.name}" desactivado. Activa "Mostrar planes desactivados" para verlo de nuevo.`);
+                          void fetchMemberships();
+                        }}
+                        className="w-full px-4 py-2 rounded-lg text-sm font-medium bg-red-100 text-red-700 hover:bg-red-200"
+                      />
                     </div>
                   </div>
                   ))}

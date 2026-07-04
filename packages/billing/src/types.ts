@@ -94,6 +94,8 @@ export interface MembershipFeatures {
   requiresAdminApproval?: boolean; // Si requiere aprobación de admin (para multi_dealer)
   /** Solo admin puede asignar (demos/cortesía). Oculto en catálogo seller/dealer y registro público. */
   adminAssignOnly?: boolean;
+  /** Plan personalizado creado por admin; no aparece en catálogo público ni autoservicio. */
+  customMembership?: boolean;
 }
 
 export interface Membership {
@@ -120,6 +122,7 @@ export interface Subscription {
   membershipId: string;
   /** stripe = pago normal; admin_grant = acceso otorgado por admin sin cobro */
   billingSource?: 'stripe' | 'admin_grant';
+  customMembershipAssignmentId?: string;
   adminGrantedBy?: string;
   adminGrantedAt?: Date;
   adminRevokedBy?: string;

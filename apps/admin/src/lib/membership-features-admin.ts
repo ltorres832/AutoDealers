@@ -2,10 +2,10 @@ import { coerceMembershipNumber, repairMisserializedEpochNumber } from '@/lib/me
 
 /**
  * Normalización de features al guardar desde el admin.
- * Debe conservar cualquier clave futura en `features` y solo normalizar campos conocidos.
+ * Solo lo guardado aquí es lo que puede aparecer en tarjetas y catálogos.
  */
 
-const NUMERIC_FEATURE_KEYS = [
+export const ADMIN_NUMERIC_FEATURE_KEYS = [
   'maxSellers',
   'maxInventory',
   'maxCampaigns',
@@ -19,7 +19,7 @@ const NUMERIC_FEATURE_KEYS = [
   'maxCustomerDocumentRequestsPerMonth',
 ] as const;
 
-const BOOLEAN_FEATURE_KEYS = [
+export const ADMIN_BOOLEAN_FEATURE_KEYS = [
   'customSubdomain',
   'customDomain',
   'aiEnabled',
@@ -78,32 +78,82 @@ const BOOLEAN_FEATURE_KEYS = [
   'customerDocumentRequestsEnabled',
 ] as const;
 
-function normalizeNumeric(v: unknown): number | null {
-  if (v === '' || v === null || v === undefined) return null;
+const KNOWN_FEATURE_KEYS = new Set<string>([
+  ...ADMIN_NUMERIC_FEATURE_KEYS,
+  ...ADMIN_BOOLEAN_FEATURE_KEYS,
+]);
+
+function normalizeNumeric(v: unknown): number | undefined {
+  if (v === '' || v === null || v === undefined) return undefined;
   const repaired = repairMisserializedEpochNumber(v);
   const n = coerceMembershipNumber(repaired);
-  return n === 0 && repaired !== 0 && repaired !== '0' ? null : n;
+  if (!Number.isFinite(n)) return undefined;
+  return n;
 }
 
+/** Convierte features de Firestore al formulario de edición (vacío = no configurado). */
+export function normalizeFeaturesForAdminEdit(
+  features: Record<string, unknown> | null | undefined
+): Record<string, unknown> {
+  if (!features || typeof features !== 'object') return {};
+  const out: Record<string, unknown> = { ...features };
+
+  for (const key of ADMIN_NUMERIC_FEATURE_KEYS) {
+    const v = out[key];
+    if (v === null || v === undefined || v === '') {
+      delete out[key];
+      continue;
+    }
+    const n = normalizeNumeric(v);
+    if (n === undefined) delete out[key];
+    else out[key] = n;
+  }
+
+  for (const key of ADMIN_BOOLEAN_FEATURE_KEYS) {
+    if (Object.prototype.hasOwnProperty.call(out, key)) {
+      out[key] = out[key] === true || out[key] === 'true';
+    }
+  }
+
+  return out;
+}
+
+/**
+ * Reemplaza por completo las features al guardar desde el admin.
+ * - Booleanos: siempre true/false explícito.
+ * - Numéricos: solo se guardan si el admin puso un número (vacío = sin clave).
+ * - Dinámicos/otros: se conservan si tienen valor activo.
+ */
+export function prepareAdminMembershipFeaturesForSave(
+  patch: Record<string, unknown>
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+
+  for (const key of ADMIN_BOOLEAN_FEATURE_KEYS) {
+    out[key] = patch[key] === true || patch[key] === 'true';
+  }
+
+  for (const key of ADMIN_NUMERIC_FEATURE_KEYS) {
+    const n = normalizeNumeric(patch[key]);
+    if (n !== undefined) out[key] = n;
+  }
+
+  for (const [key, value] of Object.entries(patch)) {
+    if (KNOWN_FEATURE_KEYS.has(key) || value === undefined) continue;
+    if (value === false || value === null || value === '') continue;
+    if (typeof value === 'number' && !Number.isFinite(value)) continue;
+    out[key] = value;
+  }
+
+  return out;
+}
+
+/** @deprecated Usar prepareAdminMembershipFeaturesForSave (reemplazo total). */
 export function mergeAndNormalizeMembershipFeatures(
   existing: Record<string, unknown> | null | undefined,
   patch: Record<string, unknown>
 ): Record<string, unknown> {
-  const merged: Record<string, unknown> = { ...(existing || {}), ...patch };
-
-  for (const key of NUMERIC_FEATURE_KEYS) {
-    if (Object.prototype.hasOwnProperty.call(patch, key)) {
-      merged[key] = normalizeNumeric(patch[key]);
-    }
-  }
-
-  for (const key of BOOLEAN_FEATURE_KEYS) {
-    if (Object.prototype.hasOwnProperty.call(patch, key)) {
-      merged[key] = Boolean(patch[key]);
-    }
-  }
-
-  return merged;
+  return prepareAdminMembershipFeaturesForSave({ ...(existing || {}), ...patch });
 }
 
 /**
