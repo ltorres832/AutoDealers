@@ -10,7 +10,20 @@
     "./subscription-management": "./src/subscription-management.ts",
     "./types": "./src/types.ts",
     "./membership-network": "./src/membership-network.ts",
-    "./membership-visibility": "./src/membership-visibility.ts"
+    "./membership-visibility": "./src/membership-visibility.ts",
+    "./membership-coerce": "./src/membership-coerce.ts",
+    "./membership-display": {
+      "types": "./src/membership-display.ts",
+      "import": "./src/membership-display.ts",
+      "require": "./src/membership-display.ts",
+      "default": "./src/membership-display.ts"
+    },
+    "./dynamic-feature-catalog": {
+      "types": "./src/dynamic-feature-catalog.ts",
+      "import": "./src/dynamic-feature-catalog.ts",
+      "require": "./src/dynamic-feature-catalog.ts",
+      "default": "./src/dynamic-feature-catalog.ts"
+    }
   },
   "scripts": {
     "build": "node -e \"const {execSync} = require('child_process'); try { execSync('tsc --skipLibCheck --noEmitOnError false', {stdio: 'inherit'}); } catch(e) {} process.exit(0);\"",

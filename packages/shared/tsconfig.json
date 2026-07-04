@@ -7,7 +7,15 @@
     "composite": true,
     "incremental": true,
     "declaration": true,
-    "noEmit": false
+    "noEmit": false,
+    "lib": ["ES2020", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "baseUrl": ".",
+    "paths": {
+      "@autodealers/billing/membership-display": ["../billing/src/membership-display.ts"],
+      "@autodealers/billing/*": ["../billing/src/*"]
+    }
   },
   "files": [],
   "include": [
