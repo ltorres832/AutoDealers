@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useRealtimeSponsoredContent } from '@/hooks/useRealtimeSponsoredContent';
 import CreateSponsoredContentModal from './CreateSponsoredContentModal';
-import { StripePaymentForm } from '@autodealers/shared';
+import { StripePaymentForm } from '@autodealers/shared/components/StripePaymentForm';
 
 export default function AdminSponsoredContentPage() {
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'active' | 'rejected'>('all');
