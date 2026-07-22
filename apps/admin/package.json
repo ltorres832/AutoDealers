@@ -19,6 +19,7 @@
     "@autodealers/messaging": "*",
     "@autodealers/reports": "*",
     "@autodealers/shared": "*",
+    "@autodealers/voice": "*",
     "@fullcalendar/core": "^6.1.10",
     "@fullcalendar/daygrid": "^6.1.10",
     "@fullcalendar/interaction": "^6.1.10",
