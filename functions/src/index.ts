@@ -1,8 +1,8 @@
 /**
  * Cloud Functions para AutoDealersPR
  *
- * Funciones principales según el documento maestro.
- * Los servidores Next.js (nextjsServer*) se definen en index.js en la raíz de functions.
+ * Crons y webhooks HTTP. Las apps Next.js se sirven en Firebase App Hosting
+ * (ver functions/index.js en la raíz de functions/).
  */
 
 import * as admin from 'firebase-admin';
@@ -78,9 +78,11 @@ export * from './reviews/reviews';
 // Referrals Functions
 export * from './referrals/referrals';
 export { confirmReferralRewardsDaily } from './referrals/confirmation-cron';
+export { affiliatePayoutsWeekly } from './affiliates/payout-cron';
 
 // Banners Functions
 export * from './banners/banners';
+export { processQueuedAdsEveryFiveMinutes } from './advertiser/process-ad-queue-cron';
 
 // Customer Files Functions
 export * from './customer-files/customer-files';
@@ -129,6 +131,8 @@ export * from './webhooks/stripe';
 export * from './webhooks/whatsapp';
 export * from './webhooks/facebook';
 export * from './webhooks/instagram';
+export * from './webhooks/twilio-voice';
+export * from './webhooks/twilio-voice-recording';
 
 // Upload Functions
 export * from './upload/upload';
@@ -168,6 +172,8 @@ export * from './maintenance/maintenance';
 
 // Communication Templates Functions
 export * from './communication-templates/communication-templates';
+
+export { runPlatformScheduledTasksHourly } from './scheduler/platform-tasks-cron';
 
 // Test Users Function
 export { createTestUsers } from './create-test-users';

@@ -36,6 +36,8 @@ Firebase te dará valores exactos. Suele ser:
 
 Elimina registros A/CNAME antiguos que apunten a otro hosting.
 
+**Importante (apex):** `autodealers-online.com` debe usar los registros **A** que indica Firebase (p. ej. `199.36.158.100`), **no** un forwarding del registrador (p. ej. IP `15.197.225.128`). Si solo la raíz `/` redirige a `www` pero rutas como `/affiliate` devuelven 404, el apex no apunta a Firebase Hosting — reconecta el dominio en la consola y marca **Redirect to www** para todo el tráfico.
+
 ## 3. Firebase Authentication
 
 Añade en [Authorized domains](https://console.firebase.google.com/project/autodealers-7f62e/authentication/settings):

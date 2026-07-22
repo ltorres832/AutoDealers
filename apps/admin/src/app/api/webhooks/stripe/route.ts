@@ -1,4 +1,4 @@
-﻿export const dynamic = 'force-dynamic';
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import {
   getFirestore,
@@ -11,12 +11,17 @@ import {
   notifyPlatformAdmins,
   notifyUser,
   applyPendingSubdomainForMembership,
+  processAffiliateCommissionOnMembershipCharge,
+  cancelAffiliateReferralIfAwaitingFirstCharge,
+  handleConnectAccountUpdated,
+  handleTransferReversed,
 } from '@autodealers/core';
 import {
   updateSubscriptionStatus,
   reactivateAccountAfterPayment,
   suspendAccountForNonPayment,
   checkAndSuspendEmailsOnSubscriptionChange,
+  ensureIntroToRegularSchedule,
 } from '@autodealers/billing';
 import type { SubscriptionStatus } from '@autodealers/billing';
 import Stripe from 'stripe';
@@ -26,8 +31,33 @@ import {
   getStripeWebhookSecretValue,
   getStripeWebhookSecret,
 } from '@autodealers/core';
+import { resolveAdminUrl } from '@autodealers/shared/platform-urls';
 
 const db = getFirestore();
+
+async function maybeApplyIntroScheduleFromMetadata(
+  subscription: Stripe.Subscription
+): Promise<void> {
+  const meta = subscription.metadata || {};
+  if (meta.introSchedule !== '1') return;
+  const introMonths = Math.floor(Number(meta.introMonths) || 0);
+  const introStripePriceId = String(meta.introStripePriceId || '').trim();
+  const regularStripePriceId = String(meta.regularStripePriceId || '').trim();
+  if (introMonths < 1 || !introStripePriceId || !regularStripePriceId) return;
+  try {
+    const stripe = await getStripeInstance();
+    const result = await ensureIntroToRegularSchedule({
+      stripe: stripe as any,
+      subscriptionId: subscription.id,
+      introStripePriceId,
+      regularStripePriceId,
+      introMonths,
+    });
+    console.log('Intro→regular schedule:', subscription.id, result);
+  } catch (err) {
+    console.warn('Intro schedule webhook (no bloquea):', err);
+  }
+}
 
 export async function POST(request: NextRequest) {
   const body = await request.text();
@@ -102,11 +132,19 @@ export async function POST(request: NextRequest) {
         break;
 
       case 'customer.subscription.trial_will_end':
-        // Sin aviso previo al usuario: el cobro ocurre automáticamente al terminar el trial.
+        await handleTrialWillEnd(event.data.object as Stripe.Subscription);
         break;
 
       case 'checkout.session.completed':
         await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session);
+        break;
+
+      case 'account.updated':
+        await handleConnectAccountUpdated(event.data.object as Stripe.Account);
+        break;
+
+      case 'transfer.reversed':
+        await handleTransferReversed((event.data.object as Stripe.Transfer).id);
         break;
 
       default:
@@ -137,15 +175,124 @@ const STRIPE_WEBHOOK_EVENTS = [
   'customer.subscription.deleted',
   'customer.subscription.trial_will_end',
   'checkout.session.completed',
+  'account.updated',
+  'transfer.reversed',
 ] as const;
 
 function resolveAdminWebhookBaseUrl(): string {
-  const fromEnv =
-    process.env.ADMIN_APP_URL?.trim() ||
-    process.env.NEXT_PUBLIC_ADMIN_URL?.trim() ||
-    process.env.NEXTAUTH_URL?.trim();
-  if (fromEnv) return fromEnv.replace(/\/$/, '');
-  return 'https://admin-app--autodealers-7f62e.us-central1.hosted.app';
+  return resolveAdminUrl();
+}
+
+function isBillingActive(status?: string): boolean {
+  return status === 'active' || status === 'trialing';
+}
+
+async function applyMembershipToTenantAndUsers(tenantId: string, membershipId: string): Promise<void> {
+  const ts = admin.firestore.FieldValue.serverTimestamp();
+  await db.collection('tenants').doc(tenantId).set(
+    {
+      membershipId,
+      status: 'active',
+      updatedAt: ts,
+    },
+    { merge: true }
+  );
+
+  const usersSnap = await db.collection('users').where('tenantId', '==', tenantId).get();
+  const batch = db.batch();
+  for (const userDoc of usersSnap.docs) {
+    batch.set(
+      userDoc.ref,
+      {
+        membershipId,
+        status: userDoc.data()?.status === 'cancelled' ? 'cancelled' : 'active',
+        updatedAt: ts,
+      },
+      { merge: true }
+    );
+  }
+  if (!usersSnap.empty) await batch.commit();
+}
+
+async function syncCustomMembershipAssignmentFromSubscription(
+  stripeSubscriptionId: string,
+  status: SubscriptionStatus
+): Promise<void> {
+  const subSnap = await db
+    .collection('subscriptions')
+    .where('stripeSubscriptionId', '==', stripeSubscriptionId)
+    .limit(1)
+    .get();
+  if (subSnap.empty) return;
+
+  const subRef = subSnap.docs[0].ref;
+  const sub = subSnap.docs[0].data();
+  const assignmentId = String(sub.customMembershipAssignmentId || '').trim();
+  const membershipId = String(sub.membershipId || '').trim();
+  const tenantId = String(sub.tenantId || '').trim();
+  const userId = String(sub.userId || '').trim();
+  if (!assignmentId || !membershipId || !tenantId || !userId) return;
+
+  const ts = admin.firestore.FieldValue.serverTimestamp();
+  const assignmentStatus = isBillingActive(status)
+    ? 'active'
+    : status === 'cancelled' || status === 'unpaid' || status === 'incomplete_expired'
+      ? 'cancelled'
+      : 'pending_payment';
+
+  await db.collection('custom_membership_assignments').doc(assignmentId).set(
+    {
+      status: assignmentStatus,
+      stripeSubscriptionStatus: status,
+      updatedAt: ts,
+      ...(assignmentStatus === 'active' ? { activatedAt: ts } : {}),
+      ...(assignmentStatus === 'cancelled' ? { cancelledAt: ts } : {}),
+    },
+    { merge: true }
+  );
+
+  if (isBillingActive(status)) {
+    await applyMembershipToTenantAndUsers(tenantId, membershipId);
+    await db.collection('users').doc(userId).set(
+      {
+        adminMembershipAccess: 'granted',
+        adminMembershipSelectionRequired: false,
+        customMembershipAssignmentId: assignmentId,
+        membershipId,
+        updatedAt: ts,
+      },
+      { merge: true }
+    );
+    await subRef.set(
+      {
+        customMembershipAssignmentId: assignmentId,
+        billingSource: sub.billingSource || 'stripe',
+        updatedAt: ts,
+      },
+      { merge: true }
+    );
+
+    void (async () => {
+      try {
+        const { triggerRegistrationSocialAnnounceIfNeeded } = await import('@autodealers/core');
+        const userSnap = await db.collection('users').doc(userId).get();
+        const userData = userSnap.data();
+        const tenantSnap = await db.collection('tenants').doc(tenantId).get();
+        const tenantData = tenantSnap.data();
+        const accountType = userData?.role === 'dealer' ? 'dealer' : 'seller';
+        await triggerRegistrationSocialAnnounceIfNeeded({
+          tenantId,
+          userId,
+          displayName: String(
+            userData?.businessName || userData?.name || tenantData?.name || 'Nuevo miembro'
+          ),
+          accountType,
+        });
+      } catch (announceError) {
+        console.warn('custom membership social announce skipped:', announceError);
+      }
+    })();
+  }
 }
 
 /** Verificación rápida: abre esta URL en el navegador o usa Stripe "Send test webhook". */
@@ -275,6 +422,8 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
     });
   }
 
+  await syncCustomMembershipAssignmentFromSubscription(subscriptionId, 'active');
+
   const invoiceAmount = (invoice.amount_paid ?? invoice.total ?? 0) / 100;
   await trySendBillingCommunicationAllChannels('invoice_generated', subscriptionId_local, {
     amount: invoiceAmount,
@@ -282,6 +431,14 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
   await trySendBillingCommunicationAllChannels('payment_success', subscriptionId_local, {
     amount: invoiceAmount,
   });
+
+  if ((invoice.amount_paid ?? 0) > 0 && subscriptionData.userId) {
+    await processAffiliateCommissionOnMembershipCharge({
+      userId: subscriptionData.userId,
+      invoiceId: invoice.id,
+      stripeSubscriptionId: subscriptionId,
+    });
+  }
 }
 
 /**
@@ -307,7 +464,15 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
   const subscriptionId_local = subscriptionDoc.id;
 
   const existing = subscriptionDoc.data();
-  const daysPastDue = (existing?.daysPastDue ?? 0) + 1;
+  const currentPeriodEnd =
+    existing?.currentPeriodEnd?.toDate?.() ?? existing?.currentPeriodEnd ?? null;
+  const { computeEffectiveDaysPastDue, shouldSuspendAfterGrace } = await import(
+    '@autodealers/billing'
+  );
+  const daysPastDue = computeEffectiveDaysPastDue({
+    daysPastDue: existing?.daysPastDue ?? 0,
+    currentPeriodEnd,
+  });
 
   await updateSubscriptionStatus(subscriptionId_local, 'past_due', {
     daysPastDue,
@@ -316,8 +481,7 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
 
   await checkAndSuspendEmailsOnSubscriptionChange(subscriptionId_local, 'past_due');
 
-  const { getSubscriptionGraceDays } = await import('@autodealers/billing');
-  if (daysPastDue >= getSubscriptionGraceDays()) {
+  if (shouldSuspendAfterGrace({ daysPastDue, currentPeriodEnd, status: 'past_due' })) {
     await suspendAccountForNonPayment(
       subscriptionId_local,
       'Suspensión automática tras pago fallido'
@@ -343,6 +507,11 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
       daysPastDue,
       days: daysPastDue,
     });
+  }
+
+  const userId = subscriptionDoc.data()?.userId;
+  if (userId) {
+    await cancelAffiliateReferralIfAwaitingFirstCharge(String(userId));
   }
 }
 
@@ -371,27 +540,36 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
 
   const isPayableStatus =
     subscription.status === 'active' || subscription.status === 'trialing';
-  const userUpdate: Record<string, unknown> = {
-    membershipId: metadata.membershipId,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-  };
-  const tenantUpdate: Record<string, unknown> = {
-    membershipId: metadata.membershipId,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-  };
   if (isPayableStatus) {
-    userUpdate.status = 'active';
-    tenantUpdate.status = 'active';
+    await db.collection('users').doc(metadata.userId).update({
+      membershipId: metadata.membershipId,
+      status: 'active',
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    await db.collection('tenants').doc(metadata.tenantId).update({
+      membershipId: metadata.membershipId,
+      status: 'active',
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    console.log('✅ Membresía activada desde subscription.created:', metadata.userId);
+  } else {
+    console.log('⏳ Suscripción creada sin activar membresía:', {
+      userId: metadata.userId,
+      tenantId: metadata.tenantId,
+      stripeSubscriptionId: subscription.id,
+      status: subscription.status,
+    });
   }
-  await db.collection('users').doc(metadata.userId).update(userUpdate);
-  await db.collection('tenants').doc(metadata.tenantId).update(tenantUpdate);
-  console.log('✅ Membresía sincronizada desde subscription.created:', metadata.userId);
 
   // Crear suscripción en Firestore
   const subscriptionData = {
     tenantId: metadata.tenantId,
     userId: metadata.userId,
     membershipId: metadata.membershipId,
+    ...(metadata.customMembershipAssignmentId
+      ? { customMembershipAssignmentId: metadata.customMembershipAssignmentId }
+      : {}),
+    ...(metadata.customMembership === 'true' ? { billingSource: 'stripe', customMembership: true } : {}),
     stripeSubscriptionId: subscription.id,
     stripeCustomerId: subscription.customer as string,
     status: subscription.status === 'active' ? 'active' : subscription.status === 'trialing' ? 'trialing' : 'incomplete',
@@ -417,8 +595,12 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
     );
   }
 
-  // Procesar referido si existe
-  await processReferralOnPayment(metadata.userId, subscription.id, metadata.membershipId);
+  // Procesar referido solo cuando Stripe ya habilitó la suscripción.
+  if (isPayableStatus) {
+    await processReferralOnPayment(metadata.userId, subscription.id, metadata.membershipId);
+  }
+
+  await maybeApplyIntroScheduleFromMetadata(subscription);
 }
 
 /**
@@ -468,6 +650,7 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
 
   const previousStatus = subscriptionDoc.data()?.status as string | undefined;
   await updateSubscriptionStatus(subscriptionId_local, status);
+  await syncCustomMembershipAssignmentFromSubscription(subscription.id, status);
 
   if (status === 'unpaid') {
     await suspendAccountForNonPayment(
@@ -476,9 +659,18 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
     );
   } else if (status === 'past_due') {
     await checkAndSuspendEmailsOnSubscriptionChange(subscriptionId_local, 'past_due');
-    const daysPastDue = subscriptionDoc.data()?.daysPastDue ?? 0;
-    const { getSubscriptionGraceDays } = await import('@autodealers/billing');
-    if (daysPastDue >= getSubscriptionGraceDays()) {
+    const subData = subscriptionDoc.data();
+    const currentPeriodEnd =
+      subData?.currentPeriodEnd?.toDate?.() ?? subData?.currentPeriodEnd ?? null;
+    const daysPastDue = subData?.daysPastDue ?? 0;
+    const { shouldSuspendAfterGrace } = await import('@autodealers/billing');
+    if (
+      shouldSuspendAfterGrace({
+        daysPastDue,
+        currentPeriodEnd,
+        status: 'past_due',
+      })
+    ) {
       await suspendAccountForNonPayment(
         subscriptionId_local,
         'Suspensión automática: suscripción past_due en Stripe'
@@ -532,6 +724,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   const subscriptionData = subscriptionDoc.data();
 
   await updateSubscriptionStatus(subscriptionId_local, 'cancelled');
+  await syncCustomMembershipAssignmentFromSubscription(subscription.id, 'cancelled');
 
   await trySendBillingCommunicationAllChannels(
     'subscription_cancelled',
@@ -540,6 +733,32 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
 
   // Cancelar referidos pendientes del usuario
   await cancelUserReferrals(subscriptionData.userId, subscription.id);
+}
+
+async function handleTrialWillEnd(subscription: Stripe.Subscription) {
+  const subscriptionSnapshot = await db
+    .collection('subscriptions')
+    .where('stripeSubscriptionId', '==', subscription.id)
+    .limit(1)
+    .get();
+
+  if (subscriptionSnapshot.empty) return;
+
+  const trialEnd = subscription.trial_end
+    ? new Date(subscription.trial_end * 1000)
+    : null;
+  const daysUntilTrialEnd = trialEnd
+    ? Math.max(0, Math.ceil((trialEnd.getTime() - Date.now()) / (24 * 60 * 60 * 1000)))
+    : 0;
+
+  await trySendBillingCommunicationAllChannels(
+    'trial_ending',
+    subscriptionSnapshot.docs[0].id,
+    {
+      days: daysUntilTrialEnd,
+      daysUntilTrialEnd,
+    }
+  );
 }
 
 /**
@@ -603,6 +822,7 @@ async function handlePremiumBannerPurchase(
       type: 'system_alert',
       title: 'Banner pendiente de aprobación',
       message: `Banner "${bannerData.title}" requiere aprobación`,
+      audience: 'platform',
       metadata: {
         bannerId: bannerRef.id,
         tenantId,
@@ -947,31 +1167,37 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
         );
       }
 
-      // CRÍTICO: Activar cuenta SIEMPRE que haya suscripción, incluso si el status no es 'active' aún
-      // El pago ya se procesó, así que debemos activar la cuenta
       if (subscription) {
-        console.log('🔄 Activando cuenta para registro - subscription status:', subscription.status);
-        
-        // Actualizar usuario con membresía SIEMPRE (el pago ya se procesó)
-        await db.collection('users').doc(metadata.userId).update({
-          membershipId: metadata.membershipId,
-          status: 'active',
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
+        console.log('🔄 Procesando registro - subscription status:', subscription.status);
+        const isPayableStatus = subscription.status === 'active' || subscription.status === 'trialing';
 
-        // Actualizar tenant con membresía SIEMPRE
-        await db.collection('tenants').doc(metadata.tenantId).update({
-          membershipId: metadata.membershipId,
-          status: 'active',
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
+        if (isPayableStatus) {
+          await db.collection('users').doc(metadata.userId).update({
+            membershipId: metadata.membershipId,
+            status: 'active',
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
 
-        const subdomainResult = await applyPendingSubdomainForMembership(
-          metadata.tenantId,
-          metadata.membershipId
-        );
-        if (subdomainResult.activated) {
-          console.log('✅ Subdominio activado para registro:', subdomainResult.subdomain);
+          await db.collection('tenants').doc(metadata.tenantId).update({
+            membershipId: metadata.membershipId,
+            status: 'active',
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+
+          const subdomainResult = await applyPendingSubdomainForMembership(
+            metadata.tenantId,
+            metadata.membershipId
+          );
+          if (subdomainResult.activated) {
+            console.log('✅ Subdominio activado para registro:', subdomainResult.subdomain);
+          }
+        } else {
+          console.log('⏳ Registro sin activar membresía hasta confirmación Stripe:', {
+            userId: metadata.userId,
+            tenantId: metadata.tenantId,
+            stripeSubscriptionId: subscription.id,
+            status: subscription.status,
+          });
         }
 
         // Crear o actualizar suscripción en Firestore
@@ -1045,21 +1271,15 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
           console.log('✅ Suscripción existente actualizada:', existingSubDoc.id);
         }
 
-        console.log('✅ Cuenta activada y membresía asignada para registro:', metadata.userId);
+        if (isPayableStatus) {
+          console.log('✅ Cuenta activada y membresía asignada para registro:', metadata.userId);
+        }
       } else {
-        // Si no hay suscripción aún, activar igualmente basándose en que el checkout se completó
-        console.log('⚠️ No hay suscripción aún, pero checkout completado. Activando cuenta de todas formas...');
-        await db.collection('users').doc(metadata.userId).update({
-          membershipId: metadata.membershipId,
-          status: 'active',
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        console.log('⏳ Checkout completado sin subscription; no se activa membresía hasta recibir subscription.created/updated válido:', {
+          userId: metadata.userId,
+          tenantId: metadata.tenantId,
+          sessionId: session.id,
         });
-        await db.collection('tenants').doc(metadata.tenantId).update({
-          membershipId: metadata.membershipId,
-          status: 'active',
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-        console.log('✅ Cuenta activada sin suscripción (se creará cuando llegue el evento subscription.created)');
       }
     } catch (error) {
       console.error('Error procesando checkout de registro:', error);
@@ -1241,8 +1461,23 @@ async function processReferralOnPayment(
     const userData = userDoc.data() || {};
     const referralCode = userData.referralCodeUsed;
     const referredBy = userData.referredBy;
+    const referredByType =
+      userData.referredByType === 'affiliate' ? 'affiliate' : 'user';
 
     if (!referralCode || !referredBy) return;
+
+    // Idempotencia: un usuario referido genera UN solo referido. Como
+    // `checkout.session.completed` y `customer.subscription.created` pueden
+    // dispararse ambos (o reintentarse), evitamos crear referidos/recompensas duplicados.
+    const existingReferral = await db
+      .collection('referrals')
+      .where('referredId', '==', userId)
+      .limit(1)
+      .get();
+    if (!existingReferral.empty) {
+      console.log('ℹ️ Referido ya registrado para el usuario, se omite duplicado:', userId);
+      return;
+    }
 
     // Obtener información de la membresía para determinar el tipo
     const membershipDoc = await db.collection('memberships').doc(membershipId).get();
@@ -1253,7 +1488,9 @@ async function processReferralOnPayment(
       name: membershipData.name as string | undefined,
       price: membershipData.price as number | undefined,
     });
-    const userType = userData.role === 'dealer' ? 'dealer' : 'seller';
+    // Roles de la familia "dealer" (incluye multi-dealer) reciben recompensas de nivel dealer.
+    const dealerRoles = ['dealer', 'master_dealer', 'dealer_admin'];
+    const userType = dealerRoles.includes(String(userData.role)) ? 'dealer' : 'seller';
 
     // Crear registro de referido
     await createReferral(
@@ -1262,7 +1499,8 @@ async function processReferralOnPayment(
       userData.email || '',
       referralCode,
       userType as 'dealer' | 'seller',
-      membershipType as 'basic' | 'professional' | 'premium'
+      membershipType as 'basic' | 'professional' | 'premium',
+      referredByType
     );
 
     // Buscar el referido recién creado y marcarlo como confirmado
@@ -1277,20 +1515,29 @@ async function processReferralOnPayment(
       const referralId = referralsSnapshot.docs[0].id;
       await markReferralAsConfirmed(referralId);
 
-      // Programar confirmación después de 14 días
-      const confirmationDate = new Date();
-      confirmationDate.setDate(confirmationDate.getDate() + 14);
+      if (referredByType === 'affiliate') {
+        await db.collection('referrals').doc(referralId).update({
+          awaitingFirstCharge: true,
+          stripeSubscriptionId: subscriptionId,
+          trialStartedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        console.log(`✅ Referido afiliado registrado (esperando cobro post-trial): ${referralId}`);
+      } else {
+        const confirmationDate = new Date();
+        confirmationDate.setDate(confirmationDate.getDate() + 14);
 
-      await db.collection('scheduled_tasks').add({
-        type: 'referral_confirmation',
-        referralId,
-        subscriptionId,
-        scheduledFor: admin.firestore.Timestamp.fromDate(confirmationDate),
-        status: 'pending',
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      } as any);
+        await db.collection('scheduled_tasks').add({
+          type: 'referral_confirmation',
+          referralId,
+          subscriptionId,
+          scheduledFor: admin.firestore.Timestamp.fromDate(confirmationDate),
+          status: 'pending',
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        } as any);
 
-      console.log(`✅ Referido creado y programado para confirmación: ${referralId}`);
+        console.log(`✅ Referido creado y programado para confirmación: ${referralId}`);
+      }
     }
   } catch (error: any) {
     console.error('Error processing referral on payment:', error);
@@ -1316,13 +1563,37 @@ async function applyFreeMonthsAndDiscounts(userId: string, invoice: Stripe.Invoi
     let hasChanges = false;
     const updates: any = {};
 
-    // Aplicar descuento del próximo mes si existe
-    if (activeRewards.nextMonthDiscount > 0) {
-      // Aplicar descuento en Stripe (crear cupón o ajustar precio)
-      // Por ahora, solo registramos que se aplicó
-      updates['activeRewards.nextMonthDiscount'] = 0; // Se consume después de aplicar
-      hasChanges = true;
-      console.log(`✅ Descuento del ${activeRewards.nextMonthDiscount}% aplicado para usuario ${userId}`);
+    // Aplicar descuento del próximo mes creando un cupón real en Stripe.
+    // Se adjunta a la suscripción con duración "once" para que descuente la PRÓXIMA factura.
+    if (activeRewards.nextMonthDiscount > 0 && invoice.subscription) {
+      const stripe = await getStripeInstance();
+      const subscriptionId =
+        typeof invoice.subscription === 'string'
+          ? invoice.subscription
+          : invoice.subscription.id;
+      const percentOff = Math.min(100, Math.max(1, Math.round(activeRewards.nextMonthDiscount)));
+
+      try {
+        const coupon = await stripe.coupons.create({
+          percent_off: percentOff,
+          duration: 'once',
+          name: `Referido -${percentOff}%`,
+          metadata: { userId, source: 'referral_reward' },
+        });
+
+        // Adjuntar el cupón a la suscripción (aplica al próximo ciclo de facturación)
+        await stripe.subscriptions.update(subscriptionId, {
+          coupon: coupon.id,
+        });
+
+        // Solo consumir la recompensa si el cupón se aplicó correctamente
+        updates['activeRewards.nextMonthDiscount'] = 0;
+        hasChanges = true;
+        console.log(`✅ Cupón ${percentOff}% (${coupon.id}) aplicado a la próxima factura de ${userId}`);
+      } catch (stripeError: any) {
+        // No se consume la recompensa si falla; se reintentará en el próximo pago.
+        console.error('Error aplicando descuento (cupón) en Stripe:', stripeError);
+      }
     }
 
     // Aplicar meses gratis si existen

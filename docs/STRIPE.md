@@ -30,6 +30,8 @@ Alternativa: variables de entorno `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, 
    - `customer.subscription.deleted`
    - `invoice.payment_succeeded`
    - `invoice.payment_failed`
+   - `account.updated` (Stripe Connect afiliados)
+   - `transfer.reversed` (reversos de transferencias a afiliados)
 
 4. Copiar **Signing secret** → Admin → Stripe → Webhook Secret
 
@@ -65,7 +67,31 @@ Tax rate **11.5%** (IVA) se aplica en checkout de membresías cuando existe o se
 
 ## 6. Referidos
 
-Tras el primer pago, el webhook crea el referido (`pending` → `confirmed` al pagar) y programa `scheduled_tasks` a 14 días. Las recompensas se otorgan con el cron `confirmReferralRewardsDaily` o el botón admin **Procesar recompensas (14 días)**.
+Tras el primer pago, el webhook crea el referido (`pending` → `confirmed` al pagar) y programa `scheduled_tasks` a 14 días **solo para referidos internos** (dealer/seller que refieren). Las recompensas in-platform se otorgan con el cron `confirmReferralRewardsDaily` o el botón admin **Procesar recompensas (14 días)**.
+
+### Afiliados externos (Stripe Connect)
+
+Flujo distinto al de referidos internos:
+
+1. Registro con código de afiliado → referral `confirmed`, `awaitingFirstCharge: true` (sin cron de 14 días).
+2. Tras el trial de 14 días, Stripe cobra la membresía → webhook `invoice.payment_succeeded` con `amount_paid > 0` → comisión `approved`, `payoutStatus: pending`.
+3. Afiliado completa onboarding **Stripe Connect Express** en `/affiliate/dashboard` (pestaña Cobros Stripe).
+4. Cada **lunes 10:00** (America/Puerto_Rico) → cron `affiliatePayoutsWeekly` → `POST /api/admin/cron/affiliate-payouts` → `stripe.transfers.create` a la cuenta Connect del afiliado.
+5. Si el afiliado no tiene Connect listo → comisión `payoutStatus: deferred` (reintento el lunes siguiente).
+
+**Operacional (Dashboard Stripe):**
+
+1. Activar **Stripe Connect** (Express, US).
+2. Configurar branding del onboarding Connect.
+3. Añadir eventos Connect al webhook del admin (`account.updated`, `transfer.reversed`).
+4. El balance de la plataforma debe cubrir las transferencias (ingresos de membresías → balance → transfers).
+
+APIs del portal afiliado:
+
+- `POST /api/affiliate/stripe-connect/onboard` — crea cuenta Express + URL onboarding
+- `GET /api/affiliate/stripe-connect/status` — estado Connect
+
+Ver también `docs/CRON_REFERIDOS.md` (sección pagos semanales afiliados).
 
 ## 7. No usar
 

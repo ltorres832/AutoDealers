@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import {
-  getDefaultRootSellerId,
   isPlatformAppSubdomain,
-  isPublicRootHost,
 } from '@/lib/default-root-seller-website';
+import { shouldRedirectApexToWww, wwwHostname } from '@/lib/public-seo';
 
 /** Rutas raíz de la app (no bajo /[tenant]/). Sin esto, `tenant.dominio/register` → 404. */
 function isPlatformRootPath(pathname: string): boolean {
@@ -23,6 +22,8 @@ function isPlatformRootPath(pathname: string): boolean {
   if (pathname.startsWith('/privacidad')) return true;
   if (pathname.startsWith('/precios')) return true;
   if (pathname.startsWith('/caracteristicas')) return true;
+  if (pathname.startsWith('/demo-vendedor')) return true;
+  if (pathname.startsWith('/promo/')) return true;
   if (pathname.startsWith('/sobre-nosotros')) return true;
   if (pathname.startsWith('/advertise')) return true;
   if (pathname.startsWith('/ads-preview')) return true;
@@ -35,14 +36,21 @@ function isPlatformRootPath(pathname: string): boolean {
   if (pathname.startsWith('/upload-documents/')) return true;
   if (pathname.startsWith('/review/')) return true;
   if (pathname.startsWith('/survey/')) return true;
-  if (pathname.startsWith('/policies')) return true;
   if (pathname.startsWith('/dashboard/')) return true;
   if (pathname.startsWith('/partners/')) return true;
+  if (pathname.startsWith('/affiliate')) return true;
   return false;
 }
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const hostname = request.headers.get('x-forwarded-host') || request.headers.get('host') || '';
+
+  if (shouldRedirectApexToWww(hostname)) {
+    const url = request.nextUrl.clone();
+    url.hostname = wwwHostname();
+    return NextResponse.redirect(url, 301);
+  }
 
   // Evitar que el comodín de matcher o enlaces rotos dejen el primer segmento como "*"
   const firstSeg = pathname.split('/').filter(Boolean)[0];
@@ -64,7 +72,6 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const hostname = request.headers.get('x-forwarded-host') || request.headers.get('host') || '';
   const parts = hostname.split('.');
 
   console.log('🛡️ Middleware check:', { hostname, pathname });
@@ -84,20 +91,12 @@ export function middleware(request: NextRequest) {
   }
 
   const publicRootHosts = [
-    'autodealers-7f62e.web.app',
-    'autodealers-7f62e.firebaseapp.com',
     'www.autodealers-online.com',
     'autodealers-online.com',
     'localhost',
   ];
 
   if (publicRootHosts.includes(hostname) || publicRootHosts.some((base) => hostname.startsWith(base + ':'))) {
-    const rootSellerId = getDefaultRootSellerId();
-    if (rootSellerId && isPublicRootHost(hostname) && (pathname === '/' || pathname === '')) {
-      const url = request.nextUrl.clone();
-      url.pathname = `/home-seller/${rootSellerId}`;
-      return NextResponse.rewrite(url);
-    }
     return NextResponse.next();
   }
 
@@ -145,6 +144,14 @@ export function middleware(request: NextRequest) {
     }
 
     const url = request.nextUrl.clone();
+    const pathParts = pathname.split('/').filter(Boolean);
+
+    // Compatibilidad con enlaces viejos generados como /{tenantId}/vehicle/{id}
+    // dentro de un host de subdominio: pedroortiz.../{tenantId}/vehicle/{id}.
+    if (pathParts.length >= 3 && pathParts[1] === 'vehicle') {
+      url.pathname = `/vehicle/${pathParts.slice(2).join('/')}`;
+      return NextResponse.redirect(url);
+    }
 
     // Si ya está en la ruta del subdominio, no hacer nada
     if (!url.pathname.startsWith(`/${subdomain}`)) {

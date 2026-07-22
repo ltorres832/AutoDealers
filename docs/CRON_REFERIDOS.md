@@ -117,3 +117,40 @@ node scripts/setup-referral-confirmation-cron.mjs
 | `CRON_SECRET no configurado` | `firebase functions:secrets:set CRON_SECRET` y volver a desplegar la función |
 | HTTP 401 en el cron | El secreto de Functions y admin-app no coinciden |
 | `curl -X` en PowerShell | Usa `Invoke-RestMethod` (ver paso 5B) |
+
+---
+
+## Pagos semanales a afiliados (lunes 10:00 AM)
+
+Automatiza transferencias Stripe Connect a afiliados externos.
+
+| Componente | Rol |
+|------------|-----|
+| `affiliatePayoutsWeekly` | Cloud Function programada (lunes 10:00 America/Puerto_Rico) |
+| `POST /api/admin/cron/affiliate-payouts` | Endpoint en admin-app (procesa comisiones `approved`) |
+| `CRON_SECRET` | Mismo valor que el cron de referidos |
+| `ADMIN_APP_URL` | URL del admin (opcional) |
+
+### Desplegar
+
+```powershell
+cd C:\Users\ltorr\AutoDealers\functions
+npm run build
+cd ..
+firebase deploy --only functions:affiliatePayoutsWeekly
+```
+
+### Probar manualmente
+
+```powershell
+$secret = "TU_CRON_SECRET_AQUI"
+$headers = @{ Authorization = "Bearer $secret" }
+Invoke-RestMethod `
+  -Uri "https://admin-app--autodealers-7f62e.us-central1.hosted.app/api/admin/cron/affiliate-payouts" `
+  -Method POST `
+  -Headers $headers
+```
+
+Respuesta esperada: `success: true`, `processed`, `deferred`, `failed`, `errors`.
+
+Reintentar una comisión fallida desde admin: **Afiliados → Comisiones → Reintentar payout** (solo `payoutStatus: failed`).

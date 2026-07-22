@@ -12,7 +12,8 @@ const db = getFirestore();
 
 export interface Referral {
   id: string;
-  referrerId: string; // ID del usuario que refiere
+  referrerId: string; // ID del usuario o afiliado que refiere
+  referrerType?: 'user' | 'affiliate';
   referredId: string; // ID del usuario referido
   referredEmail: string;
   referralCode: string; // Código usado para el referido
@@ -172,13 +173,12 @@ export async function generateReferralCode(userId: string): Promise<string> {
       const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
       code = `REF-${randomPart}`;
 
-      // Verificar que no exista
-      const existing = await getDb().collection('users')
-        .where('referralCode', '==', code)
-        .limit(1)
-        .get();
+      const [existingUsers, existingAffiliates] = await Promise.all([
+        getDb().collection('users').where('referralCode', '==', code).limit(1).get(),
+        getDb().collection('affiliate_partners').where('referralCode', '==', code).limit(1).get(),
+      ]);
 
-      exists = !existing.empty;
+      exists = !existingUsers.empty || !existingAffiliates.empty;
       attempts++;
       
       if (exists) {
@@ -292,10 +292,12 @@ export async function createReferral(
   referredEmail: string,
   referralCode: string,
   userType: 'dealer' | 'seller',
-  membershipType: 'basic' | 'professional' | 'premium'
+  membershipType: 'basic' | 'professional' | 'premium',
+  referrerType: 'user' | 'affiliate' = 'user'
 ): Promise<Referral> {
   const referralData: Omit<Referral, 'id'> = {
     referrerId,
+    referrerType,
     referredId,
     referredEmail,
     referralCode,
@@ -344,7 +346,15 @@ export async function confirmReferral(referralId: string): Promise<void> {
     throw new Error('El referido no está en estado confirmado');
   }
 
-  // Obtener configuración de recompensas
+  const referrerType = referral.referrerType === 'affiliate' ? 'affiliate' : 'user';
+
+  if (referrerType === 'affiliate') {
+    // Comisiones de afiliados se crean en invoice.payment_succeeded tras el cobro post-trial
+    console.log(`ℹ️ Referido afiliado ${referralId}: comisión pendiente de cobro de membresía`);
+    return;
+  }
+
+  // Obtener configuración de recompensas (usuarios dealer/seller)
   const config = await getRewardConfig();
   const rewardConfig = (config as any)[referral.userType][referral.membershipType];
 
@@ -468,6 +478,40 @@ export async function createRewardCredit(
 }
 
 /**
+ * Resuelve cuántos días de contenido (promoción/banner/anuncio) otorga un crédito
+ * según la configuración de recompensas del plan asociado al referido.
+ */
+async function resolveCreditContentDays(credit: any): Promise<number> {
+  const config = await getRewardConfig();
+
+  if (credit?.referralId) {
+    const referralDoc = await getDb().collection('referrals').doc(credit.referralId).get();
+    if (referralDoc.exists) {
+      const referral = referralDoc.data() as any;
+      const rewardConfig = (config as any)?.[referral.userType]?.[referral.membershipType];
+      if (rewardConfig?.contentDays) {
+        return rewardConfig.contentDays;
+      }
+    }
+  }
+
+  // Fallback: usar el plan premium (o 7 días) cuando no hay referido asociado
+  return config.dealer.premium.contentDays || config.seller.premium.contentDays || 7;
+}
+
+/**
+ * Devuelve la cantidad de días válidos de un crédito antes de usarlo.
+ * Útil para topear la duración de una promoción/banner a lo que otorga el crédito.
+ */
+export async function getCreditContentDays(creditId: string): Promise<number> {
+  const creditDoc = await getDb().collection('reward_credits').doc(creditId).get();
+  if (!creditDoc.exists) {
+    return 7;
+  }
+  return resolveCreditContentDays(creditDoc.data());
+}
+
+/**
  * Usa un crédito de recompensa
  */
 export async function useRewardCredit(
@@ -486,23 +530,8 @@ export async function useRewardCredit(
 
   // Para TODOS los tipos de contenido (promociones, banners, anuncios, etc.):
   // establecer expiración según configuración desde el uso
-  // Obtener configuración para saber cuántos días son válidos después del uso
-  const config = await getRewardConfig();
-  let contentDays = 7; // Default
-  
-  if (credit.referralId) {
-    const referralDoc = await getDb().collection('referrals').doc(credit.referralId).get();
-    if (referralDoc.exists) {
-      const referral = referralDoc.data() as any;
-      const rewardConfig = (config as any)[referral.userType][referral.membershipType];
-      contentDays = rewardConfig.contentDays || 7;
-    }
-  } else {
-    // Si no hay referralId, usar configuración por defecto del primer plan que tenga contenido
-    // O usar 7 días como fallback
-    contentDays = config.dealer.premium.contentDays || config.seller.premium.contentDays || 7;
-  }
-  
+  const contentDays = await resolveCreditContentDays(credit);
+
   // Establecer expiración según configuración para TODOS los tipos de contenido
   const expiryDate = new Date();
   expiryDate.setDate(expiryDate.getDate() + contentDays);
@@ -610,10 +639,20 @@ export async function getReferralsByUser(userId: string): Promise<Referral[]> {
 /**
  * Actualiza las estadísticas del referidor
  */
-async function updateReferrerStats(userId: string): Promise<void> {
+async function updateReferrerStats(referrerId: string): Promise<void> {
   const referralsSnapshot = await getDb().collection('referrals')
-    .where('referrerId', '==', userId)
+    .where('referrerId', '==', referrerId)
     .get();
+
+  const affiliateSnap = await getDb().collection('affiliate_partners').doc(referrerId).get();
+  if (affiliateSnap.exists) {
+    const { refreshAffiliateStats } = await import('./affiliates');
+    await refreshAffiliateStats(referrerId);
+    return;
+  }
+
+  const userSnap = await getDb().collection('users').doc(referrerId).get();
+  if (!userSnap.exists) return;
 
   const totalReferred = referralsSnapshot.size;
   const totalRewarded = referralsSnapshot.docs.filter(
@@ -623,7 +662,7 @@ async function updateReferrerStats(userId: string): Promise<void> {
     (doc) => doc.data().status === 'confirmed'
   ).length;
 
-  await getDb().collection('users').doc(userId).update({
+  await userSnap.ref.update({
     referralStats: {
       totalReferred,
       totalRewarded,
@@ -749,6 +788,11 @@ export async function cancelReferral(referralId: string): Promise<void> {
     status: 'cancelled',
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   } as any);
+
+  if (referral.referrerType === 'affiliate') {
+    const { cancelAffiliateCommissionForReferral } = await import('./affiliates');
+    await cancelAffiliateCommissionForReferral(referralId);
+  }
 
   // Actualizar estadísticas
   await updateReferrerStats(referral.referrerId);
