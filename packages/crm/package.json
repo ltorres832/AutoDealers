@@ -13,7 +13,6 @@
     "@autodealers/core": "*",
     "@autodealers/inventory": "*",
     "@autodealers/shared": "*",
-    "@autodealers/voice": "*",
     "next": "16.1.6"
   },
   "devDependencies": {
