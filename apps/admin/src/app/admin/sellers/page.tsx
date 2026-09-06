@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import StarRating from '@/components/StarRating';
+import { AdminDeleteButton } from '@/components/AdminDeleteButton';
+import { AdminSupportEnterButton } from '@/components/AdminSupportEnterButton';
 
 type SellerRow = {
   id: string;
@@ -62,6 +64,7 @@ export default function AdminSellersPage() {
   const [dealers, setDealers] = useState<DealerOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionId, setActionId] = useState<string | null>(null);
+  const [dealerTargetBySeller, setDealerTargetBySeller] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
   const [filters, setFilters] = useState({
     search: '',
@@ -76,7 +79,8 @@ export default function AdminSellersPage() {
     try {
       const params = new URLSearchParams();
       if (filters.search) params.set('search', filters.search);
-      if (filters.status) params.set('status', filters.status);
+      if (filters.status && filters.status !== '__all__') params.set('status', filters.status);
+      if (filters.status === '__all__') params.set('includeCancelled', 'true');
       if (filters.dealerId) params.set('dealerId', filters.dealerId);
       if (filters.linkType !== 'all') params.set('linkType', filters.linkType);
 
@@ -190,6 +194,80 @@ export default function AdminSellersPage() {
     }
   }
 
+  async function assignOrMoveSellerDealer(seller: SellerRow) {
+    const dealerTenantId = dealerTargetBySeller[seller.id];
+    if (!dealerTenantId) {
+      setMessage({ type: 'err', text: 'Selecciona el dealer destino para este vendedor.' });
+      return;
+    }
+    setActionId(seller.id);
+    setMessage(null);
+    try {
+      const linked = Boolean(seller.dealerId);
+      const res = await fetch('/api/admin/seller-dealer-assignment', {
+        method: linked ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(
+          linked
+            ? {
+                sellerUserId: seller.id,
+                fromDealerTenantId: seller.dealerId,
+                toDealerTenantId: dealerTenantId,
+                inheritDealerMembership: false,
+              }
+            : {
+                sellerUserId: seller.id,
+                dealerTenantId,
+                inheritDealerMembership: false,
+              }
+        ),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessage({ type: 'err', text: data.error || 'No se pudo actualizar el dealer del vendedor.' });
+        return;
+      }
+      setMessage({ type: 'ok', text: linked ? 'Vendedor movido de dealer correctamente.' : 'Vendedor asignado al dealer correctamente.' });
+      setDealerTargetBySeller((prev) => ({ ...prev, [seller.id]: '' }));
+      await fetchSellers();
+    } catch {
+      setMessage({ type: 'err', text: 'Error de red actualizando dealer del vendedor.' });
+    } finally {
+      setActionId(null);
+    }
+  }
+
+  async function removeSellerDealer(seller: SellerRow) {
+    if (!seller.dealerId) return;
+    if (!confirm('¿Quitar este vendedor del dealer actual? La cuenta y su membresía propia se conservan.')) return;
+    setActionId(seller.id);
+    setMessage(null);
+    try {
+      const res = await fetch('/api/admin/seller-dealer-assignment', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          sellerUserId: seller.id,
+          dealerTenantId: seller.dealerId,
+          cancelSellerAccount: false,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessage({ type: 'err', text: data.error || 'No se pudo quitar el dealer del vendedor.' });
+        return;
+      }
+      setMessage({ type: 'ok', text: 'Vendedor desvinculado del dealer correctamente.' });
+      await fetchSellers();
+    } catch {
+      setMessage({ type: 'err', text: 'Error de red quitando el dealer del vendedor.' });
+    } finally {
+      setActionId(null);
+    }
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between mb-6">
@@ -244,7 +322,8 @@ export default function AdminSellersPage() {
             onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
           >
-            <option value="">Todos los estados</option>
+            <option value="">Activos y suspendidos</option>
+            <option value="__all__">Todos (incl. cancelados)</option>
             <option value="active">Activo</option>
             <option value="suspended">Suspendido</option>
             <option value="cancelled">Cancelado</option>
@@ -362,6 +441,20 @@ export default function AdminSellersPage() {
                       >
                         Editar cuenta (email, auth)
                       </Link>
+                      <AdminSupportEnterButton
+                        userId={s.id}
+                        tenantId={s.tenantId || undefined}
+                        label="Entrar al panel"
+                        className="text-left text-xs font-medium text-amber-700 hover:underline disabled:opacity-50 bg-transparent p-0"
+                      />
+                      {s.tenantId ? (
+                        <Link
+                          href={`/admin/courtesy-days?tenantId=${encodeURIComponent(s.tenantId)}&name=${encodeURIComponent(s.name || '')}`}
+                          className="text-green-700 hover:underline text-xs font-medium"
+                        >
+                          Días de cortesía
+                        </Link>
+                      ) : null}
                       {s.isIndependentSeller ? (
                         <Link
                           href={`/admin/users/${s.id}/edit#sin-facturacion`}
@@ -408,6 +501,58 @@ export default function AdminSellersPage() {
                           Dar de baja
                         </button>
                       ) : null}
+                      <AdminDeleteButton
+                        deleteUrl={`/api/admin/users/${s.id}`}
+                        label="Eliminar definitivamente"
+                        confirmMessage={`¿Eliminar permanentemente la cuenta de ${s.name || s.email}? Se borrarán usuario, tenant y acceso.`}
+                        successMessage={false}
+                        onDeleted={() => {
+                          setMessage({
+                            type: 'ok',
+                            text: `Cuenta de ${s.name || s.email} eliminada permanentemente.`,
+                          });
+                          void fetchSellers();
+                        }}
+                        onError={(text) => setMessage({ type: 'err', text })}
+                        className="text-left text-xs text-red-800 hover:underline"
+                      />
+                      <div className="mt-2 border-t border-gray-100 pt-2">
+                        <label className="block text-[11px] font-medium text-gray-500">
+                          Dealer asignado
+                          <select
+                            value={dealerTargetBySeller[s.id] || ''}
+                            onChange={(e) =>
+                              setDealerTargetBySeller((prev) => ({ ...prev, [s.id]: e.target.value }))
+                            }
+                            className="mt-1 w-full rounded border border-gray-300 px-2 py-1 text-xs"
+                          >
+                            <option value="">Seleccionar dealer</option>
+                            {dealers.map((dealer) => (
+                              <option key={dealer.id} value={dealer.id}>
+                                {dealer.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <button
+                          type="button"
+                          disabled={actionId === s.id}
+                          onClick={() => void assignOrMoveSellerDealer(s)}
+                          className="mt-1 text-left text-xs text-primary-700 hover:underline disabled:opacity-50"
+                        >
+                          {s.dealerId ? 'Mover a dealer seleccionado' : 'Asignar a dealer'}
+                        </button>
+                        {s.dealerId ? (
+                          <button
+                            type="button"
+                            disabled={actionId === s.id}
+                            onClick={() => void removeSellerDealer(s)}
+                            className="block text-left text-xs text-red-700 hover:underline disabled:opacity-50"
+                          >
+                            Quitar de dealer
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
                   </td>
                 </tr>

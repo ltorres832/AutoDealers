@@ -94,6 +94,9 @@ export type AdminPermission =
   | 'view_system_settings'
   | 'edit_system_settings'
   
+  // Soporte / impersonación en paneles dealer-seller
+  | 'support_impersonate'
+  
   // Super Admin (todos los permisos)
   | 'super_admin';
 
@@ -168,11 +171,12 @@ export const ADMIN_ROLES = {
       'manage_integrations',
       'view_system_settings',
       'edit_system_settings',
+      'support_impersonate',
     ] as AdminPermission[],
   },
   moderator: {
     name: 'Moderador',
-    description: 'Puede ver y moderar contenido',
+    description: 'Puede ver y moderar; para configurar cuentas necesita acceso temporal del admin',
     permissions: [
       'view_dashboard',
       'view_tenants',

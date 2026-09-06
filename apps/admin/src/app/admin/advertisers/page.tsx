@@ -1,24 +1,24 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRealtimeAdvertisers } from '@/hooks/useRealtimeAdvertisers';
+import { AdminDeleteButton } from '@/components/AdminDeleteButton';
+import { AdminSupportEnterButton } from '@/components/AdminSupportEnterButton';
 
-interface Advertiser {
-  id: string;
-  email: string;
-  companyName: string;
-  contactName: string;
-  phone?: string;
-  website?: string;
-  industry: string;
-  status: string;
-  plan: string;
-  createdAt: string;
+function formatOrigin(advertiser: {
+  registrationSource?: string;
+  createdByName?: string;
+}) {
+  if (advertiser.registrationSource === 'self') return 'Auto-registro';
+  if (advertiser.createdByName) return `Admin: ${advertiser.createdByName}`;
+  if (advertiser.registrationSource === 'admin') return 'Admin';
+  return '—';
 }
 
 export default function AdminAdvertisersPage() {
-  const { advertisers, loading } = useRealtimeAdvertisers();
+  const [showCancelled, setShowCancelled] = useState(false);
+  const { advertisers, loading } = useRealtimeAdvertisers({ includeCancelled: showCancelled });
 
   function getStatusBadge(status: string) {
     const styles = {
@@ -40,7 +40,10 @@ export default function AdminAdvertisersPage() {
     );
   }
 
-  function getPlanBadge(plan: string) {
+  function getPlanBadge(plan: string | null | undefined) {
+    if (!plan) {
+      return <span className="text-xs text-gray-500">Sin plan</span>;
+    }
     const styles = {
       starter: 'bg-primary-100 text-primary-800',
       professional: 'bg-primary-100 text-primary-800',
@@ -58,7 +61,10 @@ export default function AdminAdvertisersPage() {
       <div className="mb-6 flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Anunciantes</h1>
-          <p className="text-gray-600">Gestiona las empresas externas que anuncian en la plataforma</p>
+          <p className="text-gray-600">
+            Empresas externas que anuncian en la plataforma. Recibes notificación al registrarse o
+            crearse una cuenta.
+          </p>
         </div>
         <Link
           href="/admin/advertisers/create"
@@ -67,6 +73,15 @@ export default function AdminAdvertisersPage() {
           + Crear anunciante
         </Link>
       </div>
+      <label className="mb-4 flex items-center gap-2 text-sm text-gray-600">
+        <input
+          type="checkbox"
+          checked={showCancelled}
+          onChange={(e) => setShowCancelled(e.target.checked)}
+          className="rounded border-gray-300"
+        />
+        Mostrar anunciantes cancelados
+      </label>
 
       {/* Estadísticas */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -106,16 +121,31 @@ export default function AdminAdvertisersPage() {
           <p className="text-gray-600">Aún no se han registrado empresas externas.</p>
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-white rounded-lg shadow overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Empresa</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contacto</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Industria</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Plan</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Empresa
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Contacto
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Origen
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Asignado a
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Plan
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Estado
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Acciones
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -143,36 +173,52 @@ export default function AdminAdvertisersPage() {
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {advertiser.industry}
+                    {formatOrigin(advertiser)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {getPlanBadge(advertiser.plan)}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    {advertiser.assignedAdminName || '—'}
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap">{getPlanBadge(advertiser.plan)}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {getStatusBadge(advertiser.status)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <Link
-                      href={`/admin/advertisers/${advertiser.id}`}
-                      className="text-primary-600 hover:text-primary-900 mr-4"
-                    >
-                      Ver
-                    </Link>
-                    {advertiser.status === 'pending' && (
-                      <button
-                        onClick={async () => {
-                          const response = await fetch(`/api/admin/advertisers/${advertiser.id}/approve`, {
-                            method: 'POST',
-                          });
-                          if (response.ok) {
-                            alert('Anunciante aprobado');
-                          }
-                        }}
-                        className="text-green-600 hover:text-green-900"
+                  <td className="px-6 py-4 text-sm font-medium">
+                    <div className="flex flex-col gap-1 items-start min-w-[140px]">
+                      <Link
+                        href={`/admin/advertisers/${advertiser.id}`}
+                        className="text-primary-600 hover:text-primary-900"
                       >
-                        Aprobar
-                      </button>
-                    )}
+                        Ver
+                      </Link>
+                      <AdminSupportEnterButton
+                        advertiserId={advertiser.id}
+                        label="Entrar al panel"
+                        className="text-left text-xs font-medium text-amber-700 hover:underline disabled:opacity-50 bg-transparent p-0"
+                      />
+                      {advertiser.status === 'pending' && (
+                        <button
+                          onClick={async () => {
+                            const response = await fetch(
+                              `/api/admin/advertisers/${advertiser.id}/approve`,
+                              { method: 'POST', credentials: 'include' }
+                            );
+                            if (response.ok) {
+                              alert('Anunciante aprobado');
+                            }
+                          }}
+                          className="text-green-600 hover:text-green-900 text-left"
+                        >
+                          Aprobar
+                        </button>
+                      )}
+                      <AdminDeleteButton
+                        deleteUrl={`/api/admin/advertisers/${advertiser.id}`}
+                        label="Dar de baja"
+                        confirmMessage={`¿Dar de baja al anunciante ${advertiser.companyName}? Desaparecerá de esta lista.`}
+                        successMessage={`Anunciante ${advertiser.companyName} dado de baja.`}
+                        className="text-sm text-red-700 hover:text-red-900"
+                      />
+                    </div>
                   </td>
                 </tr>
               ))}

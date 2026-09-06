@@ -20,6 +20,27 @@ export async function verifyAuth(request: NextRequest): Promise<AuthContext | nu
     const token = authHeader?.replace('Bearer ', '') || cookieToken;
     if (!token) return null;
 
+    // Sesión de soporte (admin → panel advertiser)
+    if (token.length < 200) {
+      try {
+        const { tryParseSupportSessionToken, validateSupportSessionToken } = await import(
+          '@autodealers/core'
+        );
+        if (tryParseSupportSessionToken(token)) {
+          const validated = await validateSupportSessionToken(token);
+          if (!validated || validated.session.portal !== 'advertiser') return null;
+          return {
+            userId: validated.session.targetUserId,
+            role: 'advertiser',
+            advertiserId:
+              validated.payload.advertiserId || validated.session.targetTenantId || undefined,
+          };
+        }
+      } catch {
+        /* continuar */
+      }
+    }
+
     // 1) Intentar como ID token
     try {
       const decoded = await getAuth().verifyIdToken(token);
@@ -41,6 +62,18 @@ export async function verifyAuth(request: NextRequest): Promise<AuthContext | nu
       // Validar expiración si existe
       if (sessionData.exp && sessionData.exp < Math.floor(Date.now() / 1000)) {
         return null;
+      }
+
+      if (sessionData.support === true) {
+        const { validateSupportSessionToken } = await import('@autodealers/core');
+        const validated = await validateSupportSessionToken(token);
+        if (!validated || validated.session.portal !== 'advertiser') return null;
+        return {
+          userId: validated.session.targetUserId,
+          role: 'advertiser',
+          advertiserId:
+            validated.payload.advertiserId || validated.session.targetTenantId || undefined,
+        };
       }
 
       return {

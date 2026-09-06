@@ -169,14 +169,18 @@ export default function AdminLayout({
   const menuItems = [
       { href: '/admin/global', label: 'Vista Global', icon: '📊' },
       { href: '/admin/kpis', label: 'KPIs y Métricas', icon: '📊' },
+      { href: '/admin/public-analytics', label: 'Actividad del sitio', icon: '📈' },
       { href: '/admin/purchase-intents', label: 'Purchase Intents', icon: '✅' },
       { href: '/admin/reports', label: 'Reportes', icon: '📈' },
       { href: '/admin/stripe', label: 'Stripe', icon: '💳' },
+      { href: '/admin/featured-promotions', label: 'Destacados / Boost', icon: '⭐' },
       { href: '/admin/users', label: 'Usuarios', icon: '👥' },
       { href: '/admin/users/grant-rewards', label: 'Otorgar Recompensas', icon: '🎁' },
       { href: '/admin/admin-users', label: 'Usuarios Admin', icon: '👨‍💼' },
       { href: '/admin/tenants', label: 'Tenants', icon: '🏢' },
+      { href: '/admin/courtesy-days', label: 'Días de cortesía', icon: '🗓️' },
       { href: '/admin/memberships', label: 'Membresías', icon: '🎁' },
+      { href: '/admin/custom-memberships', label: 'Membresías Custom', icon: '🎯' },
       { href: '/admin/account-billing', label: 'Sin facturación / Demo', icon: '🎫' },
       { href: '/admin/subscriptions', label: 'Suscripciones', icon: '📋' },
       { href: '/admin/dynamic-features', label: 'Features Dinámicas', icon: '✨' },
@@ -195,7 +199,7 @@ export default function AdminLayout({
       { href: '/admin/all-vehicles', label: 'Todos los Vehículos', icon: '🚗' },
       { href: '/admin/all-sales', label: 'Todas las Ventas', icon: '💰' },
       { href: '/admin/fi', label: 'F&I', icon: '💳' },
-      { href: '/admin/dealers', label: 'Dealers (Aprobar)', icon: '🏢' },
+      { href: '/admin/dealers', label: 'Dealers (Gestión de Dealers)', icon: '🏢' },
       { href: '/admin/sellers', label: 'Vendedores', icon: '🧑‍💼' },
       { href: '/admin/multi-dealer-requests', label: 'Solicitudes Multi Dealer', icon: '🏢' },
       { href: '/admin/email-aliases', label: 'Aliases de Email', icon: '📧' },
@@ -209,6 +213,10 @@ export default function AdminLayout({
       { href: '/admin/reviews', label: 'Todas las Reseñas', icon: '⭐' },
       { href: '/admin/testimonials', label: 'Testimonios', icon: '💬' },
       { href: '/admin/referrals', label: 'Referidos', icon: '👥' },
+      { href: '/admin/referrals/affiliates', label: 'Afiliados', icon: '🤝' },
+      { href: '/admin/empleados-ventas', label: 'Empleados de ventas', icon: '🧑‍💻' },
+      { href: '/admin/staff-access', label: 'Acceso temporal (citas)', icon: '⏱️' },
+      { href: '/admin/sponsored-content', label: 'Contenido Patrocinado', icon: '📣' },
       { href: '/admin/all-integrations', label: 'Todas las Integraciones', icon: '🔗' },
       { href: '/admin/landing-config', label: 'Config. Landing Page', icon: '🌐' },
       { href: '/admin/settings/free-public-listings', label: 'Publicar gratis (home)', icon: '🆓' },
@@ -234,6 +242,12 @@ export default function AdminLayout({
     ];
 
     // Menú separado para empresas externas
+    const automotiveBusinessMenuItems = [
+      { href: '/admin/automotive-businesses', label: 'Negocios automotrices', icon: '🧰' },
+      { href: '/admin/payment-applications', label: 'Solicitudes de cobro', icon: '💳' },
+      { href: '/admin/business-categories', label: 'Categorías de servicios', icon: '📂' },
+    ];
+
     const advertiserMenuItems = [
       { href: '/admin/advertisers', label: 'Anunciantes', icon: '💼' },
       { href: '/admin/sponsored-content', label: 'Contenido Patrocinado', icon: '📢' },
@@ -323,6 +337,46 @@ export default function AdminLayout({
 
           {/* Navigation */}
           <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto custom-scrollbar">
+            {!sidebarCollapsed && (
+              <div className="px-4 py-2 mb-2">
+                <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">
+                  Negocios automotrices
+                </p>
+              </div>
+            )}
+            {automotiveBusinessMenuItems.map((item) => {
+              const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
+              return (
+                <Link
+                  key={`biz-${item.href}`}
+                  href={item.href}
+                  onClick={() => setMobileNavOpen(false)}
+                  className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-start'} px-4 py-3 rounded-lg transition-all group ${
+                    isActive
+                      ? 'bg-emerald-50 text-emerald-800 font-medium shadow-sm'
+                      : 'text-gray-700 hover:bg-emerald-50 hover:text-emerald-900'
+                  }`}
+                  title={sidebarCollapsed ? item.label : undefined}
+                >
+                  <span className={`text-xl ${isActive ? 'scale-110' : ''} transition-transform`}>
+                    {item.icon}
+                  </span>
+                  {!sidebarCollapsed && (
+                    <span className="ml-3 flex-1">{item.label}</span>
+                  )}
+                  {isActive && !sidebarCollapsed && (
+                    <div className="h-2 w-2 rounded-full bg-emerald-600"></div>
+                  )}
+                </Link>
+              );
+            })}
+
+            {!sidebarCollapsed && (
+              <div className="my-4 px-4">
+                <div className="border-t border-gray-300"></div>
+              </div>
+            )}
+
             {/* Sección Dealers/Vendedores */}
             {!sidebarCollapsed && (
               <div className="px-4 py-2 mb-2">

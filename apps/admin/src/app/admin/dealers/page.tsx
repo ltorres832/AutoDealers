@@ -1,290 +1,325 @@
 'use client';
 
-// Panel Admin: Gestión de Dealers (Aprobación y Control)
+import { useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useRealtimeDealers, type DealerTenant, type DealerStatus } from '@/hooks/useRealtimeDealers';
+import { useRealtimeMemberships } from '@/hooks/useRealtimeMemberships';
+import { AdminDeleteButton } from '@/components/AdminDeleteButton';
+import { AdminSupportEnterButton } from '@/components/AdminSupportEnterButton';
+import { fetchWithAuth } from '@/lib/fetch-with-auth';
+import { formatTenantHostname } from '@autodealers/shared/platform-urls';
 
-import { useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
-import { useRealtimeDealers } from '@/hooks/useRealtimeDealers';
+type StatusFilter = 'all' | 'active' | 'suspended' | 'cancelled' | 'pending';
 
-interface Dealer {
-  dealerId: string;
-  ownerUid: string;
-  name: string;
-  membresia: string;
-  aliasesUsed: number;
-  aliasesLimit: number | null;
-  approvedByAdmin: boolean;
-  status: 'active' | 'suspended' | 'cancelled' | 'pending';
-  subdomain?: string;
-  createdAt: Date;
-  approvedAt?: Date;
+const STATUS_LABEL: Record<DealerStatus, string> = {
+  active: 'Activo',
+  suspended: 'Suspendido',
+  cancelled: 'Cancelado',
+  pending: 'Pendiente',
+};
+
+function statusBadge(status: DealerStatus) {
+  const cls =
+    status === 'active'
+      ? 'bg-green-100 text-green-800'
+      : status === 'suspended'
+        ? 'bg-amber-100 text-amber-800'
+        : status === 'cancelled'
+          ? 'bg-gray-100 text-gray-700'
+          : 'bg-yellow-100 text-yellow-800';
+
+  return <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}>{STATUS_LABEL[status]}</span>;
 }
 
+const FILTERS: { key: StatusFilter; label: string }[] = [
+  { key: 'all', label: 'Todos' },
+  { key: 'active', label: 'Activos' },
+  { key: 'suspended', label: 'Suspendidos' },
+  { key: 'cancelled', label: 'Cancelados' },
+  { key: 'pending', label: 'Pendientes' },
+];
+
 export default function DealersManagementPage() {
-  const router = useRouter();
-  const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
-  const [selectedDealer, setSelectedDealer] = useState<Dealer | null>(null);
-  const [showApproveModal, setShowApproveModal] = useState(false);
-  const [aliasesLimit, setAliasesLimit] = useState<number | null>(null);
+  const [filter, setFilter] = useState<StatusFilter>('all');
+  const [actionId, setActionId] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
-  const dealerFilter = useMemo(() => {
-    if (filter === 'pending') return { status: 'pending' as const, approvedByAdmin: false };
-    if (filter === 'approved') return { approvedByAdmin: true };
-    return undefined;
-  }, [filter]);
+  const { dealers, loading } = useRealtimeDealers();
+  const { memberships } = useRealtimeMemberships();
 
-  const { dealers: rawDealers, loading } = useRealtimeDealers(dealerFilter);
+  const membershipNameById = useMemo(() => {
+    const map: Record<string, string> = {};
+    memberships.forEach((m) => {
+      map[m.id] = m.name;
+    });
+    return map;
+  }, [memberships]);
 
-  const dealers = useMemo(() => {
-    if (filter === 'rejected') {
-      return rawDealers.filter((d) => d.status === 'suspended' && !d.approvedByAdmin);
+  const visibleDealers = useMemo(() => {
+    if (filter === 'all') {
+      // Ocultamos los cancelados en la vista general (igual que antes)
+      return dealers.filter((d) => d.status !== 'cancelled');
     }
-    if (filter === 'pending') {
-      return rawDealers.filter((d) => d.status === 'pending' && !d.approvedByAdmin);
-    }
-    return rawDealers;
-  }, [rawDealers, filter]);
+    return dealers.filter((d) => d.status === filter);
+  }, [dealers, filter]);
 
-  async function handleApprove(dealer: Dealer) {
-    setSelectedDealer(dealer);
-    setAliasesLimit(dealer.aliasesLimit ?? null);
-    setShowApproveModal(true);
+  function membershipLabel(dealer: DealerTenant) {
+    if (!dealer.membershipId) return 'Sin membresía';
+    return membershipNameById[dealer.membershipId] || 'Membresía asignada';
   }
 
-  async function confirmApprove() {
-    if (!selectedDealer) return;
+  async function runDealerAction(dealer: DealerTenant, action: 'suspend' | 'reactivate') {
+    const labels = {
+      suspend: `¿Suspender a ${dealer.name}? No podrá iniciar sesión.`,
+      reactivate: `¿Reactivar a ${dealer.name}?`,
+    };
+
+    if (!confirm(labels[action])) return;
+
+    setActionId(dealer.dealerId);
+    setMessage(null);
 
     try {
-      const response = await fetch(`/api/dealers/${selectedDealer.dealerId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'approve',
-          aliasesLimit: aliasesLimit,
-        }),
-      });
+      const nextStatus = action === 'suspend' ? 'suspended' : 'active';
+      let res: Response;
 
-      const data = await response.json();
-
-      if (response.ok) {
-        alert('Dealer aprobado exitosamente');
-        setShowApproveModal(false);
-        setSelectedDealer(null);
+      if (dealer.ownerUid) {
+        // Actualiza el usuario titular (deshabilita/rehabilita el login) y en
+        // cascada el estado del tenant y del dealer.
+        res = await fetchWithAuth(`/api/admin/users/${dealer.ownerUid}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            status: nextStatus,
+            authDisabled: action === 'suspend',
+          }),
+        });
       } else {
-        alert(`Error: ${data.error}`);
+        // Dealer sin usuario titular asociado: solo actualizamos el tenant.
+        res = await fetchWithAuth(`/api/admin/tenants/${dealer.dealerId}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: nextStatus }),
+        });
       }
-    } catch (error) {
-      console.error('Error approving dealer:', error);
-      alert('Error al aprobar dealer');
-    }
-  }
 
-  async function handleReject(dealer: Dealer) {
-    const reason = prompt('Razón del rechazo:');
-    if (!reason) return;
+      const data = await res.json().catch(() => ({}));
 
-    try {
-      const response = await fetch(`/api/dealers/${dealer.dealerId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'reject',
-          reason,
-        }),
+      if (!res.ok) {
+        setMessage({ type: 'err', text: data.error || 'No se pudo actualizar el dealer' });
+        return;
+      }
+
+      setMessage({
+        type: 'ok',
+        text:
+          action === 'suspend'
+            ? `Dealer ${dealer.name} suspendido.`
+            : `Dealer ${dealer.name} reactivado.`,
       });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        alert('Dealer rechazado');
-      } else {
-        alert(`Error: ${data.error}`);
-      }
     } catch (error) {
-      console.error('Error rejecting dealer:', error);
-      alert('Error al rechazar dealer');
+      console.error('Error updating dealer status:', error);
+      setMessage({ type: 'err', text: 'Error de red' });
+    } finally {
+      setActionId(null);
     }
   }
 
   return (
     <div className="p-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Gestión de Dealers</h1>
-        <p className="text-gray-600">Aprueba o rechaza dealers y gestiona sus membresías</p>
+        <h1 className="mb-2 text-3xl font-bold text-gray-900">Gestión de Dealers</h1>
+        <p className="text-gray-600">
+          Suspende, reactiva, da de baja o elimina definitivamente cuentas dealer. Cada dealer es un
+          tenant de tipo dealer.
+        </p>
       </div>
 
-      {/* Filtros */}
+      {message ? (
+        <div
+          className={`mb-4 rounded-lg border px-4 py-3 text-sm ${
+            message.type === 'ok'
+              ? 'border-green-200 bg-green-50 text-green-800'
+              : 'border-red-200 bg-red-50 text-red-800'
+          }`}
+        >
+          {message.text}
+        </div>
+      ) : null}
+
       <div className="mb-6 filter-chip-row">
-        <button
-          onClick={() => setFilter('all')}
-          className={`px-4 py-2 rounded-lg ${
-            filter === 'all' ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-700'
-          }`}
-        >
-          Todos
-        </button>
-        <button
-          onClick={() => setFilter('pending')}
-          className={`px-4 py-2 rounded-lg ${
-            filter === 'pending' ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-700'
-          }`}
-        >
-          Pendientes ({dealers.filter((d) => d.status === 'pending' && !d.approvedByAdmin).length})
-        </button>
-        <button
-          onClick={() => setFilter('approved')}
-          className={`px-4 py-2 rounded-lg ${
-            filter === 'approved' ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-700'
-          }`}
-        >
-          Aprobados
-        </button>
-        <button
-          onClick={() => setFilter('rejected')}
-          className={`px-4 py-2 rounded-lg ${
-            filter === 'rejected' ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-700'
-          }`}
-        >
-          Rechazados
-        </button>
+        {FILTERS.map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setFilter(key)}
+            className={`rounded-lg px-4 py-2 ${
+              filter === key ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-700'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
-      {/* Lista de Dealers */}
       {loading ? (
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
+        <div className="py-12 text-center">
+          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-primary-600"></div>
           <p className="mt-4 text-gray-600">Cargando dealers...</p>
         </div>
-      ) : dealers.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 rounded-lg">
+      ) : visibleDealers.length === 0 ? (
+        <div className="rounded-lg bg-gray-50 py-12 text-center">
           <p className="text-gray-600">No hay dealers con este filtro</p>
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
           <div className="table-scroll">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Dealer
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Membresía
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Aliases
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Estado
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {dealers.map((dealer) => (
-                <tr key={dealer.dealerId}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{dealer.name}</div>
-                    <div className="text-sm text-gray-500">{dealer.subdomain || dealer.dealerId}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{dealer.membresia}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {dealer.aliasesUsed} / {dealer.aliasesLimit ?? '∞'}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        dealer.approvedByAdmin
-                          ? 'bg-green-100 text-green-800'
-                          : dealer.status === 'pending'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}
-                    >
-                      {dealer.approvedByAdmin ? 'Aprobado' : dealer.status === 'pending' ? 'Pendiente' : 'Rechazado'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    {!dealer.approvedByAdmin && dealer.status === 'pending' ? (
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleApprove(dealer)}
-                          className="text-primary-600 hover:text-primary-900"
-                        >
-                          Aprobar
-                        </button>
-                        <button
-                          onClick={() => handleReject(dealer)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          Rechazar
-                        </button>
-                      </div>
-                    ) : (
-                      <span className="text-gray-400">-</span>
-                    )}
-                  </td>
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Dealer
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Membresía
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Registrado
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Estado
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Acciones
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Aprobación */}
-      {showApproveModal && selectedDealer && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h2 className="text-xl font-bold mb-4">Aprobar Dealer</h2>
-            <p className="text-gray-600 mb-4">
-              ¿Estás seguro de aprobar a <strong>{selectedDealer.name}</strong>?
-            </p>
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Límite de Aliases
-              </label>
-              <input
-                type="number"
-                value={aliasesLimit ?? ''}
-                onChange={(e) =>
-                  setAliasesLimit(e.target.value === '' ? null : parseInt(e.target.value))
-                }
-                placeholder="Ilimitado (dejar vacío)"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-600"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Dejar vacío para ilimitado (solo Pro/Multi Dealer 3)
-              </p>
-            </div>
-
-            <div className="flex gap-4">
-              <button
-                onClick={() => setShowApproveModal(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={confirmApprove}
-                className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
-              >
-                Aprobar
-              </button>
-            </div>
+              </thead>
+              <tbody className="divide-y divide-gray-200 bg-white">
+                {visibleDealers.map((dealer) => (
+                  <tr key={dealer.dealerId}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {dealer.companyName && dealer.companyName !== dealer.name ? (
+                        <div className="text-xs font-semibold text-primary-600">{dealer.companyName}</div>
+                      ) : null}
+                      <div className="text-sm font-medium text-gray-900">{dealer.name}</div>
+                      <div className="text-sm text-gray-500">
+                        {dealer.subdomain ? formatTenantHostname(dealer.subdomain) : dealer.dealerId}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{membershipLabel(dealer)}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {dealer.createdAt.toLocaleDateString('es')}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">{statusBadge(dealer.status)}</td>
+                    <td className="px-6 py-4 text-sm font-medium">
+                      <div className="flex min-w-[170px] flex-col gap-1">
+                        <Link
+                          href={`/admin/tenants/${dealer.dealerId}`}
+                          className="text-left text-xs font-medium text-primary-600 hover:underline"
+                        >
+                          Ver tenant
+                        </Link>
+                        <AdminSupportEnterButton
+                          tenantId={dealer.dealerId}
+                          userId={dealer.ownerUid || undefined}
+                          label="Entrar al panel"
+                          className="text-left text-xs font-medium text-amber-700 hover:underline disabled:opacity-50 bg-transparent p-0"
+                        />
+                        <Link
+                          href={`/admin/courtesy-days?tenantId=${encodeURIComponent(dealer.dealerId)}&name=${encodeURIComponent(dealer.name)}`}
+                          className="text-left text-xs font-medium text-green-700 hover:underline"
+                        >
+                          Días de cortesía
+                        </Link>
+                        {dealer.ownerUid ? (
+                          <Link
+                            href={`/admin/users/${dealer.ownerUid}/edit`}
+                            className="text-left text-xs font-medium text-primary-700 hover:underline"
+                          >
+                            Editar cuenta
+                          </Link>
+                        ) : null}
+                        {dealer.status === 'active' ? (
+                          <button
+                            type="button"
+                            disabled={actionId === dealer.dealerId}
+                            onClick={() => void runDealerAction(dealer, 'suspend')}
+                            className="text-left text-xs text-amber-700 hover:underline disabled:opacity-50"
+                          >
+                            Suspender
+                          </button>
+                        ) : null}
+                        {(dealer.status === 'suspended' || dealer.status === 'cancelled') ? (
+                          <button
+                            type="button"
+                            disabled={actionId === dealer.dealerId}
+                            onClick={() => void runDealerAction(dealer, 'reactivate')}
+                            className="text-left text-xs text-green-700 hover:underline disabled:opacity-50"
+                          >
+                            Reactivar
+                          </button>
+                        ) : null}
+                        {dealer.ownerUid && dealer.status !== 'cancelled' ? (
+                          <AdminDeleteButton
+                            deleteUrl={`/api/admin/users/${dealer.ownerUid}`}
+                            label="Dar de baja"
+                            confirmMessage={`¿Dar de baja al dealer ${dealer.name}? Se deshabilitará el acceso y desaparecerá de esta lista.`}
+                            successMessage={false}
+                            permanent={false}
+                            onDeleted={() => {
+                              setMessage({
+                                type: 'ok',
+                                text: `Dealer ${dealer.name} dado de baja.`,
+                              });
+                            }}
+                            onError={(text) => setMessage({ type: 'err', text })}
+                            className="text-left text-xs text-red-700 hover:underline"
+                          />
+                        ) : null}
+                        {dealer.ownerUid ? (
+                          <AdminDeleteButton
+                            deleteUrl={`/api/admin/users/${dealer.ownerUid}`}
+                            label="Eliminar definitivamente"
+                            confirmMessage={`¿Eliminar permanentemente la cuenta de ${dealer.name}? Se borrarán usuario, tenant y acceso.`}
+                            successMessage={false}
+                            onDeleted={() => {
+                              setMessage({
+                                type: 'ok',
+                                text: `Cuenta de ${dealer.name} eliminada permanentemente.`,
+                              });
+                            }}
+                            onError={(text) => setMessage({ type: 'err', text })}
+                            className="text-left text-xs text-red-800 hover:underline"
+                          />
+                        ) : (
+                          <AdminDeleteButton
+                            deleteUrl={`/api/admin/tenants/${dealer.dealerId}`}
+                            label="Eliminar tenant"
+                            confirmMessage={`¿Eliminar permanentemente el tenant ${dealer.name}? Se borrará el dealer y su inventario.`}
+                            successMessage={false}
+                            permanent={false}
+                            onDeleted={() => {
+                              setMessage({
+                                type: 'ok',
+                                text: `Tenant ${dealer.name} eliminado.`,
+                              });
+                            }}
+                            onError={(text) => setMessage({ type: 'err', text })}
+                            className="text-left text-xs text-red-800 hover:underline"
+                          />
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
     </div>
   );
 }
-
-
-
