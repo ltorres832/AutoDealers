@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
   try {
     const employee = await getSalesEmployee(auth.salesEmployeeId);
     if (!employee) {
-      return NextResponse.json({ error: 'Empleado no encontrado' }, { status: 404 });
+      return NextResponse.json({ error: 'Cuenta no encontrada' }, { status: 404 });
     }
 
     const body = await request.json().catch(() => ({}));
@@ -69,12 +69,12 @@ export async function POST(request: NextRequest) {
       adminUserId: auth.salesEmployeeId,
       adminEmail: employee.email,
       targetUserId: target.userId,
-      reason: `Empleado ventas · cuenta ${account.tenantId} · grant ${access.grant.id}`,
+      reason: `Portal ventas · cuenta ${account.tenantId} · grant ${access.grant.id}`,
     });
 
     if (portal === 'advertiser') {
       return NextResponse.json(
-        { error: 'Portal anunciante no disponible para empleados de ventas' },
+        { error: 'Portal anunciante no disponible desde el portal de ventas' },
         { status: 400 }
       );
     }

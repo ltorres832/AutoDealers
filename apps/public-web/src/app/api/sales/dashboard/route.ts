@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
 
   const dashboard = await getSalesEmployeeDashboardData(auth.salesEmployeeId);
   if (!dashboard) {
-    return NextResponse.json({ error: 'Empleado no encontrado' }, { status: 404 });
+    return NextResponse.json({ error: 'Cuenta no encontrada' }, { status: 404 });
   }
 
   let stripeConnect;

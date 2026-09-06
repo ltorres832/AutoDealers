@@ -41,10 +41,14 @@ function SalesLoginForm() {
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Empleados de ventas</h1>
-          <p className="text-gray-600 mt-2 text-sm">
-            Acceso interno. No aparece en el sitio público.
-          </p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/brand/autodealers-online-logo.png"
+            alt="AutoDealersOnline"
+            className="mx-auto h-12 w-auto max-w-[220px] object-contain"
+          />
+          <h1 className="text-2xl font-bold text-gray-900 mt-4">Portal de ventas</h1>
+          <p className="text-gray-600 mt-2 text-sm">Acceso interno</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (

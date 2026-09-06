@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRealtimeSalesAdmin } from '@/hooks/useRealtimeSalesAdmin';
 
 type Tab = 'empleados' | 'membresias' | 'comisiones' | 'citas' | 'visitas';
 
@@ -142,23 +143,23 @@ export default function EmpleadosVentasPage() {
     }
   }, []);
 
+  const silentReload = useCallback(() => {
+    void load();
+  }, [load]);
+
   useEffect(() => {
     load();
   }, [load]);
 
+  // True realtime: Firestore onSnapshot → refresh silencioso (sin poll 15s)
+  const { realtimeReady } = useRealtimeSalesAdmin(silentReload);
+
   useEffect(() => {
-    const tick = () => {
-      void load();
-    };
-    const interval = window.setInterval(tick, 15000);
     const onVis = () => {
-      if (document.visibilityState === 'visible') tick();
+      if (document.visibilityState === 'visible') void load();
     };
     document.addEventListener('visibilitychange', onVis);
-    return () => {
-      window.clearInterval(interval);
-      document.removeEventListener('visibilitychange', onVis);
-    };
+    return () => document.removeEventListener('visibilitychange', onVis);
   }, [load]);
 
   async function createEmployee(e: React.FormEvent) {
@@ -277,6 +278,7 @@ export default function EmpleadosVentasPage() {
         <p className="text-sm text-gray-600">
           Módulo interno, separado de Afiliados. Portal (solo por link):{' '}
           <code className="bg-gray-100 px-1">{portalUrl || 'https://www.autodealers-online.com/sales'}</code>
+          {realtimeReady ? <span className="ml-2 text-xs text-green-700">· Tiempo real</span> : null}
         </p>
       </div>
 

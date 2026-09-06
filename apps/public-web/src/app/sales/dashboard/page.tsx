@@ -4,6 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { SalesConfigAccessPanel } from './SalesConfigAccessPanel';
+import {
+  useRealtimeSalesDashboard,
+  type SalesRealtimeSlice,
+} from '@/hooks/useRealtimeSalesDashboard';
 
 type Role = 'dealer' | 'seller' | 'business';
 type Relation = 'current' | 'former';
@@ -116,7 +120,7 @@ function statusLabel(status: string) {
 
 function whoLabel(who: string) {
   if (who === 'admin') return 'Admin';
-  if (who === 'employee') return 'Empleado';
+  if (who === 'employee') return 'Ventas';
   return 'Dueño de la membresía';
 }
 
@@ -169,33 +173,84 @@ function SalesDashboardInner() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(async () => {
-    const res = await fetch('/api/sales/dashboard', { credentials: 'include' });
-    if (res.status === 401) {
-      router.replace('/sales/login');
-      return;
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
+    try {
+      const res = await fetch('/api/sales/dashboard', { credentials: 'include' });
+      if (res.status === 401) {
+        router.replace('/sales/login');
+        return;
+      }
+      const json = await res.json();
+      if (!json.error) {
+        setData((prev) => {
+          if (opts?.silent && prev) {
+            return {
+              ...prev,
+              stripeConnect: json.stripeConnect,
+              employee: json.employee,
+              rules: json.rules,
+            };
+          }
+          return json;
+        });
+      }
+    } catch {
+      // Keep existing dashboard data on background refresh failures.
     }
-    const json = await res.json();
-    if (!json.error) setData(json);
   }, [router]);
 
   useEffect(() => {
     load().finally(() => setLoading(false));
   }, [load]);
 
+  const applyRealtimeSlice = useCallback((slice: SalesRealtimeSlice) => {
+    setData((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev };
+      if (slice.accounts) next.accounts = slice.accounts as DashboardData['accounts'];
+      if (slice.commissions) next.commissions = slice.commissions as DashboardData['commissions'];
+      if (slice.visits) next.visits = slice.visits as DashboardData['visits'];
+      if (slice.appointments) next.appointments = slice.appointments as DashboardData['appointments'];
+      if (slice.notifications) {
+        next.notifications = slice.notifications as DashboardData['notifications'];
+      }
+      if (slice.paymentLinks) {
+        next.paymentLinks = slice.paymentLinks as DashboardData['paymentLinks'];
+      }
+      if (slice.nextPayout !== undefined) next.nextPayout = slice.nextPayout;
+      if (slice.employeePatch) {
+        next.employee = {
+          ...next.employee,
+          commissionRulesAccepted:
+            slice.employeePatch.commissionRulesAccepted ?? next.employee.commissionRulesAccepted,
+          stats: (slice.employeePatch.stats as DashboardData['employee']['stats']) || next.employee.stats,
+        };
+        if (slice.employeePatch.stripeConnectPayoutsEnabled != null) {
+          next.stripeConnect = {
+            ...next.stripeConnect,
+            accountId:
+              slice.employeePatch.stripeConnectAccountId ?? next.stripeConnect.accountId,
+            onboardingComplete:
+              slice.employeePatch.stripeConnectOnboardingComplete ??
+              next.stripeConnect.onboardingComplete,
+            payoutsEnabled: slice.employeePatch.stripeConnectPayoutsEnabled,
+            requiresAction: !slice.employeePatch.stripeConnectPayoutsEnabled,
+          };
+        }
+      }
+      return next;
+    });
+  }, []);
+
+  const { realtimeReady } = useRealtimeSalesDashboard(data?.employee?.id, applyRealtimeSlice);
+
+  // Stripe Connect still needs API (external). Soft refresh on focus only — no 15s poll.
   useEffect(() => {
-    const tick = () => {
-      void load();
-    };
-    const interval = window.setInterval(tick, 15000);
     const onVis = () => {
-      if (document.visibilityState === 'visible') tick();
+      if (document.visibilityState === 'visible') void load({ silent: true });
     };
     document.addEventListener('visibilitychange', onVis);
-    return () => {
-      window.clearInterval(interval);
-      document.removeEventListener('visibilitychange', onVis);
-    };
+    return () => document.removeEventListener('visibilitychange', onVis);
   }, [load]);
 
   useEffect(() => {
@@ -303,6 +358,10 @@ function SalesDashboardInner() {
 
   async function createAccount(e: React.FormEvent) {
     e.preventDefault();
+    if (form.role === 'business' && !form.categorySlug.trim()) {
+      setError('Selecciona una categoría para el negocio');
+      return;
+    }
     setBusy(true);
     setError('');
     setMessage('');
@@ -532,25 +591,38 @@ function SalesDashboardInner() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b px-4 py-3 flex items-center justify-between">
-        <div>
-          <p className="font-bold text-slate-900">{data.employee.name}</p>
-          <p className="text-xs text-slate-500">{data.employee.email}</p>
+      <header className="bg-white border-b px-4 py-3 flex items-center justify-between gap-3 min-h-[56px]">
+        <div className="flex items-center gap-3 min-w-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/brand/autodealers-online-logo.png"
+            alt="AutoDealersOnline"
+            width={102}
+            height={36}
+            className="h-9 w-[102px] object-contain shrink-0"
+          />
+          <div className="min-w-0">
+            <p className="font-bold text-slate-900 truncate">{data.employee.name}</p>
+            <p className="text-xs text-slate-500 truncate">{data.employee.email}</p>
+          </div>
         </div>
-        <button onClick={logout} className="text-sm text-slate-700">
+        <button onClick={logout} className="text-sm text-slate-700 shrink-0">
           Salir
         </button>
       </header>
 
       <main className="max-w-6xl mx-auto p-4 space-y-4">
-        {/* Acceso siempre visible — aunque no haya cuentas */}
-        <section className="rounded-xl border-4 border-amber-500 bg-amber-100 p-4 space-y-2">
-          <h2 className="text-xl font-black text-amber-950">Acceso para configurar cuentas</h2>
-          <p className="text-sm text-amber-950">
-            Aquí ves el permiso por cuenta. Si no hay membresías aún, igual ves este bloque. El admin
-            otorga acceso a una cuenta específica desde Empleados de ventas → Citas.
-          </p>
-          <SalesConfigAccessPanel accounts={data.accounts || []} />
+        <section className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+          <div>
+            <h2 className="font-semibold text-slate-900">Configurar cuentas</h2>
+            <p className="text-sm text-slate-500">
+              Entra al panel del cliente solo mientras tengas acceso activo.
+            </p>
+          </div>
+          <SalesConfigAccessPanel
+            accounts={data.accounts || []}
+            employeeId={data.employee?.id}
+          />
         </section>
 
         {error && <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{error}</div>}
@@ -581,6 +653,14 @@ function SalesDashboardInner() {
               </button>
             </div>
           )}
+          <p className="text-xs text-slate-500 mt-2">
+            Las comisiones de membresía se crean cuando el cliente paga (primera factura / Checkout).
+            El 50% inicial queda en espera 14 días; el otro 50% a los 6 meses. Durante trial sin pago
+            aún no se genera comisión.
+          </p>
+          {realtimeReady ? (
+            <p className="text-[11px] text-slate-400 mt-1">Cuentas y comisiones en tiempo real.</p>
+          ) : null}
         </section>
 
         {(data.notifications || []).some((item) => !item.read) && (
@@ -661,11 +741,12 @@ function SalesDashboardInner() {
               )}
               {form.role === 'business' && (
                 <select
+                  required
                   value={form.categorySlug}
                   onChange={(e) => setForm({ ...form, categorySlug: e.target.value })}
                   className="w-full border rounded-lg px-3 py-2"
                 >
-                  <option value="">Categoría del negocio</option>
+                  <option value="">Categoría del negocio (requerida)</option>
                   {categories.map((item) => (
                     <option key={item.slug} value={item.slug}>
                       {item.name}

@@ -476,12 +476,11 @@ export async function provisionSalesEmployeeClient(input: {
   let companyName = String(input.companyName || name).trim();
 
   if (role === 'business') {
-    let categorySlug = String(input.categorySlug || '').trim();
+    const categorySlug = String(input.categorySlug || '').trim();
     if (!categorySlug) {
-      const categories = await listBusinessCategories(true);
-      categorySlug = categories[0]?.slug || '';
+      throw new Error('Selecciona una categoría para el negocio');
     }
-    const category = categorySlug ? await getBusinessCategoryBySlug(categorySlug) : null;
+    const category = await getBusinessCategoryBySlug(categorySlug);
     if (!category || !category.isActive) {
       throw new Error('Selecciona una categoría válida para el negocio');
     }

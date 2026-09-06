@@ -36,7 +36,7 @@ async function completeLogin(profileId: string) {
   let employee = await getSalesEmployeeByAuthUserId(profileId);
   if (!employee) employee = await getSalesEmployeeByEmail(profileId);
   if (!employee) {
-    return NextResponse.json({ error: 'Empleado no encontrado' }, { status: 404 });
+    return NextResponse.json({ error: 'Cuenta no encontrada' }, { status: 404 });
   }
   if (employee.status !== 'active') {
     return NextResponse.json({ error: 'Tu cuenta está inactiva' }, { status: 403 });

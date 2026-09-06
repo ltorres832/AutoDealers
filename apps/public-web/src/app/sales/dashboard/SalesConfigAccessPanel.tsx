@@ -1,6 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { collection, onSnapshot, query, where, type Unsubscribe } from 'firebase/firestore';
+import { db } from '@/lib/firebase-config';
+import { ensureSalesFirebaseClientAuth } from '@/lib/ensure-sales-firebase-client-auth';
 
 interface Grant {
   id: string;
@@ -11,6 +14,21 @@ interface Grant {
   targetAccountId?: string;
   targetUserId?: string;
   targetAccountLabel?: string;
+  status?: string;
+}
+
+function toIso(value: unknown): string {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  if (value instanceof Date) return value.toISOString();
+  if (typeof (value as { toDate?: () => Date }).toDate === 'function') {
+    try {
+      return (value as { toDate: () => Date }).toDate().toISOString();
+    } catch {
+      return '';
+    }
+  }
+  return '';
 }
 
 function fmt(iso?: string) {
@@ -22,8 +40,23 @@ function fmt(iso?: string) {
   }
 }
 
+function mapGrant(id: string, data: Record<string, unknown>): Grant {
+  return {
+    id,
+    startsAt: toIso(data.startsAt),
+    expiresAt: toIso(data.expiresAt),
+    durationMinutes: Number(data.durationMinutes || 0),
+    targetTenantId: String(data.targetTenantId || ''),
+    targetAccountId: data.targetAccountId ? String(data.targetAccountId) : undefined,
+    targetUserId: data.targetUserId ? String(data.targetUserId) : undefined,
+    targetAccountLabel: data.targetAccountLabel ? String(data.targetAccountLabel) : undefined,
+    status: String(data.status || 'active'),
+  };
+}
+
 export function SalesConfigAccessPanel({
   accounts = [],
+  employeeId,
 }: {
   accounts?: Array<{
     id: string;
@@ -34,6 +67,7 @@ export function SalesConfigAccessPanel({
     companyName?: string;
     email: string;
   }>;
+  employeeId?: string;
 }) {
   const list = Array.isArray(accounts) ? accounts : [];
   const [loading, setLoading] = useState(true);
@@ -42,38 +76,117 @@ export function SalesConfigAccessPanel({
   const [busyId, setBusyId] = useState('');
   const [err, setErr] = useState('');
   const [msg, setMsg] = useState('');
+  const [realtime, setRealtime] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setErr('');
+  const applyActiveGrants = useCallback((grants: Grant[]) => {
+    const now = Date.now();
+    setActiveGrants(
+      grants.filter((g) => {
+        if (g.status && g.status !== 'active') return false;
+        const exp = g.expiresAt ? new Date(g.expiresAt).getTime() : 0;
+        const start = g.startsAt ? new Date(g.startsAt).getTime() : 0;
+        return (!start || start <= now) && (!exp || exp > now);
+      })
+    );
+  }, []);
+
+  const loadApi = useCallback(async (opts?: { silent?: boolean }) => {
+    const silent = !!opts?.silent;
+    if (!silent) {
+      setLoading(true);
+      setErr('');
+    }
     try {
       const res = await fetch('/api/sales/config-access', { credentials: 'include' });
       const json = await res.json().catch(() => ({}));
       if (res.status === 401) {
         setErr('Sesión expirada. Vuelve a /sales/login');
-        setActiveGrants([]);
+        if (!silent) setActiveGrants([]);
         return;
       }
-      if (!res.ok) {
-        throw new Error(json.error || `Error ${res.status}`);
-      }
-      setActiveGrants(Array.isArray(json.activeGrants) ? json.activeGrants : []);
+      if (!res.ok) throw new Error(json.error || `Error ${res.status}`);
+      applyActiveGrants(Array.isArray(json.activeGrants) ? json.activeGrants : []);
       setPendingCount(
         (json.requests || []).filter((r: { status: string }) => r.status === 'pending').length
       );
+      setErr('');
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Error cargando acceso');
-      setActiveGrants([]);
+      if (!silent) {
+        setErr(e instanceof Error ? e.message : 'Error cargando acceso');
+        setActiveGrants([]);
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  }, []);
+  }, [applyActiveGrants]);
 
   useEffect(() => {
-    void load();
-    const t = window.setInterval(() => void load(), 20000);
-    return () => window.clearInterval(t);
-  }, [load]);
+    let cancelled = false;
+    const unsubs: Unsubscribe[] = [];
+    let pollTimer: number | undefined;
+
+    async function start() {
+      await loadApi();
+      if (cancelled || !employeeId) return;
+
+      const ok = await ensureSalesFirebaseClientAuth();
+      if (cancelled) return;
+      if (!ok || !db) {
+        pollTimer = window.setInterval(() => void loadApi({ silent: true }), 60000);
+        return;
+      }
+
+      setRealtime(true);
+
+      unsubs.push(
+        onSnapshot(
+          query(
+            collection(db, 'staff_access_grants'),
+            where('salesEmployeeId', '==', employeeId)
+          ),
+          (snap) => {
+            applyActiveGrants(
+              snap.docs.map((d) => mapGrant(d.id, d.data() as Record<string, unknown>))
+            );
+            setLoading(false);
+          },
+          (error) => {
+            console.warn('[sales] grants listener', error);
+            void loadApi({ silent: true });
+          }
+        )
+      );
+
+      unsubs.push(
+        onSnapshot(
+          query(
+            collection(db, 'staff_access_requests'),
+            where('salesEmployeeId', '==', employeeId)
+          ),
+          (snap) => {
+            setPendingCount(
+              snap.docs.filter((d) => String(d.data().status || '') === 'pending').length
+            );
+          },
+          (error) => console.warn('[sales] requests listener', error)
+        )
+      );
+    }
+
+    void start();
+
+    return () => {
+      cancelled = true;
+      if (pollTimer) window.clearInterval(pollTimer);
+      unsubs.forEach((u) => {
+        try {
+          u();
+        } catch {
+          /* ignore */
+        }
+      });
+    };
+  }, [employeeId, loadApi, applyActiveGrants]);
 
   function grantForAccount(account: { id: string; tenantId: string; userId: string }) {
     return activeGrants.find(
@@ -119,28 +232,28 @@ export function SalesConfigAccessPanel({
 
   return (
     <div className="space-y-3">
-      <div className="flex justify-end">
-        <button type="button" onClick={() => void load()} className="text-xs underline text-amber-950">
-          Actualizar estado
+      <div className="flex justify-between items-center gap-2">
+        <p className="text-[11px] text-slate-400">
+          {realtime ? 'Tiempo real' : 'Sincronizando…'}
+        </p>
+        <button
+          type="button"
+          onClick={() => void loadApi({ silent: true })}
+          className="text-xs underline text-slate-600"
+        >
+          Actualizar
         </button>
       </div>
 
-      {loading ? (
-        <p className="text-sm text-amber-900 bg-white/70 rounded-lg p-3">Cargando permisos…</p>
-      ) : null}
+      {loading ? <p className="text-sm text-slate-500">Cargando…</p> : null}
 
-      <div className="bg-white rounded-lg border-2 border-amber-400 divide-y min-h-[72px]">
+      <div className="rounded-lg border border-slate-200 divide-y min-h-[72px]">
         {list.length === 0 ? (
-          <div className="p-4 text-sm text-slate-800 space-y-1">
-            <p className="font-semibold">Todavía no tienes cuentas / membresías.</p>
-            <p className="text-slate-600">
-              Cuando crees una en la pestaña <strong>Membresías</strong>, aparecerá aquí. El admin
-              podrá seleccionarla y darte acceso temporal a esa cuenta.
-            </p>
+          <div className="p-4 text-sm text-slate-600">
+            <p>No hay cuentas todavía. Créalas en Membresías.</p>
             {activeGrants.length > 0 ? (
               <p className="text-green-700 text-xs pt-2">
-                Tienes {activeGrants.length} grant(s) activo(s), pero no coinciden con cuentas
-                listadas en tu portal.
+                Tienes acceso activo, pero no coincide con una cuenta de este portal.
               </p>
             ) : null}
           </div>
@@ -159,10 +272,10 @@ export function SalesConfigAccessPanel({
                   </p>
                   {grant ? (
                     <p className="text-xs text-green-700 mt-0.5 font-medium">
-                      Acceso hasta {fmt(grant.expiresAt)} ({grant.durationMinutes} min)
+                      Hasta {fmt(grant.expiresAt)}
                     </p>
                   ) : (
-                    <p className="text-xs text-slate-400 mt-0.5">Sin acceso a esta cuenta</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Sin acceso</p>
                   )}
                 </div>
                 {grant ? (
@@ -170,9 +283,9 @@ export function SalesConfigAccessPanel({
                     type="button"
                     disabled={!!busyId}
                     onClick={() => void enterAccount(a)}
-                    className="bg-amber-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-50"
+                    className="bg-slate-900 text-white px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-50"
                   >
-                    {busyId === a.id ? 'Abriendo…' : 'Entrar a configurar'}
+                    {busyId === a.id ? 'Abriendo…' : 'Entrar'}
                   </button>
                 ) : (
                   <span className="text-xs font-medium text-slate-500 px-2 py-1 border rounded bg-slate-50">
@@ -186,8 +299,9 @@ export function SalesConfigAccessPanel({
       </div>
 
       {pendingCount > 0 ? (
-        <p className="text-xs font-medium text-amber-950">
-          {pendingCount} solicitud(es) pendiente(s) al admin.
+        <p className="text-xs text-slate-500">
+          {pendingCount} solicitud{pendingCount === 1 ? '' : 'es'} pendiente
+          {pendingCount === 1 ? '' : 's'}.
         </p>
       ) : null}
 

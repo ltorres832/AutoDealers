@@ -22,7 +22,9 @@ function isPlatformRootPath(pathname: string): boolean {
   if (pathname.startsWith('/privacidad')) return true;
   if (pathname.startsWith('/precios')) return true;
   if (pathname.startsWith('/caracteristicas')) return true;
+  if (pathname.startsWith('/plataforma')) return true;
   if (pathname.startsWith('/demo-vendedor')) return true;
+  if (pathname.startsWith('/demo-dealer')) return true;
   if (pathname.startsWith('/promo/')) return true;
   if (pathname.startsWith('/sobre-nosotros')) return true;
   if (pathname.startsWith('/advertise')) return true;
@@ -39,6 +41,13 @@ function isPlatformRootPath(pathname: string): boolean {
   if (pathname.startsWith('/dashboard/')) return true;
   if (pathname.startsWith('/partners/')) return true;
   if (pathname.startsWith('/affiliate')) return true;
+  if (pathname.startsWith('/sales')) return true;
+  if (pathname.startsWith('/servicios')) return true;
+  if (pathname.startsWith('/registro/negocio')) return true;
+  if (pathname.startsWith('/mi-garage')) return true;
+  if (pathname.startsWith('/mi-garage/crear-cuenta')) return true;
+  if (pathname.startsWith('/pay/')) return true;
+  if (pathname.startsWith('/docs/')) return true;
   return false;
 }
 
@@ -72,6 +81,22 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Portal de ventas: exigir cookie antes de servir HTML (cualquier host de public-web)
+  if (
+    pathname.startsWith('/sales') &&
+    !pathname.startsWith('/sales/login') &&
+    pathname !== '/sales'
+  ) {
+    const salesToken = request.cookies.get('salesEmployeeAuthToken');
+    if (!salesToken?.value) {
+      const loginUrl = request.nextUrl.clone();
+      loginUrl.pathname = '/sales/login';
+      loginUrl.search = '';
+      loginUrl.searchParams.set('redirect', pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+  }
+
   const parts = hostname.split('.');
 
   console.log('🛡️ Middleware check:', { hostname, pathname });
@@ -88,6 +113,17 @@ export function middleware(request: NextRequest) {
   if (isTechnicalDomain) {
     console.log('⏩ Skipping technical domain:', hostname);
     return NextResponse.next();
+  }
+
+  // Mientras App Hosting no enrute business.* al backend business-app (el wildcard de
+  // public-web gana), mandar el host del panel al URL hosted.app para no servir el homepage negro.
+  const hostNoPort = hostname.split(':')[0]?.toLowerCase() || '';
+  if (hostNoPort === 'business.autodealers-online.com') {
+    const dest = new URL(
+      `${pathname}${request.nextUrl.search}`,
+      'https://business-app--autodealers-7f62e.us-central1.hosted.app'
+    );
+    return NextResponse.redirect(dest, 307);
   }
 
   const publicRootHosts = [
