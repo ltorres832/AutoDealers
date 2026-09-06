@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateSupportSessionToken } from '@autodealers/core';
+import { getAppOrigin } from '@/lib/app-origin';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,19 +9,20 @@ export const dynamic = 'force-dynamic';
  * Intercambia el token de soporte por la cookie authToken del panel dealer.
  */
 export async function GET(request: NextRequest) {
+  const origin = getAppOrigin(request);
   try {
     const token = request.nextUrl.searchParams.get('token') || '';
     if (!token) {
-      return NextResponse.redirect(new URL('/login?error=support_token', request.url));
+      return NextResponse.redirect(new URL('/login?error=support_token', origin));
     }
 
     const validated = await validateSupportSessionToken(token);
     if (!validated || validated.session.portal !== 'dealer') {
-      return NextResponse.redirect(new URL('/login?error=support_invalid', request.url));
+      return NextResponse.redirect(new URL('/login?error=support_invalid', origin));
     }
 
-    const res = NextResponse.redirect(new URL('/dashboard', request.url));
-    const isSecure = request.nextUrl.protocol === 'https:';
+    const res = NextResponse.redirect(new URL('/dashboard', origin));
+    const isSecure = origin.startsWith('https:');
     const maxAge = Math.max(
       60,
       Math.floor((validated.session.expiresAt.getTime() - Date.now()) / 1000)
@@ -35,6 +37,6 @@ export async function GET(request: NextRequest) {
     return res;
   } catch (error) {
     console.error('[dealer support-enter]', error);
-    return NextResponse.redirect(new URL('/login?error=support_error', request.url));
+    return NextResponse.redirect(new URL('/login?error=support_error', origin));
   }
 }
