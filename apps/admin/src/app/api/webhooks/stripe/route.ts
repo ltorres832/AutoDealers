@@ -15,6 +15,14 @@ import {
   cancelAffiliateReferralIfAwaitingFirstCharge,
   handleConnectAccountUpdated,
   handleTransferReversed,
+  createSalesEmployeeMembershipCommissions,
+  createSalesEmployeeAdCommission,
+  voidSalesEmployeeMembershipCommissions,
+  markSalesEmployeePaymentLinkPaid,
+  markSalesEmployeePaymentLinkExpired,
+  isSalesAdCommissionType,
+  handleSalesEmployeeConnectAccountUpdated,
+  handleSalesEmployeeTransferReversed,
 } from '@autodealers/core';
 import {
   updateSubscriptionStatus,
@@ -94,6 +102,10 @@ export async function POST(request: NextRequest) {
         await handlePaymentFailed(event.data.object as Stripe.Invoice);
         break;
 
+      case 'invoice.paid':
+        await maybeCreateSalesMembershipCommissionsFromInvoice(event.data.object as Stripe.Invoice);
+        break;
+
       case 'customer.subscription.created':
         await handleSubscriptionCreated(event.data.object as Stripe.Subscription);
         break;
@@ -139,12 +151,22 @@ export async function POST(request: NextRequest) {
         await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session);
         break;
 
+      case 'checkout.session.expired':
+        await markSalesEmployeePaymentLinkExpired((event.data.object as Stripe.Checkout.Session).id);
+        break;
+
+      case 'payment_intent.succeeded':
+        await handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent);
+        break;
+
       case 'account.updated':
         await handleConnectAccountUpdated(event.data.object as Stripe.Account);
+        await handleSalesEmployeeConnectAccountUpdated(event.data.object as Stripe.Account);
         break;
 
       case 'transfer.reversed':
         await handleTransferReversed((event.data.object as Stripe.Transfer).id);
+        await handleSalesEmployeeTransferReversed((event.data.object as Stripe.Transfer).id);
         break;
 
       default:
@@ -170,11 +192,14 @@ export async function POST(request: NextRequest) {
 const STRIPE_WEBHOOK_EVENTS = [
   'invoice.payment_succeeded',
   'invoice.payment_failed',
+  'invoice.paid',
   'customer.subscription.created',
   'customer.subscription.updated',
   'customer.subscription.deleted',
   'customer.subscription.trial_will_end',
   'checkout.session.completed',
+  'checkout.session.expired',
+  'payment_intent.succeeded',
   'account.updated',
   'transfer.reversed',
 ] as const;
@@ -324,7 +349,62 @@ export async function GET() {
 /**
  * Maneja un pago exitoso
  */
+function stripeSubscriptionIdFromInvoice(invoice: Stripe.Invoice): string {
+  if (!invoice.subscription) return '';
+  return typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription.id;
+}
+
+async function maybeCreateSalesMembershipCommissionsFromInvoice(invoice: Stripe.Invoice): Promise<void> {
+  if ((invoice.amount_paid ?? 0) <= 0) return;
+  const subscriptionId = stripeSubscriptionIdFromInvoice(invoice);
+  if (!subscriptionId) return;
+
+  let tenantId = '';
+  let userId = '';
+  let membershipId = '';
+  let employeeId: string | null = null;
+
+  const subscriptionSnapshot = await db
+    .collection('subscriptions')
+    .where('stripeSubscriptionId', '==', subscriptionId)
+    .limit(1)
+    .get();
+  if (!subscriptionSnapshot.empty) {
+    const data = subscriptionSnapshot.docs[0].data() || {};
+    tenantId = String(data.tenantId || '');
+    userId = String(data.userId || '');
+    membershipId = String(data.membershipId || '');
+    employeeId = data.employeeId ? String(data.employeeId) : null;
+  }
+
+  if (!tenantId || !membershipId) {
+    try {
+      const stripe = await getStripeInstance();
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      const metadata = (subscription.metadata || {}) as Record<string, string>;
+      tenantId = tenantId || String(metadata.tenantId || '');
+      userId = userId || String(metadata.userId || '');
+      membershipId = membershipId || String(metadata.membershipId || '');
+      employeeId = employeeId || metadata.employeeId || null;
+    } catch (error) {
+      console.warn('[stripe] no se pudo leer suscripción para comisión de ventas:', error);
+    }
+  }
+
+  if (!tenantId || !membershipId) return;
+
+  await createSalesEmployeeMembershipCommissions({
+    employeeId,
+    tenantId,
+    userId,
+    membershipId,
+    stripeSubscriptionId: subscriptionId,
+    amountPaid: (invoice.amount_paid ?? 0) / 100,
+  }).catch((err) => console.warn('[stripe] sales employee paid invoice commission:', err));
+}
+
 async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
+  await maybeCreateSalesMembershipCommissionsFromInvoice(invoice);
   if (!invoice.subscription) return;
 
   const stripe = await getStripeInstance();
@@ -513,6 +593,12 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
   if (userId) {
     await cancelAffiliateReferralIfAwaitingFirstCharge(String(userId));
   }
+
+  await voidSalesEmployeeMembershipCommissions({
+    tenantId: subscriptionDoc.data()?.tenantId,
+    stripeSubscriptionId: subscriptionId,
+    reason: 'payment_failed',
+  }).catch((err) => console.warn('[stripe] sales employee void on payment_failed:', err));
 }
 
 /**
@@ -596,6 +682,7 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
   }
 
   // Procesar referido solo cuando Stripe ya habilitó la suscripción.
+  // Comisiones de empleados: solo en el primer cobro exitoso (invoice.paid / payment_succeeded).
   if (isPayableStatus) {
     await processReferralOnPayment(metadata.userId, subscription.id, metadata.membershipId);
   }
@@ -733,6 +820,11 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
 
   // Cancelar referidos pendientes del usuario
   await cancelUserReferrals(subscriptionData.userId, subscription.id);
+
+  await voidSalesEmployeeMembershipCommissions({
+    tenantId: subscriptionData.tenantId,
+    stripeSubscriptionId: subscription.id,
+  }).catch((err) => console.warn('[stripe] sales employee void:', err));
 }
 
 async function handleTrialWillEnd(subscription: Stripe.Subscription) {
@@ -1092,10 +1184,114 @@ async function handlePaidPromotionActivation(
   }
 }
 
+async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent) {
+  const metadata = (paymentIntent.metadata || {}) as Record<string, string>;
+  const tenantId = metadata.tenantId;
+  const type = metadata.type;
+  const amountPaid = Number(paymentIntent.amount_received || paymentIntent.amount || 0) / 100;
+
+  if (tenantId && isSalesAdCommissionType(type) && amountPaid > 0) {
+    await createSalesEmployeeAdCommission({
+      employeeId: metadata.employeeId || null,
+      tenantId,
+      amountPaid,
+      currency: paymentIntent.currency,
+      stripePaymentIntentId: paymentIntent.id,
+      adKind: type,
+    }).catch((err) => console.warn('[stripe] sales employee ad commission:', err));
+  }
+
+  if (!tenantId || !type) return;
+
+  if (type === 'premium_banner' || type === 'assigned_banner') {
+    const { markPremiumBannerPaid } = await import('@autodealers/core');
+    await markPremiumBannerPaid({
+      tenantId,
+      bannerId: metadata.bannerId || null,
+      paymentIntentId: paymentIntent.id,
+    });
+    return;
+  }
+
+  if (type === 'paid_promotion') {
+    const { activatePaidPromotionFromIntent } = await import('@autodealers/core');
+    await activatePaidPromotionFromIntent({
+      tenantId,
+      requestId: metadata.requestId || null,
+      paymentIntentId: paymentIntent.id,
+      metadata,
+    });
+    return;
+  }
+
+  if (type === 'featured_promotion') {
+    const { activateFeaturedPromotionFromIntent } = await import('@autodealers/core');
+    await activateFeaturedPromotionFromIntent({
+      tenantId,
+      requestId: metadata.requestId || null,
+      paymentIntentId: paymentIntent.id,
+      userId: metadata.userId,
+    });
+  }
+}
+
 /**
  * Maneja pago completado de checkout (para promociones premium y pagos únicos)
  */
 async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
+  // Depósitos de deal desk (Stripe Connect destination)
+  if (session.metadata?.type === 'deal_deposit' && session.metadata.tenantId && session.metadata.dealId) {
+    try {
+      const { markDealDepositPaid, updateDeal } = await import('@autodealers/crm');
+      const { dispatchTenantWebhook } = await import('@autodealers/core');
+      const pi =
+        typeof session.payment_intent === 'string'
+          ? session.payment_intent
+          : session.payment_intent?.id;
+      const deal = await markDealDepositPaid(
+        session.metadata.tenantId,
+        session.metadata.dealId,
+        pi
+      );
+      await updateDeal(session.metadata.tenantId, session.metadata.dealId, {
+        depositCheckoutSessionId: session.id,
+      });
+      await dispatchTenantWebhook(session.metadata.tenantId, 'deal.deposit_paid', {
+        dealId: deal.id,
+        status: deal.status,
+        depositAmount: deal.depositAmount,
+        paymentIntentId: pi || null,
+      });
+      console.log('[stripe] Deal deposit paid', session.metadata.dealId);
+    } catch (err) {
+      console.error('[stripe] Error procesando depósito de deal:', err);
+    }
+    return;
+  }
+
+  if (session.metadata?.type === 'business_invoice_payment' && session.metadata.tenantId) {
+    try {
+      const { fulfillBusinessInvoicePayment } = await import('@autodealers/core');
+      const pi =
+        typeof session.payment_intent === 'string'
+          ? session.payment_intent
+          : session.payment_intent?.id;
+      await fulfillBusinessInvoicePayment({
+        tenantId: session.metadata.tenantId,
+        invoiceId: session.metadata.invoiceId,
+        paymentLinkId: session.metadata.paymentLinkId,
+        token: session.metadata.token,
+        paymentIntentId: pi,
+        checkoutSessionId: session.id,
+        method: session.metadata.paymentMethod || 'card',
+      });
+      console.log('[stripe] Business invoice paid', session.metadata.invoiceId || session.metadata.token);
+    } catch (err) {
+      console.error('[stripe] Error procesando pago de factura de negocio:', err);
+    }
+    return;
+  }
+
   const stripe = await getStripeInstance();
   // Obtener factura si existe
   let invoice: Stripe.Invoice | null = null;
@@ -1150,7 +1346,14 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   const metadata = session.metadata;
   
   // Manejar registro de membresía (nuevo flujo de registro)
-  if (metadata?.source === 'registration' && metadata?.userId && metadata?.membershipId && metadata?.tenantId) {
+  if (
+    (metadata?.source === 'registration' ||
+      metadata?.source === 'business_subscribe' ||
+      metadata?.source === 'sales_employee') &&
+    metadata?.userId &&
+    metadata?.membershipId &&
+    metadata?.tenantId
+  ) {
     try {
       console.log('🔄 Procesando checkout de registro:', {
         userId: metadata.userId,
@@ -1226,6 +1429,8 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
             stripeCustomerId: subscription.customer as string,
             billingSource: 'stripe',
             status: subscriptionStatus,
+            source: metadata.source || null,
+            employeeId: metadata.employeeId || null,
             currentPeriodStart: admin.firestore.Timestamp.fromDate(new Date(subscription.current_period_start * 1000)),
             currentPeriodEnd: admin.firestore.Timestamp.fromDate(new Date(subscription.current_period_end * 1000)),
             ...(subscription.trial_end
@@ -1249,6 +1454,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
             membershipId: metadata.membershipId,
             stripeSubscriptionId: subscription.id,
             status: subscriptionStatus,
+            employeeId: metadata.employeeId || null,
           });
         } else {
           // Si ya existe, actualizar
@@ -1256,6 +1462,8 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
           await existingSubDoc.ref.update({
             status: subscriptionStatus,
             membershipId: metadata.membershipId,
+            ...(metadata.source ? { source: metadata.source } : {}),
+            ...(metadata.employeeId ? { employeeId: metadata.employeeId } : {}),
             ...(subscription.trial_end
               ? {
                   trialEndsAt: admin.firestore.Timestamp.fromDate(
@@ -1273,6 +1481,21 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
 
         if (isPayableStatus) {
           console.log('✅ Cuenta activada y membresía asignada para registro:', metadata.userId);
+        }
+        // paid + trial (no_payment_required): cerrar link de ventas al activar membresía
+        if (
+          metadata.source === 'sales_employee' &&
+          (session.payment_status === 'paid' ||
+            session.payment_status === 'no_payment_required' ||
+            isPayableStatus)
+        ) {
+          await markSalesEmployeePaymentLinkPaid(session.id).catch((err) =>
+            console.warn('[stripe] sales payment link paid:', err)
+          );
+        } else if (session.payment_status === 'paid') {
+          await markSalesEmployeePaymentLinkPaid(session.id).catch((err) =>
+            console.warn('[stripe] sales payment link paid:', err)
+          );
         }
       } else {
         console.log('⏳ Checkout completado sin subscription; no se activa membresía hasta recibir subscription.created/updated válido:', {

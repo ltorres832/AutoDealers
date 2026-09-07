@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { fetchWithAuth } from '@/lib/fetch-with-auth';
+import { useRealtimeSalesAdmin } from '@/hooks/useRealtimeSalesAdmin';
 
 interface Grant {
   id: string;
@@ -80,9 +81,11 @@ export default function StaffAccessPage() {
     [accounts, salesEmployeeId]
   );
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError('');
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) {
+      setLoading(true);
+      setError('');
+    }
     try {
       const [accessRes, overviewRes] = await Promise.all([
         fetchWithAuth('/api/admin/staff-access'),
@@ -98,15 +101,31 @@ export default function StaffAccessPage() {
         const ov = await overviewRes.json();
         setAccounts(ov.accounts || []);
       }
+      if (opts?.silent) setError('');
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Error');
+      if (!opts?.silent) setError(e instanceof Error ? e.message : 'Error');
     } finally {
-      setLoading(false);
+      if (!opts?.silent) setLoading(false);
     }
   }, []);
 
+  const silentReload = useCallback(() => {
+    void load({ silent: true });
+  }, [load]);
+
   useEffect(() => {
     void load();
+  }, [load]);
+
+  // True realtime: Firestore onSnapshot → refresh silencioso (mismo patrón que empleados-ventas)
+  useRealtimeSalesAdmin(silentReload);
+
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === 'visible') void load({ silent: true });
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
   }, [load]);
 
   async function grantAccess(e: React.FormEvent) {

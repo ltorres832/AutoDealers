@@ -35,8 +35,14 @@ export async function ensureSalesFirebaseClientAuth(): Promise<boolean> {
       console.warn('[sales] firebase-client-token:', res.status);
       return false;
     }
-    const data = (await res.json()) as { customToken?: string };
-    if (!data.customToken || !auth) return false;
+    const data = (await res.json()) as {
+      customToken?: string | null;
+      fallback?: boolean;
+    };
+    if (data.fallback || !data.customToken || !auth) {
+      console.warn('[sales] firebase-client-token: missing customToken');
+      return false;
+    }
     await signInWithCustomToken(auth, data.customToken);
     return true;
   })();

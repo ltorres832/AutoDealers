@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Error al generar token';
     console.error('[sales] firebase-client-token:', error);
-    return NextResponse.json({ customToken: null, fallback: true, error: message });
+    // No soft-200: el cliente debe reintentar auth, no asumir poll forever.
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

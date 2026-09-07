@@ -225,18 +225,22 @@ function SalesDashboardInner() {
             slice.employeePatch.commissionRulesAccepted ?? next.employee.commissionRulesAccepted,
           stats: (slice.employeePatch.stats as DashboardData['employee']['stats']) || next.employee.stats,
         };
-        if (slice.employeePatch.stripeConnectPayoutsEnabled != null) {
-          next.stripeConnect = {
-            ...next.stripeConnect,
-            accountId:
-              slice.employeePatch.stripeConnectAccountId ?? next.stripeConnect.accountId,
-            onboardingComplete:
-              slice.employeePatch.stripeConnectOnboardingComplete ??
-              next.stripeConnect.onboardingComplete,
-            payoutsEnabled: slice.employeePatch.stripeConnectPayoutsEnabled,
-            requiresAction: !slice.employeePatch.stripeConnectPayoutsEnabled,
-          };
-        }
+        // Connect status vive en el doc del empleado → listener actualiza UI sin esperar focus
+        next.stripeConnect = {
+          ...next.stripeConnect,
+          accountId:
+            slice.employeePatch.stripeConnectAccountId !== undefined
+              ? slice.employeePatch.stripeConnectAccountId
+              : next.stripeConnect.accountId,
+          onboardingComplete:
+            slice.employeePatch.stripeConnectOnboardingComplete ??
+            next.stripeConnect.onboardingComplete,
+          payoutsEnabled:
+            slice.employeePatch.stripeConnectPayoutsEnabled ?? next.stripeConnect.payoutsEnabled,
+          requiresAction: !(
+            slice.employeePatch.stripeConnectPayoutsEnabled ?? next.stripeConnect.payoutsEnabled
+          ),
+        };
       }
       return next;
     });
@@ -244,14 +248,29 @@ function SalesDashboardInner() {
 
   const { realtimeReady } = useRealtimeSalesDashboard(data?.employee?.id, applyRealtimeSlice);
 
-  // Stripe Connect still needs API (external). Soft refresh on focus only — no 15s poll.
+  // Stripe→Firestore sync: return URL, pageshow (vuelta de Connect), y focus.
+  // El listener del employee doc refleja payoutsEnabled en UI en cuanto Firestore se actualiza.
   useEffect(() => {
+    const soft = () => void load({ silent: true });
     const onVis = () => {
-      if (document.visibilityState === 'visible') void load({ silent: true });
+      if (document.visibilityState === 'visible') soft();
     };
+    const onPageShow = () => soft();
     document.addEventListener('visibilitychange', onVis);
-    return () => document.removeEventListener('visibilitychange', onVis);
+    window.addEventListener('pageshow', onPageShow);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('pageshow', onPageShow);
+    };
   }, [load]);
+
+  // Mientras Connect esté incompleto, un sync corto cierra Stripe→Firestore→listener (sin poll 60s).
+  useEffect(() => {
+    const connect = data?.stripeConnect;
+    if (!connect?.accountId || connect.payoutsEnabled) return;
+    const t = window.setTimeout(() => void load({ silent: true }), 2500);
+    return () => window.clearTimeout(t);
+  }, [data?.stripeConnect?.accountId, data?.stripeConnect?.payoutsEnabled, load]);
 
   useEffect(() => {
     fetch(`/api/sales/accounts?type=${form.role}`, { credentials: 'include' })

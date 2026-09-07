@@ -123,16 +123,18 @@ export function SalesConfigAccessPanel({
   useEffect(() => {
     let cancelled = false;
     const unsubs: Unsubscribe[] = [];
-    let pollTimer: number | undefined;
+    let retryTimer: number | undefined;
 
-    async function start() {
-      await loadApi();
+    async function startRealtime(attempt = 0) {
       if (cancelled || !employeeId) return;
 
       const ok = await ensureSalesFirebaseClientAuth();
       if (cancelled) return;
       if (!ok || !db) {
-        pollTimer = window.setInterval(() => void loadApi({ silent: true }), 60000);
+        // Sin poll 60s: reintentar auth unas veces; luego solo visibility/API.
+        if (attempt < 3) {
+          retryTimer = window.setTimeout(() => void startRealtime(attempt + 1), 1500 * (attempt + 1));
+        }
         return;
       }
 
@@ -173,11 +175,23 @@ export function SalesConfigAccessPanel({
       );
     }
 
-    void start();
+    async function boot() {
+      await loadApi();
+      if (cancelled || !employeeId) return;
+      await startRealtime(0);
+    }
+
+    void boot();
+
+    const onVis = () => {
+      if (document.visibilityState === 'visible') void loadApi({ silent: true });
+    };
+    document.addEventListener('visibilitychange', onVis);
 
     return () => {
       cancelled = true;
-      if (pollTimer) window.clearInterval(pollTimer);
+      if (retryTimer) window.clearTimeout(retryTimer);
+      document.removeEventListener('visibilitychange', onVis);
       unsubs.forEach((u) => {
         try {
           u();
