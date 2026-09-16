@@ -437,34 +437,34 @@ export async function buildImportPlan(
     const vin = row.vin?.toUpperCase().trim();
     const stock = row.stockNumber?.trim();
 
+    // VIN obligatorio en todas las filas (create y update) para sold-sync
+    if (!vin) {
+      planRows.push({
+        row,
+        action: 'error',
+        error: 'El VIN es obligatorio',
+      });
+      continue;
+    }
+    if (!isValidVin(vin)) {
+      planRows.push({ row, action: 'error', error: `VIN inválido: ${vin}` });
+      continue;
+    }
+
     // Clave de identificación de la fila
     let matched: Vehicle | undefined;
     let matchedBy: 'vin' | 'stockNumber' | undefined;
 
-    if ((matchKey === 'vin' || matchKey === 'auto') && vin) {
-      if (!isValidVin(vin) && matchKey === 'vin') {
-        planRows.push({ row, action: 'error', error: `VIN inválido: ${vin}` });
-        continue;
-      }
-      if (isValidVin(vin)) {
-        matched = byVin.get(vin);
-        if (matched) matchedBy = 'vin';
-      }
+    if (matchKey === 'vin' || matchKey === 'auto') {
+      matched = byVin.get(vin);
+      if (matched) matchedBy = 'vin';
     }
     if (!matched && (matchKey === 'stockNumber' || matchKey === 'auto') && stock) {
       matched = byStock.get(stock.toLowerCase());
       if (matched) matchedBy = 'stockNumber';
     }
 
-    const dedupeKey = vin && isValidVin(vin) ? `vin:${vin}` : stock ? `stk:${stock.toLowerCase()}` : '';
-    if (!dedupeKey) {
-      planRows.push({
-        row,
-        action: 'error',
-        error: 'La fila no tiene VIN ni número de stock para identificar el vehículo',
-      });
-      continue;
-    }
+    const dedupeKey = `vin:${vin}`;
     if (seenKeys.has(dedupeKey)) {
       planRows.push({ row, action: 'error', error: `Fila duplicada en el archivo (${dedupeKey})` });
       continue;
@@ -478,7 +478,7 @@ export async function buildImportPlan(
 
     // Creación: intentar completar con VIN decode si faltan datos clave
     let vinDecoded: VinDecodeResult | undefined;
-    if (options.decodeVins !== false && vin && isValidVin(vin) && (!row.make || !row.model || !row.year)) {
+    if (options.decodeVins !== false && (!row.make || !row.model || !row.year)) {
       vinDecoded = (await decodeVin(vin)) ?? undefined;
     }
 

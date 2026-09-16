@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { createErrorResponse, createSuccessResponse } from '@/lib/api-error-handler';
-import { getFirestore, notifyUser, notifyManagersAndAdmins } from '@autodealers/core';
-import * as admin from 'firebase-admin';
+import { getFirestore, notifyUser, notifyManagersAndAdmins, isValidVin, normalizeVin } from '@autodealers/core';
+import { createVehicle } from '@autodealers/inventory';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +18,6 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const {
-      // Información del vehículo
       make,
       model,
       year,
@@ -34,15 +33,20 @@ export async function POST(request: NextRequest) {
       images,
       photos,
       videos,
-      
-      // Asignación (puede ser dealer, vendedor, o ambos)
       dealerId,
       sellerId,
     } = body;
 
-    // Validaciones
     if (!make || !model || !year || !price) {
       return createErrorResponse('Marca, modelo, año y precio son requeridos', 400);
+    }
+
+    const normalizedVin = normalizeVin(vin);
+    if (!normalizedVin) {
+      return createErrorResponse('El VIN es obligatorio', 400);
+    }
+    if (!isValidVin(normalizedVin)) {
+      return createErrorResponse('VIN inválido. Debe tener 17 caracteres válidos.', 400);
     }
 
     if (!dealerId && !sellerId) {
@@ -51,10 +55,9 @@ export async function POST(request: NextRequest) {
 
     const db = getFirestore();
 
-    // Validar dealer si se proporciona
     let tenantId: string;
     let dealerName = '';
-    
+
     if (dealerId) {
       const dealerDoc = await db.collection('tenants').doc(dealerId).get();
       if (!dealerDoc.exists) {
@@ -64,10 +67,9 @@ export async function POST(request: NextRequest) {
       dealerName = dealerDoc.data()?.name || 'Dealer';
     }
 
-    // Validar vendedor si se proporciona
     let sellerName = '';
     let sellerTenantId = '';
-    
+
     if (sellerId) {
       const sellerDoc = await db.collection('users').doc(sellerId).get();
       if (!sellerDoc.exists) {
@@ -81,68 +83,50 @@ export async function POST(request: NextRequest) {
         return createErrorResponse('Vendedor no tiene tenant asignado', 400);
       }
 
-      // Si se proporcionaron ambos, verificar que el vendedor pertenezca al dealer
       if (dealerId && sellerTenantId !== dealerId) {
         return createErrorResponse('El vendedor no pertenece al dealer seleccionado', 400);
       }
 
-      // Si solo hay vendedor, usar su tenantId
       if (!dealerId) {
         tenantId = sellerTenantId;
       }
     }
 
-    // Crear el vehículo en la colección del tenant
-    const vehicleRef = db
-      .collection('tenants')
-      .doc(tenantId!)
-      .collection('vehicles')
-      .doc();
-    
-    const vehicleData = {
-      // Información básica
-      tenantId: tenantId!,
-      make,
-      model,
-      year: parseInt(year),
-      vin: vin || null,
-      price: parseFloat(price),
-      currency: 'USD', // Por defecto
-      mileage: mileage ? parseInt(mileage) : null,
-      condition: condition || 'used',
-      color: color || null,
-      transmission: transmission || null,
-      fuelType: fuelType || null,
-      description: description || '',
-      features: features || [],
-      photos: photos || images || [], // Usar photos como principal
-      videos: videos || [],
-      specifications: {
+    const vehicle = await createVehicle(
+      tenantId!,
+      {
         make,
         model,
-        year: parseInt(year),
-        color: color || null,
-        mileage: mileage ? parseInt(mileage) : null,
-        transmission: transmission || null,
-        fuelType: fuelType || null,
-        vin: vin || null,
-      },
-      
-      // Estado
-      status: 'available',
-      
-      // Asignación
-      dealerId: dealerId || null,
-      assignedTo: sellerId || null,
-      
-      // Metadata
-      createdBy: auth.userId,
-      createdByAdmin: true,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    };
-
-    await vehicleRef.set(vehicleData);
+        year: parseInt(year, 10),
+        vin: normalizedVin,
+        price: parseFloat(price),
+        currency: 'USD',
+        mileage: mileage ? parseInt(mileage, 10) : undefined,
+        condition: condition || 'used',
+        color: color || undefined,
+        transmission: transmission || undefined,
+        fuelType: fuelType || undefined,
+        description: description || '',
+        features: features || [],
+        photos: photos || images || [],
+        videos: videos || [],
+        specifications: {
+          make,
+          model,
+          year: parseInt(year, 10),
+          color: color || undefined,
+          mileage: mileage ? parseInt(mileage, 10) : undefined,
+          transmission: transmission || undefined,
+          fuelType: fuelType || undefined,
+          vin: normalizedVin,
+        },
+        status: 'available',
+        dealerId: dealerId || undefined,
+        assignedTo: sellerId || undefined,
+        createdByAdmin: true,
+      } as never,
+      sellerId || undefined
+    );
 
     if (dealerId) {
       await notifyManagersAndAdmins(dealerId, {
@@ -152,7 +136,7 @@ export async function POST(request: NextRequest) {
           sellerId ? ` (asignado a ${sellerName})` : ''
         }`,
         metadata: {
-          vehicleId: vehicleRef.id,
+          vehicleId: vehicle.id,
           vehicleName: `${year} ${make} ${model}`,
           assignedBy: 'admin',
         },
@@ -165,14 +149,13 @@ export async function POST(request: NextRequest) {
         title: 'Vehículo Asignado',
         message: `El admin te asignó un vehículo: ${year} ${make} ${model}`,
         metadata: {
-          vehicleId: vehicleRef.id,
+          vehicleId: vehicle.id,
           vehicleName: `${year} ${make} ${model}`,
           assignedBy: 'admin',
         },
       });
     }
 
-    // Mensaje de confirmación
     let assignmentMessage = '';
     if (dealerId && sellerId) {
       assignmentMessage = `Asignado a ${dealerName} (dealer) y ${sellerName} (vendedor)`;
@@ -184,19 +167,15 @@ export async function POST(request: NextRequest) {
 
     return createSuccessResponse(
       {
-        vehicle: {
-          id: vehicleRef.id,
-          ...vehicleData,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
+        vehicle,
         message: `Vehículo creado exitosamente. ${assignmentMessage}`,
       },
       201
     );
   } catch (error: any) {
     console.error('Error creating vehicle:', error);
-    return createErrorResponse(error.message || 'Error al crear vehículo', 500);
+    const message = error?.message || 'Error al crear vehículo';
+    const isVin = /VIN/i.test(message);
+    return createErrorResponse(message, isVin ? 400 : 500);
   }
 }
-

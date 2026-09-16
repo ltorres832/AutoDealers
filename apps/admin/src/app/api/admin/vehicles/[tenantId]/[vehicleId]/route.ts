@@ -112,7 +112,8 @@ export async function PATCH(
     for (const k of syncKeys) {
       if (updates[k] !== undefined) {
         spec[k] = updates[k];
-      } else if ((existing as unknown as Record<string, unknown>)[k] !== undefined) {
+      } else if (k !== 'vin' && (existing as unknown as Record<string, unknown>)[k] !== undefined) {
+        // No forzar vin legacy vacío en el update (rompe validación / sold-sync)
         spec[k] = (existing as unknown as Record<string, unknown>)[k];
       }
     }
@@ -124,6 +125,37 @@ export async function PATCH(
     return NextResponse.json({ vehicle: fresh ? serializeVehicle(fresh) : null });
   } catch (error) {
     console.error('PATCH admin vehicle:', error);
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    const isVin = /VIN/i.test(message);
+    return NextResponse.json({ error: message }, { status: isVin ? 400 : 500 });
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ tenantId: string; vehicleId: string }> }
+) {
+  try {
+    const { tenantId, vehicleId } = await params;
+    const auth = await verifyAuth(request);
+    if (!auth || auth.role !== 'admin') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (!tenantId || !vehicleId) {
+      return NextResponse.json({ error: 'Parámetros inválidos' }, { status: 400 });
+    }
+
+    const permanent = request.nextUrl.searchParams.get('permanent') === 'true';
+    if (permanent) {
+      const { hardDeleteVehicle } = await import('@autodealers/inventory/vehicles');
+      await hardDeleteVehicle(tenantId, vehicleId);
+    } else {
+      const { deleteVehicle } = await import('@autodealers/inventory/vehicles');
+      await deleteVehicle(tenantId, vehicleId);
+    }
+    return NextResponse.json({ success: true, permanent });
+  } catch (error) {
+    console.error('DELETE admin vehicle:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }

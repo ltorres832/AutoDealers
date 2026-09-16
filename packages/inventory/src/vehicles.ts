@@ -20,15 +20,45 @@ function resolveVehicleVin(data: Record<string, unknown> | null | undefined): st
   return normalizeVin(top || fromSpecs);
 }
 
-function assertVinRequired(vinRaw: string, context: string): string {
+function assertVinRequired(vinRaw: string, _context?: string): string {
   const vin = normalizeVin(vinRaw);
   if (!vin) {
-    throw new Error('El VIN es obligatorio (' + context + ').');
+    throw new Error('El VIN es obligatorio');
   }
   if (!isValidVin(vin)) {
-    throw new Error('VIN inválido (' + context + '). Debe tener 17 caracteres válidos.');
+    throw new Error('VIN inválido. Debe tener 17 caracteres válidos.');
   }
   return vin;
+}
+
+/** Activo en inventario o visible en listado público (no se puede quitar el VIN). */
+function isActiveOrListed(data: Record<string, unknown> | null | undefined): boolean {
+  if (!data || data.deleted === true) return false;
+  const status = String(data.status || '').toLowerCase();
+  if (status === 'available' || status === 'reserved') return true;
+  if (data.publishedOnPublicPage === true && status !== 'sold' && status !== 'hidden') {
+    return true;
+  }
+  return false;
+}
+
+/** Activar / republicar: exige VIN existente o en el update. */
+function isActivatingOrPublishing(
+  existing: Record<string, unknown> | null | undefined,
+  updates: Record<string, unknown>
+): boolean {
+  if (!existing) return false;
+  const prevStatus = String(existing.status || '').toLowerCase();
+  const nextStatus =
+    updates.status !== undefined ? String(updates.status || '').toLowerCase() : prevStatus;
+  const statusBecomingActive =
+    updates.status !== undefined &&
+    (nextStatus === 'available' || nextStatus === 'reserved') &&
+    prevStatus !== 'available' &&
+    prevStatus !== 'reserved';
+  const publishing =
+    updates.publishedOnPublicPage === true && existing.publishedOnPublicPage === false;
+  return statusBecomingActive || publishing;
 }
 
 /**
@@ -89,7 +119,7 @@ export async function createVehicle(
     .collection('vehicles')
     .doc();
 
-  const requiredVin = assertVinRequired(resolveVehicleVin(vehicleData as Record<string, unknown>), 'crear vehículo');
+  const requiredVin = assertVinRequired(resolveVehicleVin(vehicleData as Record<string, unknown>));
 
   // SIEMPRE generar número de stock automáticamente si no se proporciona uno válido
   // Verificar tanto en el nivel superior como en specifications
@@ -565,18 +595,42 @@ export async function updateVehicle(
   const existingStockNumber = existingData?.stockNumber || existingData?.specifications?.stockNumber;
 
   const updatesRecord = updates as Record<string, unknown>;
-  const vinInUpdate =
-    Object.prototype.hasOwnProperty.call(updatesRecord, 'vin') ||
-    (updatesRecord.specifications &&
-      typeof updatesRecord.specifications === 'object' &&
-      Object.prototype.hasOwnProperty.call(updatesRecord.specifications as object, 'vin'));
+  // Solo el VIN de nivel superior cuenta como edición intencional (evita falsos positivos
+  // cuando se reenvían specifications con vin legacy vacío).
+  const vinInUpdate = Object.prototype.hasOwnProperty.call(updatesRecord, 'vin');
   if (vinInUpdate) {
-    const nextVin = assertVinRequired(resolveVehicleVin(updatesRecord), 'actualizar vehículo');
-    (updates as any).vin = nextVin;
-    (updates as any).vinNormalized = toVinNormalized(nextVin);
-    if ((updates as any).specifications && typeof (updates as any).specifications === 'object') {
-      (updates as any).specifications = { ...(updates as any).specifications, vin: nextVin };
+    const nextRaw = normalizeVin(String(updatesRecord.vin ?? ''));
+    if (!nextRaw) {
+      if (isActiveOrListed(existingData as Record<string, unknown>)) {
+        throw new Error(
+          'No se puede quitar el VIN de un vehículo activo o publicado. El VIN es obligatorio'
+        );
+      }
+      (updates as any).vin = null;
+      (updates as any).vinNormalized = '';
+      if ((updates as any).specifications && typeof (updates as any).specifications === 'object') {
+        (updates as any).specifications = { ...(updates as any).specifications, vin: null };
+      }
+    } else {
+      const nextVin = assertVinRequired(nextRaw);
+      (updates as any).vin = nextVin;
+      (updates as any).vinNormalized = toVinNormalized(nextVin);
+      if ((updates as any).specifications && typeof (updates as any).specifications === 'object') {
+        (updates as any).specifications = { ...(updates as any).specifications, vin: nextVin };
+      }
     }
+  }
+
+  if (isActivatingOrPublishing(existingData as Record<string, unknown>, updatesRecord)) {
+    const mergedForVin = {
+      ...(existingData || {}),
+      ...updatesRecord,
+      specifications: {
+        ...((existingData?.specifications as object) || {}),
+        ...((updatesRecord.specifications as object) || {}),
+      },
+    };
+    assertVinRequired(resolveVehicleVin(mergedForVin));
   }
 
   // Preparar datos para actualizar, eliminando undefined

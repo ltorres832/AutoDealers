@@ -150,6 +150,15 @@ export default function CreateVehiclePage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const vinCheck = (formData.vin || '').trim().toUpperCase();
+    if (!vinCheck) {
+      alert('El VIN es obligatorio');
+      return;
+    }
+    if (vinCheck.length !== 17) {
+      alert('VIN inválido. Debe tener 17 caracteres válidos.');
+      return;
+    }
     setLoading(true);
     setUploading(true);
 
@@ -285,15 +294,19 @@ export default function CreateVehiclePage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  VIN
+                  VIN *
                 </label>
                 <input
                   type="text"
                   value={formData.vin}
-                  onChange={(e) => setFormData({ ...formData, vin: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, vin: e.target.value.toUpperCase() })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500"
                   placeholder="1HGBH41JXMN109186"
+                  maxLength={17}
+                  minLength={17}
+                  required
                 />
+                <p className="text-xs text-gray-500 mt-1">17 caracteres (obligatorio para sincronización de vendidos)</p>
               </div>
 
               <div>

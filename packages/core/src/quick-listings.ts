@@ -2,7 +2,10 @@ import { getFirestore } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
 import * as crypto from 'node:crypto';
 import { getFreePublicListingsSettings } from './free-public-listings';
+import { PLATFORM_NAME } from '@autodealers/shared/platform-sender';
+import { sendConfiguredEmail } from './email-delivery';
 import { normalizeLoginEmail } from './user-auth-sync';
+import { isValidVin, normalizeVin } from './vin';
 
 /**
  * Quick Listings ("Publicar Gratis")
@@ -15,8 +18,8 @@ import { normalizeLoginEmail } from './user-auth-sync';
  * Colección Firestore: quick_listings/{id}
  *
  * El sistema NO crea usuarios reales: cada anuncio guarda el
- * contacto (nombre/teléfono/email opcional) y aplica límites por
- * teléfono, dispositivo (visitorId) e IP para evitar abuso sin registro.
+ * contacto (nombre/teléfono/email) y aplica límites por
+ * teléfono, email, dispositivo (visitorId) e IP para evitar abuso sin registro.
  */
 
 const COLLECTION = 'quick_listings';
@@ -30,6 +33,8 @@ export interface QuickListingInput {
   make: string;
   model: string;
   year: number;
+  /** VIN obligatorio (17 caracteres + check digit). */
+  vin: string;
 
   /** Odómetro en millas (mercado PR / US). */
   mileage?: number | null;
@@ -62,6 +67,7 @@ export interface QuickListing {
   make: string;
   model: string;
   year: number;
+  vin: string | null;
   /** Millas recorridas. */
   mileage: number | null;
   price: number;
@@ -161,6 +167,7 @@ function mapDoc(
     make: String(d.make || ''),
     model: String(d.model || ''),
     year: Number(d.year) || 0,
+    vin: typeof d.vin === 'string' && d.vin.trim() ? normalizeVin(d.vin) : null,
     mileage: typeof d.mileage === 'number' ? d.mileage : null,
     price: Number(d.price) || 0,
     currency: typeof d.currency === 'string' && d.currency ? d.currency : 'USD',
@@ -372,6 +379,13 @@ export async function createQuickListing(
   if (!year || year < 1900 || year > new Date().getFullYear() + 1) {
     return { ok: false, status: 400, message: 'Año inválido.' };
   }
+  const vin = normalizeVin(input.vin);
+  if (!vin) {
+    return { ok: false, status: 400, message: 'El VIN es obligatorio' };
+  }
+  if (!isValidVin(vin)) {
+    return { ok: false, status: 400, message: 'VIN inválido. Debe tener 17 caracteres válidos.' };
+  }
   if (price == null || price <= 0) {
     return { ok: false, status: 400, message: 'Precio inválido.' };
   }
@@ -423,6 +437,7 @@ export async function createQuickListing(
     make,
     model,
     year,
+    vin,
     mileage: asNum(input.mileage),
     price,
     currency: (asStr(input.currency, 3) || 'USD').toUpperCase(),
@@ -476,12 +491,12 @@ export interface ListQuickListingsOptions {
 export async function listQuickListings(
   opts: ListQuickListingsOptions = {}
 ): Promise<QuickListing[]> {
-  const limit = Math.min(Math.max(opts.limit || 24, 1), 100);
+  const limit = Math.min(Math.max(opts.limit || 24, 1), 1000);
   /** Solo orderBy: evita índice compuesto status+createdAt (sin él, la query falla y el catálogo queda vacío). */
   let q: admin.firestore.Query = getDb()
     .collection(COLLECTION)
     .orderBy('createdAt', 'desc')
-    .limit(Math.min(limit * 4, 200));
+    .limit(Math.min(limit * 4, 1000));
   const snap = await q.get();
   const items: QuickListing[] = [];
   for (const d of snap.docs) {
@@ -538,6 +553,89 @@ export async function incrementQuickListingView(id: string): Promise<void> {
       .update({ views: admin.firestore.FieldValue.increment(1) });
   } catch {
     /* ignore */
+  }
+}
+
+function escapeHtml(input: unknown): string {
+  return String(input ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+export async function sendQuickListingPublishedEmail(params: {
+  email: string;
+  contactName: string;
+  vehicleTitle: string;
+  listingUrl: string;
+  registerUrl: string;
+  expiresAt?: Date | null;
+  durationDays?: number | null;
+}): Promise<{ sent: boolean; error?: string }> {
+  try {
+    const email = normalizeQuickListingEmail(params.email);
+    if (!isValidEmailFormat(email)) {
+      return { sent: false, error: 'Correo electrónico inválido' };
+    }
+
+    const expiresLabel = params.expiresAt
+      ? params.expiresAt.toLocaleDateString('es-PR', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        })
+      : null;
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #111827;">
+        <h2 style="color: #4f46e5;">Tu anuncio ya está publicado</h2>
+        <p>Hola <strong>${escapeHtml(params.contactName)}</strong>,</p>
+        <p>
+          Publicamos tu anuncio de <strong>${escapeHtml(params.vehicleTitle)}</strong> en ${PLATFORM_NAME}.
+          ${params.durationDays ? `Estará activo por <strong>${params.durationDays} días</strong>.` : ''}
+        </p>
+        ${
+          expiresLabel
+            ? `<p style="font-size: 14px; color: #4b5563;">Fecha estimada de vencimiento: <strong>${escapeHtml(expiresLabel)}</strong>.</p>`
+            : ''
+        }
+        <p style="margin: 24px 0;">
+          <a href="${escapeHtml(params.listingUrl)}" style="background: #4f46e5; color: #fff; padding: 12px 20px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: 700;">
+            Ver mi anuncio
+          </a>
+        </p>
+        <div style="background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px; margin-top: 20px;">
+          <h3 style="margin: 0 0 8px; font-size: 16px;">¿Quieres publicar más y recibir mejores herramientas?</h3>
+          <p style="margin: 0 0 14px; font-size: 14px; color: #4b5563;">
+            Crea una cuenta de vendedor para administrar tus vehículos, recibir contactos y seguir publicando sin el límite de anuncios gratis.
+          </p>
+          <a href="${escapeHtml(params.registerUrl)}" style="color: #4f46e5; font-weight: 700;">
+            Crear cuenta de vendedor
+          </a>
+        </div>
+        <p style="font-size: 12px; color: #6b7280; margin-top: 24px;">
+          Si no publicaste este anuncio, ignora este correo o contacta a soporte de ${PLATFORM_NAME}.
+        </p>
+      </div>
+    `;
+
+    const result = await sendConfiguredEmail({
+      to: email,
+      subject: `Tu anuncio gratis está publicado en ${PLATFORM_NAME}`,
+      html,
+    });
+
+    if (!result.sent) {
+      return { sent: false, error: result.error || 'Error al enviar email' };
+    }
+
+    return { sent: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Error desconocido';
+    console.error('sendQuickListingPublishedEmail:', message);
+    return { sent: false, error: message };
   }
 }
 

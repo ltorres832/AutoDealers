@@ -119,6 +119,17 @@ export async function PUT(
     if (body.description !== undefined) updateData.description = body.description;
     if (body.mileage !== undefined) updateData.mileage = body.mileage ? parseInt(body.mileage) : undefined;
     if (body.status !== undefined) updateData.status = body.status;
+    if (body.vin !== undefined) {
+      updateData.vin = String(body.vin || '').toUpperCase().trim();
+    } else if (
+      body.specifications &&
+      typeof body.specifications === 'object' &&
+      (body.specifications as { vin?: unknown }).vin !== undefined
+    ) {
+      updateData.vin = String((body.specifications as { vin?: unknown }).vin || '')
+        .toUpperCase()
+        .trim();
+    }
     
     // CRÍTICO: Siempre incluir photos y videos si están presentes, incluso si son arrays vacíos
     if (body.photos !== undefined) {

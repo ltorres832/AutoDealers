@@ -113,6 +113,15 @@ export default function AdminEditVehiclePage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const vinCheck = (formData.vin || '').trim().toUpperCase();
+    if (!vinCheck) {
+      setError('El VIN es obligatorio');
+      return;
+    }
+    if (vinCheck.length !== 17) {
+      setError('VIN inválido. Debe tener 17 caracteres válidos.');
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -124,7 +133,7 @@ export default function AdminEditVehiclePage() {
           make: formData.make,
           model: formData.model,
           year: parseInt(formData.year, 10),
-          vin: formData.vin || undefined,
+          vin: vinCheck,
           price: parseFloat(formData.price),
           mileage: formData.mileage ? parseInt(formData.mileage, 10) : undefined,
           condition: formData.condition,
@@ -206,12 +215,20 @@ export default function AdminEditVehiclePage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">VIN</label>
+            <label className="block text-sm font-medium mb-1">VIN *</label>
             <input
               className="w-full border rounded px-3 py-2"
               value={formData.vin}
-              onChange={(e) => setFormData({ ...formData, vin: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, vin: e.target.value.toUpperCase() })}
+              maxLength={17}
+              minLength={17}
+              required
             />
+            {!formData.vin?.trim() && (
+              <p className="text-xs text-amber-700 mt-1">
+                Este vehículo no tiene VIN. Debes agregarlo para guardar.
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Precio *</label>

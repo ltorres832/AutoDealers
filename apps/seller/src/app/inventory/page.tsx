@@ -5,6 +5,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRealtimeInventory, type RealtimeInventoryVehicle } from '@/hooks/useRealtimeInventory';
 import VehicleInventoryCard from '@/components/VehicleInventoryCard';
+import ShareVehicleModal from '@/components/ShareVehicleModal';
+import VinDecodeField from '@/components/VinDecodeField';
 import { VEHICLE_TYPES, TRANSMISSION_OPTIONS, FUEL_TYPE_OPTIONS, DRIVE_TYPE_OPTIONS } from '@autodealers/inventory/client';
 import AdvancedMarkAsSoldModal from '@/components/AdvancedMarkAsSoldModal';
 import ScheduleFromInventoryModal, {
@@ -14,6 +16,7 @@ import {
   PublishVehicleToSocialModal,
   type PublishSocialVehicle,
 } from '@autodealers/shared/client';
+import { useFeatureFlag } from '@/hooks/useFeatureFlag';
 
 type Vehicle = RealtimeInventoryVehicle;
 
@@ -21,8 +24,55 @@ type InventoryFilter = 'all' | 'available' | 'sold' | 'hidden';
 
 export default function InventoryPage() {
   const { user, loading: authLoading } = useAuth();
+  const [syncInfo, setSyncInfo] = useState<{
+    eligible: boolean;
+    syncDealerInventory: boolean;
+    dealerTenantId?: string;
+  }>({ eligible: false, syncDealerInventory: false });
+  const [syncBusy, setSyncBusy] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/settings/inventory-sync', { credentials: 'include' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data) {
+          setSyncInfo({
+            eligible: Boolean(data.eligible),
+            syncDealerInventory: Boolean(data.syncDealerInventory),
+            dealerTenantId: data.dealerTenantId,
+          });
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function toggleDealerSync() {
+    setSyncBusy(true);
+    try {
+      const res = await fetch('/api/settings/inventory-sync', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ syncDealerInventory: !syncInfo.syncDealerInventory }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error actualizando la sincronización');
+      setSyncInfo((s) => ({ ...s, syncDealerInventory: Boolean(data.syncDealerInventory) }));
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Error actualizando la sincronización');
+    } finally {
+      setSyncBusy(false);
+    }
+  }
+
   const { vehicles, loading: inventoryLoading, error: inventoryError } = useRealtimeInventory({
     tenantId: user?.tenantId,
+    extraTenantId:
+      syncInfo.syncDealerInventory && syncInfo.dealerTenantId ? syncInfo.dealerTenantId : undefined,
     limit: 200,
   });
   const loading = authLoading || inventoryLoading;
@@ -36,22 +86,49 @@ export default function InventoryPage() {
     mode: ScheduleFromInventoryMode;
   } | null>(null);
   const [socialPublishVehicle, setSocialPublishVehicle] = useState<PublishSocialVehicle | null>(null);
+  const [shareVehicle, setShareVehicle] = useState<Vehicle | null>(null);
+
+  async function openDacoLabel(vehicle: Vehicle) {
+    try {
+      const res = await fetch(`/api/vehicles/${vehicle.id}/compete`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'daco_label' }),
+      });
+      const html = await res.text();
+      if (!res.ok) throw new Error('No se pudo generar la etiqueta');
+      const w = window.open('', '_blank');
+      if (w) {
+        w.document.write(html);
+        w.document.close();
+      }
+    } catch {
+      alert('No se pudo abrir la etiqueta DACO');
+    }
+  }
 
   function handleMarkAsSold(vehicle: Vehicle) {
     setSelectedVehicle(vehicle);
     setShowMarkAsSoldModal(true);
   }
 
+  const dealerTenantId =
+    syncInfo.syncDealerInventory && syncInfo.dealerTenantId ? syncInfo.dealerTenantId : undefined;
+
   const visibleVehicles = useMemo(() => {
     return vehicles.filter((v) => {
       if (v.deleted === true) return false;
+      // Inventario sincronizado del dealer: solo unidades disponibles/reservadas
+      const isDealerRow = Boolean(dealerTenantId && v.tenantId === dealerTenantId);
+      if (isDealerRow && (v.status === 'hidden' || v.status === 'sold')) return false;
       if (inventoryFilter === 'all') return true;
       if (inventoryFilter === 'available') return v.status === 'available';
       if (inventoryFilter === 'sold') return v.status === 'sold';
       if (inventoryFilter === 'hidden') return v.status === 'hidden';
       return true;
     });
-  }, [vehicles, inventoryFilter]);
+  }, [vehicles, inventoryFilter, dealerTenantId]);
 
   async function togglePublishVehicle(vehicle: Vehicle) {
     try {
@@ -124,6 +201,34 @@ export default function InventoryPage() {
         </div>
       </div>
 
+      {syncInfo.eligible && (
+        <div className="mb-6 rounded-xl border border-indigo-200 bg-indigo-50 px-5 py-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="font-semibold text-indigo-900">Sincronizar inventario del dealer</p>
+            <p className="text-sm text-indigo-700 mt-0.5">
+              {syncInfo.syncDealerInventory
+                ? 'Activo: ves todo el inventario disponible de tu dealer en tiempo real, además del tuyo.'
+                : 'Muestra automáticamente todo el inventario disponible de tu dealer junto al tuyo.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={syncBusy}
+            onClick={() => void toggleDealerSync()}
+            className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors disabled:opacity-50 ${
+              syncInfo.syncDealerInventory ? 'bg-indigo-600' : 'bg-gray-300'
+            }`}
+            aria-pressed={syncInfo.syncDealerInventory}
+          >
+            <span
+              className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                syncInfo.syncDealerInventory ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-2 mb-6">
         {(
           [
@@ -154,20 +259,40 @@ export default function InventoryPage() {
             No hay vehículos en esta vista
           </div>
         ) : (
-          visibleVehicles.map((vehicle) => (
-            <VehicleInventoryCard
-              key={vehicle.id}
-              vehicle={vehicle}
-              onRefresh={() => {}}
-              onSchedule={(v, mode) => setSchedule({ vehicle: v as Vehicle, mode })}
-              onEdit={(v) => {
-                setSelectedVehicle(v as Vehicle);
-                setShowEditModal(true);
-              }}
-              onFullSale={(v) => handleMarkAsSold(v as Vehicle)}
-              onPublishSocial={(v) => setSocialPublishVehicle(v as PublishSocialVehicle)}
-            />
-          ))
+          visibleVehicles.map((vehicle) => {
+            const isDealerRow = Boolean(dealerTenantId && vehicle.tenantId === dealerTenantId);
+            return (
+              <div key={vehicle.id} className="relative">
+                {isDealerRow && (
+                  <span className="absolute top-3 right-3 z-20 rounded-full bg-indigo-600 text-white text-xs font-medium px-2.5 py-1 shadow">
+                    Inventario del dealer
+                  </span>
+                )}
+                <VehicleInventoryCard
+                  vehicle={vehicle}
+                  onRefresh={() => {}}
+                  onSchedule={(v, mode) => setSchedule({ vehicle: v as Vehicle, mode })}
+                  onEdit={
+                    isDealerRow
+                      ? undefined
+                      : (v) => {
+                          setSelectedVehicle(v as Vehicle);
+                          setShowEditModal(true);
+                        }
+                  }
+                  onFullSale={(v) => handleMarkAsSold(v as Vehicle)}
+                  onPublishSocial={(v) => setSocialPublishVehicle(v as PublishSocialVehicle)}
+                  onShare={
+                    !isDealerRow ? (v) => setShareVehicle(v as Vehicle) : undefined
+                  }
+                  onDacoLabel={
+                    !isDealerRow ? (v) => void openDacoLabel(v as Vehicle) : undefined
+                  }
+                  showPhotoGuide={!isDealerRow}
+                />
+              </div>
+            );
+          })
         )}
       </div>
 
@@ -178,7 +303,7 @@ export default function InventoryPage() {
           }}
           onSuccess={(created) => {
             setShowCreateModal(false);
-            if (created?.photos?.length) {
+            if (created?.photos?.length || created?.videos?.length) {
               setSocialPublishVehicle(created);
             }
           }}
@@ -227,6 +352,14 @@ export default function InventoryPage() {
           vehicle={socialPublishVehicle}
           onClose={() => setSocialPublishVehicle(null)}
           mode="tenant"
+        />
+      ) : null}
+
+      {shareVehicle ? (
+        <ShareVehicleModal
+          vehicleId={shareVehicle.id}
+          label={`${shareVehicle.year} ${shareVehicle.make} ${shareVehicle.model}`}
+          onClose={() => setShareVehicle(null)}
         />
       ) : null}
     </div>
@@ -871,9 +1004,16 @@ function CreateVehicleModal({
   const [photos, setPhotos] = useState<File[]>([]);
   const [videos, setVideos] = useState<File[]>([]);
   const [showSpecs, setShowSpecs] = useState(false);
+  const videoUploadsEnabled = useFeatureFlag('video_uploads');
+  const vinCameraEnabled = useFeatureFlag('vin_camera_scan');
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const vinCheck = (formData.vin || '').trim();
+    if (!vinCheck || vinCheck.length !== 17) {
+      alert('El VIN es obligatorio');
+      return;
+    }
     setLoading(true);
 
     try {
@@ -915,7 +1055,7 @@ function CreateVehicleModal({
             if (formData.premiumFeatures) specs.premiumFeatures = formData.premiumFeatures.split(',').map((f: string) => f.trim()).filter((f: string) => f);
             return Object.keys(specs).length > 0 ? specs : {};
           })(),
-          vin: formData.vin || undefined,
+          vin: formData.vin.trim().toUpperCase(),
           stockNumber: formData.stockNumber || undefined,
           status: 'available',
           sellerCommissionType: formData.sellerCommissionType,
@@ -1375,6 +1515,18 @@ function CreateVehicleModal({
   }
 
   function handleVideoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!videoUploadsEnabled) {
+      window.dispatchEvent(
+        new CustomEvent('seller-membership-required', {
+          detail: {
+            reason:
+              'La subida de videos no está incluida en tu plan. Selecciona o activa una membresía que incluya videos de vehículos.',
+          },
+        })
+      );
+      e.target.value = '';
+      return;
+    }
     if (e.target.files) {
       setVideos(Array.from(e.target.files));
     }
@@ -1388,6 +1540,27 @@ function CreateVehicleModal({
           {/* Información Básica */}
           <div className="mb-6">
             <h3 className="text-lg font-semibold mb-4 pb-2 border-b">Información Básica</h3>
+            <div className="mb-4">
+              <VinDecodeField
+                enabled={vinCameraEnabled}
+                required
+                value={formData.vin}
+                onChange={(vin) => setFormData({ ...formData, vin })}
+                onDecoded={(result) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    make: result.make || prev.make,
+                    model: result.model || prev.model,
+                    year: result.year || prev.year,
+                    bodyType: result.bodyType || prev.bodyType,
+                    engine: result.engine || prev.engine,
+                    fuelType: result.fuelType || prev.fuelType,
+                    transmission: result.transmission || prev.transmission,
+                    doors: result.doors != null ? String(result.doors) : prev.doors,
+                  }))
+                }
+              />
+            </div>
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Marca *</label>
@@ -1523,23 +1696,7 @@ function CreateVehicleModal({
             </div>
             
             <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      VIN
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.vin}
-                      onChange={(e) =>
-                        setFormData({ ...formData, vin: e.target.value })
-                      }
-                      className="w-full border rounded px-3 py-2"
-                      placeholder="Ej: 1FTEW1EP9MFA17916"
-                      maxLength={17}
-                    />
-                  </div>
-                  <div>
+                <div>
                     <label className="block text-sm font-medium mb-2">
                       Número de Control (Stock #)
                       <span className="text-xs text-gray-500 block mt-1">
@@ -1555,7 +1712,6 @@ function CreateVehicleModal({
                       className="w-full border rounded px-3 py-2"
                       placeholder="Se generará automáticamente (ej: STK-20260103-0001)"
                     />
-                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -1797,7 +1953,7 @@ function CreateVehicleModal({
               <input
                 type="file"
                 multiple
-                accept="video/*"
+                accept="video/mp4,video/webm,video/quicktime"
                 onChange={handleVideoChange}
                 className="w-full border rounded px-3 py-2"
               />
@@ -1999,9 +2155,16 @@ function EditVehicleModal({ vehicle, onClose, onSuccess }: { vehicle: Vehicle; o
   const [existingPhotos, setExistingPhotos] = useState<string[]>(vehicle.photos || []);
   const [existingVideos, setExistingVideos] = useState<string[]>((vehicle as any).videos || []);
   const [showSpecs, setShowSpecs] = useState(true); // Mostrar por defecto para que sea visible
+  const videoUploadsEnabled = useFeatureFlag('video_uploads');
+  const vinCameraEnabled = useFeatureFlag('vin_camera_scan');
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const vinCheck = (formData.vin || '').trim();
+    if (!vinCheck || vinCheck.length !== 17) {
+      alert('El VIN es obligatorio');
+      return;
+    }
     setLoading(true);
 
     try {
@@ -2113,7 +2276,7 @@ function EditVehicleModal({ vehicle, onClose, onSuccess }: { vehicle: Vehicle; o
           photos: photoUrls,
           videos: videoUrls,
           specifications: {
-            vin: formData.vin || undefined,
+            vin: formData.vin.trim().toUpperCase(),
             // NO enviar stockNumber - se generará automáticamente en el servidor
             transmission: formData.transmission || undefined,
             fuelType: formData.fuelType || undefined,
@@ -2164,6 +2327,18 @@ function EditVehicleModal({ vehicle, onClose, onSuccess }: { vehicle: Vehicle; o
   }
 
   function handleVideoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!videoUploadsEnabled) {
+      window.dispatchEvent(
+        new CustomEvent('seller-membership-required', {
+          detail: {
+            reason:
+              'La subida de videos no está incluida en tu plan. Selecciona o activa una membresía que incluya videos de vehículos.',
+          },
+        })
+      );
+      e.target.value = '';
+      return;
+    }
     if (e.target.files) {
       setVideos(Array.from(e.target.files));
     }
@@ -2185,6 +2360,27 @@ function EditVehicleModal({ vehicle, onClose, onSuccess }: { vehicle: Vehicle; o
           {/* Información Básica */}
           <div className="mb-6">
             <h3 className="text-lg font-semibold mb-4 pb-2 border-b">Información Básica</h3>
+            <div className="mb-4">
+              <VinDecodeField
+                enabled={vinCameraEnabled}
+                required
+                value={formData.vin}
+                onChange={(vin) => setFormData({ ...formData, vin })}
+                onDecoded={(result) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    make: result.make || prev.make,
+                    model: result.model || prev.model,
+                    year: result.year || prev.year,
+                    bodyType: result.bodyType || prev.bodyType,
+                    engine: result.engine || prev.engine,
+                    fuelType: result.fuelType || prev.fuelType,
+                    transmission: result.transmission || prev.transmission,
+                    doors: result.doors != null ? String(result.doors) : prev.doors,
+                  }))
+                }
+              />
+            </div>
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Marca *</label>
@@ -2320,23 +2516,7 @@ function EditVehicleModal({ vehicle, onClose, onSuccess }: { vehicle: Vehicle; o
             </div>
             
             <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      VIN
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.vin}
-                      onChange={(e) =>
-                        setFormData({ ...formData, vin: e.target.value })
-                      }
-                      className="w-full border rounded px-3 py-2"
-                      placeholder="Ej: 1FTEW1EP9MFA17916"
-                      maxLength={17}
-                    />
-                  </div>
-                  <div>
+                <div>
                     <label className="block text-sm font-medium mb-2">
                       Número de Control (Stock #)
                       <span className="text-xs text-gray-500 block mt-1">
@@ -2352,7 +2532,6 @@ function EditVehicleModal({ vehicle, onClose, onSuccess }: { vehicle: Vehicle; o
                       className="w-full border rounded px-3 py-2"
                       placeholder="Se generará automáticamente (ej: STK-20260103-0001)"
                     />
-                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -2631,7 +2810,7 @@ function EditVehicleModal({ vehicle, onClose, onSuccess }: { vehicle: Vehicle; o
             <input
               type="file"
               multiple
-              accept="video/*"
+              accept="video/mp4,video/webm,video/quicktime"
               onChange={handleVideoChange}
               className="w-full border rounded px-3 py-2"
             />

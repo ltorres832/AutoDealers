@@ -36,6 +36,7 @@ export default function PublicarGratisPage() {
     make: '',
     model: '',
     year: CURRENT_YEAR,
+    vin: '',
     mileage: '',
     price: '',
     currency: 'USD',
@@ -179,6 +180,15 @@ export default function PublicarGratisPage() {
       setError('Debes aceptar que se mostrarán tu nombre, teléfono y la información del vehículo.');
       return;
     }
+    const vinCheck = (form.vin || '').trim().toUpperCase();
+    if (!vinCheck) {
+      setError('El VIN es obligatorio');
+      return;
+    }
+    if (vinCheck.length !== 17) {
+      setError('VIN inválido. Debe tener 17 caracteres válidos.');
+      return;
+    }
     setSubmitting(true);
     try {
       const r = await fetch('/api/public/quick-listings', {
@@ -186,6 +196,7 @@ export default function PublicarGratisPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
+          vin: vinCheck,
           year: Number(form.year),
           price: form.price ? Number(form.price) : null,
           mileage: form.mileage ? Number(form.mileage) : null,
@@ -343,6 +354,7 @@ export default function PublicarGratisPage() {
                   make: '',
                   model: '',
                   year: CURRENT_YEAR,
+                  vin: '',
                   mileage: '',
                   price: '',
                   currency: 'USD',
@@ -413,6 +425,19 @@ export default function PublicarGratisPage() {
                   value={form.year}
                   onChange={handleField('year')}
                   className={inputClass}
+                />
+              </Field>
+              <Field label="VIN *">
+                <input
+                  required
+                  value={form.vin}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, vin: e.target.value.toUpperCase() }))
+                  }
+                  className={inputClass}
+                  placeholder="17 caracteres"
+                  maxLength={17}
+                  minLength={17}
                 />
               </Field>
               <Field label="Precio *">

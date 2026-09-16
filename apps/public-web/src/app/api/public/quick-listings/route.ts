@@ -5,7 +5,7 @@ import {
   createQuickListing,
   listQuickListings,
   purgeExpiredQuickListings,
-} from '@autodealers/core';
+} from '@autodealers/core/quick-listings';
 import * as crypto from 'node:crypto';
 
 function getClientIp(req: NextRequest): string | null {
@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
           make: it.make,
           model: it.model,
           year: it.year,
+          vin: it.vin,
           mileage: it.mileage,
           price: it.price,
           currency: it.currency,
@@ -80,6 +81,7 @@ export async function POST(request: NextRequest) {
       make: body.make,
       model: body.model,
       year: Number(body.year),
+      vin: body.vin,
       mileage: body.mileage != null ? Number(body.mileage) : null,
       price: Number(body.price),
       currency: body.currency || 'USD',

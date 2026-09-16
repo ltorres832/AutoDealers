@@ -4,6 +4,9 @@ import VehiclesList from '@/components/VehiclesList';
 import { useState } from 'react';
 import Link from 'next/link';
 import { VEHICLE_TYPES, TRANSMISSION_OPTIONS, FUEL_TYPE_OPTIONS, DRIVE_TYPE_OPTIONS } from '@autodealers/inventory/client';
+import { useFeatureFlag } from '@/hooks/useFeatureFlag';
+import UpgradeModal from '@/components/UpgradeModal';
+import VinDecodeField from '@/components/VinDecodeField';
 
 export default function InventoryPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -18,6 +21,36 @@ export default function InventoryPage() {
             className="px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-800 hover:bg-slate-50"
           >
             👁️ Interés en la web
+          </Link>
+          <Link
+            href="/inventory/network"
+            className="px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-800 hover:bg-slate-50"
+          >
+            🏢 Multi-dealer
+          </Link>
+          <Link
+            href="/inventory/bulk"
+            className="px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-800 hover:bg-slate-50"
+          >
+            📥 Importación masiva
+          </Link>
+          <Link
+            href="/inventory/site"
+            className="px-4 py-2 border border-emerald-200 bg-emerald-50 rounded-lg text-sm font-semibold text-emerald-900 hover:bg-emerald-100"
+          >
+            🌐 Mi sitio
+          </Link>
+          <Link
+            href="/inventory/alliances"
+            className="px-4 py-2 border border-amber-200 bg-amber-50 rounded-lg text-sm font-semibold text-amber-900 hover:bg-amber-100"
+          >
+            🤝 Alianzas
+          </Link>
+          <Link
+            href="/inventory/feeds"
+            className="px-4 py-2 border border-indigo-200 bg-indigo-50 rounded-lg text-sm font-semibold text-indigo-900 hover:bg-indigo-100"
+          >
+            🔄 Feeds
           </Link>
           <button
             onClick={() => setShowCreateModal(true)}
@@ -48,6 +81,7 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
     condition: 'used' as const,
     description: '',
     mileage: '',
+    quantity: '',
     sellerCommissionType: 'percentage' as 'percentage' | 'fixed',
     sellerCommissionRate: '',
     sellerCommissionFixed: '',
@@ -76,10 +110,18 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
   const [loading, setLoading] = useState(false);
   const [photos, setPhotos] = useState<File[]>([]);
   const [videos, setVideos] = useState<File[]>([]);
+  const videoUploadsEnabled = useFeatureFlag('video_uploads');
+  const vinCameraEnabled = useFeatureFlag('vin_camera_scan');
+  const [showVideoUpgrade, setShowVideoUpgrade] = useState(false);
   const [showSpecs, setShowSpecs] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const vin = (formData.vin || '').trim();
+    if (!vin || vin.length !== 17) {
+      alert('El VIN es obligatorio');
+      return;
+    }
     setLoading(true);
 
     try {
@@ -154,10 +196,16 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
           condition: formData.condition,
           description: formData.description,
           mileage: formData.mileage ? parseInt(formData.mileage) : undefined,
+          quantity:
+            formData.quantity && parseInt(formData.quantity) > 0
+              ? parseInt(formData.quantity)
+              : undefined,
+          quantitySold:
+            formData.quantity && parseInt(formData.quantity) > 0 ? 0 : undefined,
           photos: photoUrls,
           videos: videoUrls,
           specifications: Object.keys(specifications).length > 0 ? specifications : {},
-          vin: formData.vin || undefined,
+          vin: vin.toUpperCase(),
           stockNumber: formData.stockNumber || undefined,
           status: 'available',
           sellerCommissionType: formData.sellerCommissionType,
@@ -176,7 +224,8 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
         onClose();
         window.location.reload();
       } else {
-        alert('Error al crear vehículo');
+        const err = await response.json().catch(() => ({}));
+        alert(err.error || 'Error al crear vehículo');
       }
     } catch (error) {
       console.error('Error:', error);
@@ -193,6 +242,11 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
   }
 
   function handleVideoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!videoUploadsEnabled) {
+      setShowVideoUpgrade(true);
+      e.target.value = '';
+      return;
+    }
     if (e.target.files) {
       setVideos(Array.from(e.target.files));
     }
@@ -206,6 +260,27 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
           {/* Información Básica */}
           <div className="mb-6">
             <h3 className="text-lg font-semibold mb-4 pb-2 border-b">Información Básica</h3>
+            <div className="mb-4">
+              <VinDecodeField
+                enabled={vinCameraEnabled}
+                required
+                value={formData.vin}
+                onChange={(vin) => setFormData({ ...formData, vin })}
+                onDecoded={(result) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    make: result.make || prev.make,
+                    model: result.model || prev.model,
+                    year: result.year || prev.year,
+                    bodyType: result.bodyType || prev.bodyType,
+                    engine: result.engine || prev.engine,
+                    fuelType: result.fuelType || prev.fuelType,
+                    transmission: result.transmission || prev.transmission,
+                    doors: result.doors != null ? String(result.doors) : prev.doors,
+                  }))
+                }
+              />
+            </div>
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Marca *</label>
@@ -330,6 +405,24 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
                   placeholder="Ej: 0 para nuevo"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Cantidad disponible (opcional)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.quantity}
+                  onChange={(e) =>
+                    setFormData({ ...formData, quantity: e.target.value })
+                  }
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="Unidades idénticas en stock"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Cada venta descuenta 1 unidad automáticamente; al llegar a 0 se marca vendido.
+                </p>
+              </div>
             </div>
 
             <div className="mb-4">
@@ -364,6 +457,9 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
             {showSpecs && (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2 text-xs text-slate-500">
+                    El VIN también está arriba (Quick VIN). Aquí puedes ajustarlo.
+                  </div>
                   <div>
                     <label className="block text-sm font-medium mb-2">
                       VIN
@@ -372,7 +468,7 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
                       type="text"
                       value={formData.vin}
                       onChange={(e) =>
-                        setFormData({ ...formData, vin: e.target.value })
+                        setFormData({ ...formData, vin: e.target.value.toUpperCase() })
                       }
                       className="w-full border rounded px-3 py-2"
                       placeholder="Ej: 1FTEW1EP9MFA17916"
@@ -638,7 +734,7 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
               <input
                 type="file"
                 multiple
-                accept="video/*"
+                accept="video/mp4,video/webm,video/quicktime"
                 onChange={handleVideoChange}
                 className="w-full border rounded px-3 py-2"
               />
@@ -668,6 +764,12 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
           </div>
         </form>
       </div>
+      <UpgradeModal
+        isOpen={showVideoUpgrade}
+        onClose={() => setShowVideoUpgrade(false)}
+        reason="La subida de videos no está incluida en tu plan. Selecciona o activa una membresía que incluya videos de vehículos."
+        featureName="Videos de vehículos"
+      />
     </div>
   );
 }

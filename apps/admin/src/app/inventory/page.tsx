@@ -62,6 +62,15 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const vinCheck = (formData.vin || '').trim().toUpperCase();
+    if (!vinCheck) {
+      alert('El VIN es obligatorio');
+      return;
+    }
+    if (vinCheck.length !== 17) {
+      alert('VIN inválido. Debe tener 17 caracteres válidos.');
+      return;
+    }
     setLoading(true);
 
     try {
@@ -104,7 +113,7 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
       const specifications: any = {};
       
       // Agregar campos de especificaciones si están llenos
-      if (formData.vin) specifications.vin = formData.vin;
+      specifications.vin = vinCheck;
       if (formData.stockNumber) specifications.stockNumber = formData.stockNumber;
       if (formData.transmission) specifications.transmission = formData.transmission;
       if (formData.fuelType) specifications.fuelType = formData.fuelType;
@@ -138,7 +147,7 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
           photos: photoUrls,
           videos: videoUrls.length > 0 ? videoUrls : undefined,
           specifications: Object.keys(specifications).length > 0 ? specifications : {},
-          vin: formData.vin || undefined,
+          vin: vinCheck,
           stockNumber: formData.stockNumber || undefined,
         }),
       });
@@ -302,6 +311,22 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
                 />
               </div>
             </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-2">VIN *</label>
+              <input
+                type="text"
+                value={formData.vin}
+                onChange={(e) =>
+                  setFormData({ ...formData, vin: e.target.value.toUpperCase() })
+                }
+                className="w-full border rounded px-3 py-2"
+                placeholder="Ej: 1FTEW1EP9MFA17916"
+                maxLength={17}
+                minLength={17}
+                required
+              />
+            </div>
           </div>
 
           {/* Descripción */}
@@ -342,17 +367,19 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-2">
-                      VIN
+                      VIN *
                     </label>
                     <input
                       type="text"
                       value={formData.vin}
                       onChange={(e) =>
-                        setFormData({ ...formData, vin: e.target.value })
+                        setFormData({ ...formData, vin: e.target.value.toUpperCase() })
                       }
                       className="w-full border rounded px-3 py-2"
                       placeholder="Ej: 1FTEW1EP9MFA17916"
                       maxLength={17}
+                      minLength={17}
+                      required
                     />
                   </div>
                   <div>
