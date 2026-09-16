@@ -58,8 +58,17 @@ export interface Vehicle {
   videos?: string[];
   specifications: VehicleSpecs;
   vin?: string;
+  /** VIN normalizado (uppercase, sin espacios/guiones) para índices y sync cross-tenant. */
+  vinNormalized?: string;
   stockNumber?: string; // Número de stock/control generado automáticamente
   bodyType?: VehicleBodyType; // Categoría/tipo de vehículo (también puede estar en specifications)
+  /** Motivo de venta / sync (p. ej. vin_cross_tenant_sync). */
+  soldReason?: string;
+  /** Path del vehículo origen cuando el sold se propagó por VIN. */
+  soldSyncedFrom?: string;
+  soldSyncedAt?: Date;
+  soldSyncedSourceTenantId?: string;
+  soldSyncedSourceVehicleId?: string;
   // Comisiones configurables por el vendedor
   sellerCommissionType?: 'percentage' | 'fixed'; // Tipo de comisión: porcentaje o monto fijo
   sellerCommissionRate?: number; // Porcentaje de comisión del vendedor por este vehículo (si es percentage)
@@ -70,6 +79,10 @@ export interface Vehicle {
   accessoriesCommissionType?: 'percentage' | 'fixed'; // Tipo de comisión de accesorios
   accessoriesCommissionRate?: number; // Porcentaje de comisión del vendedor por accesorios (opcional)
   accessoriesCommissionFixed?: number; // Monto fijo de comisión del vendedor por accesorios (opcional)
+  /** Unidades disponibles del mismo vehículo (lote). Ausente/null = unidad única (comportamiento clásico). */
+  quantity?: number;
+  /** Unidades vendidas acumuladas del lote. */
+  quantitySold?: number;
   publishedOnPublicPage?: boolean; // Si el vehículo está publicado en la página pública
   /** Muestra etiqueta SOLD en tarjetas del panel (y en web si sigue publicado). */
   showSoldBadge?: boolean;

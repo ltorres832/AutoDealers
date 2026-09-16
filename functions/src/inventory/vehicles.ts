@@ -139,7 +139,7 @@ export const deleteVehicle = onCall(async (request) => {
   }
 });
 
-// Marcar vehículo como vendido
+// Marcar vehículo como vendido (+ sync cross-tenant por VIN)
 export const markVehicleAsSold = onCall(async (request) => {
   const { tenantId, vehicleId } = request.data;
   const auth = request.auth;
@@ -153,19 +153,74 @@ export const markVehicleAsSold = onCall(async (request) => {
   }
 
   try {
-    await db
-      .collection('tenants')
-      .doc(tenantId)
-      .collection('vehicles')
-      .doc(vehicleId)
-      .update({
-        status: 'sold',
-        soldAt: new Date(),
-        updatedAt: new Date(),
-      });
+    const ref = db.collection('tenants').doc(tenantId).collection('vehicles').doc(vehicleId);
+    const snap = await ref.get();
+    if (!snap.exists) {
+      throw new HttpsError('not-found', 'Vehículo no encontrado');
+    }
+    const data = snap.data() || {};
+    const vinRaw = String(data.vin || data.specifications?.vin || '')
+      .toUpperCase()
+      .replace(/[\s\-]/g, '');
+    const now = new Date();
 
-    return { success: true };
+    await ref.update({
+      status: 'sold',
+      showSoldBadge: true,
+      soldAt: now,
+      updatedAt: now,
+      soldReason: 'mark_sold_callable',
+      ...(vinRaw.length === 17 ? { vinNormalized: vinRaw, vin: vinRaw } : {}),
+    });
+
+    // Sync cross-tenant por VIN (Admin SDK collection group)
+    let synced = 0;
+    if (/^[A-HJ-NPR-Z0-9]{17}$/.test(vinRaw)) {
+      const sourcePath = `tenants/${tenantId}/vehicles/${vehicleId}`;
+      const seen = new Set<string>();
+      const ingest = async (field: string) => {
+        const q = await db.collectionGroup('vehicles').where(field, '==', vinRaw).get();
+        for (const doc of q.docs) {
+          if (seen.has(doc.ref.path)) continue;
+          seen.add(doc.ref.path);
+          if (doc.ref.path === sourcePath) continue;
+          const d = doc.data() || {};
+          if (String(d.status || '').toLowerCase() === 'sold' || d.soldAt) continue;
+          if (d.soldSyncedFrom === sourcePath) continue;
+          await doc.ref.update({
+            status: 'sold',
+            showSoldBadge: true,
+            showPublicSoldBadge: false,
+            publishedOnPublicPage: false,
+            soldAt: now,
+            deleted: false,
+            vinNormalized: vinRaw,
+            vin: vinRaw,
+            soldReason: 'vin_cross_tenant_sync',
+            soldSyncedFrom: sourcePath,
+            soldSyncedAt: now,
+            soldSyncedSourceTenantId: tenantId,
+            soldSyncedSourceVehicleId: vehicleId,
+            updatedAt: now,
+          });
+          synced++;
+        }
+      };
+      try {
+        await ingest('vinNormalized');
+      } catch (e) {
+        console.warn('markVehicleAsSold vinNormalized query:', e);
+      }
+      try {
+        await ingest('vin');
+      } catch (e) {
+        console.warn('markVehicleAsSold vin query:', e);
+      }
+    }
+
+    return { success: true, synced };
   } catch (error: any) {
+    if (error instanceof HttpsError) throw error;
     throw new HttpsError('internal', `Error al marcar vehículo como vendido: ${error.message}`);
   }
 });

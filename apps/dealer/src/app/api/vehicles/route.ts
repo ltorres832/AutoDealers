@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getVehicles, createVehicle } from '@autodealers/inventory';
+import { getVehicles, createVehicle, findActiveVinConflicts } from '@autodealers/inventory';
 import { verifyAuth, isDealerPortalRole } from '@/lib/auth';
 import { createNotification } from '@autodealers/core';
 
@@ -62,6 +62,26 @@ export async function POST(request: NextRequest) {
     const vehicle = await createVehicle(auth.tenantId!, body, sellerId);
     console.log(`✅ Vehículo creado por ${auth.role} con sellerId: ${(vehicle as any).sellerId || 'NO ASIGNADO'}`);
 
+    let vinWarnings: { tenantId: string; vehicleId: string; make?: string; model?: string; year?: number }[] = [];
+    try {
+      const vin = (vehicle as any).vin || body.vin;
+      if (vin) {
+        const conflicts = await findActiveVinConflicts(vin, {
+          tenantId: auth.tenantId!,
+          vehicleId: vehicle.id,
+        });
+        vinWarnings = conflicts.map((c) => ({
+          tenantId: c.tenantId,
+          vehicleId: c.vehicleId,
+          make: c.make,
+          model: c.model,
+          year: c.year,
+        }));
+      }
+    } catch (warnErr) {
+      console.warn('VIN conflict check failed:', warnErr);
+    }
+
     // Crear notificación
     try {
       await createNotification({
@@ -78,12 +98,25 @@ export async function POST(request: NextRequest) {
       // No fallar la creación del vehículo si falla la notificación
     }
 
-    return NextResponse.json({ vehicle }, { status: 201 });
+    return NextResponse.json(
+      {
+        vehicle,
+        ...(vinWarnings.length > 0
+          ? {
+              vinWarnings,
+              warning: `Este VIN ya está listado activo en ${vinWarnings.length} cuenta(s) de otro dealer/vendedor. Si se marca vendido en una, se sincronizará en todas.`,
+            }
+          : {}),
+      },
+      { status: 201 }
+    );
   } catch (error) {
     console.error('Error creating vehicle:', error);
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    const isVin = /VIN/i.test(message);
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      { error: isVin ? message : 'Internal server error' },
+      { status: isVin ? 400 : 500 }
     );
   }
 }

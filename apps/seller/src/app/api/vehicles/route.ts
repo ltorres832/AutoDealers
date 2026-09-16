@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { createVehicle } from '@autodealers/inventory';
+import { createVehicle, findActiveVinConflicts } from '@autodealers/inventory';
 import { createNotification, resolveSellerVehicleCreatePolicy } from '@autodealers/core';
 import {
   findSellerVehicleById,
   filterVehiclesOwnedBySeller,
   loadVehiclesForSellerWorkspace,
+  getSellerInventorySyncOptions,
 } from '@/lib/seller-vehicles';
 
 function serializeVehicle(v: Record<string, unknown> & { id: string }) {
@@ -46,23 +47,42 @@ export async function GET(request: NextRequest) {
     const vehicleId = searchParams.get('id');
 
     if (vehicleId) {
-      const found = await findSellerVehicleById(auth, vehicleId);
+      const found = await findSellerVehicleById(auth, vehicleId, { allowDealerInventory: true });
       if (!found) {
         return NextResponse.json({ error: 'Vehículo no encontrado' }, { status: 404 });
       }
       return NextResponse.json({
-        vehicle: serializeVehicle(found.vehicle as Record<string, unknown> & { id: string }),
+        vehicle: serializeVehicle({
+          ...(found.vehicle as Record<string, unknown> & { id: string }),
+          fromDealerInventory: found.fromDealerInventory,
+        }),
       });
     }
 
     const all = await loadVehiclesForSellerWorkspace(auth);
     const mine = filterVehiclesOwnedBySeller(all, auth.userId);
 
+    // Sync activo: incluir todo el inventario listable del dealer (solo lectura)
+    const sync = await getSellerInventorySyncOptions(auth);
+    let list = mine;
+    if (sync.syncDealerInventory && sync.dealerTenantId) {
+      const mineIds = new Set(mine.map((v) => v.id));
+      const dealerRows = all
+        .filter((v) => {
+          if (v.tenantId !== sync.dealerTenantId || mineIds.has(v.id)) return false;
+          if (v.deleted === true) return false;
+          const st = String(v.status ?? '').toLowerCase();
+          return st !== 'sold' && st !== 'hidden' && st !== 'deleted';
+        })
+        .map((v) => ({ ...v, fromDealerInventory: true }));
+      list = [...mine, ...dealerRows];
+    }
+
     const statusFilter = searchParams.get('status');
     const filtered =
       statusFilter && statusFilter !== 'all'
-        ? mine.filter((v) => String(v.status ?? '').toLowerCase() === statusFilter.toLowerCase())
-        : mine;
+        ? list.filter((v) => String(v.status ?? '').toLowerCase() === statusFilter.toLowerCase())
+        : list;
 
     return NextResponse.json({
       vehicles: filtered.map((v) =>
@@ -113,6 +133,26 @@ export async function POST(request: NextRequest) {
     const vehicle = await createVehicle(auth.tenantId, payload, auth.userId);
     console.log(`✅ Vehículo creado con sellerId: ${(vehicle as any).sellerId || 'NO ASIGNADO'}`);
 
+    let vinWarnings: { tenantId: string; vehicleId: string; make?: string; model?: string; year?: number }[] = [];
+    try {
+      const vin = (vehicle as any).vin || body.vin;
+      if (vin) {
+        const conflicts = await findActiveVinConflicts(vin, {
+          tenantId: auth.tenantId,
+          vehicleId: vehicle.id,
+        });
+        vinWarnings = conflicts.map((c) => ({
+          tenantId: c.tenantId,
+          vehicleId: c.vehicleId,
+          make: c.make,
+          model: c.model,
+          year: c.year,
+        }));
+      }
+    } catch (warnErr) {
+      console.warn('VIN conflict check failed:', warnErr);
+    }
+
     try {
       await createNotification({
         tenantId: auth.tenantId,
@@ -127,12 +167,25 @@ export async function POST(request: NextRequest) {
       console.error('Error creating notification:', notifError);
     }
 
-    return NextResponse.json({ vehicle }, { status: 201 });
+    return NextResponse.json(
+      {
+        vehicle,
+        ...(vinWarnings.length > 0
+          ? {
+              vinWarnings,
+              warning: `Este VIN ya está listado activo en ${vinWarnings.length} cuenta(s) de otro dealer/vendedor. Si se marca vendido en una, se sincronizará en todas.`,
+            }
+          : {}),
+      },
+      { status: 201 }
+    );
   } catch (error) {
     console.error('Error creating vehicle:', error);
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    const isVin = /VIN/i.test(message);
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      { error: isVin ? message : 'Internal server error' },
+      { status: isVin ? 400 : 500 }
     );
   }
 }

@@ -2,10 +2,33 @@
 
 import { Vehicle, VehicleFilters, VehicleStatus, VehicleStockSnapshot } from './types';
 import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
+import { isValidVin, normalizeVin, toVinNormalized } from '@autodealers/core';
 
 // Lazy initialization - solo se inicializa cuando se necesita
 function getDb() {
   return getFirestore();
+}
+
+function resolveVehicleVin(data: Record<string, unknown> | null | undefined): string {
+  if (!data) return '';
+  const top = typeof data.vin === 'string' ? data.vin : '';
+  const specs =
+    data.specifications && typeof data.specifications === 'object'
+      ? (data.specifications as Record<string, unknown>).vin
+      : undefined;
+  const fromSpecs = typeof specs === 'string' ? specs : '';
+  return normalizeVin(top || fromSpecs);
+}
+
+function assertVinRequired(vinRaw: string, context: string): string {
+  const vin = normalizeVin(vinRaw);
+  if (!vin) {
+    throw new Error('El VIN es obligatorio (' + context + ').');
+  }
+  if (!isValidVin(vin)) {
+    throw new Error('VIN inválido (' + context + '). Debe tener 17 caracteres válidos.');
+  }
+  return vin;
 }
 
 /**
@@ -66,6 +89,8 @@ export async function createVehicle(
     .collection('vehicles')
     .doc();
 
+  const requiredVin = assertVinRequired(resolveVehicleVin(vehicleData as Record<string, unknown>), 'crear vehículo');
+
   // SIEMPRE generar número de stock automáticamente si no se proporciona uno válido
   // Verificar tanto en el nivel superior como en specifications
   let stockNumber = (vehicleData as any).stockNumber || (vehicleData as any).specifications?.stockNumber;
@@ -116,6 +141,8 @@ export async function createVehicle(
   // Preparar datos finales
   const finalVehicleData: any = {
     ...vehicleData,
+    vin: requiredVin,
+    vinNormalized: toVinNormalized(requiredVin),
     stockNumber,
   };
 
@@ -142,6 +169,7 @@ export async function createVehicle(
   // Preparar specifications
   finalVehicleData.specifications = {
     ...vehicleData.specifications,
+    vin: requiredVin,
     stockNumber, // También guardarlo en specifications para compatibilidad
   };
 
@@ -536,6 +564,21 @@ export async function updateVehicle(
   const existingData = existingVehicleDoc.exists ? existingVehicleDoc.data() : null;
   const existingStockNumber = existingData?.stockNumber || existingData?.specifications?.stockNumber;
 
+  const updatesRecord = updates as Record<string, unknown>;
+  const vinInUpdate =
+    Object.prototype.hasOwnProperty.call(updatesRecord, 'vin') ||
+    (updatesRecord.specifications &&
+      typeof updatesRecord.specifications === 'object' &&
+      Object.prototype.hasOwnProperty.call(updatesRecord.specifications as object, 'vin'));
+  if (vinInUpdate) {
+    const nextVin = assertVinRequired(resolveVehicleVin(updatesRecord), 'actualizar vehículo');
+    (updates as any).vin = nextVin;
+    (updates as any).vinNormalized = toVinNormalized(nextVin);
+    if ((updates as any).specifications && typeof (updates as any).specifications === 'object') {
+      (updates as any).specifications = { ...(updates as any).specifications, vin: nextVin };
+    }
+  }
+
   // Preparar datos para actualizar, eliminando undefined
   const cleanUpdates: any = {
     updatedAt: getFirestoreFieldValue().serverTimestamp(),
@@ -548,6 +591,21 @@ export async function updateVehicle(
       cleanUpdates[key] = value;
     }
   });
+
+  // Reposición de inventario: si un vehículo agotado/vendido recibe cantidad > 0, se reactiva
+  if (
+    typeof cleanUpdates.quantity === 'number' &&
+    cleanUpdates.quantity > 0 &&
+    !cleanUpdates.status &&
+    existingData?.status === 'sold'
+  ) {
+    cleanUpdates.status = 'available';
+    cleanUpdates.publishedOnPublicPage = true;
+    cleanUpdates.showSoldBadge = false;
+    cleanUpdates.showPublicSoldBadge = false;
+    cleanUpdates.deleted = false;
+    console.log('📦 Reposición de cantidad: vehículo reactivado automáticamente');
+  }
 
   // CRÍTICO: Si no se proporciona stockNumber, preservar el existente O generar uno nuevo si no existe
   if (!cleanUpdates.stockNumber) {
@@ -689,21 +747,27 @@ export async function updateVehicle(
 }
 
 /**
- * Actualiza el estado de un vehículo
+ * Actualiza el estado de un vehículo.
+ * Si pasa a `sold`, usa applyVehicleListingAction para badges, propagación dealer
+ * y sync cross-tenant por VIN.
  */
 export async function updateVehicleStatus(
   tenantId: string,
   vehicleId: string,
   status: VehicleStatus
 ): Promise<void> {
+  if (status === 'sold') {
+    const { applyVehicleListingAction } = await import('./listing-disposition');
+    await applyVehicleListingAction(tenantId, vehicleId, 'sold', {
+      soldReason: 'sale_completed',
+    });
+    return;
+  }
+
   const updateData: any = {
     status,
     updatedAt: getFirestoreFieldValue().serverTimestamp(),
   };
-
-  if (status === 'sold') {
-    updateData.soldAt = getFirestoreFieldValue().serverTimestamp();
-  }
 
   await getDb()
     .collection('tenants')
@@ -722,6 +786,18 @@ export async function deleteVehicle(
 ): Promise<void> {
   const { applyVehicleListingAction } = await import('./listing-disposition');
   await applyVehicleListingAction(tenantId, vehicleId, 'delete');
+}
+
+/**
+ * Elimina un vehículo permanentemente de Firestore (solo admin / limpieza).
+ */
+export async function hardDeleteVehicle(tenantId: string, vehicleId: string): Promise<void> {
+  const ref = getDb().collection('tenants').doc(tenantId).collection('vehicles').doc(vehicleId);
+  const snap = await ref.get();
+  if (!snap.exists) {
+    throw new Error('Vehicle not found');
+  }
+  await ref.delete();
 }
 
 /**
