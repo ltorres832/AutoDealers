@@ -4,7 +4,13 @@
  */
 import * as XLSX from 'xlsx';
 import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
-import { toVinNormalized } from '@autodealers/core';
+import {
+  normalizeVin,
+  isValidVinFormat,
+  isValidVinCheckDigit,
+  isValidVin,
+  toVinNormalized,
+} from '@autodealers/core';
 import type { Vehicle, VehicleCondition, VehicleStatus } from './types';
 import { getVehicles } from './vehicles';
 import { uploadVehicleImage } from './storage';
@@ -259,7 +265,7 @@ export {
   isValidVinCheckDigit,
   isValidVin,
   toVinNormalized,
-} from '@autodealers/core';
+};
 
 export interface VinDecodeResult {
   make?: string;
@@ -303,8 +309,8 @@ const VPIC_FUEL_MAP: Record<string, string> = {
  * Cachea el resultado en Firestore (`vin_decode_cache/{vin}`) para no repetir llamadas.
  */
 export async function decodeVin(vin: string): Promise<VinDecodeResult | null> {
-  const v = (vin || '').toUpperCase().trim();
-  if (!VIN_REGEX.test(v)) return null;
+  const v = normalizeVin(vin);
+  if (!isValidVinFormat(v)) return null;
 
   const cacheRef = getDb().collection('vin_decode_cache').doc(v);
   try {
