@@ -1,4 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import {
+  notifyAdvertiserAccountCreated,
+  PlatformProfileExistsError,
+  registerAdvertiserAccount,
+} from '@autodealers/core';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,7 +18,6 @@ export async function POST(request: NextRequest) {
       industry,
     } = body;
 
-    // Validaciones
     if (!companyName || !contactName || !email || !password) {
       return NextResponse.json(
         { error: 'Faltan campos requeridos' },
@@ -28,64 +32,55 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Crear usuario en Firebase Auth primero con la contraseña proporcionada
-    const { getAuth } = await import('@autodealers/core');
-    const auth = getAuth();
-    
-    const userRecord = await auth.createUser({
+    const { advertiserId } = await registerAdvertiserAccount({
       email,
       password,
-      displayName: contactName,
+      contactName,
+      companyName,
+      phone,
+      website,
+      industry,
     });
 
-    // Establecer custom claims
-    await auth.setCustomUserClaims(userRecord.uid, {
-      role: 'advertiser',
-    });
-
-    // Crear anunciante en Firestore
-    const { getFirestore } = await import('@autodealers/core');
-    const db = getFirestore();
-    const advertiserRef = db.collection('advertisers').doc(userRecord.uid);
-    
-    await advertiserRef.set({
-      email,
+    void notifyAdvertiserAccountCreated({
+      advertiserId,
       companyName,
       contactName,
-      phone: phone || '',
-      website: website || '',
-      industry: industry || 'other',
-      status: 'active', // Activo sin plan - pueden acceder a todo
-      plan: null, // Sin plan inicialmente
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-
-    const advertiser = {
-      id: userRecord.uid,
       email,
-      companyName,
-      contactName,
-      phone: phone || '',
-      website: website || '',
-      industry: industry || 'other',
-      status: 'active' as const,
-      plan: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+      registrationSource: 'self',
+    }).catch((err) => console.warn('[advertiser/register] notify failed:', err));
 
     return NextResponse.json({
       success: true,
-      advertiserId: advertiser.id,
-      advertiser,
+      advertiserId,
+      message:
+        'Registro recibido. Un administrador revisará tu cuenta y te notificará cuando esté activa.',
+      advertiser: {
+        id: advertiserId,
+        email,
+        companyName,
+        contactName,
+        phone: phone || '',
+        website: website || '',
+        industry: industry || 'other',
+        status: 'pending' as const,
+        plan: null,
+        registrationSource: 'self' as const,
+      },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error registering advertiser:', error);
-    return NextResponse.json(
-      { error: error.message || 'Error al registrar anunciante' },
-      { status: 500 }
-    );
+    if (error instanceof PlatformProfileExistsError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+    const err = error as { code?: string; message?: string };
+    if (err.code === 'auth/email-already-in-use' || err.code === 'auth/email-already-exists') {
+      return NextResponse.json(
+        { error: 'No se pudo crear la cuenta de anunciante. Intenta de nuevo o inicia sesión en este portal.' },
+        { status: 400 }
+      );
+    }
+    const message = error instanceof Error ? error.message : 'Error al registrar anunciante';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-

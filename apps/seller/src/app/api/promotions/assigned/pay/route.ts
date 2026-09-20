@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
+import { dealerManagedPaymentsResponse } from '@/lib/dealer-managed-guard';
 import { getFirestore, getPricingConfig, getStripeInstance, getStripeService } from '@autodealers/core';
 
 const db = getFirestore();
@@ -10,6 +11,9 @@ export async function POST(request: NextRequest) {
     if (!auth || !auth.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const dealerBlock = dealerManagedPaymentsResponse(auth);
+    if (dealerBlock) return dealerBlock;
 
     const body = await request.json();
     const { promotionId } = body;
@@ -31,19 +35,22 @@ export async function POST(request: NextRequest) {
     }
 
     const promotionData = promotionDoc.data();
-    
+
     // Verificar que la promoción está asignada al usuario y pendiente de pago
-    if (promotionData?.assignedTo !== auth.userId || 
-        promotionData?.status !== 'assigned' || 
-        promotionData?.paymentStatus !== 'pending') {
+    if (
+      promotionData?.assignedTo !== auth.userId ||
+      promotionData?.status !== 'assigned' ||
+      promotionData?.paymentStatus !== 'pending'
+    ) {
       return NextResponse.json({ error: 'Invalid promotion status' }, { status: 400 });
     }
 
     // Obtener precio de la configuración
     const pricingConfig = await getPricingConfig();
-    const price = promotionData.price || 
-                  pricingConfig.promotions.seller.prices[promotionData.duration] || 
-                  24.99;
+    const price =
+      promotionData.price ||
+      pricingConfig.promotions.seller.prices[promotionData.duration] ||
+      24.99;
 
     // Obtener información del usuario para crear cliente si es necesario
     const userDoc = await db.collection('users').doc(auth.userId).get();
@@ -73,9 +80,25 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Crear Payment Intent para pago integrado
+    // Solo incluir metadata de ventas si el producto salió del portal /sales.
+    const salesOriginMeta: Record<string, string> = {};
+    if (
+      promotionData?.source === 'sales_employee' ||
+      promotionData?.assignedByRole === 'sales_employee'
+    ) {
+      if (promotionData.salesEmployeeId) {
+        salesOriginMeta.employeeId = String(promotionData.salesEmployeeId);
+        salesOriginMeta.salesEmployeeId = String(promotionData.salesEmployeeId);
+      }
+      if (promotionData.salesAdOrderId) {
+        salesOriginMeta.salesAdOrderId = String(promotionData.salesAdOrderId);
+      }
+      salesOriginMeta.source = 'sales_employee';
+      salesOriginMeta.assignedByRole = 'sales_employee';
+    }
+
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(price * 100), // Convertir a centavos
+      amount: Math.round(price * 100),
       currency: 'usd',
       customer: customerId,
       description: `Promoción Premium: ${promotionData.name}`,
@@ -83,14 +106,15 @@ export async function POST(request: NextRequest) {
         type: 'assigned_promotion_payment',
         tenantId: auth.tenantId,
         promotionId: promotionId,
+        requestId: promotionId,
         userId: auth.userId,
+        ...salesOriginMeta,
       },
       automatic_payment_methods: {
         enabled: true,
       },
     });
 
-    // Guardar el paymentIntentId en la promoción
     await promotionRef.update({
       paymentIntentId: paymentIntent.id,
     });
@@ -108,5 +132,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-

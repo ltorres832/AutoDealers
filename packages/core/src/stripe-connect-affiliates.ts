@@ -192,20 +192,38 @@ export async function handleConnectAccountUpdated(account: {
   payouts_enabled?: boolean;
   charges_enabled?: boolean;
 }): Promise<void> {
-  const snap = await getDb()
+  const affiliateSnap = await getDb()
     .collection('affiliate_partners')
     .where('stripeConnectAccountId', '==', account.id)
     .limit(1)
     .get();
 
-  if (snap.empty) return;
+  if (!affiliateSnap.empty) {
+    const affiliateId = affiliateSnap.docs[0].id;
+    await getDb().collection('affiliate_partners').doc(affiliateId).update({
+      stripeConnectOnboardingComplete: Boolean(account.details_submitted),
+      stripeConnectPayoutsEnabled: Boolean(account.payouts_enabled),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
 
-  const affiliateId = snap.docs[0].id;
-  await getDb().collection('affiliate_partners').doc(affiliateId).update({
-    stripeConnectOnboardingComplete: Boolean(account.details_submitted),
-    stripeConnectPayoutsEnabled: Boolean(account.payouts_enabled),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-  });
+  const tenantSnap = await getDb()
+    .collection('tenants')
+    .where('stripeConnectAccountId', '==', account.id)
+    .limit(1)
+    .get();
+
+  if (!tenantSnap.empty) {
+    await tenantSnap.docs[0].ref.set(
+      {
+        stripeConnectOnboardingComplete: Boolean(account.details_submitted),
+        stripeConnectPayoutsEnabled: Boolean(account.payouts_enabled),
+        stripeConnectChargesEnabled: Boolean(account.charges_enabled),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+  }
 }
 
 export async function handleTransferReversed(transferId: string): Promise<void> {

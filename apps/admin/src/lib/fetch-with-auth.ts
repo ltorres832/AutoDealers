@@ -4,10 +4,11 @@
 import { authHeaders } from './auth-token-client';
 
 export async function fetchWithAuth(url: string, options: RequestInit = {}) {
+  const headers = authHeaders(options.headers);
   return fetch(url, {
     ...options,
-    credentials: options.credentials ?? 'include',
-    headers: authHeaders(options.headers),
+    credentials: 'include',
+    headers,
   });
 }
 

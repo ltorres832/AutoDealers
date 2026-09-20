@@ -2,11 +2,13 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { encodeSocialOAuthState, getFirestore, PLATFORM_SOCIAL_TENANT_ID } from '@autodealers/core';
+import {
+  encodeSocialOAuthState,
+  getMetaCredentials,
+  PLATFORM_SOCIAL_TENANT_ID,
+} from '@autodealers/core';
 import { buildMetaOAuthDialogUrl } from '@autodealers/core/meta-oauth-scopes';
 import { getOAuthRedirectOrigin } from '@/lib/oauth-redirect-origin';
-
-const db = getFirestore();
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,11 +31,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const credentialsDoc = await db.collection('system_settings').doc('credentials').get();
-    let appId: string | undefined;
-    if (credentialsDoc.exists) {
-      appId = credentialsDoc.data()?.metaAppId;
-    }
+    const { appId } = await getMetaCredentials();
 
     if (!appId) {
       return NextResponse.json(

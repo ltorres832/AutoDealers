@@ -15,7 +15,7 @@ import type { AdminMembershipRow } from '@/lib/load-admin-memberships';
 interface Membership {
   id: string;
   name: string;
-  type: 'dealer' | 'seller';
+  type: 'dealer' | 'seller' | 'business';
   price: number;
   currency: string;
   billingCycle: 'monthly' | 'yearly';
@@ -400,32 +400,40 @@ export default function MembershipsPageClient({
         </label>
       </div>
 
-      {/* Debug info - Siempre visible */}
-      <div className="mb-4 space-y-2">
-        <div className="p-3 bg-primary-50 border border-primary-200 rounded text-sm">
-          <p className="font-semibold text-primary-900">📊 Estado Actual:</p>
-          <p className="text-primary-700">Membresías cargadas: <strong>{summaryDisplay.total}</strong></p>
-          <p className="text-primary-700">Dealers: <strong>{summaryDisplay.dealers}</strong></p>
-          <p className="text-primary-700">Sellers: <strong>{summaryDisplay.sellers}</strong></p>
-          <p className="text-primary-700">
-            Dealer con red multi-concesionario: <strong>{summaryDisplay.multiDealer}</strong>
-          </p>
-          <p className="text-primary-700">Activas: <strong>{summaryDisplay.active}</strong></p>
-          {displayError ? (
-            <p className="text-red-700">Error al cargar: {displayError}</p>
-          ) : null}
-          {loading && <p className="text-primary-700">⏳ Cargando...</p>}
+      <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-5">
+        <div className="rounded-lg border border-gray-200 bg-white p-3 text-sm">
+          <p className="text-gray-500">Membresías</p>
+          <p className="text-lg font-semibold text-gray-900">{summaryDisplay.total}</p>
         </div>
-        
-        {debugInfo.length > 0 && (
-          <div className="p-3 bg-gray-50 border border-gray-200 rounded text-xs max-h-40 overflow-y-auto">
-            <p className="font-semibold text-gray-900 mb-2">🔍 Logs de Debug:</p>
+        <div className="rounded-lg border border-gray-200 bg-white p-3 text-sm">
+          <p className="text-gray-500">Dealers</p>
+          <p className="text-lg font-semibold text-gray-900">{summaryDisplay.dealers}</p>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-3 text-sm">
+          <p className="text-gray-500">Sellers</p>
+          <p className="text-lg font-semibold text-gray-900">{summaryDisplay.sellers}</p>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-3 text-sm">
+          <p className="text-gray-500">Dealer con red multi-concesionario</p>
+          <p className="text-lg font-semibold text-gray-900">{summaryDisplay.multiDealer}</p>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-3 text-sm">
+          <p className="text-gray-500">Activas</p>
+          <p className="text-lg font-semibold text-gray-900">{summaryDisplay.active}</p>
+        </div>
+      </div>
+      {displayError ? (
+        <p className="mb-4 text-sm text-red-700">Error al cargar: {displayError}</p>
+      ) : null}
+
+      {process.env.NODE_ENV !== 'production' && debugInfo.length > 0 && (
+          <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded text-xs max-h-40 overflow-y-auto">
+            <p className="font-semibold text-gray-900 mb-2">Logs de Debug:</p>
             {debugInfo.map((log, i) => (
               <p key={i} className="text-gray-700 font-mono">{log}</p>
             ))}
           </div>
-        )}
-      </div>
+      )}
 
       {memberships.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-12 text-center">
@@ -570,6 +578,42 @@ export default function MembershipsPageClient({
                         }}
                         className="w-full px-4 py-2 rounded-lg text-sm font-medium bg-red-100 text-red-700 hover:bg-red-200"
                       />
+                    </div>
+                  </div>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          {visibleMemberships.filter((m) => m.type === 'business').length > 0 && (
+            <div>
+              <h2 className="text-2xl font-bold mb-4">🧰 Planes de servicios (talleres / gomeras)</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {visibleMemberships
+                  .filter((m) => m.type === 'business')
+                  .map((membership, index) => (
+                  <div key={membership.id}>
+                    <MembershipCard
+                      membership={membership}
+                      isPopular={index === 1}
+                    />
+                    <div className="mt-4 space-y-2">
+                      <button
+                        onClick={() => handleToggleActive(membership.id, membership.isActive)}
+                        className={`w-full px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          membership.isActive
+                            ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                            : 'bg-green-100 text-green-700 hover:bg-green-200'
+                        }`}
+                      >
+                        {membership.isActive ? '⏸️ Desactivar' : '▶️ Activar'}
+                      </button>
+                      <Link
+                        href={`/admin/memberships/${membership.id}/edit`}
+                        className="block w-full px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 text-sm text-center"
+                      >
+                        ✏️ Editar
+                      </Link>
                     </div>
                   </div>
                   ))}

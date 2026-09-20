@@ -46,8 +46,8 @@ export async function validateMembershipFeature(
       );
     }
 
-    // Admin siempre tiene acceso
-    if (auth.role === 'admin') {
+    // Admin o modo soporte: acceso total sin restricciones de membresía
+    if (auth.role === 'admin' || auth.supportMode) {
       return null; // null = continuar sin restricciones
     }
 

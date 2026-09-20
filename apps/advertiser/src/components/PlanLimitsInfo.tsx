@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { AD_PLACEMENT_LABELS, type AdPlacement } from '@/lib/ad-placements';
 
 interface PlanLimitsInfoProps {
   advertiserId: string;
@@ -75,7 +76,9 @@ export default function PlanLimitsInfo({ advertiserId, plan }: PlanLimitsInfoPro
             )}
           </div>
           <div className="text-xs text-gray-500 mt-1">
-            {limits.allowedPlacements.join(', ')}
+            {(limits.allowedPlacements as string[])
+              .map((id) => AD_PLACEMENT_LABELS[id as AdPlacement] || id)
+              .join(' · ')}
           </div>
         </div>
       </div>

@@ -1,146 +1,100 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from '@autodealers/core';
 import { getFirestore } from '@autodealers/core';
+import { notifyPlatformAdmins } from '@autodealers/core';
+import { resolveAdminUrl } from '@autodealers/shared/platform-urls';
 import * as admin from 'firebase-admin';
 
+/**
+ * Solicitud de información Multi Dealer (LEAD).
+ *
+ * Este endpoint NO crea cuentas ni pide contraseña: solo registra una
+ * solicitud de información que el equipo revisa en el panel admin
+ * (Solicitudes Multi Dealer). La cuenta se crea únicamente al aprobar.
+ */
 export async function POST(request: NextRequest) {
   try {
     const db = getFirestore();
-    const auth = getAuth();
-    
-    const body = await request.json();
-    const {
+
+    const body = await request.json().catch(() => ({}));
+
+    const name = typeof body.name === 'string' ? body.name.trim() : '';
+    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+    const phone = typeof body.phone === 'string' ? body.phone.trim() : '';
+    const companyName = typeof body.companyName === 'string' ? body.companyName.trim() : '';
+    const companyCity = typeof body.companyCity === 'string' ? body.companyCity.trim() : '';
+    const companyCountry = typeof body.companyCountry === 'string' ? body.companyCountry.trim() : '';
+    const message = typeof body.message === 'string' ? body.message.trim() : '';
+    const referralCode =
+      typeof body.referralCode === 'string' && body.referralCode.trim()
+        ? body.referralCode.trim()
+        : null;
+
+    const toCount = (raw: unknown): number | null =>
+      raw !== undefined &&
+      raw !== null &&
+      `${raw}`.trim() !== '' &&
+      Number.isFinite(Number(raw))
+        ? Math.max(0, Math.trunc(Number(raw)))
+        : null;
+
+    const expectedDealers = toCount(body.expectedDealers);
+    const numberOfSellers = toCount(body.numberOfSellers);
+
+    // Validaciones (solo datos de contacto, sin contraseña)
+    if (!name || name.length < 2) {
+      return NextResponse.json({ error: 'Tu nombre es requerido' }, { status: 400 });
+    }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json({ error: 'Correo electrónico inválido' }, { status: 400 });
+    }
+    if (!phone || phone.length < 7) {
+      return NextResponse.json({ error: 'Teléfono de contacto requerido' }, { status: 400 });
+    }
+    if (!companyName) {
+      return NextResponse.json({ error: 'El nombre de la empresa es requerido' }, { status: 400 });
+    }
+    if (!message || message.length < 10) {
+      return NextResponse.json(
+        { error: 'Cuéntanos un poco sobre tu negocio (al menos 10 caracteres)' },
+        { status: 400 }
+      );
+    }
+
+    // Crear la solicitud como LEAD (sin cuenta asociada todavía)
+    const docRef = db.collection('multi_dealer_requests').doc();
+    const id = docRef.id;
+
+    await docRef.set({
+      // Contacto
       name,
       email,
-      password,
       phone,
+      // Empresa
       companyName,
-      companyAddress,
-      companyCity,
-      companyState,
-      companyZip,
-      companyCountry,
-      taxId,
-      businessType,
-      numberOfLocations,
-      yearsInBusiness,
-      currentInventory,
+      companyAddress: null,
+      companyCity: companyCity || null,
+      companyState: null,
+      companyZip: null,
+      companyCountry: companyCountry || null,
+      taxId: null,
+      // Negocio
+      businessType: null,
+      numberOfLocations: null,
+      yearsInBusiness: null,
+      currentInventory: null,
       expectedDealers,
-      reasonForMultiDealer,
-      additionalInfo,
-      membershipId,
-      referralCode,
-      acceptPlatformTerms,
-    } = body;
-
-    if (acceptPlatformTerms !== true) {
-      return NextResponse.json(
-        { error: 'Debes aceptar los términos y condiciones de la plataforma' },
-        { status: 400 }
-      );
-    }
-
-    // Validaciones básicas
-    if (!name || !email || !password || !phone) {
-      return NextResponse.json(
-        { error: 'Faltan campos requeridos' },
-        { status: 400 }
-      );
-    }
-
-    if (!companyName || !companyAddress || !companyCity || !companyCountry) {
-      return NextResponse.json(
-        { error: 'Faltan campos requeridos de la empresa' },
-        { status: 400 }
-      );
-    }
-
-    if (!membershipId) {
-      return NextResponse.json(
-        { error: 'Debes seleccionar una membresía' },
-        { status: 400 }
-      );
-    }
-
-    // Verificar que la membresía sea Multi Dealer
-    const membershipDoc = await db.collection('memberships').doc(membershipId).get();
-    if (!membershipDoc.exists) {
-      return NextResponse.json(
-        { error: 'Membresía no encontrada' },
-        { status: 404 }
-      );
-    }
-
-    const membership = membershipDoc.data();
-    if (!membership?.features?.multiDealerEnabled) {
-      return NextResponse.json(
-        { error: 'La membresía seleccionada no es Multi Dealer' },
-        { status: 400 }
-      );
-    }
-
-    // Verificar si el email ya existe
-    try {
-      await auth.getUserByEmail(email);
-      return NextResponse.json(
-        { error: 'Este email ya está registrado' },
-        { status: 400 }
-      );
-    } catch (error: any) {
-      // Si el error es que el usuario no existe, continuar
-      if (error.code !== 'auth/user-not-found') {
-        throw error;
-      }
-    }
-
-    // Crear usuario en Firebase Auth (pero con estado pendiente)
-    const userRecord = await auth.createUser({
-      email,
-      password,
-      displayName: name,
-      disabled: true, // Deshabilitado hasta aprobación
-    });
-
-    // Crear documento de usuario en Firestore
-    await db.collection('users').doc(userRecord.uid).set({
-      email,
-      name,
-      phone,
-      role: 'master_dealer',
-      status: 'pending', // Pendiente de aprobación
-      membershipId,
-      membershipType: 'dealer',
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      referralCode: referralCode || null,
-      platformTermsAcceptedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    // Crear documento de solicitud Multi Dealer
-    await db.collection('multi_dealer_requests').doc(userRecord.uid).set({
-      userId: userRecord.uid,
-      email,
-      name,
-      phone,
-      membershipId,
-      // Información de la empresa
-      companyName,
-      companyAddress,
-      companyCity,
-      companyState: companyState || null,
-      companyZip: companyZip || null,
-      companyCountry,
-      taxId: taxId || null,
-      // Información del negocio
-      businessType: businessType || null,
-      numberOfLocations: numberOfLocations ? parseInt(numberOfLocations) : null,
-      yearsInBusiness: yearsInBusiness ? parseInt(yearsInBusiness) : null,
-      currentInventory: currentInventory ? parseInt(currentInventory) : null,
-      expectedDealers: expectedDealers ? parseInt(expectedDealers) : null,
-      // Información adicional
-      reasonForMultiDealer,
-      additionalInfo: additionalInfo || null,
+      numberOfSellers,
+      // Mensaje / necesidad (se muestra en el panel admin)
+      reasonForMultiDealer: message,
+      additionalInfo: null,
+      // Referido (se aplica a la cuenta cuando se aprueba)
+      referralCodeUsed: referralCode,
+      // Membresía se asigna al aprobar
+      membershipId: null,
+      // Marca de lead sin cuenta
+      isLead: true,
       // Estado
       status: 'pending',
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -149,37 +103,29 @@ export async function POST(request: NextRequest) {
       reviewNotes: null,
     });
 
-    // Crear notificación para admin
-    await db.collection('notifications').add({
-      type: 'multi_dealer_request',
-      title: 'Nueva Solicitud Multi Dealer',
-      message: `${name} (${email}) ha solicitado acceso Multi Dealer`,
-      userId: 'admin', // Notificación para admin
-      read: false,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      data: {
-        requestId: userRecord.uid,
-        userName: name,
-        userEmail: email,
-        membershipId,
+    // Notificar a los administradores de la plataforma
+    void notifyPlatformAdmins({
+      type: 'system_alert',
+      title: 'Nueva solicitud de información Multi Dealer',
+      message: `${name} (${email}${phone ? ` · ${phone}` : ''}) solicitó información Multi Dealer${
+        companyName ? ` — ${companyName}` : ''
+      }`,
+      audience: 'public',
+      metadata: {
+        multiDealerRequestId: id,
+        route: '/admin/multi-dealer-requests',
       },
-    });
+    }).catch((err) => console.warn('[multi-dealer request] notify failed', err));
 
     return NextResponse.json({
       success: true,
-      message: 'Solicitud enviada exitosamente',
-      userId: userRecord.uid,
+      message: 'Solicitud enviada. Nuestro equipo te contactará pronto.',
+      requestId: id,
+      adminUrl: `${resolveAdminUrl()}/admin/multi-dealer-requests`,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error creating multi dealer request:', error);
-    return NextResponse.json(
-      {
-        error: 'Error al crear solicitud',
-        details: error.message,
-      },
-      { status: 500 }
-    );
+    const message = error instanceof Error ? error.message : 'Error al enviar la solicitud';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-
-

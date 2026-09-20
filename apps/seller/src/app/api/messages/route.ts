@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getMessagesByChannel, createMessage } from '@autodealers/crm';
+import { sendWhatsAppMessageToLead } from '@autodealers/core';
+import { getMessagesByChannel } from '@autodealers/crm';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
     const auth = await verifyAuth(request);
-    if (!auth || !auth.tenantId || auth.role !== 'seller') {
+    if (!auth || !auth.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -17,7 +20,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'leadId required' }, { status: 400 });
     }
 
-    const messages = await getMessagesByChannel(auth.tenantId, channel as any, 100);
+    const messages = await getMessagesByChannel(auth.tenantId, channel as 'whatsapp', 100);
     const leadMessages = messages.filter((m) => m.leadId === leadId);
 
     return NextResponse.json({
@@ -28,44 +31,64 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error fetching messages:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
     const auth = await verifyAuth(request);
-    if (!auth || !auth.tenantId || auth.role !== 'seller') {
+    if (!auth || !auth.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();
+    const leadId = typeof body.leadId === 'string' ? body.leadId.trim() : '';
+    const content = typeof body.content === 'string' ? body.content.trim() : '';
+    const channel = body.channel || 'whatsapp';
 
-    const message = await createMessage({
+    if (!leadId || !content) {
+      return NextResponse.json(
+        { error: 'leadId y content son requeridos' },
+        { status: 400 }
+      );
+    }
+
+    if (channel !== 'whatsapp') {
+      return NextResponse.json(
+        { error: 'Canal no soportado desde esta bandeja. Usa WhatsApp.' },
+        { status: 400 }
+      );
+    }
+
+    const result = await sendWhatsAppMessageToLead({
       tenantId: auth.tenantId,
-      leadId: body.leadId,
-      channel: body.channel || 'whatsapp',
-      content: body.content,
-      direction: 'outbound',
-      from: auth.userId,
-      to: body.to || '',
-      status: 'sent',
-      aiGenerated: false,
-      metadata: {},
+      leadId,
+      content,
+      senderUserId: auth.userId,
+      aiGenerated: Boolean(body.aiGenerated),
     });
 
-    return NextResponse.json({ message }, { status: 201 });
+    if (!result.success) {
+      return NextResponse.json(
+        {
+          error: result.error || 'No se pudo enviar por WhatsApp',
+          message: result.message,
+          whatsappSent: false,
+        },
+        { status: 422 }
+      );
+    }
+
+    return NextResponse.json(
+      {
+        message: result.message,
+        whatsappSent: true,
+      },
+      { status: 201 }
+    );
   } catch (error) {
     console.error('Error sending message:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
-
-
-

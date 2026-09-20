@@ -49,10 +49,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ acceptances });
   } catch (error: any) {
     console.error('Error fetching policy history:', error);
-    return NextResponse.json(
-      { error: error.message || 'Error al obtener historial' },
-      { status: 500 }
-    );
+    return NextResponse.json({ acceptances: [], warning: error.message || 'index_or_query' });
   }
 }
 

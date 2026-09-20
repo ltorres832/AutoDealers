@@ -59,12 +59,9 @@ export default function FIPage() {
   // Usar hooks de tiempo real
   const { clients, loading: clientsLoading, error: clientsError } = useRealtimeFIClients(user?.tenantId || '');
   
-  // TEMPORALMENTE: Mostrar TODAS las solicitudes sin filtrar para debuggear
-  // Luego el hook filtrará en memoria si es necesario
   const { requests, loading: requestsLoading, error: requestsError } = useRealtimeFIRequests(
     user?.tenantId || '',
-    undefined // TEMPORAL: No filtrar para ver todas las solicitudes
-    // user?.id // TODO: Restaurar cuando sepamos que funciona
+    user?.id
   );
 
   // Log para debugging EXTENSIVO
@@ -247,7 +244,7 @@ export default function FIPage() {
             <div className="text-center py-12 bg-gray-50 rounded-lg">
               <p className="text-gray-500 mb-4 text-lg font-semibold">No hay solicitudes F&I</p>
               
-              {/* Panel de Debug Visible */}
+              {process.env.NODE_ENV !== 'production' && (
               <div className="mt-6 bg-white border-2 border-red-300 rounded-lg p-6 max-w-4xl mx-auto text-left">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-bold text-red-600">🔍 INFORMACIÓN DE DEBUG</h3>
@@ -360,6 +357,7 @@ export default function FIPage() {
                   </div>
                 )}
               </div>
+              )}
             </div>
           ) : (
             <div className="bg-white shadow rounded-lg overflow-hidden">

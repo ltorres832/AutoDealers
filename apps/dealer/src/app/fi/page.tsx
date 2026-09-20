@@ -356,7 +356,7 @@ export default function FIFIManagerPage() {
           <div className="text-center py-12">
             <p className="text-gray-500 mb-4 text-lg font-semibold">No hay solicitudes</p>
             
-            {/* Panel de Debug Visible */}
+            {process.env.NODE_ENV !== 'production' && (
             <div className="mt-6 bg-white border-2 border-red-300 rounded-lg p-6 max-w-4xl mx-auto text-left">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-bold text-red-600">INFORMACIÓN DE DEBUG</h3>
@@ -446,6 +446,7 @@ export default function FIFIManagerPage() {
                 </div>
               )}
             </div>
+            )}
           </div>
         )}
       </div>

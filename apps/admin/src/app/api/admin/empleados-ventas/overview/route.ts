@@ -3,7 +3,9 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import {
+  listAllDealerAndSellerAccountsForStaffAccess,
   listSalesEmployeeAccounts,
+  listSalesEmployeeAdOrders,
   listSalesEmployeeAppointments,
   listSalesEmployeeCommissions,
   listSalesEmployeePaymentLinks,
@@ -19,18 +21,22 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   }
 
-  const [employees, accounts, commissions, visits, appointments, links] = await Promise.all([
-    listSalesEmployees(),
-    listSalesEmployeeAccounts(),
-    listSalesEmployeeCommissions(),
-    listSalesEmployeeVisits(),
-    listSalesEmployeeAppointments(),
-    listSalesEmployeePaymentLinks(),
-  ]);
+  const [employees, accounts, portalAccounts, commissions, visits, appointments, links, adOrders] =
+    await Promise.all([
+      listSalesEmployees(),
+      listSalesEmployeeAccounts(),
+      listAllDealerAndSellerAccountsForStaffAccess(),
+      listSalesEmployeeCommissions(),
+      listSalesEmployeeVisits(),
+      listSalesEmployeeAppointments(),
+      listSalesEmployeePaymentLinks(),
+      listSalesEmployeeAdOrders(),
+    ]);
 
   return NextResponse.json({
     employees: employees.map(serializeSalesEmployee),
     accounts: accounts.map((item) => ({ ...item, createdAt: toIso(item.createdAt) })),
+    portalAccounts,
     commissions: commissions.map((item) => ({
       ...item,
       eligibleAt: toIso(item.eligibleAt),
@@ -41,5 +47,6 @@ export async function GET(request: NextRequest) {
     visits,
     appointments,
     paymentLinks: links,
+    adOrders,
   });
 }

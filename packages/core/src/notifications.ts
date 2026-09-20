@@ -1,6 +1,7 @@
 // Sistema de notificaciones
 
 import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
+import { formatPlatformEmailFrom, normalizePlatformMessageText } from '@autodealers/shared/platform-sender';
 import { EmailService } from '@autodealers/messaging';
 import { SMSService } from '@autodealers/messaging';
 
@@ -29,6 +30,7 @@ export type NotificationType =
   | 'announcement'
   | 'fi_request'
   | 'catalog_interest'
+  | 'sell_to_dealer'
   | 'system_alert';
 
 export type NotificationChannel = 'system' | 'push' | 'email' | 'sms' | 'whatsapp';
@@ -47,11 +49,16 @@ export interface Notification {
   readAt?: Date;
 }
 
+export interface CreateNotificationInput extends Omit<Notification, 'id' | 'createdAt' | 'read'> {
+  /** Si true, envía por los canales indicados aunque el usuario los haya desactivado en preferencias. */
+  bypassChannelPreferences?: boolean;
+}
+
 /**
  * Crea una notificación
  */
 export async function createNotification(
-  notification: Omit<Notification, 'id' | 'createdAt' | 'read'>
+  notification: CreateNotificationInput
 ): Promise<Notification> {
   const db = getDb();
   const docRef = getDb().collection('tenants')
@@ -81,16 +88,14 @@ export async function createNotification(
 /**
  * Envía notificación por los canales configurados
  */
-async function sendNotificationChannels(
-  notification: Omit<Notification, 'id' | 'createdAt' | 'read'>
-): Promise<void> {
+async function sendNotificationChannels(notification: CreateNotificationInput): Promise<void> {
   // Obtener configuración de notificaciones del usuario
   const userDoc = await getDb().collection('users').doc(notification.userId).get();
   const userData = userDoc.data();
   const userSettings = userData?.settings?.notifications || {};
 
   for (const channel of notification.channels) {
-    if (userSettings[channel] === false) {
+    if (!notification.bypassChannelPreferences && userSettings[channel] === false) {
       continue; // Usuario deshabilitó este canal
     }
 
@@ -123,9 +128,21 @@ async function sendPushNotification(
   notification: Omit<Notification, 'id' | 'createdAt' | 'read'>
 ): Promise<void> {
   const { sendPushToUser } = await import('./fcm-tokens');
-  const route =
+  const metadataRoute =
     typeof notification.metadata?.route === 'string'
       ? notification.metadata.route
+      : typeof notification.metadata?.url === 'string'
+        ? notification.metadata.url
+        : typeof notification.metadata?.href === 'string'
+          ? notification.metadata.href
+          : typeof notification.metadata?.link === 'string'
+            ? notification.metadata.link
+            : typeof notification.metadata?.actionUrl === 'string'
+              ? notification.metadata.actionUrl
+              : undefined;
+  const route =
+    metadataRoute
+      ? metadataRoute
       : notification.metadata?.leadId
         ? `/leads?leadId=${notification.metadata.leadId}`
         : notification.metadata?.messageId
@@ -183,14 +200,14 @@ async function sendEmailNotification(
     tenantId: notification.tenantId,
     channel: 'email',
     direction: 'outbound',
-    from: emailCreds.fromAddress || 'noreply@autodealers.com',
+    from: formatPlatformEmailFrom(emailCreds.fromAddress),
     to: email,
     content: `
-      <h2>${notification.title}</h2>
-      <p>${notification.message}</p>
+      <h2>${normalizePlatformMessageText(notification.title)}</h2>
+      <p>${normalizePlatformMessageText(notification.message)}</p>
     `,
     metadata: {
-      subject: notification.title,
+      subject: normalizePlatformMessageText(notification.title),
     },
   });
 }
@@ -230,7 +247,7 @@ async function sendSMSNotification(
     direction: 'outbound',
     from: twilioCreds.phoneNumber,
     to: phone,
-    content: `${notification.title}: ${notification.message}`,
+    content: normalizePlatformMessageText(`${notification.title}: ${notification.message}`),
   });
 }
 
@@ -262,7 +279,7 @@ async function sendWhatsAppNotification(
     direction: 'outbound',
     from: wa.phoneNumberId,
     to: phone,
-    content: `${notification.title}\n\n${notification.message}`,
+    content: normalizePlatformMessageText(`${notification.title}\n\n${notification.message}`),
   });
 }
 
@@ -550,6 +567,9 @@ export async function notifyManagersAndAdmins(
         case 'catalog_interest':
           shouldNotify = businessNotifications.catalogInterest !== false;
           break;
+        case 'sell_to_dealer':
+          shouldNotify = businessNotifications.newLeads !== false;
+          break;
         case 'system_alert':
           shouldNotify = businessNotifications.systemAlerts !== false;
           break;
@@ -600,6 +620,12 @@ export async function notifyManagersAndAdmins(
 }
 
 /**
+ * Tema de una notificación de plataforma para enrutarla al buzón correcto.
+ * Se compara contra el campo `notificationAudience` del usuario admin.
+ */
+export type PlatformAdminAudience = 'public' | 'platform' | 'all';
+
+/**
  * Notifica a todos los usuarios admin de plataforma (sin tenant operativo).
  * Se almacenan en tenants/_platform/notifications.
  */
@@ -608,6 +634,15 @@ export async function notifyPlatformAdmins(notification: {
   title: string;
   message: string;
   metadata?: Record<string, any>;
+  /**
+   * Tema de la notificación para enrutarla al buzón adecuado.
+   * - 'public': leads/público sin cuenta (contacto, solicitud de info).
+   * - 'platform': cuentas ya dentro de la plataforma (registros, banners, pagos).
+   * - 'all' (por defecto): todos los admins.
+   * Un admin con `notificationAudience` específico solo recibe su tema;
+   * un admin sin preferencia recibe todo (compatibilidad hacia atrás).
+   */
+  audience?: PlatformAdminAudience;
 }): Promise<void> {
   try {
     const { PLATFORM_ADMIN_TENANT_ID } = await import('./platform-social');
@@ -617,12 +652,37 @@ export async function notifyPlatformAdmins(notification: {
       .where('role', '==', 'admin')
       .get();
 
-    if (adminsSnapshot.empty) return;
+    const adminUsersSnapshot = await db.collection('admin_users').get();
+
+    const adminDocs = [
+      ...adminsSnapshot.docs,
+      ...adminUsersSnapshot.docs.filter(
+        (adminDoc) => !adminsSnapshot.docs.some((userDoc) => userDoc.id === adminDoc.id)
+      ),
+    ];
+
+    if (adminDocs.length === 0) return;
+
+    const audience: PlatformAdminAudience = notification.audience ?? 'all';
 
     await Promise.all(
-      adminsSnapshot.docs.map(async (doc) => {
+      adminDocs.map(async (doc) => {
         const userData = doc.data();
-        const channels = await getNotificationChannelsForUser(doc.id);
+        const adminAudience = userData?.notificationAudience as
+          | PlatformAdminAudience
+          | undefined;
+        const receives =
+          audience === 'all' ||
+          !adminAudience ||
+          adminAudience === 'all' ||
+          adminAudience === audience;
+        if (!receives) return;
+
+        const userChannels = await getNotificationChannelsForUser(doc.id);
+        const channels = Array.from(
+          new Set<NotificationChannel>(['system', 'email', ...userChannels])
+        );
+
         await createNotification({
           tenantId: PLATFORM_ADMIN_TENANT_ID,
           userId: doc.id,
@@ -630,9 +690,9 @@ export async function notifyPlatformAdmins(notification: {
           title: notification.title,
           message: notification.message,
           channels,
+          bypassChannelPreferences: true,
           metadata: notification.metadata,
         });
-        void userData;
       })
     );
   } catch (error) {

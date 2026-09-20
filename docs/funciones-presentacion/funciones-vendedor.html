@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Funciones del panel Vendedor — AutoDealersOnline</title>
+<style>
+  body { font-family: system-ui, Segoe UI, sans-serif; margin: 0; background: #f1f5f9; color: #0f172a; }
+  .sheet { max-width: 840px; margin: 24px auto; background: #fff; border-radius: 16px; padding: 32px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  header { display: flex; gap: 16px; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 20px; }
+  header img { width: 56px; height: 56px; object-fit: contain; border-radius: 12px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 4px; }
+  h1 { margin: 0; font-size: 1.6rem; }
+  .sub { color: #64748b; margin: 4px 0 0; font-size: .95rem; }
+  .badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .badge { background: #f1f5f9; border-radius: 999px; padding: 4px 12px; font-size: .85rem; font-weight: 600; }
+  .badge.amber { background: #fffbeb; color: #92400e; }
+  h2 { font-size: 1.1rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px; margin: 28px 0 12px; }
+  ul { list-style: none; padding: 0; margin: 0; }
+  li { border: 1px solid #f1f5f9; border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; }
+  .plan { font-size: 10px; text-transform: uppercase; color: #b45309; font-weight: 700; margin-left: 6px; }
+  .note { font-size: .9rem; color: #475569; margin-top: 2px; }
+  .path { font-family: ui-monospace, monospace; font-size: 11px; color: #94a3b8; margin-top: 2px; }
+  .toolbar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .toolbar button, .toolbar a { border: 1px solid #e2e8f0; background: #fff; padding: 8px 14px; border-radius: 8px; font-weight: 600; cursor: pointer; text-decoration: none; color: #0f172a; font-size: 14px; }
+  .toolbar .primary { background: #2563eb; color: #fff; border-color: #2563eb; }
+  footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b; }
+  @media print {
+    body { background: #fff; }
+    .toolbar { display: none !important; }
+    .sheet { box-shadow: none; margin: 0; max-width: none; }
+    .feature-group { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+  <div class="sheet">
+    <div class="toolbar">
+      <button class="primary" type="button" onclick="window.print()">Imprimir / Guardar PDF</button>
+      <a href="funciones-vendedor.csv">Abrir CSV</a>
+    </div>
+    <header>
+      <img src="ad-platform-logo.png" alt="AutoDealersOnline" />
+      <div>
+        <div style="font-size:12px;font-weight:700;color:#2563eb;text-transform:uppercase;letter-spacing:.04em">AutoDealersOnline</div>
+        <h1>Funciones del panel Vendedor</h1>
+        <p class="sub">Módulos reales del panel del vendedor</p>
+        <div class="badges">
+          <span class="badge">49 funciones</span>
+          <span class="badge amber">12 pueden requerir plan</span>
+          <span class="badge">Solo módulos reales del panel</span>
+        </div>
+      </div>
+    </header>
+    <section class="feature-group"><h2>Inicio y operación</h2><ul><li><strong>Dashboard</strong><div class="path">/dashboard</div></li><li><strong>Inventario</strong><div class="path">/inventory</div></li><li><strong>Fotos página pública</strong><div class="path">/settings/seller-public-page</div></li><li><strong>Guía del Vendedor</strong><div class="path">/docs/guia-vendedor</div></li></ul></section><section class="feature-group"><h2>CRM y clientes</h2><ul><li><strong>Leads</strong><div class="path">/leads</div></li><li><strong>Interés catálogo web</strong><div class="path">/catalog-interest</div></li><li><strong>Pipeline Kanban</strong> <span class="plan">Plan</span><div class="path">/leads/kanban</div></li><li><strong>Tareas</strong> <span class="plan">Plan</span><div class="path">/tasks</div></li><li><strong>Workflows</strong> <span class="plan">Plan</span><div class="path">/workflows</div></li><li><strong>Clientes (F&I)</strong> <span class="plan">Plan</span><div class="path">/fi</div></li><li><strong>Casos de Cliente</strong> <span class="plan">Plan</span><div class="path">/customer-files</div></li><li><strong>Citas</strong> <span class="plan">Plan</span><div class="path">/appointments</div></li></ul></section><section class="feature-group"><h2>Comunicación</h2><ul><li><strong>Mensajes</strong><div class="path">/messages</div></li><li><strong>Chat Interno</strong><div class="path">/internal-chat</div></li><li><strong>Chat Público</strong> <span class="plan">Plan</span><div class="path">/public-chat</div></li></ul></section><section class="feature-group"><h2>Marketing y reputación</h2><ul><li><strong>Campañas</strong> <span class="plan">Plan</span><div class="path">/campaigns</div></li><li><strong>Publicaciones Sociales</strong> <span class="plan">Plan</span><div class="path">/social-posts</div></li><li><strong>Promociones</strong><div class="path">/promotions</div></li><li><strong>Banners Premium</strong><div class="path">/banners</div></li><li><strong>Referidos</strong><div class="path">/referrals</div></li><li><strong>Reseñas</strong><div class="path">/reviews</div></li></ul></section><section class="feature-group"><h2>Ventas, F&I y documentos</h2><ul><li><strong>Documentos</strong><div class="path">/documents</div></li><li><strong>Contratos</strong><div class="path">/contracts</div></li><li><strong>F&I</strong> <span class="plan">Plan</span><div class="path">/fi</div></li><li><strong>Deal desk</strong><div class="path">/deals</div></li><li><strong>Estadísticas de Ventas</strong><div class="path">/sales-statistics</div></li><li><strong>Mi compensación</strong> <span class="plan">Plan</span><div class="path">/compensation</div></li><li><strong>Reportes</strong> <span class="plan">Plan</span><div class="path">/reports</div></li></ul></section><section class="feature-group"><h2>Equipo</h2><ul><li><strong>Usuarios</strong><div class="path">/users</div></li><li><strong>Políticas legales</strong><div class="path">/policies</div></li></ul></section><section class="feature-group"><h2>Configuración del panel</h2><ul><li><strong>Configuración (resumen)</strong><div class="path">/settings</div></li><li><strong>Perfil</strong><div class="path">/settings/profile</div></li><li><strong>Seguridad</strong><div class="path">/settings/security</div></li><li><strong>Soporte</strong><div class="path">/settings/support</div></li><li><strong>Notificaciones</strong><div class="path">/settings/notifications</div></li><li><strong>PDF F&I (branding documentos)</strong><div class="path">/settings/document-branding</div></li><li><strong>Fotos y videos página pública</strong><div class="path">/settings/seller-public-page</div></li><li><strong>Marca web</strong><div class="path">/settings/branding</div></li><li><strong>Sitio web</strong><div class="path">/settings/website</div></li><li><strong>Integraciones</strong><div class="path">/settings/integrations</div></li><li><strong>Agente de Voz</strong><div class="path">/settings/voice-agent</div></li><li><strong>Vínculo con concesionario</strong><div class="path">/settings/dealer-link</div></li><li><strong>Membresía</strong><div class="path">/settings/membership</div></li><li><strong>Pagos</strong><div class="path">/settings/payments</div></li><li><strong>Plantillas</strong><div class="path">/settings/templates</div></li><li><strong>Políticas (configuración)</strong><div class="path">/settings/policies</div></li><li><strong>Destacados (featured)</strong><div class="path">/settings/featured</div></li><li><strong>IA</strong><div class="path">/settings/ai</div></li><li><strong>Email corporativo</strong><div class="path">/settings/corporate-email</div></li></ul></section>
+    <footer>
+      Documento generado desde menús y rutas reales de AutoDealersOnline. Las marcadas «Plan» pueden estar limitadas por membresía.
+    </footer>
+  </div>
+</body>
+</html>

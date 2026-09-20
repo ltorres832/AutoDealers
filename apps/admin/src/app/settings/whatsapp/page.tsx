@@ -220,7 +220,7 @@ export default function WhatsAppSettingsPage() {
                   setConfig({ ...config, businessName: e.target.value })
                 }
                 className="w-full border rounded px-3 py-2"
-                placeholder="Ej: AutoDealers Premium"
+                placeholder="Ej: AutoDealersOnline Premium"
               />
             </div>
 

@@ -8,7 +8,7 @@ import {
   formatHoursSinceTouch,
   DEFAULT_CRM_SLA,
   type CrmSlaConfig,
-} from '@autodealers/crm';
+} from '@/lib/lead-sla-client';
 import { LeadRowExtras } from '@/components/LeadProfileSections';
 import { useRealtimeLeads } from '@/hooks/useRealtimeLeads';
 import { fetchWithAuth } from '@/lib/fetch-with-auth';
@@ -49,7 +49,7 @@ export default function LeadsList() {
     status: filters.status || undefined,
     source: filters.source || undefined,
     search: filters.search || undefined,
-    dealerVisibleOnly: Boolean(user?.role && isDealerPortalRole(user.role)),
+    dealerVisibleOnly: false,
   });
 
   const canReassign = user?.role && isDealerPortalRole(user.role);

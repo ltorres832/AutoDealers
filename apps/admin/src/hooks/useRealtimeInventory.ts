@@ -14,6 +14,8 @@ interface Vehicle {
   currency: string;
   status: string;
   photos: string[];
+  videos?: string[];
+  generatedVideoUrl?: string;
   mileage?: number;
   condition: string;
   bodyType?: string;

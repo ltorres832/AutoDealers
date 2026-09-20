@@ -8,6 +8,7 @@ interface AuthUser {
   email: string;
   role: 'admin' | 'dealer' | 'seller';
   dealerId?: string;
+  billingMode?: 'self_service' | 'dealer_managed';
 }
 
 export function useAuth() {

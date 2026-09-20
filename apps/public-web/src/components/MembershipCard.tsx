@@ -1,14 +1,24 @@
 'use client';
 
-import { buildMembershipDisplayLines, type DynamicFeatureCatalogEntry } from '@/lib/membership-display';
+import {
+  buildMembershipDisplayLines,
+  parseMembershipFeatureLine,
+  type DynamicFeatureCatalogEntry,
+} from '@/lib/membership-display';
+import { ComingSoonBadge } from '@autodealers/billing/client';
 
 interface Membership {
   id: string;
   name: string;
-  type: 'dealer' | 'seller';
+  type: 'dealer' | 'seller' | 'business';
   price: number;
   currency: string;
   billingCycle: 'monthly' | 'yearly';
+  displayPrice?: number;
+  regularPrice?: number;
+  launchActive?: boolean;
+  introConfigured?: boolean;
+  pricingBadge?: string | null;
   features: {
     maxSellers?: number | null;
     maxInventory?: number | null;
@@ -59,6 +69,12 @@ export default function MembershipCard({
                     membership.name.toLowerCase().includes('intermedio');
 
   const period = membership.billingCycle === 'yearly' ? 'año' : 'mes';
+  const shownPrice =
+    typeof membership.displayPrice === 'number' ? membership.displayPrice : membership.price;
+  const showRegularStrike =
+    (membership.launchActive || membership.introConfigured) &&
+    typeof membership.regularPrice === 'number' &&
+    membership.regularPrice > shownPrice;
 
   if (compact) {
     return (
@@ -79,9 +95,19 @@ export default function MembershipCard({
         )}
         <h3 className="text-xl font-bold mb-2">{membership.name}</h3>
         <div className="mb-4">
-          <span className="text-3xl font-bold">{formatPrice(membership.price, membership.currency)}</span>
+          <span className="text-3xl font-bold">{formatPrice(shownPrice, membership.currency)}</span>
           <span className="text-gray-600 text-sm">/{period}</span>
+          {showRegularStrike ? (
+            <span className="ml-2 text-sm text-gray-400 line-through">
+              {formatPrice(membership.regularPrice!, membership.currency)}
+            </span>
+          ) : null}
         </div>
+        {membership.pricingBadge ? (
+          <div className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+            {membership.pricingBadge}
+          </div>
+        ) : null}
         {trialDays > 0 && (
           <div className="mb-4 rounded-full bg-green-50 px-3 py-2 text-center text-xs font-bold text-green-700">
             {trialDays} días de prueba gratis
@@ -89,14 +115,25 @@ export default function MembershipCard({
         )}
         {showFeatures && features.length > 0 && (
           <ul className="space-y-2 text-sm mb-6">
-            {features.slice(0, 5).map((feature, i) => (
-              <li key={i} className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-                <span className="text-gray-700">{feature}</span>
-              </li>
-            ))}
+            {features.slice(0, 5).map((feature, i) => {
+              const { text, comingSoon } = parseMembershipFeatureLine(feature);
+              return (
+                <li key={i} className="flex items-center gap-2">
+                  <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-gray-700">
+                    {text}
+                    {comingSoon ? (
+                      <>
+                        {' '}
+                        <ComingSoonBadge />
+                      </>
+                    ) : null}
+                  </span>
+                </li>
+              );
+            })}
             {features.length > 5 && (
               <li className="text-gray-500 text-xs">+{features.length - 5} más</li>
             )}
@@ -146,12 +183,26 @@ export default function MembershipCard({
       )}
       <h3 className="text-2xl font-bold mb-2">{membership.name}</h3>
       <p className="text-gray-600 mb-6 text-sm">
-        {membership.type === 'dealer' ? 'Para concesionarios' : 'Para vendedores'}
+        {membership.type === 'dealer'
+          ? 'Para concesionarios'
+          : membership.type === 'business'
+            ? 'Para talleres, gomeras y servicios automotrices'
+            : 'Para vendedores'}
       </p>
       <div className="mb-6">
-        <span className="text-5xl font-bold">{formatPrice(membership.price, membership.currency)}</span>
+        <span className="text-5xl font-bold">{formatPrice(shownPrice, membership.currency)}</span>
         <span className="text-gray-600">/{period}</span>
+        {showRegularStrike ? (
+          <span className="ml-2 text-lg text-gray-400 line-through">
+            {formatPrice(membership.regularPrice!, membership.currency)}
+          </span>
+        ) : null}
       </div>
+      {membership.pricingBadge ? (
+        <div className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+          {membership.pricingBadge}
+        </div>
+      ) : null}
       {trialDays > 0 && (
         <div className="mb-6 rounded-full bg-green-50 px-4 py-2 text-center text-sm font-bold text-green-700">
           {trialDays} días de prueba gratis
@@ -159,14 +210,25 @@ export default function MembershipCard({
       )}
       {showFeatures && features.length > 0 && (
         <ul className="space-y-3 mb-8">
-          {features.map((feature, i) => (
-            <li key={i} className="flex items-center gap-2">
-              <svg className="w-5 h-5 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-              <span className="text-gray-700">{feature}</span>
-            </li>
-          ))}
+          {features.map((feature, i) => {
+            const { text, comingSoon } = parseMembershipFeatureLine(feature);
+            return (
+              <li key={i} className="flex items-center gap-2">
+                <svg className="w-5 h-5 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <span className="text-gray-700">
+                  {text}
+                  {comingSoon ? (
+                    <>
+                      {' '}
+                      <ComingSoonBadge />
+                    </>
+                  ) : null}
+                </span>
+              </li>
+            );
+          })}
         </ul>
       )}
       {onSelect ? (

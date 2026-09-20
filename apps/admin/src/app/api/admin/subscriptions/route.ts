@@ -24,9 +24,9 @@ export async function GET(request: NextRequest) {
     const enrichedSubscriptions = await Promise.all(
       subscriptions.map(async (sub) => {
         const [tenant, user, membership] = await Promise.all([
-          getTenantById(sub.tenantId),
-          getUserById(sub.userId),
-          getMembershipById(sub.membershipId),
+          sub.tenantId ? getTenantById(sub.tenantId) : Promise.resolve(null),
+          sub.userId ? getUserById(sub.userId) : Promise.resolve(null),
+          sub.membershipId ? getMembershipById(sub.membershipId) : Promise.resolve(null),
         ]);
 
         return enrichPaymentDates({

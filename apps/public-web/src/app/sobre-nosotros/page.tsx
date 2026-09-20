@@ -15,7 +15,7 @@ export default function SobreNosotrosPage() {
                 <span className="text-white font-bold text-xl">AD</span>
               </div>
               <span className="text-2xl font-bold bg-gradient-to-r from-primary-600 to-primary-600 bg-clip-text text-transparent">
-                AutoDealers
+                AutoDealersOnline
               </span>
             </Link>
             <Link
@@ -59,7 +59,7 @@ export default function SobreNosotrosPage() {
           <section className="bg-gradient-to-br from-primary-50 to-primary-50 rounded-2xl p-8">
             <h2 className="text-3xl font-bold mb-4">Nuestra Misión</h2>
             <p className="text-lg text-gray-700 leading-relaxed">
-              En AutoDealers, creemos que cada concesionario merece herramientas profesionales para 
+              En AutoDealersOnline, creemos que cada concesionario merece herramientas profesionales para 
               competir en el mercado actual. Nuestra misión es democratizar el acceso a tecnología 
               avanzada de gestión, permitiendo que concesionarios de todos los tamaños puedan 
               optimizar sus operaciones, aumentar sus ventas y mejorar la experiencia de sus clientes.
@@ -71,7 +71,7 @@ export default function SobreNosotrosPage() {
             <h2 className="text-3xl font-bold mb-6">Nuestra Historia</h2>
             <div className="space-y-6 text-gray-700 leading-relaxed">
               <p>
-                AutoDealers nació en 2020 cuando un grupo de emprendedores identificó las 
+                AutoDealersOnline nació en 2020 cuando un grupo de emprendedores identificó las 
                 dificultades que enfrentaban los concesionarios para gestionar sus operaciones 
                 de manera eficiente. Muchos dependían de sistemas obsoletos o múltiples herramientas 
                 desconectadas que complicaban su trabajo diario.
@@ -82,7 +82,7 @@ export default function SobreNosotrosPage() {
                 artificial y automatización para hacer que la gestión sea aún más eficiente.
               </p>
               <p>
-                Hoy, AutoDealers es utilizado por más de 500 concesionarios en todo el mundo, 
+                Hoy, AutoDealersOnline es utilizado por más de 500 concesionarios en todo el mundo, 
                 ayudándolos a vender más de 50,000 vehículos y mejorando significativamente 
                 sus operaciones.
               </p>

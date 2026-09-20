@@ -71,8 +71,13 @@ export function useRealtimeMessages(tenantId?: string) {
 
             conversationsMap[message.leadId].messages.push(message);
             
-            if (message.direction === 'inbound' && !message.isRead) {
-              conversationsMap[message.leadId].unread++;
+            if (message.direction === 'inbound') {
+              const read =
+                message.isRead === true ||
+                (message as { metadata?: { isRead?: boolean } }).metadata?.isRead === true;
+              if (!read) {
+                conversationsMap[message.leadId].unread++;
+              }
             }
 
             // Actualizar último mensaje

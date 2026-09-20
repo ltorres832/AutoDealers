@@ -139,10 +139,10 @@ export default function PreQualifyPage() {
 
   if (step === 4 && result) {
     return (
-      <div className="min-h-screen bg-gray-50 py-12">
-        <div className="container mx-auto px-4 max-w-4xl">
+      <div className="min-h-screen bg-gray-50 py-6 sm:py-12">
+        <div className="container mx-auto max-w-4xl px-3 sm:px-4">
           {/* Resultado */}
-          <div className="bg-white rounded-lg shadow-lg p-8">
+          <div className="rounded-xl bg-white p-4 shadow-lg sm:p-8">
             {result.result.status === 'pre_approved' && (
               <div className="text-center mb-8">
                 <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -150,7 +150,7 @@ export default function PreQualifyPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <h2 className="text-3xl font-bold text-green-600 mb-2">¡Felicitaciones! Estás Pre-Aprobado</h2>
+                <h2 className="mb-2 text-2xl font-bold leading-tight text-green-600 sm:text-3xl">¡Felicitaciones! Estás Pre-Aprobado</h2>
                 <p className="text-gray-600">Has sido pre-aprobado para financiamiento</p>
               </div>
             )}
@@ -162,7 +162,7 @@ export default function PreQualifyPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
                 </div>
-                <h2 className="text-3xl font-bold text-yellow-600 mb-2">Pre-Aprobado Parcialmente</h2>
+                <h2 className="mb-2 text-2xl font-bold leading-tight text-yellow-600 sm:text-3xl">Pre-Aprobado Parcialmente</h2>
                 <p className="text-gray-600">Calificas para un monto menor al solicitado</p>
               </div>
             )}
@@ -174,7 +174,7 @@ export default function PreQualifyPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </div>
-                <h2 className="text-3xl font-bold text-red-600 mb-2">No Calificas en este momento</h2>
+                <h2 className="mb-2 text-2xl font-bold leading-tight text-red-600 sm:text-3xl">No Calificas en este momento</h2>
                 <p className="text-gray-600">Tu solicitud no cumple con los requisitos mínimos</p>
               </div>
             )}
@@ -186,13 +186,13 @@ export default function PreQualifyPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                 </div>
-                <h2 className="text-3xl font-bold text-primary-600 mb-2">Revisión Manual Requerida</h2>
+                <h2 className="mb-2 text-2xl font-bold leading-tight text-primary-600 sm:text-3xl">Revisión Manual Requerida</h2>
                 <p className="text-gray-600">Tu solicitud será revisada por nuestro equipo</p>
               </div>
             )}
 
             {/* Detalles del Resultado */}
-            <div className="bg-gray-50 rounded-lg p-6 mb-6">
+            <div className="mb-6 rounded-lg bg-gray-50 p-4 sm:p-6">
               <h3 className="text-xl font-bold mb-4">Detalles de tu Pre-Cualificación</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -339,12 +339,12 @@ export default function PreQualifyPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
-      <div className="container mx-auto px-4 max-w-3xl">
+    <div className="min-h-screen bg-gray-50 py-6 sm:py-12">
+      <div className="container mx-auto max-w-3xl px-3 sm:px-4">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-4">Pre-Cualificación para Financiamiento</h1>
-          <p className="text-gray-600 text-lg">
+        <div className="mb-8 text-center">
+          <h1 className="mb-4 text-3xl font-bold leading-tight sm:text-4xl">Pre-Cualificación para Financiamiento</h1>
+          <p className="text-base text-gray-600 sm:text-lg">
             Descubre si calificas para financiamiento en solo 2 minutos. Sin compromiso, 100% gratuito.
           </p>
         </div>
@@ -364,7 +364,7 @@ export default function PreQualifyPage() {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-lg p-8">
+        <form onSubmit={handleSubmit} className="rounded-xl bg-white p-4 shadow-lg sm:p-8">
           {/* Paso 1: Información Personal */}
           {step === 1 && (
             <div className="space-y-4">
@@ -509,7 +509,7 @@ export default function PreQualifyPage() {
             <div className="space-y-4">
               <h2 className="text-2xl font-bold mb-6">Preferencias de Financiamiento</h2>
               
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2">
                 <div>
                   <label className="block text-sm font-medium mb-2">Precio Mínimo (USD) *</label>
                   <input
@@ -568,12 +568,12 @@ export default function PreQualifyPage() {
           )}
 
           {/* Navigation Buttons */}
-          <div className="flex justify-between mt-8">
+          <div className="mt-8 flex flex-col-reverse gap-3 min-[420px]:flex-row min-[420px]:justify-between">
             {step > 1 && (
               <button
                 type="button"
                 onClick={prevStep}
-                className="px-6 py-2 border rounded-lg hover:bg-gray-50"
+                className="w-full rounded-lg border px-6 py-2 hover:bg-gray-50 min-[420px]:w-auto"
               >
                 ← Anterior
               </button>
@@ -582,7 +582,7 @@ export default function PreQualifyPage() {
               <button
                 type="button"
                 onClick={nextStep}
-                className="ml-auto px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+                className="w-full rounded-lg bg-primary-600 px-6 py-2 text-white hover:bg-primary-700 min-[420px]:ml-auto min-[420px]:w-auto"
               >
                 Siguiente →
               </button>
@@ -590,7 +590,7 @@ export default function PreQualifyPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="ml-auto px-8 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                className="w-full rounded-lg bg-green-600 px-8 py-2 text-white hover:bg-green-700 disabled:opacity-50 min-[420px]:ml-auto min-[420px]:w-auto"
               >
                 {loading ? 'Procesando...' : 'Enviar Solicitud'}
               </button>

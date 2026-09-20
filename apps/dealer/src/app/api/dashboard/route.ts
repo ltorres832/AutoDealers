@@ -194,7 +194,7 @@ export async function GET(request: NextRequest) {
     const sellersSales = sales.filter((sale) => sale.sellerId).length;
 
     // Top vendedores (las ventas ya están filtradas por status completed)
-    const salesBySeller: Record<string, { sales: number; revenue: number }> = {};
+    const salesBySeller: Record<string, { sales: number; revenue: number; leads?: number }> = {};
     sales
       .filter((sale) => sale.sellerId)
       .forEach((sale) => {
@@ -205,15 +205,65 @@ export async function GET(request: NextRequest) {
         salesBySeller[sale.sellerId].revenue += (sale.salePrice || sale.total || 0);
       });
 
+    // Monitoreo: sumar actividad de vendedores vinculados (otros tenants)
+    let networkSummary: Awaited<
+      ReturnType<typeof import('@/lib/seller-network-activity').getSellerNetworkActivity>
+    >['summaryBySeller'] = [];
+    try {
+      const { getSellerNetworkActivity } = await import('@/lib/seller-network-activity');
+      const network = await getSellerNetworkActivity(auth.tenantId, {
+        userId: auth.userId,
+        kinds: ['leads', 'sales', 'campaigns', 'social', 'sellers'],
+        limitPerSeller: 40,
+      });
+      networkSummary = network.summaryBySeller;
+      for (const row of network.summaryBySeller) {
+        if (!salesBySeller[row.sellerId]) {
+          salesBySeller[row.sellerId] = { sales: 0, revenue: 0, leads: 0 };
+        }
+        // Solo sumar revenue/sales si el vendedor tiene tenant distinto (evitar doble conteo)
+        const sellerMeta = sellersList.find((s) => s.id === row.sellerId);
+        const ownTenant = !sellerMeta?.tenantId || sellerMeta.tenantId === auth.tenantId;
+        if (!ownTenant) {
+          salesBySeller[row.sellerId].sales += row.totalSales;
+          salesBySeller[row.sellerId].revenue += row.totalRevenue;
+        }
+        salesBySeller[row.sellerId].leads = row.activeLeads;
+      }
+    } catch (e) {
+      console.warn('dashboard network activity', e);
+    }
+
     const topSellers = sellersList
       .map((seller) => ({
         id: seller.id,
         name: seller.name,
         sales: salesBySeller[seller.id]?.sales || 0,
         revenue: salesBySeller[seller.id]?.revenue || 0,
+        activeLeads: salesBySeller[seller.id]?.leads || 0,
+        campaigns:
+          networkSummary.find((s) => s.sellerId === seller.id)?.totalCampaigns || 0,
+        socialPosts:
+          networkSummary.find((s) => s.sellerId === seller.id)?.totalSocialPosts || 0,
       }))
       .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 5);
+      .slice(0, 8);
+
+    const networkExtraLeads = networkSummary.reduce((n, s) => {
+      const sellerMeta = sellersList.find((x) => x.id === s.sellerId);
+      const ownTenant = !sellerMeta?.tenantId || sellerMeta.tenantId === auth.tenantId;
+      return ownTenant ? n : n + s.totalLeads;
+    }, 0);
+    const networkExtraSales = networkSummary.reduce((n, s) => {
+      const sellerMeta = sellersList.find((x) => x.id === s.sellerId);
+      const ownTenant = !sellerMeta?.tenantId || sellerMeta.tenantId === auth.tenantId;
+      return ownTenant ? n : n + s.totalSales;
+    }, 0);
+    const networkExtraRevenue = networkSummary.reduce((n, s) => {
+      const sellerMeta = sellersList.find((x) => x.id === s.sellerId);
+      const ownTenant = !sellerMeta?.tenantId || sellerMeta.tenantId === auth.tenantId;
+      return ownTenant ? n : n + s.totalRevenue;
+    }, 0);
 
     // Leads recientes
     const recentLeads = leads
@@ -295,18 +345,24 @@ export async function GET(request: NextRequest) {
       });
 
     const stats = {
-      totalLeads: leads.length,
-      activeLeads: leads.filter(
-        (l) => l.status !== 'closed' && l.status !== 'lost'
-      ).length,
+      totalLeads: leads.length + networkExtraLeads,
+      activeLeads:
+        leads.filter((l) => l.status !== 'closed' && l.status !== 'lost').length +
+        networkSummary.reduce((n, s) => {
+          const sellerMeta = sellersList.find((x) => x.id === s.sellerId);
+          const ownTenant = !sellerMeta?.tenantId || sellerMeta.tenantId === auth.tenantId;
+          return ownTenant ? n : n + s.activeLeads;
+        }, 0),
       totalVehicles: vehicles.length,
       availableVehicles: vehicles.filter((v) => v.status === 'available').length,
-      totalSales: sales.length, // Ya están filtradas por status
-      monthlyRevenue,
+      totalSales: sales.length + networkExtraSales,
+      monthlyRevenue: monthlyRevenue + networkExtraRevenue,
       appointmentsToday,
       unreadMessages,
       totalSellers: sellersList.length,
-      sellersSales,
+      sellersSales: sellersSales + networkExtraSales,
+      sellerCampaigns: networkSummary.reduce((n, s) => n + s.totalCampaigns, 0),
+      sellerSocialPosts: networkSummary.reduce((n, s) => n + s.totalSocialPosts, 0),
     };
 
     const responseData = {

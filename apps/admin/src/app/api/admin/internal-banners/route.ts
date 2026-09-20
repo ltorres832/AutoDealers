@@ -38,10 +38,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ banners });
   } catch (error: any) {
     console.error('Error fetching internal banners:', error);
-    return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ banners: [], warning: error.message || 'index_or_query' });
   }
 }
 
@@ -66,6 +63,8 @@ export async function POST(request: NextRequest) {
       title: body.title,
       description: body.description,
       imageUrl: body.imageUrl,
+      images: Array.isArray(body.images) ? body.images : body.imageUrl ? [body.imageUrl] : [],
+      animation: body.animation || 'fade',
       ctaText: body.ctaText || 'Ver Más',
       linkType: body.linkType || 'none',
       linkValue: body.linkValue || '',

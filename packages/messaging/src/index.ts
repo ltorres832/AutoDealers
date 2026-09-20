@@ -12,7 +12,5 @@ export * from './unified';
 export * from './types';
 export * from './social-publisher';
 export * from './meta-marketing-publisher';
-
-
-
+export * from './inbound-message-pipeline';
 

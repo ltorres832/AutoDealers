@@ -5,6 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import BackButton from '@/components/BackButton';
 import { AdminMembershipAccessPanel } from '@/components/AdminMembershipAccessPanel';
+import { AdminDeleteButton } from '@/components/AdminDeleteButton';
+import { AdminSupportEnterButton } from '@/components/AdminSupportEnterButton';
 
 type UserRecord = Record<string, unknown>;
 
@@ -41,6 +43,7 @@ export default function AdminEditUserPage() {
     publicPromoVideoUrl: '',
     corporateEmail: '',
     referralCode: '',
+    notificationAudience: 'all' as 'all' | 'public' | 'platform',
     newPassword: '',
     authDisabled: false,
     settingsJson: '{}',
@@ -87,6 +90,10 @@ export default function AdminEditUserPage() {
           publicPromoVideoUrl: String(u.publicPromoVideoUrl ?? ''),
           corporateEmail: String(u.corporateEmail ?? ''),
           referralCode: String(u.referralCode ?? ''),
+          notificationAudience:
+            u.notificationAudience === 'public' || u.notificationAudience === 'platform'
+              ? u.notificationAudience
+              : 'all',
           newPassword: '',
           authDisabled: !!data.auth?.disabled,
           settingsJson: JSON.stringify(
@@ -186,6 +193,7 @@ export default function AdminEditUserPage() {
       publicPromoVideoUrl: form.publicPromoVideoUrl.trim() || null,
       corporateEmail: form.corporateEmail.trim() || null,
       referralCode: form.referralCode.trim() || null,
+      notificationAudience: form.notificationAudience,
       authDisabled: form.authDisabled,
       settings,
       settingsReplace: form.settingsReplace,
@@ -254,6 +262,22 @@ export default function AdminEditUserPage() {
           </span>
         )}
       </p>
+
+      {(form.role === 'seller' ||
+        form.role === 'dealer' ||
+        form.role === 'master_dealer' ||
+        form.role === 'dealer_admin' ||
+        form.role === 'manager') && (
+        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="font-medium text-amber-900">Ayuda / soporte en su panel</p>
+            <p className="text-sm text-amber-800">
+              Entra al panel del cliente actuando como él, sin restricciones de membresía ni facturación.
+            </p>
+          </div>
+          <AdminSupportEnterButton userId={id} tenantId={form.tenantId || undefined} />
+        </div>
+      )}
 
       {error && (
         <div className="mb-4 rounded-lg bg-red-50 border border-red-200 text-red-800 px-4 py-3 text-sm">{error}</div>
@@ -421,6 +445,33 @@ export default function AdminEditUserPage() {
             />
           </div>
 
+          {form.role === 'admin' && (
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium mb-2">
+                Notificaciones que recibe (buzón)
+              </label>
+              <select
+                className="w-full border rounded px-3 py-2"
+                value={form.notificationAudience}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    notificationAudience: e.target.value as 'all' | 'public' | 'platform',
+                  })
+                }
+              >
+                <option value="all">Todo (todas las alertas)</option>
+                <option value="public">Público — contacto y solicitudes de información</option>
+                <option value="platform">Plataforma — registros, banners y pagos</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Divide los avisos entre buzones de admin. Un admin &quot;Público&quot; recibe el
+                formulario de contacto y las solicitudes de info; uno &quot;Plataforma&quot; recibe
+                los nuevos registros y aprobaciones.
+              </p>
+            </div>
+          )}
+
           <div className="md:col-span-2 border rounded-lg p-4 bg-gray-50">
             <label className="flex items-center gap-2 font-medium">
               <input
@@ -503,6 +554,15 @@ export default function AdminEditUserPage() {
           <Link href="/admin/users" className="px-4 py-2 border rounded">
             Cancelar
           </Link>
+          {form.role !== 'admin' ? (
+            <AdminDeleteButton
+              deleteUrl={`/api/admin/users/${id}`}
+              label="Eliminar usuario"
+              confirmMessage="¿Eliminar este usuario? Se desactivará su acceso."
+              onDeleted={() => router.push('/admin/users')}
+              className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700"
+            />
+          ) : null}
           <button
             type="submit"
             disabled={saving}

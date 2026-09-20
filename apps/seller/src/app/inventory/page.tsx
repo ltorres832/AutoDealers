@@ -77,6 +77,7 @@ export default function InventoryPage() {
   });
   const loading = authLoading || inventoryLoading;
   const [inventoryFilter, setInventoryFilter] = useState<InventoryFilter>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [showMarkAsSoldModal, setShowMarkAsSoldModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -117,18 +118,34 @@ export default function InventoryPage() {
     syncInfo.syncDealerInventory && syncInfo.dealerTenantId ? syncInfo.dealerTenantId : undefined;
 
   const visibleVehicles = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    const vinQ = searchQuery.trim().toUpperCase().replace(/[\s\-]/g, '');
     return vehicles.filter((v) => {
       if (v.deleted === true) return false;
       // Inventario sincronizado del dealer: solo unidades disponibles/reservadas
       const isDealerRow = Boolean(dealerTenantId && v.tenantId === dealerTenantId);
       if (isDealerRow && (v.status === 'hidden' || v.status === 'sold')) return false;
-      if (inventoryFilter === 'all') return true;
-      if (inventoryFilter === 'available') return v.status === 'available';
-      if (inventoryFilter === 'sold') return v.status === 'sold';
-      if (inventoryFilter === 'hidden') return v.status === 'hidden';
-      return true;
+      if (inventoryFilter === 'available' && v.status !== 'available') return false;
+      else if (inventoryFilter === 'sold' && v.status !== 'sold') return false;
+      else if (inventoryFilter === 'hidden' && v.status !== 'hidden') return false;
+      if (!q) return true;
+      const extended = v as Vehicle & {
+        vin?: string;
+        stockNumber?: string;
+        specifications?: { vin?: string; stockNumber?: string };
+      };
+      const vin = String(extended.vin || extended.specifications?.vin || '')
+        .toUpperCase()
+        .replace(/[\s\-]/g, '');
+      const stock = String(
+        extended.stockNumber || extended.specifications?.stockNumber || ''
+      ).toLowerCase();
+      const hay = [v.make, v.model, String(v.year || ''), vin, stock]
+        .join(' ')
+        .toLowerCase();
+      return hay.includes(q) || (vinQ.length >= 6 && vin.includes(vinQ));
     });
-  }, [vehicles, inventoryFilter, dealerTenantId]);
+  }, [vehicles, inventoryFilter, dealerTenantId, searchQuery]);
 
   async function togglePublishVehicle(vehicle: Vehicle) {
     try {
@@ -228,6 +245,16 @@ export default function InventoryPage() {
           </button>
         </div>
       )}
+
+      <div className="flex flex-wrap gap-2 mb-4">
+        <input
+          type="search"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Buscar por marca, modelo, VIN o stock…"
+          className="w-full sm:w-80 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+        />
+      </div>
 
       <div className="flex flex-wrap gap-2 mb-6">
         {(

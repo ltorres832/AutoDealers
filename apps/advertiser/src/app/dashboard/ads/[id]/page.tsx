@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import DashboardLayout from '../../../../components/DashboardLayout';
+import { AD_PLACEMENT_LABELS, type AdPlacement } from '@/lib/ad-placements';
 
 interface Ad {
   id: string;
@@ -12,6 +13,8 @@ interface Ad {
   status: string;
   description: string;
   imageUrl: string;
+  images?: string[];
+  animation?: string;
   videoUrl?: string;
   linkUrl: string;
   linkType: string;
@@ -22,6 +25,22 @@ interface Ad {
   impressions: number;
   clicks: number;
   ctr: number;
+}
+
+function getStatusDisplay(status: string) {
+  const map: Record<string, { label: string; className: string }> = {
+    payment_pending: { label: 'Pago pendiente', className: 'bg-orange-100 text-orange-800' },
+    queued_setup_pending: { label: 'Guardando método', className: 'bg-amber-100 text-amber-800' },
+    queued: { label: 'En turno', className: 'bg-primary-100 text-primary-800' },
+    activating: { label: 'Activando', className: 'bg-primary-100 text-primary-800' },
+    payment_failed: { label: 'Pago falló', className: 'bg-red-100 text-red-800' },
+    active: { label: 'Activo', className: 'bg-green-100 text-green-800' },
+    pending: { label: 'Pendiente', className: 'bg-yellow-100 text-yellow-800' },
+    paused: { label: 'Pausado', className: 'bg-gray-100 text-gray-800' },
+    expired: { label: 'Expirado', className: 'bg-red-100 text-red-800' },
+    rejected: { label: 'Rechazado', className: 'bg-red-100 text-red-800' },
+  };
+  return map[status] || { label: status, className: 'bg-gray-100 text-gray-800' };
 }
 
 export default function AdDetailPage() {
@@ -170,16 +189,8 @@ export default function AdDetailPage() {
           <div className="grid grid-cols-2 gap-6">
             <div>
               <h3 className="text-sm font-medium text-gray-500 mb-2">Estado</h3>
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                ad.status === 'active' ? 'bg-green-100 text-green-800' :
-                ad.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                ad.status === 'paused' ? 'bg-gray-100 text-gray-800' :
-                'bg-red-100 text-red-800'
-              }`}>
-                {ad.status === 'active' ? 'Activo' :
-                 ad.status === 'pending' ? 'Pendiente' :
-                 ad.status === 'paused' ? 'Pausado' :
-                 'Rechazado'}
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusDisplay(ad.status).className}`}>
+                {getStatusDisplay(ad.status).label}
               </span>
             </div>
             <div>
@@ -188,7 +199,7 @@ export default function AdDetailPage() {
             </div>
             <div>
               <h3 className="text-sm font-medium text-gray-500 mb-2">Ubicación</h3>
-              <p className="text-gray-900 capitalize">{ad.placement}</p>
+              <p className="text-gray-900">{AD_PLACEMENT_LABELS[ad.placement as AdPlacement] || ad.placement}</p>
             </div>
             <div>
               <h3 className="text-sm font-medium text-gray-500 mb-2">Presupuesto</h3>
@@ -198,8 +209,15 @@ export default function AdDetailPage() {
 
           {ad.imageUrl && (
             <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-2">Imagen</h3>
-              <img src={ad.imageUrl} alt={ad.title} className="w-full max-w-md rounded-lg" />
+              <h3 className="text-sm font-medium text-gray-500 mb-2">
+                {ad.images && ad.images.length > 1 ? `Slideshow (${ad.images.length} fotos)` : 'Imagen'}
+                {ad.animation ? ` · animación: ${ad.animation}` : ''}
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {(ad.images && ad.images.length > 0 ? ad.images : [ad.imageUrl]).map((url) => (
+                  <img key={url} src={url} alt={ad.title} className="h-32 w-40 object-cover rounded-lg border" />
+                ))}
+              </div>
             </div>
           )}
 

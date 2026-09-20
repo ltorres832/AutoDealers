@@ -17,10 +17,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ posts });
   } catch (error: any) {
     console.error('Error fetching scheduled posts:', error);
-    return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ posts: [], warning: error.message || 'index_or_query' });
   }
 }
 

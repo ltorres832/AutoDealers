@@ -28,7 +28,7 @@ export default function FICreditReport({ clientId, onReportReceived }: FICreditR
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState<CreditReport | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [provider, setProvider] = useState<'experian' | 'equifax' | 'transunion' | 'mock'>('mock');
+  const [provider] = useState<'experian' | 'equifax' | 'transunion' | 'mock'>('mock');
 
   async function fetchCreditReport() {
     if (!clientId) {
@@ -101,29 +101,22 @@ export default function FICreditReport({ clientId, onReportReceived }: FICreditR
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold">Reporte de Crédito</h3>
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-4">
+        <div>
+          <h3 className="text-lg font-semibold">Reporte de Crédito</h3>
+          <p className="text-xs text-amber-800 mt-1">
+            Vista previa de ejemplo para práctica del flujo F&amp;I. La consulta en vivo a burós se activa con integración
+            certificada.
+          </p>
+        </div>
         {!report && (
-          <div className="flex gap-2">
-            <select
-              value={provider}
-              onChange={(e) => setProvider(e.target.value as any)}
-              className="border rounded px-3 py-1 text-sm"
-              disabled={loading}
-            >
-              <option value="mock">Mock (Desarrollo)</option>
-              <option value="experian">Experian</option>
-              <option value="equifax">Equifax</option>
-              <option value="transunion">TransUnion</option>
-            </select>
-            <button
-              onClick={fetchCreditReport}
-              disabled={loading || !clientId}
-              className="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-            >
-              {loading ? 'Obteniendo...' : 'Obtener Reporte'}
-            </button>
-          </div>
+          <button
+            onClick={fetchCreditReport}
+            disabled={loading || !clientId}
+            className="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm shrink-0"
+          >
+            {loading ? 'Generando…' : 'Generar vista previa'}
+          </button>
         )}
       </div>
 
@@ -141,6 +134,9 @@ export default function FICreditReport({ clientId, onReportReceived }: FICreditR
 
       {report && (
         <div className="space-y-4">
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            Datos de ejemplo — no son un reporte oficial de buró.
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="p-4 bg-gray-50 rounded">
               <div className="text-sm text-gray-600 mb-1">Score de Crédito</div>
@@ -150,8 +146,8 @@ export default function FICreditReport({ clientId, onReportReceived }: FICreditR
               </div>
             </div>
             <div className="p-4 bg-gray-50 rounded">
-              <div className="text-sm text-gray-600 mb-1">Proveedor</div>
-              <div className="text-lg font-semibold capitalize">{report.provider}</div>
+              <div className="text-sm text-gray-600 mb-1">Fuente</div>
+              <div className="text-lg font-semibold">Vista previa</div>
               <div className="text-xs text-gray-500 mt-1">
                 {new Date(report.reportDate).toLocaleDateString('es-ES')}
               </div>
@@ -197,13 +193,6 @@ export default function FICreditReport({ clientId, onReportReceived }: FICreditR
             </div>
           </div>
 
-          {report.verified && (
-            <div className="flex items-center gap-2 text-sm text-green-700">
-              <span>✓</span>
-              <span>Información verificada</span>
-            </div>
-          )}
-
           <button
             onClick={() => {
               setReport(null);
@@ -211,18 +200,14 @@ export default function FICreditReport({ clientId, onReportReceived }: FICreditR
             }}
             className="w-full px-4 py-2 border rounded hover:bg-gray-50 text-sm"
           >
-            Solicitar Nuevo Reporte
+            Nueva vista previa
           </button>
         </div>
       )}
 
       {!report && !loading && (
         <div className="text-center py-8 text-gray-500 text-sm">
-          Haz clic en "Obtener Reporte" para obtener el reporte de crédito del cliente.
-          <br />
-          <span className="text-xs mt-2 block">
-            Nota: Se requiere configuración de credenciales API en Admin para usar proveedores reales.
-          </span>
+          Genera una vista previa para practicar el flujo de evaluación crediticia con el cliente.
         </div>
       )}
     </div>

@@ -10,10 +10,12 @@ interface Ad {
   advertiserName: string;
   campaignName?: string;
   type: 'banner' | 'promotion' | 'sponsor';
-  placement: 'hero' | 'sidebar' | 'sponsors_section' | 'between_content';
+  placement: 'hero' | 'sidebar' | 'sponsors_section' | 'between_content' | 'vehicle_page';
   title: string;
   description: string;
   imageUrl: string;
+  images?: string[];
+  animation?: string;
   videoUrl?: string;
   linkUrl: string;
   linkType?:
@@ -23,7 +25,18 @@ interface Ad {
     | 'inventory'
     | 'contact'
     | 'none';
-  status: 'pending' | 'approved' | 'active' | 'paused' | 'expired' | 'rejected' | 'payment_pending';
+  status:
+    | 'pending'
+    | 'approved'
+    | 'active'
+    | 'paused'
+    | 'expired'
+    | 'rejected'
+    | 'payment_pending'
+    | 'queued_setup_pending'
+    | 'queued'
+    | 'activating'
+    | 'payment_failed';
   impressions: number;
   clicks: number;
   conversions: number;

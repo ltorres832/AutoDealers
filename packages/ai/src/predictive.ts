@@ -63,7 +63,7 @@ Predice:
 Responde en formato JSON:`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -124,7 +124,7 @@ Predice la demanda para los próximos 30 días por tipo de vehículo.
 Responde en formato JSON con array de predictions:`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -199,7 +199,7 @@ Tiempo promedio de venta: ${similarSales.length > 0 ? similarSales.reduce((sum, 
 Responde en formato JSON con estimatedDaysToSell, turnoverScore (0-100), y reasoning:`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',

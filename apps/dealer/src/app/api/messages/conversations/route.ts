@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth, isDealerPortalRole } from '@/lib/auth';
-import { getLeads } from '@autodealers/crm';
-import { getMessagesByChannel } from '@autodealers/crm';
+import { getLeads, getMessagesByChannel } from '@autodealers/crm';
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,32 +9,35 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Obtener todos los leads con mensajes
-    const leads = await getLeads(auth.tenantId);
-    const messages = await getMessagesByChannel(auth.tenantId, 'whatsapp', 1000);
+    let leads: Awaited<ReturnType<typeof getLeads>> = [];
+    let messages: Awaited<ReturnType<typeof getMessagesByChannel>> = [];
+    try {
+      leads = await getLeads(auth.tenantId);
+    } catch (e) {
+      console.warn('conversations getLeads', e);
+    }
+    try {
+      messages = await getMessagesByChannel(auth.tenantId, 'whatsapp', 1000);
+    } catch (e) {
+      console.warn('conversations getMessagesByChannel', e);
+    }
 
-    // Agrupar mensajes por leadId
     const messagesByLead: Record<string, any[]> = {};
-    messages.forEach((msg) => {
-      if (msg.leadId) {
-        if (!messagesByLead[msg.leadId]) {
-          messagesByLead[msg.leadId] = [];
-        }
-        messagesByLead[msg.leadId].push(msg);
-      }
-    });
+    for (const msg of messages || []) {
+      if (!msg?.leadId) continue;
+      if (!messagesByLead[msg.leadId]) messagesByLead[msg.leadId] = [];
+      messagesByLead[msg.leadId].push(msg);
+    }
 
-    // Crear conversaciones
-    const conversations = leads
+    const conversations = (leads || [])
       .filter((lead) => messagesByLead[lead.id])
       .map((lead) => {
-        const leadMessages = messagesByLead[lead.id];
+        const leadMessages = messagesByLead[lead.id] || [];
         const unread = leadMessages.filter((m) => !m.read && m.direction === 'inbound').length;
-
         return {
           leadId: lead.id,
-          leadName: lead.contact.name,
-          messages: leadMessages.slice(-10), // Últimos 10 mensajes
+          leadName: lead.contact?.name || 'Sin nombre',
+          messages: leadMessages.slice(-10),
           unread,
         };
       });
@@ -43,14 +45,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ conversations });
   } catch (error) {
     console.error('Error fetching conversations:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ conversations: [] });
   }
 }
-
-
-
-
-

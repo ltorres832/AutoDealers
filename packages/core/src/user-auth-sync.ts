@@ -97,6 +97,50 @@ export function resolveRegistrationLinks(input: RegistrationLinksInput): Registr
   return { tenantId: tid, dealerId: explicit ?? null };
 }
 
+/**
+ * Copia role/tenantId/dealerId de Firestore a custom claims de Auth.
+ * Las reglas de Firestore (subscriptions, tenants, etc.) dependen de token.tenantId.
+ */
+export async function ensureAuthCustomClaims(
+  profileId: string,
+  authUserId?: string
+): Promise<Record<string, string>> {
+  const userSnap = await getDb().collection('users').doc(profileId).get();
+  const user = userSnap.data() || {};
+  const claims: Record<string, string> = { profileId };
+  if (typeof user.role === 'string' && user.role.trim()) {
+    claims.role = user.role.trim();
+  }
+  if (typeof user.tenantId === 'string' && user.tenantId.trim()) {
+    claims.tenantId = user.tenantId.trim();
+  }
+  if (typeof user.dealerId === 'string' && user.dealerId.trim()) {
+    claims.dealerId = user.dealerId.trim();
+  }
+
+  const targetAuthId =
+    (typeof authUserId === 'string' && authUserId.trim()) ||
+    (typeof user.authUserId === 'string' && user.authUserId.trim()) ||
+    profileId;
+
+  try {
+    const record = await getAuthInstance().getUser(targetAuthId);
+    const existing = (record.customClaims || {}) as Record<string, unknown>;
+    const next: Record<string, unknown> = { ...existing };
+    for (const [key, value] of Object.entries(claims)) {
+      next[key] = value;
+    }
+    if (!claims.dealerId && 'dealerId' in next && next.dealerId) {
+      delete next.dealerId;
+    }
+    await getAuthInstance().setCustomUserClaims(targetAuthId, next);
+  } catch (err) {
+    console.warn('ensureAuthCustomClaims failed', profileId, targetAuthId, err);
+  }
+
+  return claims;
+}
+
 export async function applyRegistrationLinks(
   userId: string,
   links: RegistrationLinks,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { encodeSocialOAuthState, isPlatformWhatsAppConfigured, provisionTenantWhatsAppFromPlatform } from '@autodealers/core';
+import { encodeSocialOAuthState, getMetaCredentials, isPlatformWhatsAppConfigured, provisionTenantWhatsAppFromPlatform } from '@autodealers/core';
 import { buildMetaOAuthDialogUrl } from '@autodealers/core/meta-oauth-scopes';
 import {
   auditMetaUserAccess,
@@ -11,6 +11,14 @@ import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
 const db = getFirestore();
 
 export const dynamic = 'force-dynamic';
+
+function serializeDate(value: any): string | null {
+  if (!value) return null;
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value.toDate === 'function') return value.toDate().toISOString();
+  if (typeof value === 'string') return value;
+  return null;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -57,7 +65,12 @@ export async function GET(request: NextRequest) {
       .collection('integrations')
       .get();
 
-    const whatsappPlatformConfigured = await isPlatformWhatsAppConfigured();
+    let whatsappPlatformConfigured = false;
+    try {
+      whatsappPlatformConfigured = await isPlatformWhatsAppConfigured();
+    } catch (whatsappError) {
+      console.warn('No se pudo verificar WhatsApp de plataforma:', whatsappError);
+    }
     let integrations = integrationsSnapshot.docs.map((doc) => {
       const data = doc.data();
       const creds = data.credentials as Record<string, unknown> | undefined;
@@ -87,8 +100,8 @@ export async function GET(request: NextRequest) {
               pageName: typeof creds.pageName === 'string' ? creds.pageName : undefined,
             }
           : undefined,
-        createdAt: data.createdAt,
-        updatedAt: data.updatedAt,
+        createdAt: serializeDate(data.createdAt),
+        updatedAt: serializeDate(data.updatedAt),
       };
     });
 
@@ -111,9 +124,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ integrations, whatsappPlatformConfigured });
   } catch (error: any) {
     console.error('Error fetching integrations:', error);
+    // La pantalla de integraciones no debe quedar bloqueada por un fallo parcial.
+    // El cliente mostrará las tarjetas base como desconectadas.
     return NextResponse.json(
-      { error: 'Internal server error', details: error.message, integrations: [] },
-      { status: 500 }
+      {
+        integrations: [],
+        whatsappPlatformConfigured: false,
+        warning: 'No se pudieron cargar las integraciones guardadas.',
+        details: error.message || 'Error desconocido',
+      },
+      { status: 200 }
     );
   }
 }
@@ -146,9 +166,7 @@ export async function POST(request: NextRequest) {
       if (!userToken) {
         return NextResponse.json({ error: 'Sin token de usuario. Reconecta Meta.' }, { status: 400 });
       }
-      const credentialsDoc = await db.collection('system_settings').doc('credentials').get();
-      const appId = credentialsDoc.data()?.metaAppId as string | undefined;
-      const appSecret = credentialsDoc.data()?.metaAppSecret as string | undefined;
+      const { appId, appSecret } = await getMetaCredentials();
       if (!appId || !appSecret) {
         return NextResponse.json(
           { error: 'Credenciales de la app Meta no configuradas en admin' },
@@ -300,19 +318,13 @@ export async function POST(request: NextRequest) {
       // Meta (Facebook + Instagram): un solo OAuth; también compat. facebook|instagram por separado
       if (type === 'facebook' || type === 'instagram' || type === 'meta') {
         try {
-          // Obtener credenciales globales desde system_settings.credentials (donde el admin las guarda)
-          const credentialsDoc = await db.collection('system_settings').doc('credentials').get();
-          
-          let appId: string | undefined;
-          let appSecret: string | undefined;
+          // Credenciales globales de Meta: entorno / Secret Manager y, como
+          // fallback heredado, system_settings.credentials
+          const metaCreds = await getMetaCredentials();
+          let appId: string | undefined = metaCreds.appId;
+          let appSecret: string | undefined = metaCreds.appSecret;
 
-          if (credentialsDoc.exists) {
-            const credentialsData = credentialsDoc.data();
-            appId = credentialsData?.metaAppId;
-            appSecret = credentialsData?.metaAppSecret;
-          }
-
-          // Si no hay credenciales en system_settings, intentar obtener del tenant (compatibilidad hacia atrás)
+          // Si no hay credenciales globales, intentar obtener del tenant (compatibilidad hacia atrás)
           if (!appId || !appSecret) {
             const integrationSnapshot = await db
               .collection('tenants')

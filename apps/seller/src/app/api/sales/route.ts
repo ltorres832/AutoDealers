@@ -264,10 +264,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ sales });
   } catch (error: any) {
     console.error('Error fetching sales:', error);
-    return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ sales: [], warning: error.message || 'index_or_query' });
   }
 }
 

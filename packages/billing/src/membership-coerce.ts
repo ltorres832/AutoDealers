@@ -1,4 +1,6 @@
 /** Repara precios guardados como epoch ISO (299 → "1970-01-01T00:00:00.299Z"). */
+import { serializeMembershipPromoForApi } from './membership-promo-pricing';
+
 export function coerceMembershipPrice(value: unknown): number {
   if (typeof value === 'string') {
     const trimmed = value.trim();
@@ -22,80 +24,14 @@ function repairMisserializedEpochNumber(value: unknown): unknown {
   return value;
 }
 
-const NUMERIC_FEATURE_KEYS = [
-  'maxSellers',
-  'maxInventory',
-  'maxCampaigns',
-  'maxPromotions',
-  'maxLeadsPerMonth',
-  'maxAppointmentsPerMonth',
-  'maxStorageGB',
-  'maxApiCallsPerMonth',
-  'maxCorporateEmails',
-  'maxDealers',
-  'maxCustomerDocumentRequestsPerMonth',
-] as const;
+import {
+  ALL_BOOLEAN_FEATURE_KEYS_FOR_COERCE,
+  MEMBERSHIP_NUMERIC_FEATURE_KEYS,
+} from './membership-feature-catalog';
 
-const BOOLEAN_FEATURE_KEYS = [
-  'customSubdomain',
-  'customDomain',
-  'aiEnabled',
-  'aiAutoResponses',
-  'aiContentGeneration',
-  'aiLeadClassification',
-  'socialMediaEnabled',
-  'socialMediaScheduling',
-  'socialMediaAnalytics',
-  'marketplaceEnabled',
-  'marketplaceFeatured',
-  'advancedReports',
-  'customReports',
-  'exportData',
-  'whiteLabel',
-  'apiAccess',
-  'webhooks',
-  'ssoEnabled',
-  'multiLanguage',
-  'customTemplates',
-  'emailMarketing',
-  'smsMarketing',
-  'whatsappMarketing',
-  'videoUploads',
-  'virtualTours',
-  'liveChat',
-  'appointmentScheduling',
-  'paymentProcessing',
-  'inventorySync',
-  'crmAdvanced',
-  'leadScoring',
-  'automationWorkflows',
-  'integrationsUnlimited',
-  'prioritySupport',
-  'dedicatedManager',
-  'trainingSessions',
-  'customBranding',
-  'mobileApp',
-  'offlineMode',
-  'dataBackup',
-  'complianceTools',
-  'analyticsAdvanced',
-  'aBTesting',
-  'seoTools',
-  'customIntegrations',
-  'freePromotionsOnLanding',
-  'corporateEmailEnabled',
-  'emailSignatureBasic',
-  'emailSignatureAdvanced',
-  'emailAliases',
-  'multiDealerEnabled',
-  'multipleDealers',
-  'requiresAdminApproval',
-  'fiModule',
-  'fiMultipleManagers',
-  'customerDocumentRequestsEnabled',
-  'adminAssignOnly',
-  'customMembership',
-] as const;
+const NUMERIC_FEATURE_KEYS = MEMBERSHIP_NUMERIC_FEATURE_KEYS;
+
+const BOOLEAN_FEATURE_KEYS = ALL_BOOLEAN_FEATURE_KEYS_FOR_COERCE;
 
 function normalizeNumeric(v: unknown): number | null | undefined {
   if (v === undefined) return undefined;
@@ -140,6 +76,8 @@ export function serializeMembershipForApi(
         ? createdAt
         : undefined;
 
+  const promo = serializeMembershipPromoForApi(membership);
+
   return {
     ...membership,
     price: coerceMembershipPrice(membership.price),
@@ -147,5 +85,6 @@ export function serializeMembershipForApi(
     features: normalizeMembershipFeatures(
       (membership.features as Record<string, unknown> | undefined) ?? undefined
     ),
+    ...promo,
   };
 }

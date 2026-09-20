@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { isDealerManagedClientUser } from '@/lib/dealer-managed-client';
 import { loadCurrentSellerUser } from '@/lib/current-seller-user';
 
 export default function SettingsPage() {
@@ -9,7 +10,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     void loadCurrentSellerUser().then((user) => {
-      setDealerManaged(Boolean(user?.dealerId));
+      setDealerManaged(isDealerManagedClientUser(user));
     });
   }, []);
 
@@ -71,6 +72,36 @@ export default function SettingsPage() {
         </Link>
 
         <Link
+          href="/settings/security"
+          className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+        >
+          <div className="flex items-center space-x-4">
+            <div className="h-12 w-12 rounded-lg bg-slate-100 flex items-center justify-center">
+              <span className="text-2xl">🔑</span>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Seguridad</h3>
+              <p className="text-sm text-gray-600">Cambiar contraseña de acceso</p>
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          href="/settings/support"
+          className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+        >
+          <div className="flex items-center space-x-4">
+            <div className="h-12 w-12 rounded-lg bg-emerald-100 flex items-center justify-center">
+              <span className="text-2xl">🛟</span>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Soporte</h3>
+              <p className="text-sm text-gray-600">Email, WhatsApp y mensajes al equipo</p>
+            </div>
+          </div>
+        </Link>
+
+        <Link
           href="/settings/seller-public-page"
           className="bg-white rounded-xl shadow-sm border-2 border-primary-200 p-6 hover:shadow-md transition-shadow md:col-span-2"
         >
@@ -86,6 +117,25 @@ export default function SettingsPage() {
             </div>
           </div>
         </Link>
+
+        {!dealerManaged && (
+        <Link
+          href="/settings/featured"
+          className="bg-white rounded-xl shadow-sm border-2 border-amber-200 p-6 hover:shadow-md transition-shadow md:col-span-2"
+        >
+          <div className="flex items-center space-x-4">
+            <div className="h-12 w-12 rounded-lg bg-amber-100 flex items-center justify-center">
+              <span className="text-2xl">⭐</span>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Destacar mi perfil</h3>
+              <p className="text-sm text-gray-600">
+                Compra destacado o boost 24h para aparecer con prioridad en la web pública
+              </p>
+            </div>
+          </div>
+        </Link>
+        )}
 
         <Link
           href="/settings/ai"
@@ -128,7 +178,7 @@ export default function SettingsPage() {
             <div>
               <h3 className="text-lg font-semibold text-gray-900">Concesionario</h3>
               <p className="text-sm text-gray-600">
-                {dealerManaged ? 'Plan heredado del dealer' : 'Invitaciones y vínculo'}
+                {dealerManaged ? 'Vínculo con tu concesionario' : 'Invitaciones y vínculo'}
               </p>
             </div>
           </div>
@@ -146,6 +196,23 @@ export default function SettingsPage() {
             <div>
               <h3 className="text-lg font-semibold text-gray-900">Membresía</h3>
               <p className="text-sm text-gray-600">Plan y características</p>
+            </div>
+          </div>
+        </Link>
+        )}
+
+        {!dealerManaged && (
+        <Link
+          href="/settings/payments"
+          className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+        >
+          <div className="flex items-center space-x-4">
+            <div className="h-12 w-12 rounded-lg bg-emerald-100 flex items-center justify-center">
+              <span className="text-2xl">💳</span>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Historial de pagos</h3>
+              <p className="text-sm text-gray-600">Membresía, promociones, banners y destacados</p>
             </div>
           </div>
         </Link>

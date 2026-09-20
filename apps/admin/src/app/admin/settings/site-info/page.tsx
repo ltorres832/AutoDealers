@@ -69,7 +69,7 @@ interface SiteInfo {
 
 export default function SiteInfoSettingsPage() {
   const [siteInfo, setSiteInfo] = useState<SiteInfo>({
-    name: 'AutoDealers',
+    name: 'AutoDealersOnline',
     description: 'La plataforma completa para encontrar y comprar vehículos. Miles de opciones verificadas.',
     logo: DEFAULT_BRAND_LOGO_PATH,
     tagline: 'Plataforma de Confianza',
@@ -82,7 +82,7 @@ export default function SiteInfoSettingsPage() {
     },
     copyright: {
       year: 2025,
-      company: 'AutoDealers',
+      company: 'AutoDealersOnline',
       text: 'Todos los derechos reservados.',
     },
     disclaimer: 'Las promociones aumentan la visibilidad de los anuncios. No garantizan contactos ni ventas.',

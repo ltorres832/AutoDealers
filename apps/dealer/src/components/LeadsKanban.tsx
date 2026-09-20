@@ -2,8 +2,14 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { Lead, LeadStatus, computeLeadSlaSeverity, formatHoursSinceTouch, DEFAULT_CRM_SLA, type CrmSlaConfig } from '@autodealers/crm';
+import type { Lead, LeadStatus } from '@autodealers/crm';
 import type { CrmPipelineSettings } from '@autodealers/core';
+import {
+  computeLeadSlaSeverity,
+  formatHoursSinceTouch,
+  DEFAULT_CRM_SLA,
+  type CrmSlaConfig,
+} from '@/lib/lead-sla-client';
 import { useRealtimeLeads } from '@/hooks/useRealtimeLeads';
 import { fetchWithAuth } from '@/lib/fetch-with-auth';
 import { LeadKanbanFootnote } from '@/components/LeadProfileSections';

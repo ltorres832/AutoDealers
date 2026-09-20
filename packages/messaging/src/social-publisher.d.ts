@@ -7,7 +7,7 @@ export interface PostContent {
 export interface PublishResult {
     success: boolean;
     postId?: string;
-    platform: 'facebook' | 'instagram';
+    platform: 'facebook' | 'instagram' | 'tiktok' | 'youtube';
     error?: string;
     url?: string;
 }
@@ -36,6 +36,7 @@ export declare class SocialPublisherService {
     /**
      * Publica en múltiples plataformas
      */
-    publishToMultiple(tenantId: string, content: PostContent, platforms: ('facebook' | 'instagram')[]): Promise<PublishResult[]>;
+    publishToMultiple(tenantId: string, content: PostContent, platforms: ('facebook' | 'instagram' | 'tiktok' | 'youtube')[]): Promise<PublishResult[]>;
+    publishToTikTok(tenantId: string, content: PostContent): Promise<PublishResult>;
+    publishToYouTube(tenantId: string, content: PostContent): Promise<PublishResult>;
 }
-//# sourceMappingURL=social-publisher.d.ts.map

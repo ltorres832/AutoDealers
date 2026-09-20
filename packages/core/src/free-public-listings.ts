@@ -161,8 +161,29 @@ export async function resolveSellerVehicleCreatePolicy(
   const useFree = await tenantUsesFreePublicListingsPolicy(tenantId);
 
   if (!useFree) {
+    const userDoc = await getDb().collection('users').doc(sellerId).get();
+    const dealerId = userDoc.data()?.dealerId as string | undefined;
+
+    if (dealerId) {
+      const { canSellerPerformAllocatedAction } = await import('./seller-limit-allocation');
+      const allocated = await canSellerPerformAllocatedAction({
+        dealerTenantId: dealerId,
+        sellerUserId: sellerId,
+        sellerTenantId: tenantId,
+        action: 'addVehicle',
+      });
+      if (!allocated.allowed) {
+        return {
+          mode: 'blocked',
+          status: 403,
+          message: allocated.reason || 'Has alcanzado tu límite de inventario asignado.',
+        };
+      }
+    }
+
     const { canPerformAction } = await import('./membership-validation');
-    const r = await canPerformAction(tenantId, 'addVehicle');
+    const billingTenantId = dealerId || tenantId;
+    const r = await canPerformAction(billingTenantId, 'addVehicle');
     if (!r.allowed) {
       return {
         mode: 'blocked',

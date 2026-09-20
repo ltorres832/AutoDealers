@@ -24,6 +24,14 @@ export default function DebugPage() {
     ? document.cookie.split(';').find(c => c.trim().startsWith('authToken='))?.split('=')[1]
     : null;
 
+  if (process.env.NODE_ENV === 'production') {
+    return (
+      <div className="p-8">
+        <p className="text-gray-500">Página no disponible.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="p-8">
       <h1 className="text-2xl font-bold mb-6">🔍 Debug de Autenticación</h1>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import VinPlatformSearch from '@/components/VinPlatformSearch';
 
 export interface HeroSearchFilters {
   make?: string;
@@ -23,11 +24,14 @@ const TREND_TAGS: Array<{ label: string; bodyType: string }> = [
   { label: 'Familiar', bodyType: 'van' },
 ];
 
+type SearchMode = 'filters' | 'vin';
+
 export default function HeroSearch({ vehicles, onSearch }: HeroSearchProps) {
   const [selectedMake, setSelectedMake] = useState('');
   const [selectedModel, setSelectedModel] = useState('');
   const [selectedPrice, setSelectedPrice] = useState('');
   const [searchType, setSearchType] = useState<string>('all');
+  const [mode, setMode] = useState<SearchMode>('filters');
 
   const makes = useMemo(() => {
     const set = new Set<string>();
@@ -75,126 +79,156 @@ export default function HeroSearch({ vehicles, onSearch }: HeroSearchProps) {
   }
 
   return (
-    <div className="w-full max-w-5xl mx-auto -mt-24 sm:-mt-28 relative z-20">
-      <div className="bg-white rounded-3xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] p-8 sm:p-10 border border-gray-100">
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6 text-center sm:text-left">
-          Buscar vehículo
-        </h2>
-
-        <form onSubmit={handleSearch}>
-          <div className="flex flex-wrap gap-3 mb-6">
-            {[
-              { value: 'all', label: 'Todos' },
-              { value: 'new', label: 'Nuevos' },
-              { value: 'used', label: 'Usados' },
-            ].map((type) => (
-              <label
-                key={type.value}
-                className={`cursor-pointer px-6 py-2.5 rounded-full font-semibold text-sm transition-all ${
-                  searchType === type.value
-                    ? 'bg-primary-600 text-white shadow-md shadow-primary-500/30'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="type"
-                  value={type.value}
-                  checked={searchType === type.value}
-                  onChange={(e) => setSearchType(e.target.value)}
-                  className="sr-only"
-                />
-                {type.label}
-              </label>
-            ))}
-          </div>
-
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-grow grid grid-cols-1 md:grid-cols-3 gap-4">
-              <select
-                value={selectedMake}
-                onChange={(e) => {
-                  setSelectedMake(e.target.value);
-                  setSelectedModel('');
-                }}
-                className="w-full h-14 px-4 text-base bg-gray-50 border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-primary-600 font-medium text-gray-900"
-              >
-                <option value="">Todas las marcas</option>
-                {makes.map((make) => (
-                  <option key={make} value={make}>
-                    {make}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={selectedModel}
-                onChange={(e) => setSelectedModel(e.target.value)}
-                disabled={!selectedMake}
-                className="w-full h-14 px-4 text-base bg-gray-50 border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-primary-600 font-medium text-gray-900 disabled:opacity-50"
-              >
-                <option value="">Todos los modelos</option>
-                {modelsForMake.map((model) => (
-                  <option key={model} value={model}>
-                    {model}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={selectedPrice}
-                onChange={(e) => setSelectedPrice(e.target.value)}
-                className="w-full h-14 px-4 text-base bg-gray-50 border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-primary-600 font-medium text-gray-900"
-              >
-                <option value="">Precio máximo</option>
-                <option value="10000">$10,000</option>
-                <option value="20000">$20,000</option>
-                <option value="30000">$30,000</option>
-                <option value="40000">$40,000</option>
-                <option value="50000">$50,000</option>
-                <option value="75000">$75,000</option>
-                <option value="100000">$100,000</option>
-                <option value="no-max">Sin límite</option>
-              </select>
-            </div>
-
+    <div className="w-full max-w-5xl mx-auto -mt-16 sm:-mt-20 relative z-30">
+      <div className="bg-white rounded-3xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] p-6 sm:p-10 border border-gray-100">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 text-center sm:text-left">
+            Buscar vehículo
+          </h2>
+          <div className="flex rounded-2xl bg-gray-100 p-1 self-center sm:self-auto">
             <button
-              type="submit"
-              className="h-14 md:h-auto px-10 bg-gray-900 hover:bg-black text-white font-bold text-lg rounded-2xl shadow-xl transition-all whitespace-nowrap flex items-center justify-center gap-2"
+              type="button"
+              onClick={() => setMode('filters')}
+              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                mode === 'filters'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
             >
-              Buscar
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2.5}
-                  d="M14 5l7 7m0 0l-7 7m7-7H3"
-                />
-              </svg>
+              Marca / modelo
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('vin')}
+              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                mode === 'vin'
+                  ? 'bg-primary-600 text-white shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Por VIN
             </button>
           </div>
+        </div>
 
-          <div className="mt-6 flex flex-wrap gap-2 items-center">
-            <span className="text-sm font-semibold text-gray-400 mr-1 uppercase tracking-wider">
-              Tendencias:
-            </span>
-            {TREND_TAGS.map((tag) => (
+        {mode === 'vin' ? (
+          <VinPlatformSearch variant="standalone" className="!p-0 !border-0 !shadow-none !rounded-none" />
+        ) : (
+          <form onSubmit={handleSearch}>
+            <div className="flex flex-wrap gap-3 mb-6">
+              {[
+                { value: 'all', label: 'Todos' },
+                { value: 'new', label: 'Nuevos' },
+                { value: 'used', label: 'Usados' },
+              ].map((type) => (
+                <label
+                  key={type.value}
+                  className={`cursor-pointer px-6 py-2.5 rounded-full font-semibold text-sm transition-all ${
+                    searchType === type.value
+                      ? 'bg-primary-600 text-white shadow-md shadow-primary-500/30'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="type"
+                    value={type.value}
+                    checked={searchType === type.value}
+                    onChange={(e) => setSearchType(e.target.value)}
+                    className="sr-only"
+                  />
+                  {type.label}
+                </label>
+              ))}
+            </div>
+
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-grow grid grid-cols-1 md:grid-cols-3 gap-4">
+                <select
+                  value={selectedMake}
+                  onChange={(e) => {
+                    setSelectedMake(e.target.value);
+                    setSelectedModel('');
+                  }}
+                  className="w-full h-14 px-4 text-base bg-gray-50 border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-primary-600 font-medium text-gray-900"
+                >
+                  <option value="">Todas las marcas</option>
+                  {makes.map((make) => (
+                    <option key={make} value={make}>
+                      {make}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  disabled={!selectedMake}
+                  className="w-full h-14 px-4 text-base bg-gray-50 border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-primary-600 font-medium text-gray-900 disabled:opacity-50"
+                >
+                  <option value="">Todos los modelos</option>
+                  {modelsForMake.map((model) => (
+                    <option key={model} value={model}>
+                      {model}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={selectedPrice}
+                  onChange={(e) => setSelectedPrice(e.target.value)}
+                  className="w-full h-14 px-4 text-base bg-gray-50 border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-primary-600 font-medium text-gray-900"
+                >
+                  <option value="">Precio máximo</option>
+                  <option value="10000">$10,000</option>
+                  <option value="20000">$20,000</option>
+                  <option value="30000">$30,000</option>
+                  <option value="40000">$40,000</option>
+                  <option value="50000">$50,000</option>
+                  <option value="75000">$75,000</option>
+                  <option value="100000">$100,000</option>
+                  <option value="no-max">Sin límite</option>
+                </select>
+              </div>
+
               <button
-                key={tag.label}
-                type="button"
-                onClick={() =>
-                  submit({
-                    bodyType: tag.bodyType,
-                    condition: searchType !== 'all' ? searchType : undefined,
-                  })
-                }
-                className="px-4 py-1.5 border border-gray-200 hover:border-primary-400 text-gray-600 hover:text-primary-600 text-sm rounded-full font-medium transition-all hover:bg-primary-50"
+                type="submit"
+                className="h-14 md:h-auto px-10 bg-gray-900 hover:bg-black text-white font-bold text-lg rounded-2xl shadow-xl transition-all whitespace-nowrap flex items-center justify-center gap-2"
               >
-                {tag.label}
+                Buscar
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2.5}
+                    d="M14 5l7 7m0 0l-7 7m7-7H3"
+                  />
+                </svg>
               </button>
-            ))}
-          </div>
-        </form>
+            </div>
+
+            <div className="mt-6 flex flex-wrap gap-2 items-center">
+              <span className="text-sm font-semibold text-gray-400 mr-1 uppercase tracking-wider">
+                Tendencias:
+              </span>
+              {TREND_TAGS.map((tag) => (
+                <button
+                  key={tag.label}
+                  type="button"
+                  onClick={() =>
+                    submit({
+                      bodyType: tag.bodyType,
+                      condition: searchType !== 'all' ? searchType : undefined,
+                    })
+                  }
+                  className="px-4 py-1.5 border border-gray-200 hover:border-primary-400 text-gray-600 hover:text-primary-600 text-sm rounded-full font-medium transition-all hover:bg-primary-50"
+                >
+                  {tag.label}
+                </button>
+              ))}
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );

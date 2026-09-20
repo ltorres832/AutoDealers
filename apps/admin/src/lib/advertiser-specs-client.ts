@@ -22,7 +22,7 @@ export interface MediaSpecs {
   };
 }
 
-export const PLACEMENT_SPECS: Record<'hero' | 'sidebar' | 'sponsors_section' | 'between_content', MediaSpecs> = {
+export const PLACEMENT_SPECS: Record<'hero' | 'sidebar' | 'sponsors_section' | 'between_content' | 'vehicle_page', MediaSpecs> = {
   hero: {
     image: {
       formats: ['jpg', 'jpeg', 'png', 'webp'],
@@ -97,6 +97,27 @@ export const PLACEMENT_SPECS: Record<'hero' | 'sidebar' | 'sponsors_section' | '
       },
     },
   },
+  vehicle_page: {
+    image: {
+      formats: ['jpg', 'jpeg', 'png', 'webp'],
+      maxSize: 5 * 1024 * 1024,
+      dimensions: {
+        width: 760,
+        height: 300,
+        aspectRatio: '38:15',
+      },
+    },
+    video: {
+      formats: ['mp4', 'webm'],
+      maxSize: 20 * 1024 * 1024,
+      maxDuration: 20,
+      dimensions: {
+        width: 760,
+        height: 300,
+        aspectRatio: '38:15',
+      },
+    },
+  },
 };
 
 /**
@@ -104,7 +125,7 @@ export const PLACEMENT_SPECS: Record<'hero' | 'sidebar' | 'sponsors_section' | '
  */
 export function validateImage(
   file: File,
-  placement: 'hero' | 'sidebar' | 'sponsors_section' | 'between_content'
+  placement: 'hero' | 'sidebar' | 'sponsors_section' | 'between_content' | 'vehicle_page'
 ): { valid: boolean; error?: string } {
   const specs = PLACEMENT_SPECS[placement].image;
 
@@ -135,7 +156,7 @@ export function validateImage(
  */
 export function validateVideo(
   file: File,
-  placement: 'hero' | 'sidebar' | 'sponsors_section' | 'between_content'
+  placement: 'hero' | 'sidebar' | 'sponsors_section' | 'between_content' | 'vehicle_page'
 ): { valid: boolean; error?: string } {
   const specs = PLACEMENT_SPECS[placement].video;
   if (!specs) {
@@ -169,7 +190,7 @@ export function validateVideo(
 /**
  * Obtiene las especificaciones formateadas para mostrar al usuario
  */
-export function getSpecsDescription(placement: 'hero' | 'sidebar' | 'sponsors_section' | 'between_content'): {
+export function getSpecsDescription(placement: 'hero' | 'sidebar' | 'sponsors_section' | 'between_content' | 'vehicle_page'): {
   image: string;
   video?: string;
 } {

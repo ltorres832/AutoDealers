@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { AdminDeleteButton } from '@/components/AdminDeleteButton';
 
 type InquiryStatus = 'new' | 'read' | 'replied' | 'archived';
 
@@ -263,7 +264,7 @@ export default function AdminContactInquiriesPage() {
 
             <div className="flex flex-wrap gap-2">
               <a
-                href={`mailto:${selected.email}?subject=Re: AutoDealers contacto`}
+                href={`mailto:${selected.email}?subject=Re: AutoDealersOnline contacto`}
                 className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700"
               >
                 Responder por email
@@ -284,6 +285,16 @@ export default function AdminContactInquiriesPage() {
               >
                 Archivar
               </button>
+              <AdminDeleteButton
+                deleteUrl={`/api/admin/contact-inquiries/${selected.id}`}
+                label="Eliminar"
+                confirmMessage="¿Eliminar esta consulta permanentemente?"
+                onDeleted={() => {
+                  setSelected(null);
+                  void load();
+                }}
+                className="px-4 py-2 rounded-lg text-sm bg-red-100 text-red-700 hover:bg-red-200"
+              />
             </div>
           </div>
         </div>

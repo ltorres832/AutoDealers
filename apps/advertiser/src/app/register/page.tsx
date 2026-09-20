@@ -1,11 +1,19 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useState, type FormEvent } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
-export default function AdvertiserRegisterPage() {
+function safeNextPath(value: string | null): string | null {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) return null;
+  return value;
+}
+
+function AdvertiserRegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath = safeNextPath(searchParams.get('next')) || '/dashboard/ads/create';
+  const loginHref = `/login?next=${encodeURIComponent(nextPath)}`;
   const [formData, setFormData] = useState({
     companyName: '',
     contactName: '',
@@ -20,12 +28,22 @@ export default function AdvertiserRegisterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/advertiser/me')
+      .then((res) => {
+        if (!cancelled && res.ok) router.replace(nextPath);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [nextPath, router]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
 
-    // Validaciones
     if (formData.password !== formData.confirmPassword) {
       setError('Las contraseñas no coinciden');
       return;
@@ -54,7 +72,6 @@ export default function AdvertiserRegisterPage() {
         }),
       });
 
-      // Verificar Content-Type antes de parsear
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
         const text = await response.text();
@@ -66,9 +83,11 @@ export default function AdvertiserRegisterPage() {
       const data = await response.json();
 
       if (response.ok) {
-        // Redirigir al login tras registro
-        alert('Registro exitoso. Bienvenido a tu panel de anunciante.');
-        router.push('/login');
+        alert(
+          data.message ||
+            'Registro recibido. Un administrador revisará tu cuenta y te notificará cuando esté activa.'
+        );
+        router.push(loginHref);
       } else {
         setError(data.error || 'Error al registrar');
       }
@@ -88,16 +107,14 @@ export default function AdvertiserRegisterPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-primary-50">
-      {/* Header */}
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-6">
-          <Link href="/login" className="text-primary-600 hover:text-primary-700 font-semibold">
-            ← Volver al inicio de sesión
+          <Link href={loginHref} className="text-primary-600 hover:text-primary-700 font-semibold">
+            ← Ya tengo cuenta — iniciar sesión
           </Link>
         </div>
       </header>
 
-      {/* Hero Section */}
       <section className="max-w-4xl mx-auto px-4 py-16">
         <div className="text-center mb-12">
           <h1 className="text-5xl font-bold text-gray-900 mb-4">
@@ -108,7 +125,6 @@ export default function AdvertiserRegisterPage() {
           </p>
         </div>
 
-        {/* Formulario de Registro */}
         <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-lg p-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">
             Información de la Empresa
@@ -121,132 +137,132 @@ export default function AdvertiserRegisterPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Nombre de la Empresa *
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.companyName}
-                        onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Nombre de Contacto *
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.contactName}
-                        onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        required
-                      />
-                    </div>
-                  </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nombre de la Empresa *
+                </label>
+                <input
+                  type="text"
+                  value={formData.companyName}
+                  onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nombre de Contacto *
+                </label>
+                <input
+                  type="text"
+                  value={formData.contactName}
+                  onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  required
+                />
+              </div>
+            </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Email *
-                      </label>
-                      <input
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Teléfono
-                      </label>
-                      <input
-                        type="tel"
-                        value={formData.phone}
-                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      />
-                    </div>
-                  </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Teléfono
+                </label>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+            </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Contraseña *
-                      </label>
-                      <input
-                        type="password"
-                        value={formData.password}
-                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        required
-                        minLength={6}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Confirmar Contraseña *
-                      </label>
-                      <input
-                        type="password"
-                        value={formData.confirmPassword}
-                        onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        required
-                        minLength={6}
-                      />
-                    </div>
-                  </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Contraseña *
+                </label>
+                <input
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  required
+                  minLength={6}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Confirmar Contraseña *
+                </label>
+                <input
+                  type="password"
+                  value={formData.confirmPassword}
+                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  required
+                  minLength={6}
+                />
+              </div>
+            </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Sitio Web
-                      </label>
-                      <input
-                        type="url"
-                        value={formData.website}
-                        onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        placeholder="https://..."
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Industria *
-                      </label>
-                      <select
-                        value={formData.industry}
-                        onChange={(e) => setFormData({ ...formData, industry: e.target.value as any })}
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        required
-                      >
-                        <option value="automotive">Automotriz</option>
-                        <option value="insurance">Seguros</option>
-                        <option value="banking">Bancos</option>
-                        <option value="finance">Financieras</option>
-                        <option value="other">Otro</option>
-                      </select>
-                    </div>
-                  </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Sitio Web
+                </label>
+                <input
+                  type="url"
+                  value={formData.website}
+                  onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="https://..."
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Industria *
+                </label>
+                <select
+                  value={formData.industry}
+                  onChange={(e) => setFormData({ ...formData, industry: e.target.value as any })}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  required
+                >
+                  <option value="automotive">Automotriz</option>
+                  <option value="insurance">Seguros</option>
+                  <option value="banking">Bancos</option>
+                  <option value="finance">Financieras</option>
+                  <option value="other">Otro</option>
+                </select>
+              </div>
+            </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Mensaje (Opcional)
-                    </label>
-                    <textarea
-                      value={formData.message}
-                      onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                      className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      rows={4}
-                      placeholder="Cuéntanos sobre tu empresa y objetivos de publicidad..."
-                    />
-                  </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Mensaje (Opcional)
+              </label>
+              <textarea
+                value={formData.message}
+                onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                rows={4}
+                placeholder="Cuéntanos sobre tu empresa y objetivos de publicidad..."
+              />
+            </div>
 
             <div className="flex gap-4 pt-4">
               <button
@@ -260,7 +276,6 @@ export default function AdvertiserRegisterPage() {
           </form>
         </div>
 
-        {/* Beneficios */}
         <div className="mt-16 bg-white rounded-xl shadow-lg p-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
             ¿Por qué anunciar en AutoDealers?
@@ -294,3 +309,16 @@ export default function AdvertiserRegisterPage() {
   );
 }
 
+export default function AdvertiserRegisterPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-primary-50 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600" />
+        </div>
+      }
+    >
+      <AdvertiserRegisterForm />
+    </Suspense>
+  );
+}

@@ -45,6 +45,16 @@ const nextConfig = {
     '@autodealers/ai',
   ],
   /** Evita que /brand/* quede “pegado” meses en CDN/navegador al cambiar logo */
+  async redirects() {
+    return [
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'autodealers-online.com' }],
+        destination: 'https://www.autodealers-online.com/:path*',
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {
@@ -69,6 +79,18 @@ const nextConfig = {
       ...config.resolve.alias,
       '@': path.join(__dirname, 'src'),
       '@autodealers/core': path.join(__dirname, '../../packages/core/src'),
+      '@autodealers/core/ad-placement-dimensions': path.join(
+        __dirname,
+        '../../packages/core/src/ad-placement-dimensions.ts'
+      ),
+      '@autodealers/core/ad-creative': path.join(
+        __dirname,
+        '../../packages/core/src/ad-creative.ts'
+      ),
+      '@autodealers/core/sponsored-content-visibility': path.join(
+        __dirname,
+        '../../packages/core/src/sponsored-content-visibility.ts'
+      ),
       '@autodealers/shared/client': path.join(sharedSrc, 'client.ts'),
       '@autodealers/shared/firebase-server': path.join(sharedSrc, 'firebase-server.ts'),
       '@autodealers/shared/firebase-web-client-config': path.join(
@@ -81,7 +103,13 @@ const nextConfig = {
       ),
       '@autodealers/shared/settings-profile': path.join(sharedSrc, 'settings-profile.ts'),
       '@autodealers/shared/public-trust-gallery': path.join(sharedSrc, 'public-trust-gallery.ts'),
+      '@autodealers/shared/platform-urls': path.join(sharedSrc, 'platform-urls.ts'),
       '@autodealers/shared/promo-video-urls': path.join(sharedSrc, 'promo-video-urls.ts'),
+      '@autodealers/shared/website-hero-media': path.join(sharedSrc, 'website-hero-media.ts'),
+      '@autodealers/shared/components/PublicTrustGallery': path.join(
+        sharedSrc,
+        'components/PublicTrustGallery.tsx'
+      ),
       '@autodealers/shared/components/StripePaymentForm': path.join(
         sharedSrc,
         'components/StripePaymentForm.tsx'

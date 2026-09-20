@@ -1,15 +1,44 @@
 // Hook para obtener dealers en tiempo real (Admin)
+//
+// Los dealers viven en la colección `tenants` con `type === 'dealer'` (ahí es
+// donde el registro público y la creación de tenants escriben). La antigua
+// colección `dealers` quedó huérfana y vacía, por lo que este hook lee de
+// `tenants` para reflejar los dealers reales de la plataforma.
+
+'use client';
 
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase-client';
-import { collection, query, where, onSnapshot, orderBy, QuerySnapshot } from 'firebase/firestore';
-import { Dealer } from '@autodealers/core';
+import { collection, onSnapshot } from 'firebase/firestore';
 
-export function useRealtimeDealers(filter?: {
-  status?: 'active' | 'suspended' | 'cancelled' | 'pending';
-  approvedByAdmin?: boolean;
-}) {
-  const [dealers, setDealers] = useState<Dealer[]>([]);
+export type DealerStatus = 'active' | 'suspended' | 'cancelled' | 'pending';
+
+export interface DealerTenant {
+  dealerId: string;
+  ownerUid?: string;
+  name: string;
+  companyName?: string;
+  subdomain?: string;
+  status: DealerStatus;
+  membershipId?: string;
+  createdAt: Date;
+}
+
+function toDate(v: unknown): Date {
+  if (v instanceof Date) return v;
+  if (
+    v &&
+    typeof v === 'object' &&
+    'toDate' in v &&
+    typeof (v as { toDate: () => Date }).toDate === 'function'
+  ) {
+    return (v as { toDate: () => Date }).toDate();
+  }
+  return new Date();
+}
+
+export function useRealtimeDealers() {
+  const [dealers, setDealers] = useState<DealerTenant[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -21,44 +50,27 @@ export function useRealtimeDealers(filter?: {
 
     setLoading(true);
 
-    let q: any = collection(db, 'dealers');
-
-    // Construir query con filtros
-    const constraints: any[] = [];
-    
-    if (filter?.status) {
-      constraints.push(where('status', '==', filter.status));
-    }
-
-    if (filter?.approvedByAdmin !== undefined) {
-      constraints.push(where('approvedByAdmin', '==', filter.approvedByAdmin));
-    }
-
-    // Aplicar ordenamiento
-    constraints.push(orderBy('createdAt', 'desc'));
-
-    // Si hay filtros, aplicar la query completa
-    if (constraints.length > 0) {
-      q = query(q, ...constraints);
-    } else {
-      q = query(q, orderBy('createdAt', 'desc'));
-    }
-
     const unsubscribe = onSnapshot(
-      q,
-      (snapshot: any) => {
+      collection(db, 'tenants'),
+      (snapshot) => {
         try {
-          const dealersData = snapshot.docs.map((doc: any) => {
-            const data = doc.data();
-            return {
-              dealerId: doc.id,
-              ...data,
-              createdAt: data.createdAt?.toDate() || new Date(),
-              updatedAt: data.updatedAt?.toDate() || new Date(),
-              approvedAt: data.approvedAt?.toDate(),
-            } as Dealer;
-          });
-          setDealers(dealersData);
+          const rows: DealerTenant[] = snapshot.docs
+            .map((doc) => ({ id: doc.id, data: doc.data() as Record<string, unknown> }))
+            .filter(({ data }) => (data.type as string) === 'dealer')
+            .map(({ id, data }) => ({
+              dealerId: id,
+              ownerUid: (data.ownerId as string) || undefined,
+              name: (data.name as string) || (data.companyName as string) || id,
+              companyName: (data.companyName as string) || undefined,
+              subdomain: (data.subdomain as string) || undefined,
+              status: ((data.status as string) || 'active') as DealerStatus,
+              membershipId: (data.membershipId as string) || undefined,
+              createdAt: toDate(data.createdAt),
+            }));
+
+          rows.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+          setDealers(rows);
           setLoading(false);
           setError(null);
         } catch (err) {
@@ -67,15 +79,14 @@ export function useRealtimeDealers(filter?: {
         }
       },
       (err) => {
-        console.error('Error listening to dealers:', err);
+        console.error('Error listening to dealers (tenants):', err);
         setError(err instanceof Error ? err : new Error('Error listening to dealers'));
         setLoading(false);
       }
     );
 
     return () => unsubscribe();
-  }, [filter?.status, filter?.approvedByAdmin]);
+  }, []);
 
   return { dealers, loading, error };
 }
-

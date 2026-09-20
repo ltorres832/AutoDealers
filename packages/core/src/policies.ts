@@ -28,6 +28,8 @@ export interface Policy {
   updatedBy?: string;
 }
 
+export type PolicyAudience = 'admin' | 'dealer' | 'seller' | 'public' | 'advertiser';
+
 export interface UserPolicyAcceptance {
   id: string;
   userId: string;
@@ -118,7 +120,7 @@ export async function getActivePolicies(
  */
 export async function getRequiredPoliciesForUser(
   userId: string,
-  role: 'admin' | 'dealer' | 'seller' | 'public' | 'advertiser',
+  role: PolicyAudience,
   tenantId?: string,
   language: 'es' | 'en' = 'es'
 ): Promise<Policy[]> {
@@ -151,6 +153,7 @@ export async function getRequiredPoliciesForUser(
     // Verificar si la política está vigente
     if (effectiveDate > now) return; // Aún no es efectiva
     if (expirationDate && expirationDate < now) return; // Ya expiró
+    if (policyData.requiresAcceptance === false) return; // Visible, pero no requiere aceptación explícita
     
     // Verificar si es específica del tenant o global
     if (policyData.tenantId && policyData.tenantId !== tenantId) return;
@@ -182,6 +185,78 @@ export async function getRequiredPoliciesForUser(
   });
   
   return requiredPolicies;
+}
+
+function policyTimestampToDate(value: any): Date | undefined {
+  if (!value) return undefined;
+  if (value instanceof Date) return value;
+  if (typeof value.toDate === 'function') return value.toDate();
+  if (typeof value === 'string') {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+  }
+  return undefined;
+}
+
+function isPolicyEffective(policyData: admin.firestore.DocumentData, now = new Date()): boolean {
+  const effectiveDate = policyTimestampToDate(policyData.effectiveDate);
+  const expirationDate = policyTimestampToDate(policyData.expirationDate);
+  if (effectiveDate && effectiveDate > now) return false;
+  if (expirationDate && expirationDate < now) return false;
+  return true;
+}
+
+function mapPolicyDocument(doc: admin.firestore.QueryDocumentSnapshot): Policy {
+  const data = doc.data();
+  return {
+    id: doc.id,
+    ...data,
+    effectiveDate: policyTimestampToDate(data.effectiveDate) || new Date(),
+    expirationDate: policyTimestampToDate(data.expirationDate),
+    createdAt: policyTimestampToDate(data.createdAt) || new Date(),
+    updatedAt: policyTimestampToDate(data.updatedAt) || new Date(),
+  } as Policy;
+}
+
+/**
+ * Políticas visibles para una superficie concreta.
+ *
+ * La consulta se mantiene amplia para evitar índices compuestos en páginas públicas
+ * y dashboards; el filtrado fino se hace en memoria.
+ */
+export async function getVisiblePoliciesForAudience(
+  role: PolicyAudience,
+  tenantId?: string,
+  language: 'es' | 'en' = 'es'
+): Promise<Policy[]> {
+  const snapshot = await getDb()
+    .collection('policies')
+    .where('isActive', '==', true)
+    .get();
+
+  const now = new Date();
+
+  return snapshot.docs
+    .filter((doc) => {
+      const data = doc.data();
+      if (String(data.language || 'es') !== language) return false;
+      if (!Array.isArray(data.applicableTo) || !data.applicableTo.includes(role)) return false;
+      if (!isPolicyEffective(data, now)) return false;
+      if (data.tenantId && data.tenantId !== tenantId) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      const ad = a.data();
+      const bd = b.data();
+      const aTenant = ad.tenantId && ad.tenantId === tenantId ? 1 : 0;
+      const bTenant = bd.tenantId && bd.tenantId === tenantId ? 1 : 0;
+      if (aTenant !== bTenant) return bTenant - aTenant;
+
+      const aDate = policyTimestampToDate(ad.effectiveDate || ad.updatedAt)?.getTime() || 0;
+      const bDate = policyTimestampToDate(bd.effectiveDate || bd.updatedAt)?.getTime() || 0;
+      return bDate - aDate;
+    })
+    .map(mapPolicyDocument);
 }
 
 /**

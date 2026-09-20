@@ -1,6 +1,6 @@
 'use client';
 
-import { FICosignerFullForm, type FICosignerFullFormProps } from '@/components/FICosignerFullForm';
+import FICosignerFullForm, { type FICosignerFullFormProps } from '@/components/FICosignerFullForm';
 
 export type { FICosignerFullFormProps };
 

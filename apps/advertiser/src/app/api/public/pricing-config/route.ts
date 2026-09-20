@@ -74,6 +74,14 @@ export async function GET(_request: NextRequest) {
               30: 229,
             },
           },
+          vehicle_page: {
+            durations: [7, 15, 30],
+            prices: {
+              7: 119,
+              15: 199,
+              30: 349,
+            },
+          },
         },
         currency: 'USD',
         taxRate: 0,
@@ -104,12 +112,19 @@ export async function GET(_request: NextRequest) {
           durations: oldBanners.durations || [7, 15, 30],
           prices: oldBanners.prices || { 7: 149, 15: 249, 30: 449 },
         },
-        sponsors_section: {
-          durations: oldBanners.durations || [7, 15, 30],
-          prices: oldBanners.prices || { 7: 79, 15: 129, 30: 229 },
-        },
-      };
+          sponsors_section: {
+            durations: oldBanners.durations || [7, 15, 30],
+            prices: oldBanners.prices || { 7: 79, 15: 129, 30: 229 },
+          },
+          vehicle_page: {
+            durations: [7, 15, 30],
+            prices: { 7: 119, 15: 199, 30: 349 },
+          },
+        };
     }
+
+    const { mergeStoredBannerPlacements } = await import('@autodealers/core/ad-placements');
+    config.banners = mergeStoredBannerPlacements(config.banners);
     
     return NextResponse.json({ config });
   } catch (error: any) {

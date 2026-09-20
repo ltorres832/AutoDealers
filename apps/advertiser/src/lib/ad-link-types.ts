@@ -1,3 +1,5 @@
+import { resolvePublicWebUrl } from '@autodealers/shared/platform-urls';
+
 export type AdLinkType =
   | 'external'
   | 'landing_page'
@@ -73,10 +75,6 @@ export function normalizeExternalUrl(raw: string): string | null {
   }
 }
 
-const DEFAULT_PUBLIC_WEB =
-  process.env.NEXT_PUBLIC_PUBLIC_WEB_URL?.replace(/\/$/, '') ||
-  'https://autodealers-7f62e.web.app';
-
 export function resolveAdLinkForSave(params: {
   linkType: AdLinkType;
   linkUrl?: string;
@@ -84,7 +82,7 @@ export function resolveAdLinkForSave(params: {
   publicWebBase?: string;
 }): { linkType: AdLinkType; linkUrl: string } {
   const { linkType, linkUrl = '', advertiserWebsite } = params;
-  const base = (params.publicWebBase || DEFAULT_PUBLIC_WEB).replace(/\/$/, '');
+  const base = (params.publicWebBase || resolvePublicWebUrl()).replace(/\/$/, '');
 
   if (linkType === 'none') {
     return { linkType, linkUrl: '' };

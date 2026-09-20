@@ -32,9 +32,11 @@ const external = [
 
 /** @autodealers/core/dist está incompleto; bundlear desde fuente TypeScript. */
 /** @autodealers/voice puede faltar del symlink en node_modules; apuntar al dist compilado. */
+/** @autodealers/crm a menudo no está en node_modules de functions; alias a fuente. */
 const aliases = [
   `@autodealers/core=${path.join(repoRoot, 'packages/core/src/index.ts')}`,
   `@autodealers/voice=${path.join(repoRoot, 'packages/voice/dist/index.js')}`,
+  `@autodealers/crm=${path.join(repoRoot, 'packages/crm/src/index.ts')}`,
 ];
 
 function sleep(ms) {
@@ -63,7 +65,6 @@ function bundleWebhook(name) {
 
   fs.mkdirSync(path.dirname(outfile), { recursive: true });
   unlinkWithRetry(tmpOut);
-  unlinkWithRetry(outfile);
 
   const cmd = [
     'npx',

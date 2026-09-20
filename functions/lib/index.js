@@ -2,8 +2,8 @@
 /**
  * Cloud Functions para AutoDealersPR
  *
- * Funciones principales según el documento maestro.
- * Los servidores Next.js (nextjsServer*) se definen en index.js en la raíz de functions.
+ * Crons y webhooks HTTP. Las apps Next.js se sirven en Firebase App Hosting
+ * (ver functions/index.js en la raíz de functions/).
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -42,7 +42,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createTestUsers = exports.confirmReferralRewardsDaily = exports.processOverdueSubscriptionsDaily = exports.createPurchaseIntent = void 0;
+exports.createTestUsers = exports.runPlatformScheduledTasksHourly = exports.processQueuedAdsEveryFiveMinutes = exports.affiliatePayoutsWeekly = exports.confirmReferralRewardsDaily = exports.processOverdueSubscriptionsDaily = exports.createPurchaseIntent = void 0;
 const admin = __importStar(require("firebase-admin"));
 if (!admin.apps.length) {
     admin.initializeApp();
@@ -97,8 +97,12 @@ __exportStar(require("./reviews/reviews"), exports);
 __exportStar(require("./referrals/referrals"), exports);
 var confirmation_cron_1 = require("./referrals/confirmation-cron");
 Object.defineProperty(exports, "confirmReferralRewardsDaily", { enumerable: true, get: function () { return confirmation_cron_1.confirmReferralRewardsDaily; } });
+var payout_cron_1 = require("./affiliates/payout-cron");
+Object.defineProperty(exports, "affiliatePayoutsWeekly", { enumerable: true, get: function () { return payout_cron_1.affiliatePayoutsWeekly; } });
 // Banners Functions
 __exportStar(require("./banners/banners"), exports);
+var process_ad_queue_cron_1 = require("./advertiser/process-ad-queue-cron");
+Object.defineProperty(exports, "processQueuedAdsEveryFiveMinutes", { enumerable: true, get: function () { return process_ad_queue_cron_1.processQueuedAdsEveryFiveMinutes; } });
 // Customer Files Functions
 __exportStar(require("./customer-files/customer-files"), exports);
 // Reminders Functions
@@ -132,6 +136,8 @@ __exportStar(require("./webhooks/stripe"), exports);
 __exportStar(require("./webhooks/whatsapp"), exports);
 __exportStar(require("./webhooks/facebook"), exports);
 __exportStar(require("./webhooks/instagram"), exports);
+__exportStar(require("./webhooks/twilio-voice"), exports);
+__exportStar(require("./webhooks/twilio-voice-recording"), exports);
 // Upload Functions
 __exportStar(require("./upload/upload"), exports);
 // Campaigns Functions
@@ -158,6 +164,8 @@ __exportStar(require("./landing-config/landing-config"), exports);
 __exportStar(require("./maintenance/maintenance"), exports);
 // Communication Templates Functions
 __exportStar(require("./communication-templates/communication-templates"), exports);
+var platform_tasks_cron_1 = require("./scheduler/platform-tasks-cron");
+Object.defineProperty(exports, "runPlatformScheduledTasksHourly", { enumerable: true, get: function () { return platform_tasks_cron_1.runPlatformScheduledTasksHourly; } });
 // Test Users Function
 var create_test_users_1 = require("./create-test-users");
 Object.defineProperty(exports, "createTestUsers", { enumerable: true, get: function () { return create_test_users_1.createTestUsers; } });

@@ -1,7 +1,5 @@
 import type { NextRequest } from 'next/server';
-
-const PROD_ADVERTISER_ORIGIN =
-  'https://advertiser-app--autodealers-7f62e.us-central1.hosted.app';
+import { resolveAdvertiserUrl } from '@autodealers/shared/platform-urls';
 
 /** Origen público del panel anunciante (Stripe return URLs, enlaces). */
 export function getAdvertiserAppOrigin(request?: NextRequest): string {
@@ -17,7 +15,7 @@ export function getAdvertiserAppOrigin(request?: NextRequest): string {
   }
 
   if (process.env.NODE_ENV === 'production') {
-    return PROD_ADVERTISER_ORIGIN;
+    return resolveAdvertiserUrl();
   }
 
   return 'http://localhost:3004';

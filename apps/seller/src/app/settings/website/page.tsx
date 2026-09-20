@@ -8,13 +8,17 @@ import {
 } from '@/lib/website-settings-normalize';
 import { SocialMediaLinks } from '@autodealers/shared/client';
 import { resolvePrimaryPublicSiteUrl } from '@/lib/public-site-url';
+import { WebsiteHeroMediaEditor } from '@autodealers/shared/components/WebsiteHeroMediaEditor';
+import type { WebsiteHeroMediaMode } from '@autodealers/shared/website-hero-media';
 
 interface WebsiteSettings {
   hero: {
     title: string;
     subtitle: string;
     ctaText: string;
+    mediaMode?: WebsiteHeroMediaMode;
     backgroundImage?: string;
+    backgroundVideoUrl?: string;
   };
   sections: {
     about: {
@@ -76,6 +80,7 @@ export default function WebsiteSettingsPage() {
   const [publicSubdomainUrl, setPublicSubdomainUrl] = useState<string | null>(null);
   const [primaryPublicSiteUrl, setPrimaryPublicSiteUrl] = useState('');
   const [isIndependentWorkspace, setIsIndependentWorkspace] = useState(false);
+  const [mediaUploading, setMediaUploading] = useState(false);
 
   useEffect(() => {
     fetchSettings();
@@ -145,6 +150,32 @@ export default function WebsiteSettingsPage() {
       alert('Error al guardar la configuración');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function uploadWebsiteHeroFile(
+    file: File,
+    type: 'website_hero_image' | 'website_hero_video'
+  ): Promise<string | null> {
+    setMediaUploading(true);
+    try {
+      const { fetchWithAuth } = await import('@/lib/fetch-with-auth');
+      const form = new FormData();
+      form.append('file', file);
+      form.append('type', type);
+      const res = await fetchWithAuth('/api/upload', { method: 'POST', body: form });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.error || 'Error al subir el archivo');
+        return null;
+      }
+      return typeof data.url === 'string' ? data.url : null;
+    } catch (e) {
+      console.error(e);
+      alert('Error al subir el archivo');
+      return null;
+    } finally {
+      setMediaUploading(false);
     }
   }
 
@@ -341,6 +372,27 @@ export default function WebsiteSettingsPage() {
                   placeholder="Ej: Ver Inventario"
                 />
               </div>
+
+              <WebsiteHeroMediaEditor
+                mediaMode={settings.hero.mediaMode || 'gradient'}
+                backgroundImage={settings.hero.backgroundImage}
+                backgroundVideoUrl={settings.hero.backgroundVideoUrl}
+                uploading={mediaUploading}
+                disabled={saving}
+                onChange={(next) =>
+                  setSettings({
+                    ...settings,
+                    hero: {
+                      ...settings.hero,
+                      mediaMode: next.mediaMode,
+                      backgroundImage: next.backgroundImage,
+                      backgroundVideoUrl: next.backgroundVideoUrl,
+                    },
+                  })
+                }
+                onUploadImage={(file) => uploadWebsiteHeroFile(file, 'website_hero_image')}
+                onUploadVideo={(file) => uploadWebsiteHeroFile(file, 'website_hero_video')}
+              />
             </div>
           </div>
 

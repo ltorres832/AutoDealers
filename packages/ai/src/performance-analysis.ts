@@ -85,7 +85,7 @@ Analiza:
 Responde en formato JSON:`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -157,7 +157,7 @@ Identifica:
 Responde en formato JSON con practices (array):`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -231,7 +231,7 @@ Sugiere mejoras específicas con:
 Responde en formato JSON con improvements (array):`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -298,7 +298,7 @@ Compara con promedios de la industria y calcula percentiles.
 Responde en formato JSON con benchmarks (array), overallScore, y recommendations:`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { SocialPublisherService, PostContent } from '@autodealers/messaging';
 import { validateMembershipFeature } from '@/lib/membership-middleware';
+import { normalizeSocialPostContent, isTikTokYouTubePublishEnabled } from '@autodealers/core';
 
 const publisher = new SocialPublisherService();
 
@@ -21,7 +22,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { content, platforms }: { content: PostContent; platforms: ('facebook' | 'instagram')[] } = body;
+    const { content, platforms: rawPlatforms }: {
+      content: PostContent;
+      platforms: ('facebook' | 'instagram' | 'tiktok' | 'youtube')[];
+    } = body;
+
+    const platforms = (rawPlatforms || []).filter((p) => {
+      if (p === 'facebook' || p === 'instagram') return true;
+      return isTikTokYouTubePublishEnabled() && (p === 'tiktok' || p === 'youtube');
+    });
 
     if (!content || !content.text) {
       return NextResponse.json({ error: 'El contenido del post es requerido' }, { status: 400 });
@@ -31,8 +40,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Debes seleccionar al menos una plataforma' }, { status: 400 });
     }
 
-    // Publicar en las plataformas seleccionadas
-    const results = await publisher.publishToMultiple(auth.tenantId, content, platforms);
+    const normalizedContent = await normalizeSocialPostContent({
+      content,
+      tenantId: auth.tenantId,
+      userId: auth.userId,
+      accountType: 'dealer',
+    });
+
+    const results = await publisher.publishToMultiple(auth.tenantId, normalizedContent, platforms);
 
     const allSuccess = results.every((r) => r.success);
     const failures = results.filter((r) => !r.success);

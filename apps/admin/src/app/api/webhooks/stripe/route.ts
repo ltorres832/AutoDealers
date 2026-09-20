@@ -20,7 +20,9 @@ import {
   voidSalesEmployeeMembershipCommissions,
   markSalesEmployeePaymentLinkPaid,
   markSalesEmployeePaymentLinkExpired,
+  markSalesEmployeeAdOrderPaid,
   isSalesAdCommissionType,
+  isSalesPortalAdOrigin,
   handleSalesEmployeeConnectAccountUpdated,
   handleSalesEmployeeTransferReversed,
 } from '@autodealers/core';
@@ -1190,15 +1192,35 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
   const type = metadata.type;
   const amountPaid = Number(paymentIntent.amount_received || paymentIntent.amount || 0) / 100;
 
-  if (tenantId && isSalesAdCommissionType(type) && amountPaid > 0) {
+  // Comisión de anuncio SOLO si el cobro viene de una venta del portal /sales.
+  // Self-serve del cliente (aunque esté en sales_employee_accounts) = sin comisión.
+  if (
+    tenantId &&
+    isSalesAdCommissionType(type) &&
+    amountPaid > 0 &&
+    isSalesPortalAdOrigin(metadata)
+  ) {
     await createSalesEmployeeAdCommission({
-      employeeId: metadata.employeeId || null,
+      employeeId: metadata.employeeId || metadata.salesEmployeeId || null,
       tenantId,
       amountPaid,
       currency: paymentIntent.currency,
       stripePaymentIntentId: paymentIntent.id,
       adKind: type,
+      salesAdOrderId: metadata.salesAdOrderId || null,
+      source: metadata.source || null,
+      assignedByRole: metadata.assignedByRole || null,
+      salesEmployeeId: metadata.salesEmployeeId || metadata.employeeId || null,
     }).catch((err) => console.warn('[stripe] sales employee ad commission:', err));
+  }
+
+  if (metadata.salesAdOrderId && amountPaid > 0) {
+    await markSalesEmployeeAdOrderPaid({
+      salesAdOrderId: metadata.salesAdOrderId,
+      stripePaymentIntentId: paymentIntent.id,
+      amountPaid,
+      currency: paymentIntent.currency,
+    }).catch((err) => console.warn('[stripe] sales ad order paid:', err));
   }
 
   if (!tenantId || !type) return;
@@ -1210,10 +1232,19 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
       bannerId: metadata.bannerId || null,
       paymentIntentId: paymentIntent.id,
     });
+    // Si es asignado desde ventas y llegó por PI (cliente paga en su panel), activar orden.
+    if (metadata.isAssigned === 'true' && isSalesPortalAdOrigin(metadata)) {
+      await markSalesEmployeeAdOrderPaid({
+        salesAdOrderId: metadata.salesAdOrderId || null,
+        stripePaymentIntentId: paymentIntent.id,
+        amountPaid,
+        currency: paymentIntent.currency,
+      }).catch(() => undefined);
+    }
     return;
   }
 
-  if (type === 'paid_promotion') {
+  if (type === 'paid_promotion' || type === 'assigned_promotion_payment') {
     const { activatePaidPromotionFromIntent } = await import('@autodealers/core');
     await activatePaidPromotionFromIntent({
       tenantId,
@@ -1221,6 +1252,14 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
       paymentIntentId: paymentIntent.id,
       metadata,
     });
+    if (isSalesPortalAdOrigin(metadata)) {
+      await markSalesEmployeeAdOrderPaid({
+        salesAdOrderId: metadata.salesAdOrderId || null,
+        stripePaymentIntentId: paymentIntent.id,
+        amountPaid,
+        currency: paymentIntent.currency,
+      }).catch(() => undefined);
+    }
     return;
   }
 
@@ -1232,6 +1271,14 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
       paymentIntentId: paymentIntent.id,
       userId: metadata.userId,
     });
+    if (isSalesPortalAdOrigin(metadata)) {
+      await markSalesEmployeeAdOrderPaid({
+        salesAdOrderId: metadata.salesAdOrderId || null,
+        stripePaymentIntentId: paymentIntent.id,
+        amountPaid,
+        currency: paymentIntent.currency,
+      }).catch(() => undefined);
+    }
   }
 }
 
@@ -1239,6 +1286,24 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
  * Maneja pago completado de checkout (para promociones premium y pagos únicos)
  */
 async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
+  const sessionMeta = (session.metadata || {}) as Record<string, string>;
+
+  // Órdenes de anuncio creadas en el portal de ventas (empleado / link).
+  if (sessionMeta.salesAdOrderId && session.payment_status === 'paid') {
+    const amountPaid = Number(session.amount_total || 0) / 100;
+    const pi =
+      typeof session.payment_intent === 'string'
+        ? session.payment_intent
+        : session.payment_intent?.id || null;
+    await markSalesEmployeeAdOrderPaid({
+      salesAdOrderId: sessionMeta.salesAdOrderId,
+      stripeSessionId: session.id,
+      stripePaymentIntentId: pi,
+      amountPaid,
+      currency: session.currency || 'usd',
+    }).catch((err) => console.warn('[stripe] sales ad order checkout paid:', err));
+  }
+
   // Depósitos de deal desk (Stripe Connect destination)
   if (session.metadata?.type === 'deal_deposit' && session.metadata.tenantId && session.metadata.dealId) {
     try {

@@ -16,6 +16,26 @@ export class UnifiedMessagingService {
    * Envía un mensaje por el canal especificado
    */
   async sendMessage(payload: MessagePayload): Promise<MessageResponse> {
+    if (payload.direction === 'inbound') {
+      if (payload.leadId) {
+        const { createMessage } = await import('@autodealers/crm');
+        await createMessage({
+          tenantId: payload.tenantId,
+          leadId: payload.leadId,
+          channel: payload.channel,
+          direction: 'inbound',
+          from: payload.from,
+          to: payload.to,
+          content: payload.content,
+          attachments: payload.attachments,
+          status: 'delivered',
+          aiGenerated: false,
+          metadata: { ...(payload.metadata || {}), isRead: false },
+        });
+      }
+      return { id: '', status: 'sent' };
+    }
+
     let response: MessageResponse;
 
     switch (payload.channel) {

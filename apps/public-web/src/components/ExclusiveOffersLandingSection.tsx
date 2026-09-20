@@ -2,11 +2,33 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import StarRating from './StarRating';
 import {
   gradientClassForKey,
   type ExclusiveOffersSectionConfigClient,
   type ExclusiveOfferCardConfig,
 } from '@/lib/exclusive-offers-ui';
+
+interface PublicPromotion {
+  id: string;
+  name?: string;
+  title?: string;
+  description?: string;
+  discount?: {
+    type: 'percentage' | 'fixed' | string;
+    value: number;
+  };
+  tenantId?: string;
+  tenantName?: string;
+  vehicleId?: string;
+  promotionScope?: 'vehicle' | 'dealer' | 'seller' | string;
+  imageUrl?: string;
+  images?: string[];
+  sellerRating?: number;
+  sellerRatingCount?: number;
+  dealerRating?: number;
+  dealerRatingCount?: number;
+}
 
 function CardCta({
   href,
@@ -58,22 +80,51 @@ function OfferCard({ card }: { card: ExclusiveOfferCardConfig }) {
   );
 }
 
+function promoImage(promotion: PublicPromotion): string {
+  if (promotion.imageUrl?.trim()) return promotion.imageUrl;
+  const first = Array.isArray(promotion.images) ? promotion.images.find((u) => typeof u === 'string' && u.trim()) : '';
+  return first || '';
+}
+
+function handlePromotionClick(promotion: PublicPromotion) {
+  fetch(`/api/public/promotions/${promotion.id}/click`, { method: 'POST' }).catch(() => {});
+  if (promotion.vehicleId && promotion.tenantId) {
+    window.location.href = `/${promotion.tenantId}/vehicle/${promotion.vehicleId}`;
+  } else if (promotion.tenantId && (promotion.promotionScope === 'dealer' || promotion.promotionScope === 'seller')) {
+    window.location.href = `/${promotion.tenantId}`;
+  }
+}
+
 export default function ExclusiveOffersLandingSection() {
   const [cfg, setCfg] = useState<ExclusiveOffersSectionConfigClient | null>(null);
+  const [promotions, setPromotions] = useState<PublicPromotion[]>([]);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch('/api/public/exclusive-offers-config');
-        if (res.ok) {
-          const data = await res.json();
-          if (!cancelled) setCfg(data);
-        } else if (!cancelled) {
-          setCfg({ enabled: false, badgeLabel: '', title: '', subtitle: '', cards: [] });
+        const [cfgRes, promoRes] = await Promise.all([
+          fetch('/api/public/exclusive-offers-config'),
+          fetch('/api/public/promotions?limit=12', { cache: 'no-store' }),
+        ]);
+        if (!cancelled) {
+          if (cfgRes.ok) {
+            setCfg(await cfgRes.json());
+          } else {
+            setCfg({ enabled: false, badgeLabel: '', title: '', subtitle: '', cards: [] });
+          }
+          if (promoRes.ok) {
+            const data = await promoRes.json();
+            setPromotions(Array.isArray(data.promotions) ? data.promotions : []);
+          } else {
+            setPromotions([]);
+          }
         }
       } catch {
-        if (!cancelled) setCfg({ enabled: false, badgeLabel: '', title: '', subtitle: '', cards: [] });
+        if (!cancelled) {
+          setCfg({ enabled: false, badgeLabel: '', title: '', subtitle: '', cards: [] });
+          setPromotions([]);
+        }
       }
     })();
     return () => {
@@ -81,13 +132,11 @@ export default function ExclusiveOffersLandingSection() {
     };
   }, []);
 
-  if (!cfg) {
-    return null;
-  }
-
-  if (!cfg.enabled || !cfg.cards.length) {
-    return null;
-  }
+  const cmsCards = cfg?.enabled && cfg.cards.length ? cfg.cards : [];
+  const badge = cfg?.badgeLabel?.trim() || 'Promociones Especiales';
+  const title = cfg?.title?.trim() || 'Ofertas Exclusivas';
+  const subtitle =
+    cfg?.subtitle?.trim() || 'Promociones verificadas de nuestros concesionarios certificados';
 
   return (
     <section id="promotions" className="py-24 bg-slate-50 relative overflow-hidden border-t border-slate-200">
@@ -105,20 +154,84 @@ export default function ExclusiveOffersLandingSection() {
                   clipRule="evenodd"
                 />
               </svg>
-              {cfg.badgeLabel}
+              {badge}
             </span>
           </div>
-          <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-4 tracking-tight">{cfg.title}</h2>
-          {cfg.subtitle ? (
-            <p className="text-lg text-slate-600 max-w-2xl mx-auto font-medium">{cfg.subtitle}</p>
+          <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-4 tracking-tight">{title}</h2>
+          {subtitle ? (
+            <p className="text-lg text-slate-600 max-w-2xl mx-auto font-medium">{subtitle}</p>
           ) : null}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {cfg.cards.map((card, idx) => (
-            <OfferCard key={`${card.title}-${idx}`} card={card} />
-          ))}
-        </div>
+        {promotions.length > 0 ? (
+          <div className="mb-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {promotions.slice(0, 12).map((promotion, index) => {
+              const img = promoImage(promotion);
+              const name = promotion.name || promotion.title || 'Promoción';
+              return (
+                <div
+                  key={promotion.id}
+                  onClick={() => handlePromotionClick(promotion)}
+                  className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer overflow-hidden border-2 border-transparent hover:border-yellow-400 transform hover:-translate-y-2"
+                  style={{ animationDelay: `${index * 50}ms` }}
+                >
+                  {img ? (
+                    <div className="relative h-56 overflow-hidden">
+                      <img
+                        src={img}
+                        alt={name}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+                      {promotion.discount?.value ? (
+                        <div className="absolute bottom-4 left-4">
+                          <div className="bg-white/95 backdrop-blur-sm px-4 py-2 rounded-lg">
+                            <div className="text-2xl font-bold text-green-600">
+                              {promotion.discount.type === 'percentage'
+                                ? `${promotion.discount.value}% OFF`
+                                : `$${promotion.discount.value} OFF`}
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <div className="relative h-56 bg-slate-100 flex items-center justify-center">
+                      <span className="text-sm text-slate-400">Promoción</span>
+                    </div>
+                  )}
+                  <div className="p-6">
+                    <h3 className="font-bold text-xl mb-2 group-hover:text-blue-600 transition line-clamp-2">
+                      {name}
+                    </h3>
+                    {promotion.description ? (
+                      <p className="text-sm text-gray-600 mb-4 line-clamp-2">{promotion.description}</p>
+                    ) : null}
+                    {promotion.tenantName ? (
+                      <p className="text-xs text-gray-500 font-medium mb-3">De: {promotion.tenantName}</p>
+                    ) : null}
+                    {(promotion.sellerRating || promotion.dealerRating) ? (
+                      <StarRating
+                        rating={promotion.sellerRating || promotion.dealerRating || 0}
+                        count={promotion.sellerRatingCount || promotion.dealerRatingCount || 0}
+                        size="sm"
+                        showCount
+                      />
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
+
+        {cmsCards.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {cmsCards.map((card, idx) => (
+              <OfferCard key={`${card.title}-${idx}`} card={card} />
+            ))}
+          </div>
+        ) : null}
       </div>
     </section>
   );

@@ -1,11 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  EmailAuthProvider,
-  reauthenticateWithCredential,
-  updatePassword,
-} from 'firebase/auth';
 
 export function MustChangePasswordModal({
   email,
@@ -47,13 +42,15 @@ export function MustChangePasswordModal({
 
     setLoading(true);
     try {
-      const credential = EmailAuthProvider.credential(user.email, currentPassword);
-      await reauthenticateWithCredential(user, credential);
-      await updatePassword(user, newPassword);
-
-      const res = await fetch('/api/settings/password/complete-change', {
+      const res = await fetch('/api/auth/app-password/complete-change', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
+        body: JSON.stringify({
+          email: user.email,
+          currentPassword,
+          newPassword,
+        }),
       });
 
       if (!res.ok) {

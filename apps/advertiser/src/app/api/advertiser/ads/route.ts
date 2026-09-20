@@ -1,20 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-const {
+import * as admin from 'firebase-admin';
+import {
   createSponsoredContent,
   getAdvertiserContent,
   getAdvertiserById,
   getFirestore,
-} = require('@autodealers/core') as any;
-import * as admin from 'firebase-admin';
-import { getStripeService } from '@autodealers/core';
+  getStripeInstance,
+  getStripeService,
+} from '@autodealers/core';
 import {
   parseAdLinkType,
   requiresDestinationUrl,
   resolveAdLinkForSave,
 } from '@/lib/ad-link-types';
+import {
+  AD_PLACEMENT_CAPACITY,
+  AD_PLACEMENT_LABELS,
+  isAdPlacement,
+  type AdPlacement,
+} from '@/lib/ad-placements';
+import { resolveAdCreativePayload } from '@autodealers/core/ad-creative';
 
 const db = getFirestore();
+
+function dateLikeToMillis(value: any): number | null {
+  if (!value) return null;
+  if (typeof value.toDate === 'function') return value.toDate().getTime();
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+async function countReservedPlacementSlots(placement: AdPlacement): Promise<number> {
+  const now = Date.now();
+  const pendingReservationWindowMs = 45 * 60 * 1000;
+  const snap = await db.collection('sponsored_content').where('placement', '==', placement).get();
+
+  return snap.docs.filter((doc: any) => {
+    const data = doc.data() || {};
+    const status = String(data.status || '');
+    const endMillis = dateLikeToMillis(data.endDate);
+    const updatedMillis = dateLikeToMillis(data.updatedAt) ?? dateLikeToMillis(data.createdAt);
+
+    if (endMillis !== null && endMillis < now) return false;
+    if (status === 'active' || status === 'approved') return true;
+    if (status === 'payment_pending') {
+      return updatedMillis === null || now - updatedMillis <= pendingReservationWindowMs;
+    }
+    return false;
+  }).length;
+}
 
 // GET - Obtener todos los anuncios del anunciante
 export async function GET(request: NextRequest) {
@@ -65,6 +100,8 @@ export async function POST(request: NextRequest) {
       title,
       description,
       imageUrl,
+      images,
+      animation,
       videoUrl,
       linkUrl,
       linkType,
@@ -74,12 +111,20 @@ export async function POST(request: NextRequest) {
       durationDays,
       startDate,
       mediaType,
+      allowQueue,
     } = body;
 
     // Validaciones
-    if (!type || !placement || !title || !durationDays) {
+    if (!type || !placement || !durationDays) {
       return NextResponse.json(
         { error: 'Faltan campos requeridos' },
+        { status: 400 }
+      );
+    }
+
+    if (!isAdPlacement(placement)) {
+      return NextResponse.json(
+        { error: 'Ubicación de anuncio no válida.' },
         { status: 400 }
       );
     }
@@ -109,7 +154,8 @@ export async function POST(request: NextRequest) {
     }
 
     const media = mediaType === 'video' ? 'video' : 'image';
-    if (media === 'image' && !imageUrl) {
+    const creative = resolveAdCreativePayload({ imageUrl, images, animation });
+    if (media === 'image' && !creative.imageUrl) {
       return NextResponse.json(
         { error: 'Debes subir o pegar una imagen.' },
         { status: 400 }
@@ -122,7 +168,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Obtener información del anunciante
     const advertiser = await getAdvertiserById(auth.userId);
     if (!advertiser) {
       return NextResponse.json(
@@ -131,41 +176,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Pago por anuncio: no se exige suscripción mensual
-    // Obtener configuración de precios desde admin_config
-    const pricingConfigDoc = await db.collection('admin_config').doc('pricing').get();
-    let actualPrice = priceNumber;
-    
-    if (pricingConfigDoc.exists) {
-      const pricingConfig = pricingConfigDoc.data();
-      
-      // Calcular precio real según tipo y placement
-      if (type === 'banner' && pricingConfig.banners) {
-        const bannerConfig = pricingConfig.banners[placement];
-        if (bannerConfig && bannerConfig.prices && bannerConfig.prices[duration]) {
-          actualPrice = bannerConfig.prices[duration];
-        }
-      } else if ((type === 'promotion' || type === 'sponsor') && pricingConfig.promotions) {
-        // Para promociones, usar vehicle como default (puede ajustarse según necesidad)
-        const promotionConfig = pricingConfig.promotions.vehicle;
-        if (promotionConfig && promotionConfig.prices && promotionConfig.prices[duration]) {
-          actualPrice = promotionConfig.prices[duration];
-        }
-      }
-      
-      // Aplicar impuestos si están configurados
-      if (pricingConfig.taxRate && pricingConfig.taxRate > 0) {
-        actualPrice = actualPrice * (1 + pricingConfig.taxRate / 100);
-      }
+    const { getBannerPrice, getPromotionPrice, getPricingConfig } = await import('@autodealers/core');
+    const pricingConfig = await getPricingConfig();
+    let actualPrice =
+      type === 'banner'
+        ? await getBannerPrice(placement, duration)
+        : await getPromotionPrice(type === 'sponsor' ? 'dealer' : 'vehicle', duration);
+
+    if (!actualPrice || actualPrice <= 0) {
+      return NextResponse.json(
+        { error: 'No hay precio configurado para esta ubicación y duración. Revisa Admin → Precios.' },
+        { status: 400 }
+      );
     }
 
-    // Validar que el precio enviado coincida con el precio calculado (con tolerancia de 1%)
+    if (pricingConfig.taxRate && pricingConfig.taxRate > 0) {
+      actualPrice = actualPrice * (1 + pricingConfig.taxRate / 100);
+    }
+
     const priceDifference = Math.abs(priceNumber - actualPrice) / actualPrice;
     if (priceDifference > 0.01) {
       console.warn(`Price mismatch: sent ${priceNumber}, calculated ${actualPrice}. Using calculated price.`);
     }
 
-    // Calcular fecha de fin basada en duración
     const start = startDate ? new Date(startDate) : new Date();
     const end = new Date(start.getTime());
     end.setDate(end.getDate() + duration);
@@ -183,16 +216,149 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: message }, { status: 400 });
     }
 
+    const reservedSlots = await countReservedPlacementSlots(placement);
+    const placementCapacity = AD_PLACEMENT_CAPACITY[placement];
+    const placementSnap = await db.collection('sponsored_content').where('placement', '==', placement).get();
+    const queueSetupReservationWindowMs = 45 * 60 * 1000;
+    const queuedBeforeCount = placementSnap.docs.filter((doc: any) => {
+      const data = doc.data() || {};
+      const status = String(data.status || '');
+      if (status === 'queued' || status === 'activating') return true;
+      if (status !== 'queued_setup_pending') return false;
+      const updatedMillis = dateLikeToMillis(data.updatedAt) ?? dateLikeToMillis(data.queuedAt);
+      return updatedMillis === null || Date.now() - updatedMillis <= queueSetupReservationWindowMs;
+    }).length;
+    const queuePosition = queuedBeforeCount + 1;
+    const mustQueue = reservedSlots >= placementCapacity || queuedBeforeCount > 0;
+
+    if (mustQueue) {
+      if (allowQueue !== true) {
+        return NextResponse.json(
+          {
+            error:
+              `${AD_PLACEMENT_LABELS[placement]} ${reservedSlots >= placementCapacity ? 'está lleno ahora mismo' : 'ya tiene una fila de espera'}. ` +
+              `Hay ${reservedSlots}/${placementCapacity} espacios activos o reservados y ${queuedBeforeCount} anuncio(s) en turno. ` +
+              'Puedes entrar en turno y solo se cobrará automáticamente cuando haya espacio disponible.',
+            code: 'PLACEMENT_FULL',
+            canQueue: true,
+            placement,
+            capacity: placementCapacity,
+            reservedSlots,
+          },
+          { status: 409 }
+        );
+      }
+    }
+
+    if (mustQueue && allowQueue === true) {
+      const stripe = await getStripeInstance();
+      let stripeCustomerId = advertiser.stripeCustomerId;
+      if (!stripeCustomerId) {
+        const customer = await stripe.customers.create({
+          email: advertiser.email,
+          name: advertiser.companyName || advertiser.contactName || advertiser.email,
+          metadata: {
+            advertiserId: auth.userId,
+            source: 'advertiser_ad_queue',
+          },
+        });
+        stripeCustomerId = customer.id;
+        await db.collection('advertisers').doc(auth.userId).set(
+          {
+            stripeCustomerId,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+      }
+
+      const ad = await createSponsoredContent({
+        advertiserId: auth.userId,
+        advertiserName: advertiser.companyName,
+        campaignName: campaignName || undefined,
+        type: type as 'banner' | 'promotion' | 'sponsor',
+        placement,
+        title: title || '',
+        description: description || '',
+        imageUrl: media === 'image' ? creative.imageUrl : '',
+        images: media === 'image' ? creative.images : [],
+        animation: creative.animation,
+        videoUrl: media === 'video' ? videoUrl : '',
+        linkUrl: resolvedLink.linkUrl,
+        linkType: resolvedLink.linkType,
+        targetLocation,
+        targetVehicleTypes,
+        budget: actualPrice,
+        budgetType: 'total',
+        startDate: start,
+        endDate: end,
+        price: actualPrice,
+        durationDays: duration,
+        status: 'queued_setup_pending' as any,
+        billingMode: 'per_ad_queued' as const,
+      });
+
+      await db.collection('sponsored_content').doc(ad.id).set(
+        {
+          queuedAt: admin.firestore.FieldValue.serverTimestamp(),
+          queuePosition,
+          queueStatus: 'awaiting_payment_method',
+          queuePlacement: placement,
+          stripeCustomerId,
+          paymentStatus: 'setup_pending',
+          activationAttempts: 0,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      const setupIntent = await stripe.setupIntents.create({
+        customer: stripeCustomerId,
+        usage: 'off_session',
+        payment_method_types: ['card'],
+        metadata: {
+          action: 'queued_ad_setup',
+          advertiserId: auth.userId,
+          adId: ad.id,
+          placement,
+          mediaType: media,
+        },
+      });
+
+      return NextResponse.json(
+        {
+          success: true,
+          ad,
+          queue: {
+            queued: true,
+            placement,
+            queuePosition,
+            capacity: placementCapacity,
+            reservedSlots,
+          },
+          payment: {
+            required: true,
+            intentType: 'setup',
+            clientSecret: setupIntent.client_secret,
+            setupIntentId: setupIntent.id,
+          },
+        },
+        { status: 200 }
+      );
+    }
+
     // Crear el anuncio en estado de pago pendiente
     const ad = await createSponsoredContent({
       advertiserId: auth.userId,
       advertiserName: advertiser.companyName,
       campaignName: campaignName || undefined,
       type: type as 'banner' | 'promotion' | 'sponsor',
-      placement: placement as 'hero' | 'sidebar' | 'sponsors_section' | 'between_content',
-      title,
+      placement,
+      title: title || '',
       description: description || '',
-      imageUrl: media === 'image' ? imageUrl : '',
+      imageUrl: media === 'image' ? creative.imageUrl : '',
+      images: media === 'image' ? creative.images : [],
+      animation: creative.animation,
       videoUrl: media === 'video' ? videoUrl : '',
       linkUrl: resolvedLink.linkUrl,
       linkType: resolvedLink.linkType,
@@ -236,6 +402,8 @@ export async function POST(request: NextRequest) {
         action: 'ad_payment',
         advertiserId: auth.userId,
         adId: ad.id,
+        placement,
+        mediaType: media,
         campaignName: campaignName || 'Campaña publicitaria',
       },
       advertiser.stripeCustomerId

@@ -129,7 +129,7 @@ export function AdminLogo({ size = 'sm', className = '' }: AdminLogoProps) {
     <div className={`${sizeClasses[size]} ${className} relative`}>
       <img
         src={DEFAULT_PLATFORM_BRAND_ASSET}
-        alt="AutoDealers"
+        alt="AutoDealersOnline"
         className="h-full w-auto object-contain"
       />
     </div>

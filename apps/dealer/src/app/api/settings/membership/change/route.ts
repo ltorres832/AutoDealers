@@ -49,6 +49,19 @@ export async function POST(request: NextRequest) {
 
     await changeMembership(subscription.id, membershipId, newMembership.stripePriceId);
 
+    try {
+      const { ensureVoiceProvisionedForTenant } = await import('@autodealers/voice');
+      const voiceResult = await ensureVoiceProvisionedForTenant(billTid!, {
+        source: 'dealer_change_membership',
+        updatedBy: auth.userId,
+      });
+      if (!voiceResult.ok && !voiceResult.skipped) {
+        console.warn('[membership/change] Voice provision:', voiceResult.reason);
+      }
+    } catch (voiceErr) {
+      console.warn('[membership/change] Voice provision skipped:', voiceErr);
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Membership changed successfully',

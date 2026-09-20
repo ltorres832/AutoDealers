@@ -1,6 +1,7 @@
 // Integración WhatsApp Business API
 
 import { MessagePayload, MessageResponse } from './types';
+import { normalizePlatformMessageText } from '@autodealers/shared/platform-sender';
 
 const WHATSAPP_API_URL = 'https://graph.facebook.com/v18.0';
 
@@ -18,6 +19,11 @@ export class WhatsAppService {
    */
   async sendMessage(payload: MessagePayload): Promise<MessageResponse> {
     try {
+      const to = payload.to.replace(/\D/g, '');
+      if (!to || to.length < 10) {
+        return { id: '', status: 'failed', error: 'Número de WhatsApp inválido' };
+      }
+
       const response = await fetch(
         `${WHATSAPP_API_URL}/${this.phoneNumberId}/messages`,
         {
@@ -28,10 +34,10 @@ export class WhatsAppService {
           },
           body: JSON.stringify({
             messaging_product: 'whatsapp',
-            to: payload.to,
+            to,
             type: 'text',
             text: {
-              body: payload.content,
+              body: normalizePlatformMessageText(payload.content),
             },
           }),
         }
@@ -72,18 +78,29 @@ export class WhatsAppService {
 
       const message = value.messages[0];
       const contact = value.contacts?.[0];
+      const msgType = message.type || 'text';
+
+      let content = message.text?.body || '';
+      if (!content && msgType === 'image') content = '[Imagen recibida por WhatsApp]';
+      if (!content && msgType === 'audio') content = '[Audio recibido por WhatsApp]';
+      if (!content && msgType === 'video') content = '[Video recibido por WhatsApp]';
+      if (!content && msgType === 'document') content = '[Documento recibido por WhatsApp]';
+      if (!content && msgType === 'location') content = '[Ubicación recibida por WhatsApp]';
+      if (!content && msgType === 'sticker') content = '[Sticker recibido por WhatsApp]';
+      if (!content) content = `[Mensaje ${msgType} recibido por WhatsApp]`;
 
       return {
-        tenantId: '', // Se debe extraer del número o configuración
+        tenantId: '',
         channel: 'whatsapp',
         direction: 'inbound',
         from: message.from,
         to: value.metadata?.phone_number_id || '',
-        content: message.text?.body || '',
+        content,
         metadata: {
           messageId: message.id,
           timestamp: message.timestamp,
           contactName: contact?.profile?.name,
+          messageType: msgType,
         },
       };
     } catch (error) {

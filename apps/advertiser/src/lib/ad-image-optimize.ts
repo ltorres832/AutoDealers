@@ -17,8 +17,8 @@ export type OptimizeAdImageResult = {
 };
 
 /**
- * Ajusta la imagen al tamaño del placement: escala (también si es pequeña),
- * mantiene la foto completa (sin recortar) y exporta en alta calidad.
+ * Ajusta la imagen al canvas del placement sin recortar nunca: escala proporcional
+ * (contain), muestra la foto completa y exporta en alta calidad.
  */
 export async function optimizeAdImageForPlacement(
   input: Buffer,

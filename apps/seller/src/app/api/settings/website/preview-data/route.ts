@@ -3,6 +3,7 @@ import { verifyAuth } from '@/lib/auth';
 import {
   filterSellerPublicCatalogVehicles,
   filterSellerWorkspaceInventory,
+  getSellerInventorySyncOptions,
   loadVehiclesForSellerWorkspace,
   slimVehicleForPreview,
 } from '@/lib/seller-vehicles';
@@ -20,10 +21,12 @@ export async function GET(request: NextRequest) {
     }
 
     const all = await loadVehiclesForSellerWorkspace(auth);
+    const sync = await getSellerInventorySyncOptions(auth);
     const vehicles = filterSellerPublicCatalogVehicles(all, auth.userId, {
       tenantPrimarySellerId: auth.userId,
+      ...sync,
     });
-    const workspace = filterSellerWorkspaceInventory(all, auth.userId);
+    const workspace = filterSellerWorkspaceInventory(all, auth.userId, sync);
     const slim = vehicles.slice(0, 48).map(slimVehicleForPreview);
 
     return NextResponse.json(

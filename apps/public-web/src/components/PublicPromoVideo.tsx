@@ -22,7 +22,7 @@ export default function PublicPromoVideo({
   return (
     <div className={className} role="region" aria-label={title}>
       <div className={compact ? 'w-full' : 'max-w-5xl mx-auto'}>
-        <div className="aspect-video w-full rounded-xl overflow-hidden shadow-lg bg-black ring-1 ring-black/10">
+        <div className="aspect-video w-full rounded-xl overflow-hidden shadow-lg bg-slate-100 ring-1 ring-slate-200">
           {parsed.kind === 'youtube' ? (
             <iframe
               title={title}
@@ -45,7 +45,7 @@ export default function PublicPromoVideo({
             />
           ) : (
             <video
-              className="w-full h-full object-contain bg-black"
+              className="w-full h-full object-cover bg-slate-200"
               controls
               playsInline
               preload="metadata"

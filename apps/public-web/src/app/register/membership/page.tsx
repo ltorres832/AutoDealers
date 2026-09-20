@@ -3,7 +3,8 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { buildMembershipDisplayLines, type DynamicFeatureCatalogEntry } from '@/lib/membership-display';
+import { buildMembershipDisplayLines, parseMembershipFeatureLine, type DynamicFeatureCatalogEntry } from '@/lib/membership-display';
+import { ComingSoonBadge } from '@autodealers/billing/client';
 import { isMultiDealerPlan } from '@/lib/membership-flags';
 
 interface Membership {
@@ -267,12 +268,30 @@ function MembershipSelectionContent() {
                         </div>
                       )}
                     </div>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-5xl font-black text-slate-900">${membership.price}</span>
+                    <div className="flex items-baseline gap-1 flex-wrap">
+                      <span className="text-5xl font-black text-slate-900">
+                        $
+                        {typeof membership.displayPrice === 'number'
+                          ? membership.displayPrice
+                          : membership.price}
+                      </span>
                       <span className="text-slate-400 font-black text-xs uppercase tracking-widest">
                         /{membership.billingCycle === 'monthly' ? 'Mes' : 'Año'}
                       </span>
+                      {(membership.launchActive || membership.introConfigured) &&
+                      typeof membership.regularPrice === 'number' &&
+                      membership.regularPrice >
+                        (typeof membership.displayPrice === 'number'
+                          ? membership.displayPrice
+                          : membership.price) ? (
+                        <span className="text-lg text-slate-400 line-through ml-2">
+                          ${membership.regularPrice}
+                        </span>
+                      ) : null}
                     </div>
+                    {membership.pricingBadge ? (
+                      <p className="mt-3 text-xs font-bold text-amber-700">{membership.pricingBadge}</p>
+                    ) : null}
                   </div>
 
                   <div className="mb-10 flex-grow space-y-6 text-left">
@@ -300,11 +319,20 @@ function MembershipSelectionContent() {
                             <div>
                               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Incluye</p>
                               <ul className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                                {features.map((line, i) => (
-                                  <li key={`f-${i}`} className="text-xs font-semibold text-slate-600 leading-snug">
-                                    {line}
-                                  </li>
-                                ))}
+                                {features.map((line, i) => {
+                                  const { text, comingSoon } = parseMembershipFeatureLine(line);
+                                  return (
+                                    <li key={`f-${i}`} className="text-xs font-semibold text-slate-600 leading-snug">
+                                      {text}
+                                      {comingSoon ? (
+                                        <>
+                                          {' '}
+                                          <ComingSoonBadge />
+                                        </>
+                                      ) : null}
+                                    </li>
+                                  );
+                                })}
                               </ul>
                             </div>
                           )}

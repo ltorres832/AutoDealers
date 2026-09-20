@@ -42,6 +42,7 @@ export * from './tiktok-oauth';
 export * from './youtube-oauth';
 export * from './social-video-platforms';
 export * from './platform-social';
+export * from './platform-meta-system-user';
 export * from './registration-facebook-announce';
 export * from './registration-social-trigger';
 export * from './social-post-image';

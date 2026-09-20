@@ -100,6 +100,39 @@ export async function POST(request: NextRequest) {
         file.name,
         contentType
       );
+    } else if (type === 'website_hero_image' || type === 'website_hero_video') {
+      if (auth.role !== 'admin') {
+        return NextResponse.json({ error: 'Solo administradores' }, { status: 403 });
+      }
+      const wantVideo = type === 'website_hero_video';
+      if (wantVideo && !isVideo) {
+        return NextResponse.json({ error: 'Solo se permiten archivos de video' }, { status: 400 });
+      }
+      if (!wantVideo && !isImage) {
+        return NextResponse.json({ error: 'Solo se permiten imágenes' }, { status: 400 });
+      }
+      const storage = getStorage();
+      const bucket = storage.bucket();
+      const tenantId = String(formData.get('tenantId') || '').trim() || 'admin';
+      const timestamp = Date.now();
+      const sanitizedFilename = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const filePath = `tenants/${tenantId}/website-hero/admin/${timestamp}_${sanitizedFilename}`;
+      const fileRef = bucket.file(filePath);
+      const downloadToken = randomUUID();
+      await fileRef.save(buffer, {
+        metadata: {
+          contentType,
+          metadata: {
+            firebaseStorageDownloadTokens: downloadToken,
+            tenantId,
+            type,
+            uploadedBy: auth.userId,
+            uploadedAt: new Date().toISOString(),
+          },
+        },
+      });
+      const encodedPath = encodeURIComponent(filePath);
+      url = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodedPath}?alt=media&token=${downloadToken}`;
     } else if (
       type === 'campaign' ||
       type === 'promotion' ||

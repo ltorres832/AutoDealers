@@ -137,7 +137,7 @@ function getDefaultConfig(): PricingConfig {
       currency: 'usd',
       name: 'Premium',
       features: [
-        'Banner en Hero (rotación)',
+        'Banner principal superior (rotación)',
         'Impresiones ilimitadas',
         'Targeting avanzado',
         'A/B testing',

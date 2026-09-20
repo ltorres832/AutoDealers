@@ -20,7 +20,7 @@ async function notifyContractSigned(params: {
     <p>Hola,</p>
     <p><strong>${signerName}</strong> ha firmado el contrato <strong>${contractName}</strong>.</p>
     <p>${statusLine}</p>
-    <p>Equipo AutoDealers</p>
+    <p>Equipo AutoDealersOnline</p>
   `;
 
   const tasks: Promise<unknown>[] = [];

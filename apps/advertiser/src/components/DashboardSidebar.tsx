@@ -18,7 +18,9 @@ export default function DashboardSidebar({ mobileOpen, onClose }: DashboardSideb
     { href: '/dashboard/metrics', label: 'Métricas', icon: '📈' },
     { href: '/dashboard/billing', label: 'Métodos de Pago', icon: '🏦' },
     { href: '/dashboard/payments', label: 'Historial de Pagos', icon: '💰' },
+    { href: '/dashboard/policies', label: 'Políticas', icon: '📜' },
     { href: '/dashboard/profile', label: 'Mi Perfil', icon: '👤' },
+    { href: '/dashboard/security', label: 'Seguridad', icon: '🔒' },
   ];
 
   return (

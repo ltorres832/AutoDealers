@@ -11,7 +11,9 @@ export async function requireTenantFeature(
   tenantId: string,
   action: FeatureAction
 ): Promise<NextResponse | null> {
-  const featureCheck = await canExecuteFeature(tenantId, action);
+  const { resolveBillingTenantId } = await import('@autodealers/billing');
+  const featureTenantId = resolveBillingTenantId(tenantId) ?? tenantId;
+  const featureCheck = await canExecuteFeature(featureTenantId, action);
   if (!featureCheck.allowed) {
     return NextResponse.json(
       {
@@ -46,7 +48,7 @@ export async function validateMembershipFeature(
     }
 
     // Admin siempre tiene acceso
-    if (auth.role === 'admin') {
+    if (auth.role === 'admin' || auth.supportMode) {
       return null; // null = continuar sin restricciones
     }
 
@@ -77,7 +79,7 @@ export async function validateMembershipFeature(
 
     const { resolveBillingTenantId } = await import('@autodealers/billing');
     const featureTenantId =
-      resolveBillingTenantId(auth.tenantId, auth.dealerId) ?? auth.tenantId;
+      resolveBillingTenantId(auth.tenantId, auth.dealerId, auth.billingMode) ?? auth.tenantId;
 
     const featureCheck = await canExecuteFeature(featureTenantId, action);
 

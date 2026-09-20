@@ -3,6 +3,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { AdminDeleteButton } from '@/components/AdminDeleteButton';
 
 type Testimonial = {
   id: string;
@@ -154,6 +155,14 @@ export default function AdminTestimonialsPage() {
                   Inactivo
                 </span>
               )}
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <AdminDeleteButton
+                  deleteUrl={`/api/admin/testimonials/${t.id}`}
+                  label="Eliminar"
+                  onDeleted={loadTestimonials}
+                  className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
+                />
+              </div>
             </div>
           ))}
         </div>

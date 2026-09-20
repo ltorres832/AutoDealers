@@ -5,6 +5,7 @@ import {
 } from '@autodealers/shared/platform-sender';
 import {
   resolveAdminUrl,
+  resolveBusinessUrl,
   resolveDealerUrl,
   resolvePublicWebUrl,
   resolveSellerUrl,
@@ -35,7 +36,9 @@ function resolveLoginUrl(role: string): string {
           ? resolveAdminUrl()
           : role === 'affiliate'
             ? `${resolvePublicWebUrl()}/affiliate/login`
-            : resolveSellerUrl();
+            : role === 'automotive_business'
+              ? resolveBusinessUrl()
+              : resolveSellerUrl();
 
   return role === 'affiliate' ? base : `${base}/login`;
 }
@@ -45,6 +48,7 @@ function resolveRoleLabel(role: string): string {
   if (role === 'seller') return 'Panel vendedor';
   if (role === 'admin') return 'Panel administrador';
   if (role === 'affiliate') return 'Portal de afiliados';
+  if (role === 'automotive_business') return 'Panel de negocio';
   return 'Panel';
 }
 

@@ -199,109 +199,98 @@ export async function createLead(
     updatedAt: new Date(),
   };
 
-  // Clasificar automáticamente con IA si está habilitado (asíncrono, no bloquea)
-  try {
-    const { classifyLeadWithTenantConfig } = await import('@autodealers/ai');
-    const classification = await classifyLeadWithTenantConfig(tenantId, {
-      name: contact.name,
-      phone: contact.phone,
-      source,
-      messages: notes ? [notes] : [],
-    });
-
-    if (classification) {
-      await docRef.update({
-        aiClassification: {
-          priority: classification.priority,
-          sentiment: classification.sentiment,
-          intent: classification.intent,
-          confidence: classification.confidence,
-          reasoning: classification.reasoning,
-        },
-      } as any);
-      newLead.aiClassification = {
-        priority: classification.priority,
-        sentiment: classification.sentiment,
-        intent: classification.intent,
-        confidence: classification.confidence,
-        reasoning: classification.reasoning,
-      } as any;
-    }
-  } catch (error) {
-    // No fallar si la IA no está disponible
-    console.warn('IA classification skipped for new lead:', error);
-  }
-
-  // Calcular score automático si está habilitado (asíncrono, no bloquea)
-  try {
-    const { calculateAutomaticScore, updateLeadScore } = await import('./scoring');
-    const automaticScore = await calculateAutomaticScore(tenantId, newLead);
-    if (automaticScore > 0) {
-      await updateLeadScore(tenantId, newLead.id, automaticScore, undefined, 'Score calculado automáticamente al crear lead', 'system');
-      newLead.score = {
-        automatic: automaticScore,
-        combined: automaticScore,
-        lastUpdated: new Date(),
-        history: [{
-          score: automaticScore,
-          type: 'automatic',
-          reason: 'Score calculado automáticamente al crear lead',
-          updatedBy: 'system',
-          updatedAt: new Date(),
-        }],
-      };
-    }
-  } catch (error) {
-    // No fallar si el scoring no está disponible
-    console.warn('Scoring calculation skipped for new lead:', error);
-  }
-
-  // Notificar a gerentes / dealers sobre el nuevo lead (asíncrono, no bloquea)
-  try {
-    const { notifyManagersAndAdmins } = await import('@autodealers/core');
-    await notifyManagersAndAdmins(
-      tenantId,
-      {
-        type: 'lead_created',
-        title: 'Nuevo Lead Creado',
-        message: `Se ha creado un nuevo lead de ${contact.name} (${contact.phone}) desde ${source}. ${notes ? `Notas: ${notes.substring(0, 100)}${notes.length > 100 ? '...' : ''}` : ''}`,
-        metadata: {
-          leadId: newLead.id,
-          contactName: contact.name,
-          contactPhone: contact.phone,
-          source,
-        },
-      },
-      assignedTo ? { excludeUserIds: [assignedTo] } : undefined
-    );
-  } catch (error) {
-    // No fallar si las notificaciones no están disponibles
-    console.warn('Manager notification skipped for new lead:', error);
-  }
-
-  // Notificar al vendedor asignado (incl. email / SMS / WhatsApp según preferencias)
-  if (assignedTo) {
+  void (async () => {
     try {
-      const { notifyUser } = await import('@autodealers/core');
-      await notifyUser(tenantId, assignedTo, {
-        type: extras?.tags?.includes('catalogo_web') ? 'catalog_interest' : 'lead_created',
-        title: extras?.tags?.includes('catalogo_web')
-          ? 'Interés en vehículo (web)'
-          : 'Nuevo lead asignado a ti',
-        message: extras?.tags?.includes('catalogo_web')
-          ? `${contact.name} (${contact.phone}) dejó sus datos en la ficha de un vehículo. Revisa Leads para dar seguimiento.`
-          : `Lead de ${contact.name} (${contact.phone}) — origen: ${source}. ${notes ? `Notas: ${notes.substring(0, 200)}${notes.length > 200 ? '…' : ''}` : ''}`,
-        metadata: {
-          leadId: newLead.id,
-          contactName: contact.name,
-          contactPhone: contact.phone,
-          source,
-          route: `/leads?leadId=${newLead.id}`,
-        },
+      const { classifyInboundLead } = await import('@autodealers/messaging');
+      const classification = await classifyInboundLead(tenantId, {
+        name: contact.name,
+        phone: contact.phone,
+        source,
+        messages: notes ? [notes] : [],
       });
+
+      if (classification) {
+        await docRef.update({
+          aiClassification: {
+            priority: classification.priority,
+            sentiment: classification.sentiment,
+            intent: classification.intent,
+            confidence: classification.confidence,
+            reasoning: classification.reasoning,
+          },
+        } as any);
+      }
     } catch (error) {
-      console.warn('Assigned seller notification skipped for new lead:', error);
+      console.warn('IA classification skipped for new lead:', error);
     }
+  })();
+
+  void (async () => {
+    try {
+      const { calculateAutomaticScore, updateLeadScore } = await import('./scoring');
+      const automaticScore = await calculateAutomaticScore(tenantId, newLead);
+      if (automaticScore > 0) {
+        await updateLeadScore(
+          tenantId,
+          newLead.id,
+          automaticScore,
+          undefined,
+          'Score calculado automáticamente al crear lead',
+          'system'
+        );
+      }
+    } catch (error) {
+      console.warn('Scoring calculation skipped for new lead:', error);
+    }
+  })();
+
+  void (async () => {
+    try {
+      const { notifyManagersAndAdmins } = await import('@autodealers/core');
+      await notifyManagersAndAdmins(
+        tenantId,
+        {
+          type: 'lead_created',
+          title: 'Nuevo Lead Creado',
+          message: `Se ha creado un nuevo lead de ${contact.name} (${contact.phone}) desde ${source}. ${notes ? `Notas: ${notes.substring(0, 100)}${notes.length > 100 ? '...' : ''}` : ''}`,
+          metadata: {
+            leadId: newLead.id,
+            contactName: contact.name,
+            contactPhone: contact.phone,
+            source,
+          },
+        },
+        assignedTo ? { excludeUserIds: [assignedTo] } : undefined
+      );
+    } catch (error) {
+      console.warn('Manager notification skipped for new lead:', error);
+    }
+  })();
+
+  if (assignedTo) {
+    void (async () => {
+      try {
+        const { notifyUser } = await import('@autodealers/core');
+        await notifyUser(tenantId, assignedTo, {
+          type: extras?.tags?.includes('catalogo_web') ? 'catalog_interest' : 'lead_created',
+          title: extras?.tags?.includes('catalogo_web')
+            ? 'Interés en vehículo (web)'
+            : 'Nuevo lead asignado a ti',
+          message: extras?.tags?.includes('catalogo_web')
+            ? `${contact.name} (${contact.phone}) dejó sus datos en la ficha de un vehículo. Revisa Leads para dar seguimiento.`
+            : `Lead de ${contact.name} (${contact.phone}) — origen: ${source}. ${notes ? `Notas: ${notes.substring(0, 200)}${notes.length > 200 ? '…' : ''}` : ''}`,
+          metadata: {
+            leadId: newLead.id,
+            contactName: contact.name,
+            contactPhone: contact.phone,
+            source,
+            route: `/leads?leadId=${newLead.id}`,
+          },
+        });
+      } catch (error) {
+        console.warn('Assigned seller notification skipped for new lead:', error);
+      }
+    })();
   }
 
   return newLead;
@@ -502,11 +491,14 @@ export async function addInteraction(
     type: 'message' | 'call' | 'email' | 'note' | 'appointment';
     content: string;
     userId: string;
+    /** Metadata adicional (ej. callId, grabación, outcome para llamadas de voz) */
+    metadata?: Record<string, any>;
   }
 ): Promise<void> {
   const interactionData = {
     id: getFirestoreFieldValue().serverTimestamp().toString(),
     ...interaction,
+    ...(interaction.metadata ? { metadata: interaction.metadata } : {}),
     createdAt: new Date(),
   };
 

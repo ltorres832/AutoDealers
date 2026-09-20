@@ -6,6 +6,8 @@ import {
   filterVehiclesForSellerPublicCatalog,
   isVisibleOnSellerPublicCatalog,
 } from '@/lib/seller-public-catalog';
+import { isTenantEligibleForPublicCatalog } from '@/lib/public-catalog-visibility';
+import { isReservedSubdomainSlug } from '@/lib/public-seo';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,6 +33,13 @@ export async function GET(
       );
     }
 
+    if (isReservedSubdomainSlug(subdomain)) {
+      return NextResponse.json(
+        { error: 'Reserved platform path', reserved: true },
+        { status: 404 }
+      );
+    }
+
     // IGNORAR subdominios técnicos de Firebase App Hosting
     if (subdomain.includes('---')) {
       return NextResponse.json(
@@ -39,7 +48,7 @@ export async function GET(
       );
     }
 
-    // Buscar tenant por subdomain
+    // Buscar tenant por subdomain; si no existe, aceptar tenantId legacy.
     const tenantsSnapshot = await db
       .collection('tenants')
       .where('subdomain', '==', subdomain)
@@ -47,15 +56,28 @@ export async function GET(
       .limit(1)
       .get();
 
-    if (tenantsSnapshot.empty) {
+    let tenantDoc = tenantsSnapshot.empty ? null : tenantsSnapshot.docs[0];
+    if (!tenantDoc) {
+      const byId = await db.collection('tenants').doc(subdomain).get();
+      if (byId.exists && byId.data()?.status === 'active') {
+        tenantDoc = byId;
+      }
+    }
+
+    if (!tenantDoc) {
       return NextResponse.json(
         { error: 'Tenant not found' },
         { status: 404 }
       );
     }
 
-    const tenantDoc = tenantsSnapshot.docs[0];
     const tenantData = tenantDoc.data();
+    if (
+      !tenantData ||
+      !isTenantEligibleForPublicCatalog(tenantData as Record<string, unknown>, tenantDoc.id)
+    ) {
+      return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
+    }
     const tenantId = tenantDoc.id;
 
     let sellerInfo =

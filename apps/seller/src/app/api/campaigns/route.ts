@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createCampaign, getCampaigns, getFirestore } from '@autodealers/core';
 import { verifyAuth } from '@/lib/auth';
+import { resolvePublicWebUrl } from '@autodealers/shared/platform-urls';
 import * as admin from 'firebase-admin';
 import { SocialPublisherService, type PublishResult, MetaMarketingPublisherService } from '@autodealers/messaging';
 import {
@@ -65,19 +66,51 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Debes seleccionar al menos una plataforma' }, { status: 400 });
     }
 
-    // Validar que la membresía permita redes sociales (opcional, no bloquea si falla)
-    try {
-      const { tenantHasFeature } = await import('@autodealers/core');
-      const canUseSocial = await tenantHasFeature(auth.tenantId, 'socialMediaEnabled');
-      if (!canUseSocial) {
+    const { canExecuteFeature } = await import('@autodealers/core');
+    const { resolveBillingTenantId } = await import('@autodealers/billing');
+    const featureTenantId =
+      resolveBillingTenantId(auth.tenantId, auth.dealerId, auth.billingMode) ?? auth.tenantId;
+
+    if (auth.dealerId) {
+      const { canSellerPerformAllocatedAction } = await import('@autodealers/core');
+      const allocated = await canSellerPerformAllocatedAction({
+        dealerTenantId: auth.dealerId,
+        sellerUserId: auth.userId,
+        sellerTenantId: auth.tenantId,
+        action: 'createCampaign',
+      });
+      if (!allocated.allowed) {
         return NextResponse.json(
-          { error: 'Su membresía no incluye gestión de campañas en redes sociales' },
+          {
+            error: allocated.reason || 'Límite de campañas asignado alcanzado',
+            limit: allocated.limit,
+            current: allocated.current,
+            remaining: allocated.remaining,
+          },
           { status: 403 }
         );
       }
-    } catch (featureError) {
-      console.warn('Could not check feature:', featureError);
-      // Continuar sin bloquear si no se puede verificar
+    }
+
+    const socialCheck = await canExecuteFeature(featureTenantId, 'useSocialMedia');
+    if (!socialCheck.allowed) {
+      return NextResponse.json(
+        { error: socialCheck.reason || 'Su membresía no incluye gestión de campañas en redes sociales' },
+        { status: 403 }
+      );
+    }
+
+    const campaignLimit = await canExecuteFeature(featureTenantId, 'createCampaign');
+    if (!campaignLimit.allowed) {
+      return NextResponse.json(
+        {
+          error: campaignLimit.reason || 'Límite de campañas alcanzado',
+          limit: campaignLimit.limit,
+          current: campaignLimit.current,
+          remaining: campaignLimit.remaining,
+        },
+        { status: 403 }
+      );
     }
 
     // Validar campos obligatorios
@@ -246,9 +279,7 @@ export async function POST(request: NextRequest) {
             String(body.name || '')
           );
           const adsPub = new MetaMarketingPublisherService();
-          const publicWebBase = (
-            process.env.NEXT_PUBLIC_PUBLIC_WEB_URL || 'https://autodealers-7f62e.web.app'
-          ).replace(/\/$/, '');
+          const publicWebBase = resolvePublicWebUrl();
           const landingUrl =
             campaignContentLink(contentObj) ||
             (auth.userId ? `${publicWebBase}/seller/${auth.userId}` : '') ||

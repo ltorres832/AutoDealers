@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { createSponsoredContent } from '@autodealers/core';
+import { resolveAdCreativePayload } from '@autodealers/core/ad-creative';
 import { getFirestore } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
 
@@ -62,6 +63,8 @@ export async function POST(request: NextRequest) {
       type,
       placement,
       imageUrl,
+      images,
+      animation,
       videoUrl,
       linkUrl,
       linkType,
@@ -75,7 +78,8 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // Validar campos requeridos
-    if (!advertiserId || !title || !description || !placement || !imageUrl || !linkUrl || !budget || !startDate || !endDate) {
+    const creative = resolveAdCreativePayload({ imageUrl, images, animation });
+    if (!advertiserId || !title || !description || !placement || !creative.imageUrl || !linkUrl || !budget || !startDate || !endDate) {
       return NextResponse.json(
         { error: 'Faltan campos requeridos' },
         { status: 400 }
@@ -90,7 +94,9 @@ export async function POST(request: NextRequest) {
       description,
       type: type || 'banner',
       placement,
-      imageUrl,
+      imageUrl: creative.imageUrl,
+      images: creative.images,
+      animation: creative.animation,
       videoUrl,
       linkUrl,
       linkType: linkType || 'external',

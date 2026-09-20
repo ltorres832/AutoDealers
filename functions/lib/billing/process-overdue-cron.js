@@ -7,7 +7,7 @@ exports.processOverdueSubscriptionsDaily = void 0;
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const params_1 = require("firebase-functions/params");
 const cronSecret = (0, params_1.defineSecret)('CRON_SECRET');
-const DEFAULT_ADMIN_APP_URL = 'https://admin-app--autodealers-7f62e.us-central1.hosted.app';
+const DEFAULT_ADMIN_APP_URL = 'https://admin.autodealers-online.com';
 exports.processOverdueSubscriptionsDaily = (0, scheduler_1.onSchedule)({
     schedule: '0 6 * * *',
     timeZone: 'America/Puerto_Rico',

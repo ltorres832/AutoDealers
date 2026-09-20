@@ -1,6 +1,7 @@
 // Servicio SMTP Zoho Mail para envíos transaccionales
 
 import { MessagePayload, MessageResponse } from './types';
+import { defaultPlatformEmailSubject, PLATFORM_NAME } from '@autodealers/shared/platform-sender';
 
 export interface ZohoSMTPConfig {
   host: string;
@@ -44,14 +45,14 @@ export class ZohoSMTPService {
         body: JSON.stringify({
           from: {
             address: this.config.auth.user, // sistema@autodealers.com
-            name: 'AutoDealers',
+            name: PLATFORM_NAME,
           },
           to: [
             {
               address: payload.to,
             },
           ],
-          subject: payload.metadata?.subject || 'Mensaje de AutoDealers',
+          subject: payload.metadata?.subject || defaultPlatformEmailSubject(),
           htmlbody: payload.content,
         }),
       });

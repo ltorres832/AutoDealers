@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPublicSiteOrigin } from '@/lib/public-site-origin';
-import { getStripeInstance, getFirestore, isTenantSubdomainSlugAvailable } from '@autodealers/core';
-import { isCatalogMembership, assertSelfServiceMembership } from '@autodealers/billing/membership-visibility';
+import {
+  getStripeInstance,
+  getFirestore,
+  isTenantSubdomainSlugAvailable,
+  salesEmployeeMetadataForTenant,
+} from '@autodealers/core';
+import { assertSelfServiceMembership } from '@autodealers/billing/membership-visibility';
 import { getMembershipTrialDays } from '@autodealers/billing/membership-trial';
+import { resolveMembershipPricing } from '@autodealers/billing/membership-promo-pricing';
 import { membershipIncludesSubdomain } from '@/lib/subdomain-registration';
 
 export const dynamic = 'force-dynamic';
@@ -60,6 +66,15 @@ export async function POST(request: NextRequest) {
       );
     }
     const membership = membershipDoc.data()!;
+    const normalizedAccountType =
+      accountType === 'dealer' ? 'dealer' : accountType === 'business' ? 'business' : 'seller';
+    const membershipType = String(membership.type || '').trim();
+    if (membershipType !== normalizedAccountType) {
+      return NextResponse.json(
+        { error: `La membresía seleccionada no corresponde a una cuenta ${normalizedAccountType}.` },
+        { status: 400 }
+      );
+    }
 
     const selectable = assertSelfServiceMembership({
       id: membershipId,
@@ -67,6 +82,7 @@ export async function POST(request: NextRequest) {
       type: membership.type as string,
       billingCycle: (membership.billingCycle as string | null | undefined) ?? null,
       isActive: membership.isActive !== false && membership.status !== 'inactive',
+      features: membership.features as Record<string, unknown> | undefined,
     });
     if (!selectable.ok) {
       return NextResponse.json({ error: selectable.error || 'Plan no disponible.' }, { status: 403 });
@@ -102,6 +118,14 @@ export async function POST(request: NextRequest) {
     if (!membership.stripePriceId) {
       return NextResponse.json(
         { error: 'La membresía no tiene configurado un precio de Stripe. Contacta al administrador.' },
+        { status: 400 }
+      );
+    }
+
+    const pricing = resolveMembershipPricing(membership as Record<string, unknown>);
+    if (!pricing.checkoutStripePriceId) {
+      return NextResponse.json(
+        { error: 'No hay Price de Stripe activo para este plan. Revisa precios en admin.' },
         { status: 400 }
       );
     }
@@ -155,14 +179,15 @@ export async function POST(request: NextRequest) {
 
     const siteOrigin = getPublicSiteOrigin(request);
     const trialDays = getMembershipTrialDays();
+    const employeeMeta = await salesEmployeeMetadataForTenant(tenantId);
 
-    // Checkout: tarjeta obligatoria + trial de 7 días; Stripe cobra al terminar el trial
+    // Checkout: tarjeta obligatoria + trial configurado; Stripe cobra al terminar el trial.
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       payment_method_types: ['card'],
       line_items: [
         {
-          price: membership.stripePriceId,
+          price: pricing.checkoutStripePriceId,
           quantity: 1,
           tax_rates: taxRateId ? [taxRateId] : undefined,
         },
@@ -177,6 +202,15 @@ export async function POST(request: NextRequest) {
         accountType,
         source: 'registration',
         trialDays: String(trialDays),
+        ...employeeMeta,
+        ...(pricing.schedule
+          ? {
+              introSchedule: '1',
+              introMonths: String(pricing.schedule.introMonths),
+              introStripePriceId: pricing.schedule.introStripePriceId,
+              regularStripePriceId: pricing.schedule.regularStripePriceId,
+            }
+          : {}),
       },
       subscription_data: {
         trial_period_days: trialDays > 0 ? trialDays : undefined,
@@ -186,6 +220,15 @@ export async function POST(request: NextRequest) {
           membershipId,
           accountType,
           source: 'registration',
+          ...employeeMeta,
+          ...(pricing.schedule
+            ? {
+                introSchedule: '1',
+                introMonths: String(pricing.schedule.introMonths),
+                introStripePriceId: pricing.schedule.introStripePriceId,
+                regularStripePriceId: pricing.schedule.regularStripePriceId,
+              }
+            : {}),
         },
       },
       allow_promotion_codes: true,

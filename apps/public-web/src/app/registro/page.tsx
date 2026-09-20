@@ -5,9 +5,21 @@ import Link from 'next/link';
 import PublicBackButton from '@/components/PublicBackButton';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { StripePaymentForm } from '@autodealers/shared/client';
-import { buildMembershipDisplayLines, type DynamicFeatureCatalogEntry } from '@/lib/membership-display';
+import { buildMembershipDisplayLines, parseMembershipFeatureLine, type DynamicFeatureCatalogEntry } from '@/lib/membership-display';
+import { ComingSoonBadge } from '@autodealers/billing/client';
 import { isMultiDealerPlan } from '@/lib/membership-flags';
 import { formatTenantHostname, tenantHostSuffix } from '@autodealers/shared/platform-urls';
+import {
+  ReferralCodeRegistrationField,
+  isReferralCodeProvided,
+  isReferralCodeSkipped,
+  normalizeReferralCodeInput,
+} from '@/components/ReferralCodeRegistrationField';
+import {
+  registrationHelperClass,
+  registrationInputClass,
+  registrationLabelClass,
+} from '@/lib/registration-form-styles';
 
 interface Membership {
   id: string;
@@ -25,19 +37,21 @@ function RegistroPageContent() {
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirect') || '/login';
   const referralCodeFromUrl = searchParams.get('ref'); // Código de referido desde URL
+  const initialReferralCode = normalizeReferralCodeInput(referralCodeFromUrl || '');
   const multiDealerRegisterHref = referralCodeFromUrl
     ? `/register/multi-dealer?ref=${encodeURIComponent(referralCodeFromUrl)}`
     : '/register/multi-dealer';
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     // Paso 1: Tipo de cuenta
-    accountType: 'dealer' as 'dealer' | 'seller',
+    accountType: 'dealer' as 'dealer' | 'seller' | 'business',
     
     // Paso 2: Información personal
     name: '',
     email: '',
     password: '',
     phone: '',
+    referralCode: initialReferralCode,
     
     // Paso 3: Información del negocio
     businessName: '',
@@ -56,7 +70,10 @@ function RegistroPageContent() {
   const [registrationData, setRegistrationData] = useState<any>(null);
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [termsError, setTermsError] = useState('');
+  const [referralError, setReferralError] = useState('');
   const [dynamicCatalog, setDynamicCatalog] = useState<DynamicFeatureCatalogEntry[]>([]);
+  const inputClasses = registrationInputClass;
+  const labelClasses = registrationLabelClass;
 
   // Cargar membresías cuando cambie el tipo de cuenta o al montar
   useEffect(() => {
@@ -64,6 +81,11 @@ function RegistroPageContent() {
   }, [formData.accountType]);
 
   async function fetchMemberships() {
+    if (formData.accountType === 'business') {
+      setMemberships([]);
+      setLoadingMemberships(false);
+      return;
+    }
     setLoadingMemberships(true);
     try {
       const response = await fetch(
@@ -85,8 +107,21 @@ function RegistroPageContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setTermsError('');
+    setReferralError('');
+
+    if (step === 1 && formData.accountType === 'business') {
+      router.push('/registro/negocio');
+      return;
+    }
 
     if (step < 4) {
+      if (step === 2) {
+        const referralCodeValue = normalizeReferralCodeInput(formData.referralCode);
+        if (!isReferralCodeProvided(referralCodeValue)) {
+          setReferralError('Ingresa un código de referido o escribe N/A si no tienes uno');
+          return;
+        }
+      }
       setStep(step + 1);
       return;
     }
@@ -96,13 +131,17 @@ function RegistroPageContent() {
       return;
     }
 
+    const referralCodeValue = normalizeReferralCodeInput(formData.referralCode);
+    const hasNoReferrer = isReferralCodeSkipped(referralCodeValue);
+
     // En el paso 4, mostrar el formulario de pago en lugar de crear la cuenta directamente
     const membership = memberships.find(m => m.id === formData.membershipId);
     if (membership) {
       setSelectedMembership(membership);
       setRegistrationData({
         ...formData,
-        referralCode: referralCodeFromUrl || undefined,
+        companyName: formData.businessName,
+        referralCode: hasNoReferrer ? undefined : referralCodeValue,
       });
       setShowPayment(true);
     }
@@ -175,7 +214,7 @@ function RegistroPageContent() {
               AutoDealersOnline
             </span>
           </h1>
-          <p className="text-gray-600">En solo 4 pasos tendrás tu plataforma lista</p>
+          <p className="text-gray-900 font-medium">En solo 4 pasos tendrás tu plataforma lista</p>
         </div>
 
         {/* Progress Bar */}
@@ -217,7 +256,7 @@ function RegistroPageContent() {
             {step === 1 && (
               <div>
                 <h2 className="text-2xl font-bold mb-6">¿Qué tipo de cuenta necesitas?</h2>
-                <div className="grid md:grid-cols-2 gap-6">
+                <div className="grid md:grid-cols-3 gap-6">
                   <div className="flex flex-col gap-3">
                     <button
                       type="button"
@@ -282,6 +321,33 @@ function RegistroPageContent() {
                       </li>
                     </ul>
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, accountType: 'business' })}
+                    className={`p-8 rounded-xl border-2 transition-all text-left ${
+                      formData.accountType === 'business'
+                        ? 'border-primary-600 bg-primary-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="text-4xl mb-4">🧰</div>
+                    <h3 className="text-xl font-bold mb-2">Servicios / taller</h3>
+                    <p className="text-gray-600 text-sm">
+                      Para talleres, gomeras, detailing y servicios automotrices
+                    </p>
+                    <ul className="mt-4 space-y-2 text-sm text-gray-600">
+                      <li className="flex items-center gap-2">
+                        <span className="text-green-500">✓</span> Ficha pública de servicios
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="text-green-500">✓</span> Citas y prospectos
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="text-green-500">✓</span> Panel de negocio
+                      </li>
+                    </ul>
+                  </button>
                 </div>
               </div>
             )}
@@ -290,57 +356,68 @@ function RegistroPageContent() {
             {step === 2 && (
               <div>
                 <h2 className="text-2xl font-bold mb-6">Información Personal</h2>
+                {referralError && (
+                  <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    {referralError}
+                  </div>
+                )}
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className={labelClasses}>
                       Nombre Completo *
                     </label>
                     <input
                       type="text"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                      className={inputClasses}
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className={labelClasses}>
                       Email *
                     </label>
                     <input
                       type="email"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                      className={inputClasses}
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className={labelClasses}>
                       Contraseña *
                     </label>
                     <input
                       type="password"
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                      className={inputClasses}
                       minLength={8}
                       required
                     />
-                    <p className="text-xs text-gray-500 mt-1">Mínimo 8 caracteres</p>
+                    <p className={`${registrationHelperClass} mt-1`}>Mínimo 8 caracteres</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className={labelClasses}>
                       Teléfono *
                     </label>
                     <input
                       type="tel"
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                      className={inputClasses}
                       required
                     />
                   </div>
+
+                  <ReferralCodeRegistrationField
+                    id="registro-referral-code"
+                    value={formData.referralCode}
+                    onChange={(referralCode) => setFormData({ ...formData, referralCode })}
+                  />
                 </div>
               </div>
             )}
@@ -351,19 +428,19 @@ function RegistroPageContent() {
                 <h2 className="text-2xl font-bold mb-6">Información del Negocio</h2>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className={labelClasses}>
                       Nombre del Negocio *
                     </label>
                     <input
                       type="text"
                       value={formData.businessName}
                       onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                      className={inputClasses}
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className={labelClasses}>
                       Subdominio *
                     </label>
                     <div className="flex items-center gap-2">
@@ -373,23 +450,25 @@ function RegistroPageContent() {
                         onChange={(e) =>
                           setFormData({ ...formData, subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })
                         }
-                        className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                        className={`flex-1 ${inputClasses}`}
                         placeholder="mi-negocio"
                         required
                       />
-                      <span className="text-gray-600">{tenantHostSuffix()}</span>
+                      <span className="text-slate-900 font-bold">{tenantHostSuffix()}</span>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">Tu sitio web será: {formatTenantHostname(formData.subdomain || 'subdominio')}</p>
+                    <p className={registrationHelperClass}>
+                      Tu sitio web será: {formatTenantHostname(formData.subdomain || 'subdominio')}
+                    </p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className={labelClasses}>
                       Dirección
                     </label>
                     <input
                       type="text"
                       value={formData.address}
                       onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                      className={inputClasses}
                     />
                   </div>
                 </div>
@@ -483,11 +562,20 @@ function RegistroPageContent() {
                             <div className="mb-4 pb-4 border-b border-gray-200">
                               <p className="text-xs font-semibold text-gray-700 mb-2">✅ Incluye:</p>
                               <ul className="space-y-1">
-                                {features.map((feature, i) => (
-                                  <li key={i} className="text-xs text-gray-600 flex items-center gap-1">
-                                    <span className="text-green-500">✓</span> {feature}
-                                  </li>
-                                ))}
+                                {features.map((feature, i) => {
+                                  const { text, comingSoon } = parseMembershipFeatureLine(feature);
+                                  return (
+                                    <li key={i} className="text-xs text-gray-600 flex items-center gap-1">
+                                      <span className="text-green-500">✓</span> {text}
+                                      {comingSoon ? (
+                                        <>
+                                          {' '}
+                                          <ComingSoonBadge />
+                                        </>
+                                      ) : null}
+                                    </li>
+                                  );
+                                })}
                               </ul>
                             </div>
                           )}

@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { isDealerManagedClientUser } from '@/lib/dealer-managed-client';
+import { loadCurrentSellerUser } from '@/lib/current-seller-user';
 import { useRealtimePromotions } from '@/hooks/useRealtimePromotions';
 import { PaymentMethodSelector } from '@/components/PaymentMethodSelector';
 import StarRating from '@/components/StarRating';
@@ -12,6 +14,8 @@ import {
   PromotionDiscountType,
 } from '@autodealers/shared/discounts';
 import { StripePaymentForm } from '@autodealers/shared/client';
+import { listAdPlacementOptions, listPromoPlacementOptions } from '@autodealers/core/ad-placements';
+import { AdPlacementExplainer } from '@autodealers/core/ad-placement-explainer';
 
 interface Promotion {
   id: string;
@@ -96,6 +100,7 @@ export default function PromotionsPage() {
   const [showPayment, setShowPayment] = useState(false);
   const [paymentData, setPaymentData] = useState<any>(null);
   const [paymentType, setPaymentType] = useState<'promotion' | 'assigned_promotion' | null>(null);
+  const [dealerManaged, setDealerManaged] = useState(false);
   
   const loading = authLoading || promotionsLoading;
   const stats = realtimeStats;
@@ -143,11 +148,17 @@ export default function PromotionsPage() {
   }, [user?.userId]);
 
   useEffect(() => {
-    if (user?.tenantId) {
+    void loadCurrentSellerUser().then((profile) => {
+      setDealerManaged(isDealerManagedClientUser(profile));
+    });
+  }, []);
+
+  useEffect(() => {
+    if (user?.tenantId && !dealerManaged) {
       fetchPaidPromotions();
       fetchAssignedPromotions();
     }
-  }, [user?.tenantId]);
+  }, [user?.tenantId, dealerManaged]);
 
   async function fetchAssignedPromotions() {
     try {
@@ -295,16 +306,25 @@ export default function PromotionsPage() {
         <div>
           <h1 className="text-3xl font-bold">Mis Promociones y Ofertas</h1>
           <p className="text-gray-600 mt-2">
-            Gestiona tus promociones y aumenta la visibilidad con promociones pagadas
+            {dealerManaged
+              ? 'Gestiona tus promociones. Las compras pagadas las administra tu concesionario.'
+              : 'Gestiona tus promociones y aumenta la visibilidad con promociones pagadas'}
+          </p>
+          <p className="mt-2 max-w-2xl text-sm text-gray-500">
+            El banner de la ficha del vehículo es un espacio publicitario
+            visual (imagen o video). Las promociones de texto no se muestran
+            ahí; para ese slot compra un banner en «Banner en la ficha del vehículo».
           </p>
         </div>
         <div className="flex gap-2">
+          {!dealerManaged && (
           <button
             onClick={() => setShowBuyModal(true)}
             className="bg-yellow-500 text-white px-6 py-3 rounded-lg hover:bg-yellow-600 font-medium"
           >
             💎 Comprar Promoción
           </button>
+          )}
           <button
             onClick={() => setShowCreateModal(true)}
             className="bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 font-medium"
@@ -472,7 +492,7 @@ export default function PromotionsPage() {
       </div>
 
       {/* Modal de Pago Integrado */}
-      {showPayment && paymentData && (
+      {showPayment && paymentData && !dealerManaged && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl p-8 border-2 border-primary-200 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
@@ -546,7 +566,7 @@ export default function PromotionsPage() {
       {/* Modales */}
       {showCreateModal && (
         <CreatePromotionModal
-          dealerManaged={Boolean(user?.dealerId)}
+          dealerManaged={dealerManaged}
           onClose={() => setShowCreateModal(false)}
           onSuccess={() => {
             setShowCreateModal(false);
@@ -556,7 +576,7 @@ export default function PromotionsPage() {
         />
       )}
 
-      {showBuyModal && (
+      {showBuyModal && !dealerManaged && (
         <BuyPromotionModal
           onClose={() => setShowBuyModal(false)}
           onBuy={buyPromotion}
@@ -758,6 +778,8 @@ function CreatePromotionModal({
     channels: ['whatsapp'] as string[],
     images: [] as string[],
     videos: [] as string[],
+    animation: 'fade' as 'none' | 'fade' | 'slide' | 'kenburns',
+    placement: 'promotions_section' as string,
     publishOnLandingPage: false, // Nueva opción para publicar en landing page
     vehicleId: '', // ID del vehículo asociado
     vehiclePrice: '', // Precio del vehículo
@@ -1134,7 +1156,46 @@ function CreatePromotionModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Fotos (opcional)</label>
+            <label className="block text-sm font-medium mb-2">Ubicación en el sitio público</label>
+            <select
+              value={formData.placement}
+              onChange={(e) => setFormData({ ...formData, placement: e.target.value })}
+              className="w-full border rounded px-3 py-2"
+            >
+              {listPromoPlacementOptions().map((item) => {
+                const size = listAdPlacementOptions().find((row) => row.id === item.id)?.pixelSize;
+                return (
+                  <option key={item.id} value={item.id}>
+                    {item.label}{size ? ` — ${size}` : ''}
+                  </option>
+                );
+              })}
+            </select>
+            <p className="text-xs text-gray-600 mt-1">
+              {listPromoPlacementOptions().find((item) => item.id === formData.placement)?.description}
+            </p>
+            {listAdPlacementOptions().find((item) => item.id === formData.placement) ? (
+              <div className="mt-2 rounded-lg border border-primary-200 bg-primary-50 p-3">
+                <p className="text-sm font-semibold text-gray-900">
+                  Tamaño exacto:{' '}
+                  {listAdPlacementOptions().find((item) => item.id === formData.placement)?.pixelSize}
+                </p>
+                <p className="text-xs text-gray-600">
+                  Proporción{' '}
+                  {listAdPlacementOptions().find((item) => item.id === formData.placement)?.aspectRatio}
+                </p>
+              </div>
+            ) : null}
+            <div className="mt-3">
+              <AdPlacementExplainer placement={formData.placement} />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Fotos del slideshow (opcional)</label>
+            <p className="text-xs text-gray-600 mb-2">
+              Varias fotos rotan dentro de la misma promoción. Elige también un estilo de movimiento.
+            </p>
             <input
               type="file"
               accept="image/jpeg,image/jpg,image/png,image/webp"
@@ -1173,6 +1234,24 @@ function CreatePromotionModal({
                 ))}
               </div>
             )}
+            <div className="mt-3">
+              <label className="block text-sm font-medium mb-2">Animación</label>
+              <select
+                value={formData.animation}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    animation: e.target.value as typeof formData.animation,
+                  })
+                }
+                className="w-full border rounded px-3 py-2"
+              >
+                <option value="fade">Fundido (fade)</option>
+                <option value="slide">Deslizamiento</option>
+                <option value="kenburns">Ken Burns (zoom suave)</option>
+                <option value="none">Sin movimiento</option>
+              </select>
+            </div>
           </div>
 
           <div>

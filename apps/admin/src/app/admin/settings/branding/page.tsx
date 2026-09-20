@@ -19,7 +19,7 @@ export default function BrandingSettingsPage() {
   const [formData, setFormData] = useState({
     logo: '',
     favicon: '',
-    companyName: 'AutoDealers',
+    companyName: 'AutoDealersOnline',
     adminName: 'Administrador',
     adminPhoto: '',
   });
@@ -50,7 +50,7 @@ export default function BrandingSettingsPage() {
         setFormData({
           logo: data.logo || '',
           favicon: data.favicon || '',
-          companyName: data.companyName || 'AutoDealers',
+          companyName: data.companyName || 'AutoDealersOnline',
           adminName: data.adminName || 'Administrador',
           adminPhoto: data.adminPhoto || '',
         });
@@ -285,7 +285,7 @@ export default function BrandingSettingsPage() {
             value={formData.companyName}
             onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
             className="w-full px-4 py-2 border rounded-lg"
-            placeholder="AutoDealers"
+            placeholder="AutoDealersOnline"
           />
         </div>
 

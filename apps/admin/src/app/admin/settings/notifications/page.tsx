@@ -31,20 +31,48 @@ export default function AdminNotificationSettingsPage() {
         <Link href="/admin/settings/general" className="text-sm text-primary-600 hover:underline">
           ← Credenciales del sistema
         </Link>
+        <h1 className="mt-4 text-2xl font-bold text-gray-900">Notificaciones</h1>
+        <p className="mt-2 text-sm text-gray-700 leading-relaxed">
+          Esta pantalla muestra si el sistema puede enviar alertas.{' '}
+          <strong>No hay un interruptor para &quot;email de afiliados&quot;</strong>: cuando un afiliado se
+          registra, el correo se envía solo si el email del sistema está en verde abajo.
+        </p>
       </div>
 
       {readiness && <ReadinessPanel readiness={readiness} />}
 
       <NotificationSettingsForm
         apiPath="/api/settings/notifications"
-        title="Mis notificaciones (admin)"
+        title="Mis preferencias personales (opcional)"
       />
+      <p className="text-xs text-gray-500 -mt-4">
+        Los interruptores de abajo solo afectan alertas personales. No apagan el email de afiliados ni
+        registros nuevos.
+      </p>
     </div>
   );
 }
 
 function ReadinessPanel({ readiness }: { readiness: Readiness }) {
+  const emailReady = readiness.email.configured && readiness.email.fromAddress;
+
   const items = [
+    {
+      ok: emailReady,
+      label: 'Email automático: afiliados, registros y pagos',
+      hint: emailReady
+        ? 'Siempre activo. Cada admin con audiencia Plataforma o Todas recibe campana + correo.'
+        : 'Configura emailApiKey y remitente en Credenciales del sistema (General).',
+      action: emailReady ? undefined : { href: '/admin/settings/general', text: 'Configurar email' },
+    },
+    {
+      ok: emailReady,
+      label: 'Quién recibe alertas de afiliados',
+      hint: emailReady
+        ? 'Cada usuario admin debe tener audiencia Todas o Plataforma (Admin → Usuarios).'
+        : 'Primero configura el email del sistema.',
+      action: { href: '/admin/users', text: 'Ver usuarios admin' },
+    },
     {
       ok: readiness.push.vapidConfigured && readiness.push.messagingSenderId,
       label: 'Push web (VAPID + Firebase Messaging)',

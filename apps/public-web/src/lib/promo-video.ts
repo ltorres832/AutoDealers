@@ -57,5 +57,15 @@ export function parsePromoVideoUrl(raw: string | undefined | null): PromoVideoRe
     return { kind: 'direct', url: url.toString() };
   }
 
+  // Firebase Storage / CDN sin extensión visible en el path pero claramente video subido
+  if (
+    url.protocol === 'https:' &&
+    (url.hostname.includes('googleapis.com') ||
+      url.hostname.includes('firebasestorage.app') ||
+      url.hostname.includes('cloudinary.com'))
+  ) {
+    return { kind: 'direct', url: url.toString() };
+  }
+
   return null;
 }

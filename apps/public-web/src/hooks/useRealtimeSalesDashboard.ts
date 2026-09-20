@@ -296,6 +296,14 @@ export function useRealtimeSalesDashboard(
       );
 
       unsubs.push(
+        onSnapshot(
+          query(collection(db, 'sales_employee_ad_orders'), where('employeeId', '==', eid)),
+          () => emit(),
+          (err) => console.error('[sales] ad_orders listener', err)
+        )
+      );
+
+      unsubs.push(
         onSnapshot(doc(db, 'sales_employees', eid), (snap) => {
           if (!snap.exists()) return;
           const data = snap.data() as Record<string, unknown>;

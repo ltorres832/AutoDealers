@@ -441,6 +441,77 @@ export class ProfessionalPdfBuilder {
     return this;
   }
 
+  /** Tabla simple de ítems (invoice / receipt). */
+  drawTable(headers: string[], rows: string[][]): this {
+    const colCount = Math.max(headers.length, 1);
+    const usable = PAGE_W - MARGIN_X * 2;
+    const colW = usable / colCount;
+    this.ensureSpace(28 + rows.length * 18);
+
+    this.page.drawRectangle({
+      x: MARGIN_X,
+      y: this.y - 16,
+      width: usable,
+      height: 20,
+      color: rgb(0.94, 0.95, 0.97),
+    });
+    headers.forEach((h, i) => {
+      this.page.drawText(h, {
+        x: MARGIN_X + i * colW + 4,
+        y: this.y - 10,
+        size: 8,
+        font: this.fontBold,
+        color: rgb(0.3, 0.32, 0.36),
+        maxWidth: colW - 8,
+      });
+    });
+    this.y -= 24;
+
+    for (const row of rows) {
+      this.ensureSpace(18);
+      row.forEach((cell, i) => {
+        this.page.drawText(sanitize(cell), {
+          x: MARGIN_X + i * colW + 4,
+          y: this.y,
+          size: 9,
+          font: this.font,
+          color: rgb(0.15, 0.17, 0.2),
+          maxWidth: colW - 8,
+        });
+      });
+      this.y -= 16;
+      this.page.drawLine({
+        start: { x: MARGIN_X, y: this.y + 4 },
+        end: { x: PAGE_W - MARGIN_X, y: this.y + 4 },
+        thickness: 0.4,
+        color: rgb(0.88, 0.9, 0.92),
+      });
+    }
+    this.y -= 8;
+    return this;
+  }
+
+  setDraftWatermark(enabled: boolean): this {
+    this.confidential = true;
+    if (!enabled) return this;
+    // Diagonal watermark on current page (applied at finalize for all pages via redraw is complex;
+    // stamp on current page now and each new page via flag)
+    (this as any)._draftWatermark = true;
+    this.stampDraftOnPage();
+    return this;
+  }
+
+  private stampDraftOnPage(): void {
+    if (!(this as any)._draftWatermark) return;
+    this.page.drawText('BORRADOR', {
+      x: MARGIN_X + 120,
+      y: PAGE_H / 2,
+      size: 42,
+      font: this.fontBold,
+      color: rgb(0.88, 0.88, 0.9),
+    });
+  }
+
   async finalize(): Promise<Buffer> {
     const bytes = await this.doc.save();
     return Buffer.from(bytes);

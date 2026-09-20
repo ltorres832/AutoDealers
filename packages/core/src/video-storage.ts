@@ -45,10 +45,8 @@ export async function uploadVideo(
 export function validateVideoType(contentType: string): boolean {
   const allowedTypes = [
     'video/mp4',
-    'video/mpeg',
-    'video/quicktime',
-    'video/x-msvideo',
     'video/webm',
+    'video/quicktime',
   ];
   return allowedTypes.includes(contentType);
 }

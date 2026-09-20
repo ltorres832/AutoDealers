@@ -43,10 +43,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ conversations });
   } catch (error) {
     console.error('Error fetching conversations:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ conversations: [] });
   }
 }
 

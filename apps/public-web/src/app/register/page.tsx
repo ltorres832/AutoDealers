@@ -1,18 +1,31 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, Suspense, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   REGISTER_DEALER_FEATURES,
   REGISTER_SELLER_FEATURES,
 } from '@/lib/register-profile-features';
+import { formatTenantHostname, tenantHostSuffix } from '@autodealers/shared/platform-urls';
+import {
+  ReferralCodeRegistrationField,
+  isReferralCodeProvided,
+  isReferralCodeSkipped,
+  normalizeReferralCodeInput,
+} from '@/components/ReferralCodeRegistrationField';
+import {
+  registrationHelperClass,
+  registrationInputClassLg,
+  registrationLabelClass,
+} from '@/lib/registration-form-styles';
 
 function RegisterPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const urlType = searchParams.get('type');
   const referralCodeFromUrl = searchParams.get('ref');
+  const initialReferralCode = (referralCodeFromUrl || '').trim().toUpperCase();
   const [step, setStep] = useState<1 | 2>(urlType ? 2 : 1);
   const [accountType, setAccountType] = useState<'dealer' | 'seller' | null>(
     urlType === 'dealer' || urlType === 'seller' ? urlType : null
@@ -25,16 +38,20 @@ function RegisterPageContent() {
     subdomain: '',
     phone: '',
     companyName: '',
-    taxId: '',
     address: '',
     city: '',
     country: 'Puerto Rico',
     website: '',
+    referralCode: initialReferralCode,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
   const [showPassword, setShowPassword] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const referralCodeValue = useMemo(
+    () => normalizeReferralCodeInput(formData.referralCode),
+    [formData.referralCode]
+  );
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -85,10 +102,6 @@ function RegisterPageContent() {
         setError('Debes ingresar el nombre de la compañía');
         return;
       }
-      if (!formData.taxId) {
-        setError('El RNC/Tax ID es obligatorio para concesionarios');
-        return;
-      }
       if (!formData.address) {
         setError('La dirección fiscal es obligatoria');
         return;
@@ -99,6 +112,13 @@ function RegisterPageContent() {
       }
     }
 
+    if (!isReferralCodeProvided(referralCodeValue)) {
+      setError('Ingresa un código de referido o escribe N/A si no tienes uno');
+      return;
+    }
+
+    const hasNoReferrer = isReferralCodeSkipped(referralCodeValue);
+
     setLoading(true);
 
     try {
@@ -108,7 +128,7 @@ function RegisterPageContent() {
         body: JSON.stringify({
           ...formData,
           accountType: accountType,
-          referralCode: referralCodeFromUrl || undefined,
+          referralCode: hasNoReferrer ? undefined : referralCodeValue,
           acceptPlatformTerms: true,
         }),
       });
@@ -205,7 +225,7 @@ function RegisterPageContent() {
                   onClick={(e) => e.stopPropagation()}
                   className="text-slate-400 hover:text-primary-600 text-[10px] font-black uppercase tracking-[0.2em] pt-6 border-t border-slate-100 w-full group/multi"
                 >
-                  ¿Gestionas varios dealers? <span className="text-primary-600 group-hover/multi:underline underline-offset-4 decoration-2">Multi Dealer</span>
+                  ¿Gestionas varios dealers? <span className="text-primary-600 group-hover/multi:underline underline-offset-4 decoration-2">Solicita información</span>
                 </Link>
               </div>
             </div>
@@ -225,7 +245,7 @@ function RegisterPageContent() {
               </div>
 
               <h3 className="relative z-10 text-3xl font-black text-slate-900 mb-4 tracking-tight group-hover:text-primary-600 transition-colors">Vendedor</h3>
-              <p className="relative z-10 text-slate-500 text-sm mb-6 px-2 leading-snug">Leads, catálogo público y página propia en AutoDealers.</p>
+              <p className="relative z-10 text-slate-500 text-sm mb-6 px-2 leading-snug">Leads, catálogo público y página propia en AutoDealersOnline.</p>
 
               <div className="relative z-10 w-full bg-slate-50 rounded-3xl p-8 mb-10 border border-slate-100">
                 <ul className="text-left space-y-4">
@@ -269,7 +289,7 @@ function RegisterPageContent() {
           <h2 className="text-4xl font-black text-slate-900 mb-3 tracking-tighter uppercase leading-none">
             Tu Cuenta <span className="text-primary-600">Profesional</span>
           </h2>
-          <p className="text-slate-500 font-medium">Configura tu espacio de trabajo premium en segundos.</p>
+          <p className="text-slate-900 font-semibold">Configura tu espacio de trabajo premium en segundos.</p>
 
           <div className="flex gap-2 mt-10">
             <div className="h-1.5 flex-[2] bg-primary-600 rounded-full shadow-lg shadow-primary-600/20"></div>
@@ -290,73 +310,60 @@ function RegisterPageContent() {
             {accountType === 'dealer' && (
               <>
                 <div className="group">
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 px-1 group-focus-within:text-primary-600 transition-colors">Nombre de la Compañía</label>
+                  <label className={registrationLabelClass}>Nombre de la Compañía</label>
                   <input
                     type="text"
                     value={formData.companyName}
                     onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                    className="w-full bg-slate-50/50 border-2 border-transparent focus:border-primary-600/20 rounded-[1.5rem] px-8 py-5 focus:ring-4 focus:ring-primary-600/5 focus:bg-white text-slate-900 font-bold transition-all placeholder:text-slate-300 outline-none"
+                    className={registrationInputClassLg}
                     placeholder="Ej: Grupo Automotriz Federal"
+                    required
+                  />
+                </div>
+
+                <div className="group">
+                  <label className={registrationLabelClass}>Dirección Fiscal</label>
+                  <input
+                    type="text"
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    className={registrationInputClassLg}
+                    placeholder="Calle y Número"
                     required
                   />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="group">
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 px-1 group-focus-within:text-primary-600 transition-colors">RNC / Tax ID</label>
-                    <input
-                      type="text"
-                      value={formData.taxId}
-                      onChange={(e) => setFormData({ ...formData, taxId: e.target.value })}
-                      className="w-full bg-slate-50/50 border-2 border-transparent focus:border-primary-600/20 rounded-[1.5rem] px-8 py-5 focus:ring-4 focus:ring-primary-600/5 focus:bg-white text-slate-900 font-bold transition-all placeholder:text-slate-300 outline-none"
-                      placeholder="Ej: EIN 12-3456789"
-                      required
-                    />
-                  </div>
-                  <div className="group">
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 px-1 group-focus-within:text-primary-600 transition-colors">Dirección Fiscal</label>
-                    <input
-                      type="text"
-                      value={formData.address}
-                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                      className="w-full bg-slate-50/50 border-2 border-transparent focus:border-primary-600/20 rounded-[1.5rem] px-8 py-5 focus:ring-4 focus:ring-primary-600/5 focus:bg-white text-slate-900 font-bold transition-all placeholder:text-slate-300 outline-none"
-                      placeholder="Calle y Número"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="group">
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 px-1 group-focus-within:text-primary-600 transition-colors">Ciudad</label>
+                    <label className={registrationLabelClass}>Ciudad</label>
                     <input
                       type="text"
                       value={formData.city}
                       onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                      className="w-full bg-slate-50/50 border-2 border-transparent focus:border-primary-600/20 rounded-[1.5rem] px-8 py-5 focus:ring-4 focus:ring-primary-600/5 focus:bg-white text-slate-900 font-bold transition-all outline-none"
+                      className={registrationInputClassLg}
                       placeholder="Ej: San Juan"
                       required
                     />
                   </div>
                   <div className="group">
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 px-1 group-focus-within:text-primary-600 transition-colors">País</label>
+                    <label className={registrationLabelClass}>País</label>
                     <input
                       type="text"
                       value={formData.country}
                       onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-                      className="w-full bg-slate-50/50 border-2 border-transparent focus:border-primary-600/20 rounded-[1.5rem] px-8 py-5 focus:ring-4 focus:ring-primary-600/5 focus:bg-white text-slate-900 font-bold transition-all outline-none"
+                      className={registrationInputClassLg}
                       required
                     />
                   </div>
                 </div>
 
                 <div className="group">
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 px-1 group-focus-within:text-primary-600 transition-colors">Sitio Web (Opcional)</label>
+                  <label className={registrationLabelClass}>Sitio Web (Opcional)</label>
                   <input
                     type="url"
                     value={formData.website}
                     onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                    className="w-full bg-slate-50/50 border-2 border-transparent focus:border-primary-600/20 rounded-[1.5rem] px-8 py-5 focus:ring-4 focus:ring-primary-600/5 focus:bg-white text-slate-900 font-bold transition-all outline-none"
+                    className={registrationInputClassLg}
                     placeholder="https://www.tu-concesionario.com"
                   />
                 </div>
@@ -364,14 +371,14 @@ function RegisterPageContent() {
             )}
 
             <div className="group">
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 px-1 group-focus-within:text-primary-600 transition-colors">
+              <label className={registrationLabelClass}>
                 {accountType === 'dealer' ? 'Nombre del Dealer' : 'Nombre Completo'}
               </label>
               <input
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full bg-slate-50/50 border-2 border-transparent focus:border-primary-600/20 rounded-[1.5rem] px-8 py-5 focus:ring-4 focus:ring-primary-600/5 focus:bg-white text-slate-900 font-bold transition-all placeholder:text-slate-300 outline-none"
+                className={registrationInputClassLg}
                 placeholder={accountType === 'dealer' ? 'Ej: Sede Central San Juan' : 'Ej: Juan Pérez'}
                 required
               />
@@ -379,56 +386,61 @@ function RegisterPageContent() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="group">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 px-1 group-focus-within:text-primary-600 transition-colors">Email *</label>
+                <label className={registrationLabelClass}>Email *</label>
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full bg-slate-50/50 border-2 border-transparent focus:border-primary-600/20 rounded-[1.5rem] px-8 py-5 focus:ring-4 focus:ring-primary-600/5 focus:bg-white text-slate-900 font-bold transition-all outline-none"
+                  className={registrationInputClassLg}
                   required
                 />
               </div>
               <div className="group">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 px-1 group-focus-within:text-primary-600 transition-colors">Teléfono</label>
+                <label className={registrationLabelClass}>Teléfono</label>
                 <input
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full bg-slate-50/50 border-2 border-transparent focus:border-primary-600/20 rounded-[1.5rem] px-8 py-5 focus:ring-4 focus:ring-primary-600/5 focus:bg-white text-slate-900 font-bold transition-all outline-none"
+                  className={registrationInputClassLg}
                   required
                 />
               </div>
             </div>
 
             <div className="group">
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 px-1 group-focus-within:text-primary-600 transition-colors">Subdominio Exclusivo</label>
+              <label className={registrationLabelClass}>Subdominio Exclusivo</label>
               <div className="relative">
                 <input
                   type="text"
                   value={formData.subdomain}
                   onChange={(e) => setFormData({ ...formData, subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
-                  className="w-full bg-slate-50/50 border-2 border-transparent focus:border-primary-600/20 rounded-[1.5rem] px-8 py-5 pr-40 focus:ring-4 focus:ring-primary-600/5 focus:bg-white text-slate-900 font-bold transition-all outline-none"
+                  className={`${registrationInputClassLg} pr-40`}
                   placeholder="tu-marca"
                   pattern="[a-z0-9-]+"
                   required
                 />
-                <span className="absolute right-8 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-300 uppercase tracking-widest pointer-events-none">.autodealers.com</span>
+                <span className="absolute right-8 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-300 uppercase tracking-widest pointer-events-none">{tenantHostSuffix()}</span>
               </div>
-              <p className="text-xs text-slate-500 mt-2 px-1">
+              <p className={`${registrationHelperClass} px-1`}>
                 Se activa al pagar un plan que incluya página web propia. Ejemplo:{' '}
-                <strong>{formData.subdomain || 'elchulo'}.autodealers.com</strong> llevará a tu mini-sitio público.
+                <strong>{formatTenantHostname(formData.subdomain || 'elchulo')}</strong> llevará a tu mini-sitio público.
               </p>
             </div>
 
+            <ReferralCodeRegistrationField
+              value={formData.referralCode}
+              onChange={(referralCode) => setFormData({ ...formData, referralCode })}
+            />
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="group">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 px-1 group-focus-within:text-primary-600 transition-colors">Contraseña</label>
+                <label className={registrationLabelClass}>Contraseña</label>
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="w-full bg-slate-50/50 border-2 border-transparent focus:border-primary-600/20 rounded-[1.5rem] px-8 py-5 focus:ring-4 focus:ring-primary-600/5 focus:bg-white text-slate-900 font-bold transition-all outline-none"
+                    className={registrationInputClassLg}
                     required
                     minLength={6}
                   />
@@ -446,12 +458,12 @@ function RegisterPageContent() {
                 </div>
               </div>
               <div className="group">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 px-1 group-focus-within:text-primary-600 transition-colors">Confirmar</label>
+                <label className={registrationLabelClass}>Confirmar</label>
                 <input
                   type={showPassword ? "text" : "password"}
                   value={formData.confirmPassword}
                   onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                  className="w-full bg-slate-50/50 border-2 border-transparent focus:border-primary-600/20 rounded-[1.5rem] px-8 py-5 focus:ring-4 focus:ring-primary-600/5 focus:bg-white text-slate-900 font-bold transition-all outline-none"
+                  className={registrationInputClassLg}
                   required
                   minLength={6}
                 />
@@ -478,7 +490,7 @@ function RegisterPageContent() {
                 <Link href="/privacidad" className="text-primary-600 hover:text-primary-700 underline underline-offset-4">
                   Política de Privacidad
                 </Link>{' '}
-                de la plataforma AutoDealers.
+                de la plataforma AutoDealersOnline.
               </label>
             </div>
           </div>

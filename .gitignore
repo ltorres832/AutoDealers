@@ -6,6 +6,12 @@ node_modules/
 # Testing
 coverage/
 *.log
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+e2e/.smoke-dealer-creds.json
+e2e/.smoke-all-creds.json
 
 # Next.js
 .next/

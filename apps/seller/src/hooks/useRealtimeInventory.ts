@@ -15,6 +15,8 @@ export interface RealtimeInventoryVehicle {
   currency: string;
   status: string;
   photos: string[];
+  videos?: string[];
+  generatedVideoUrl?: string;
   mileage?: number;
   condition: string;
   bodyType?: string;
@@ -47,6 +49,8 @@ interface UseRealtimeInventoryOptions {
   status?: string;
   limit?: number;
   search?: string;
+  /** Tenant adicional (dealer) para vendedores con sync de inventario activo. */
+  extraTenantId?: string;
 }
 
 export function useRealtimeInventory(options: UseRealtimeInventoryOptions = {}) {
@@ -64,66 +68,93 @@ export function useRealtimeInventory(options: UseRealtimeInventoryOptions = {}) 
     setLoading(true);
     setError(null);
 
-    try {
-      let q = query(
-        collection(db, 'tenants', options.tenantId, 'vehicles'),
-        orderBy('createdAt', 'desc')
-      );
+    const tenantIds = [options.tenantId];
+    if (options.extraTenantId && options.extraTenantId !== options.tenantId) {
+      tenantIds.push(options.extraTenantId);
+    }
 
-      if (options.limit) {
-        q = query(q, firestoreLimit(Math.min(options.limit * 4, 500)));
-      }
+    const byTenant = new Map<string, RealtimeInventoryVehicle[]>();
 
-      const unsubscribe = onSnapshot(
-        q,
-        (snapshot) => {
-          const list: RealtimeInventoryVehicle[] = [];
-
-          snapshot.forEach((doc) => {
-            const data = doc.data();
-            const vehicle = {
-              id: doc.id,
-              ...data,
-              createdAt: data.createdAt?.toDate() || new Date(),
-              updatedAt: data.updatedAt?.toDate() || new Date(),
-            } as RealtimeInventoryVehicle;
-
-            if (options.status && vehicle.status !== options.status) return;
-            if (options.search) {
-              const s = options.search.toLowerCase();
-              const stock = String(
-                vehicle.stockNumber || vehicle.specifications?.stockNumber || ''
-              ).toLowerCase();
-              if (
-                !vehicle.make?.toLowerCase().includes(s) &&
-                !vehicle.model?.toLowerCase().includes(s) &&
-                !stock.includes(s)
-              ) {
-                return;
-              }
-            }
-            list.push(vehicle);
-          });
-
-          const capped = options.limit ? list.slice(0, options.limit) : list;
-          setVehicles(capped);
-          setLoading(false);
-          setError(null);
-        },
-        (err) => {
-          console.error('Error en tiempo real inventory:', err);
-          setError(err.message);
-          setLoading(false);
+    const publish = () => {
+      const merged: RealtimeInventoryVehicle[] = [];
+      const seen = new Set<string>();
+      for (const tid of tenantIds) {
+        for (const v of byTenant.get(tid) || []) {
+          if (seen.has(v.id)) continue;
+          seen.add(v.id);
+          merged.push(v);
         }
-      );
+      }
+      merged.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      setVehicles(options.limit ? merged.slice(0, options.limit) : merged);
+      setLoading(false);
+      setError(null);
+    };
 
-      return () => unsubscribe();
+    try {
+      const unsubscribes = tenantIds.map((tid) => {
+        let q = query(
+          collection(db!, 'tenants', tid, 'vehicles'),
+          orderBy('createdAt', 'desc')
+        );
+
+        if (options.limit) {
+          q = query(q, firestoreLimit(Math.min(options.limit * 4, 500)));
+        }
+
+        return onSnapshot(
+          q,
+          (snapshot) => {
+            const list: RealtimeInventoryVehicle[] = [];
+
+            snapshot.forEach((doc) => {
+              const data = doc.data();
+              const vehicle = {
+                id: doc.id,
+                ...data,
+                tenantId: tid,
+                createdAt: data.createdAt?.toDate() || new Date(),
+                updatedAt: data.updatedAt?.toDate() || new Date(),
+              } as RealtimeInventoryVehicle;
+
+              if (options.status && vehicle.status !== options.status) return;
+              if (options.search) {
+                const s = options.search.toLowerCase();
+                const stock = String(
+                  vehicle.stockNumber || vehicle.specifications?.stockNumber || ''
+                ).toLowerCase();
+                if (
+                  !vehicle.make?.toLowerCase().includes(s) &&
+                  !vehicle.model?.toLowerCase().includes(s) &&
+                  !stock.includes(s)
+                ) {
+                  return;
+                }
+              }
+              list.push(vehicle);
+            });
+
+            byTenant.set(tid, list);
+            publish();
+          },
+          (err) => {
+            console.error('Error en tiempo real inventory:', err);
+            // El tenant adicional (dealer) puede fallar por permisos sin romper el propio
+            if (tid === options.tenantId) {
+              setError(err.message);
+            }
+            setLoading(false);
+          }
+        );
+      });
+
+      return () => unsubscribes.forEach((u) => u());
     } catch (err: unknown) {
       console.error('Error configurando listener inventory:', err);
       setError(err instanceof Error ? err.message : 'Error de inventario');
       setLoading(false);
     }
-  }, [options.tenantId, options.status, options.limit, options.search]);
+  }, [options.tenantId, options.extraTenantId, options.status, options.limit, options.search]);
 
   return { vehicles, loading, error };
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ApprovalScore } from '@autodealers/crm';
+import type { ApprovalScore } from '@autodealers/crm';
 
 interface FIApprovalScoreProps {
   requestId: string;

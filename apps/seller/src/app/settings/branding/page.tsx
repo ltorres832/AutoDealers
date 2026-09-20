@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { buildTenantSiteUrl, tenantHostSuffix } from '@autodealers/shared/platform-urls';
 
 export default function BrandingSettingsPage() {
   const [loading, setLoading] = useState(false);
@@ -247,10 +248,10 @@ export default function BrandingSettingsPage() {
                   placeholder="mivendedor"
                   pattern="[a-z0-9-]+"
                 />
-                <span className="text-gray-600">.autodealers.com</span>
+                <span className="text-gray-600">{tenantHostSuffix()}</span>
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                Tu sitio web estará disponible en: https://{subdomain || 'subdomain'}.autodealers.com
+                Tu sitio web estará disponible en: {buildTenantSiteUrl(subdomain || 'subdomain')}
               </p>
               <button
                 type="button"

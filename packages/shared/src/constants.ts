@@ -1,6 +1,6 @@
 // Constantes compartidas
 
-export const PLATFORM_NAME = 'AutoDealers';
+export { PLATFORM_NAME, DEFAULT_PLATFORM_EMAIL } from './platform-sender';
 
 export const DEFAULT_PAGE_SIZE = 20;
 

@@ -17,7 +17,7 @@ export type PromotionType = 'discount' | 'special' | 'clearance' | 'seasonal';
 
 export type PromotionStatus = 'active' | 'scheduled' | 'paused' | 'expired';
 
-export type PromotionScope = 'vehicle' | 'dealer' | 'seller'; // Tipo de promoción pagada
+export type PromotionScope = 'vehicle' | 'dealer' | 'seller' | 'automotive_business' | 'service' | 'product';
 
 export interface Promotion {
   id: string;
@@ -79,7 +79,10 @@ export interface Promotion {
   isInternal?: boolean; // Si es promoción interna de la plataforma
   createdByAdmin?: boolean; // Si fue creada por un admin
   imageUrl?: string; // URL de imagen para la promoción
-  placement?: 'hero' | 'sidebar' | 'sponsors_section' | 'between_content' | 'promotions_section'; // Dónde se muestra
+  images?: string[]; // Slideshow: varias fotos en el mismo anuncio/promo
+  animation?: 'none' | 'fade' | 'slide' | 'kenburns';
+  videos?: string[];
+  placement?: 'hero' | 'sidebar' | 'sponsors_section' | 'between_content' | 'promotions_section' | 'vehicle_page'; // Dónde se muestra
   createdAt: Date;
   updatedAt: Date;
 }

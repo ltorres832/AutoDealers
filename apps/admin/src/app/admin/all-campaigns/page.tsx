@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { AdminTenantEntityDeleteButton } from '@/components/AdminDeleteButton';
 
 interface Campaign {
   id: string;
@@ -124,6 +125,14 @@ export default function AdminAllCampaignsPage() {
                 </div>
               </div>
             )}
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <AdminTenantEntityDeleteButton
+                tenantId={campaign.tenantId}
+                collection="campaigns"
+                entityId={campaign.id}
+                onDeleted={fetchCampaigns}
+              />
+            </div>
           </div>
           ))}
         </div>

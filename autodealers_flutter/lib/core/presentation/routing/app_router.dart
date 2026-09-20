@@ -11,6 +11,7 @@ import '../../../features/inventory/pages/vehicles_list_page.dart';
 import '../../../features/inventory/pages/vehicle_detail_page.dart';
 import '../../../features/inventory/pages/create_vehicle_page.dart';
 import '../../../features/inventory/pages/edit_vehicle_page.dart';
+import '../../../features/inventory/pages/photo_guide_page.dart';
 import '../../../features/messaging/pages/messages_page.dart';
 import '../../../features/appointments/pages/appointments_list_page.dart';
 import '../../../features/appointments/pages/create_appointment_page.dart';
@@ -314,6 +315,13 @@ class AppRouter {
                 builder: (context, state) {
                   final id = state.pathParameters['id']!;
                   return EditVehiclePage(vehicleId: id);
+                },
+              ),
+              GoRoute(
+                path: 'photos',
+                builder: (context, state) {
+                  final id = state.pathParameters['id']!;
+                  return PhotoGuidePage(vehicleId: id);
                 },
               ),
             ],
@@ -809,6 +817,13 @@ class AppRouter {
                       return EditVehiclePage(vehicleId: id);
                     },
                   ),
+                  GoRoute(
+                    path: 'photos',
+                    builder: (context, state) {
+                      final id = state.pathParameters['id']!;
+                      return PhotoGuidePage(vehicleId: id);
+                    },
+                  ),
                 ],
               ),
             ],
@@ -1054,6 +1069,13 @@ class AppRouter {
                     builder: (context, state) {
                       final id = state.pathParameters['id']!;
                       return EditVehiclePage(vehicleId: id);
+                    },
+                  ),
+                  GoRoute(
+                    path: 'photos',
+                    builder: (context, state) {
+                      final id = state.pathParameters['id']!;
+                      return PhotoGuidePage(vehicleId: id);
                     },
                   ),
                 ],

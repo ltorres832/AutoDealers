@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { isDealerManagedClientUser } from '@/lib/dealer-managed-client';
 import { loadCurrentSellerUser } from '@/lib/current-seller-user';
 
 export default function SellerMembershipLayout({
@@ -14,7 +15,7 @@ export default function SellerMembershipLayout({
 
   useEffect(() => {
     void loadCurrentSellerUser().then((user) => {
-      if (user?.dealerId) {
+      if (isDealerManagedClientUser(user)) {
         router.replace('/settings');
         setAllowed(false);
       } else {

@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (isDealerManagedSeller(auth.dealerId)) {
+    if (isDealerManagedSeller(auth.dealerId, auth.billingMode)) {
       return NextResponse.json(
         {
           error: 'dealer_managed',
@@ -57,6 +57,19 @@ export async function POST(request: NextRequest) {
     }
 
     await changeMembership(subscription.id, membershipId, newMembership.stripePriceId);
+
+    try {
+      const { ensureVoiceProvisionedForTenant } = await import('@autodealers/voice');
+      const voiceResult = await ensureVoiceProvisionedForTenant(auth.tenantId, {
+        source: 'seller_change_membership',
+        updatedBy: auth.userId,
+      });
+      if (!voiceResult.ok && !voiceResult.skipped) {
+        console.warn('[membership/change seller] Voice provision:', voiceResult.reason);
+      }
+    } catch (voiceErr) {
+      console.warn('[membership/change seller] Voice provision skipped:', voiceErr);
+    }
 
     return NextResponse.json({
       success: true,

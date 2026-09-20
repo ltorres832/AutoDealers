@@ -9,7 +9,7 @@ const db = getFirestore();
 export interface PlanLimits {
   maxImpressionsPerMonth: number | null; // null = ilimitado
   maxBanners: number;
-  allowedPlacements: ('hero' | 'sidebar' | 'sponsors_section' | 'between_content')[];
+  allowedPlacements: ('hero' | 'sidebar' | 'sponsors_section' | 'between_content' | 'vehicle_page')[];
   hasAdvancedDashboard: boolean;
   hasAdvancedMetrics: boolean;
   hasBasicTargeting: boolean;
@@ -20,7 +20,7 @@ export interface PlanLimits {
 export const PAY_AS_YOU_GO_LIMITS: PlanLimits = {
   maxImpressionsPerMonth: null,
   maxBanners: 999,
-  allowedPlacements: ['hero', 'sidebar', 'sponsors_section', 'between_content'],
+  allowedPlacements: ['hero', 'sidebar', 'sponsors_section', 'between_content', 'vehicle_page'],
   hasAdvancedDashboard: true,
   hasAdvancedMetrics: true,
   hasBasicTargeting: true,
@@ -32,7 +32,7 @@ export const PLAN_LIMITS: Record<'starter' | 'professional' | 'premium', PlanLim
   starter: {
     maxImpressionsPerMonth: 10000,
     maxBanners: 1,
-    allowedPlacements: ['sponsors_section'],
+    allowedPlacements: ['sponsors_section', 'vehicle_page'],
     hasAdvancedDashboard: false,
     hasAdvancedMetrics: false,
     hasBasicTargeting: false,
@@ -42,7 +42,7 @@ export const PLAN_LIMITS: Record<'starter' | 'professional' | 'premium', PlanLim
   professional: {
     maxImpressionsPerMonth: 50000,
     maxBanners: 2,
-    allowedPlacements: ['sponsors_section', 'sidebar'],
+    allowedPlacements: ['sponsors_section', 'sidebar', 'vehicle_page'],
     hasAdvancedDashboard: true,
     hasAdvancedMetrics: true,
     hasBasicTargeting: true,
@@ -52,7 +52,7 @@ export const PLAN_LIMITS: Record<'starter' | 'professional' | 'premium', PlanLim
   premium: {
     maxImpressionsPerMonth: null, // Ilimitado
     maxBanners: 999, // Prácticamente ilimitado
-    allowedPlacements: ['hero', 'sidebar', 'sponsors_section', 'between_content'],
+    allowedPlacements: ['hero', 'sidebar', 'sponsors_section', 'between_content', 'vehicle_page'],
     hasAdvancedDashboard: true,
     hasAdvancedMetrics: true,
     hasBasicTargeting: true,
@@ -80,7 +80,7 @@ export async function getAdvertiserPlanLimits(advertiserId: string): Promise<Pla
  */
 export async function canCreateBanner(
   advertiserId: string,
-  placement: 'hero' | 'sidebar' | 'sponsors_section' | 'between_content'
+  placement: 'hero' | 'sidebar' | 'sponsors_section' | 'between_content' | 'vehicle_page'
 ): Promise<{ allowed: boolean; reason?: string }> {
   const limits = await getAdvertiserPlanLimits(advertiserId);
   

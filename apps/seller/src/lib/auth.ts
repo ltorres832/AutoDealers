@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { getAuth } from '@autodealers/core';
+import { AUTH_PROFILE_COOKIE, resolveUsersProfileForAuthApp } from '@autodealers/core/app-passwords';
 import { cookies } from 'next/headers';
 
 const auth = getAuth();
@@ -12,6 +13,11 @@ export interface AuthUser {
   role: 'admin' | 'dealer' | 'seller';
   tenantId?: string;
   dealerId?: string;
+  billingMode?: 'self_service' | 'dealer_managed';
+  supportMode?: boolean;
+  supportSessionId?: string;
+  supportAdminId?: string;
+  supportAdminEmail?: string;
 }
 
 function decodeToken(raw: string): string {
@@ -52,7 +58,8 @@ async function resolveRequestToken(request: NextRequest): Promise<string | undef
 
   for (const t of candidates) {
     if (isAdminSessionToken(t)) continue;
-    if (t.length < 200) return t;
+    // Tokens de soporte (sup1.… o base64 con support:true)
+    if (t.startsWith('sup1.') || t.length < 200) return t;
   }
 
   return undefined;
@@ -67,6 +74,41 @@ export async function verifyAuth(request: NextRequest): Promise<AuthUser | null>
 
     if (!token) {
       return null;
+    }
+
+    // Soporte primero (puede ser largo; no discriminar por longitud)
+    try {
+      const { tryParseSupportSessionToken, validateSupportSessionToken } = await import(
+        '@autodealers/core'
+      );
+      if (tryParseSupportSessionToken(token)) {
+        const validated = await validateSupportSessionToken(token);
+        if (!validated) return null;
+        const { session } = validated;
+        if (session.portal !== 'seller') return null;
+
+        const { getFirestore } = await import('@autodealers/core');
+        const db = getFirestore();
+        const userDoc = await db.collection('users').doc(session.targetUserId).get();
+        if (!userDoc.exists) return null;
+        const userData = userDoc.data();
+        if (userData?.role !== 'seller' && session.targetRole !== 'seller') return null;
+
+        return {
+          userId: session.targetUserId,
+          email: userData?.email || session.targetEmail || '',
+          role: 'seller',
+          tenantId: userData?.tenantId || session.targetTenantId,
+          dealerId: userData?.dealerId,
+          billingMode: userData?.billingMode,
+          supportMode: true,
+          supportSessionId: session.id,
+          supportAdminId: session.adminUserId,
+          supportAdminEmail: session.adminEmail,
+        };
+      }
+    } catch {
+      /* continuar */
     }
 
     // Token personalizado base64 (sesión seller legacy)
@@ -102,6 +144,7 @@ export async function verifyAuth(request: NextRequest): Promise<AuthUser | null>
           role: userData?.role || 'seller',
           tenantId: userData?.tenantId,
           dealerId: userData?.dealerId,
+          billingMode: userData?.billingMode,
         };
       } catch {
         return null;
@@ -132,7 +175,21 @@ export async function verifyAuth(request: NextRequest): Promise<AuthUser | null>
 
     const { getFirestore } = await import('@autodealers/core');
     const db = getFirestore();
-    const userDoc = await db.collection('users').doc(decodedToken.uid).get();
+    const claimProfileId =
+      typeof (decodedToken as { profileId?: unknown }).profileId === 'string'
+        ? String((decodedToken as { profileId?: string }).profileId)
+        : '';
+    const cookieProfileId = request.cookies.get(AUTH_PROFILE_COOKIE)?.value || '';
+    const profile = await resolveUsersProfileForAuthApp({
+      appKey: 'seller',
+      authUid: decodedToken.uid,
+      profileId: claimProfileId || cookieProfileId,
+      email: decodedToken.email,
+    });
+    if (!profile) {
+      return null;
+    }
+    const userDoc = await db.collection('users').doc(profile.userId).get();
 
     if (!userDoc.exists) {
       return null;
@@ -145,11 +202,12 @@ export async function verifyAuth(request: NextRequest): Promise<AuthUser | null>
     }
 
     return {
-      userId: decodedToken.uid,
+      userId: profile.userId,
       email: decodedToken.email || userData?.email || '',
       role: userData?.role || 'seller',
       tenantId: userData?.tenantId,
       dealerId: userData?.dealerId,
+      billingMode: userData?.billingMode,
     };
   } catch (error: any) {
     console.error('❌ verifyAuth error:', error.message || error);

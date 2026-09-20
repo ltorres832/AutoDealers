@@ -1,5 +1,5 @@
 /** Roles que pueden usar la app dealer (compartido cliente + servidor). */
-export const DEALER_PORTAL_ROLES = ['dealer', 'master_dealer', 'dealer_admin', 'manager'] as const;
+export const DEALER_PORTAL_ROLES = ['dealer', 'master_dealer', 'dealer_admin', 'manager', 'fi_manager'] as const;
 
 export function isDealerPortalRole(role: string | undefined): boolean {
   if (!role) return false;

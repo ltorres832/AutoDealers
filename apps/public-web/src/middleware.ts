@@ -43,6 +43,8 @@ function isPlatformRootPath(pathname: string): boolean {
   if (pathname.startsWith('/affiliate')) return true;
   if (pathname.startsWith('/sales')) return true;
   if (pathname.startsWith('/servicios')) return true;
+  if (pathname.startsWith('/share')) return true;
+  if (pathname === '/d' || pathname.startsWith('/d/')) return true;
   if (pathname.startsWith('/registro/negocio')) return true;
   if (pathname.startsWith('/mi-garage')) return true;
   if (pathname.startsWith('/mi-garage/crear-cuenta')) return true;

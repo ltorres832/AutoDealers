@@ -62,7 +62,7 @@ export async function PUT(request: NextRequest) {
       {
         logo: logo || null,
         favicon: favicon || null,
-        companyName: companyName || 'AutoDealers',
+        companyName: companyName || 'AutoDealersOnline',
         adminName: adminName || 'Administrador',
         adminPhoto: adminPhoto || null,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),

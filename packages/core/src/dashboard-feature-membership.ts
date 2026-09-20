@@ -1,17 +1,18 @@
 /**
  * Cruza `feature_flags` (apagado global) con las features reales del plan (`memberships`)
  * para menús y toggles de UI en dealer/seller.
- *
- * - Si no hay mapeo para un `featureKey`, solo aplica el flag global (comportamiento previo).
- * - Si hay mapeo y no hay tenant o membresía, el módulo queda deshabilitado para la UI.
  */
 
 import type { DashboardType } from './feature-flags';
 import { isFeatureEnabled } from './feature-flags';
-import { getTenantMembership } from './membership-validation';
+import { getTenantMembershipFeatures } from './membership-validation';
+import {
+  isOptOutMembershipFeature,
+  readMembershipFeatureFlag,
+} from '@autodealers/billing/membership-feature-catalog';
 
-/** Claves en `membership.features`; todas deben ser truthy (AND). */
-type MembershipFeatureKey =
+/** Claves en `membership.features`; todas deben ser truthy (AND), salvo opt-out. */
+export type MembershipFeatureKey =
   | 'crmAdvanced'
   | 'automationWorkflows'
   | 'advancedReports'
@@ -22,7 +23,27 @@ type MembershipFeatureKey =
   | 'marketplaceEnabled'
   | 'customTemplates'
   | 'videoUploads'
-  | 'customerDocumentRequestsEnabled';
+  | 'customerDocumentRequestsEnabled'
+  | 'liveChat'
+  | 'freePromotionsOnLanding'
+  | 'corporateEmailEnabled'
+  | 'customBranding'
+  | 'exportData'
+  | 'leadScoring'
+  | 'compensationPortalEnabled'
+  | 'dmsServiceEnabled'
+  | 'dmsPartsEnabled'
+  | 'dmsFinanceEnabled'
+  | 'dmsHrEnabled'
+  | 'vin_camera_scan'
+  | 'share_landing'
+  | 'photo_guide'
+  | 'bg_remover'
+  | 'dynamic_scenes'
+  | 'dealer_site_builder'
+  | 'daco_labels'
+  | 'inventory_alliances'
+  | 'inventory_feed_sync';
 
 const DEALER_FEATURE_MEMBERSHIP: Record<string, readonly MembershipFeatureKey[] | null> = {
   crm_kanban: ['crmAdvanced'],
@@ -30,6 +51,7 @@ const DEALER_FEATURE_MEMBERSHIP: Record<string, readonly MembershipFeatureKey[] 
   crm_workflows: ['automationWorkflows'],
   crm_reports: ['advancedReports'],
   advanced_crm: ['crmAdvanced'],
+  reports: ['advancedReports'],
   fi_module: ['fiModule'],
   fi_calculator: ['fiModule'],
   fi_scoring: ['fiModule'],
@@ -38,37 +60,42 @@ const DEALER_FEATURE_MEMBERSHIP: Record<string, readonly MembershipFeatureKey[] 
   fi_cosigner: ['fiModule'],
   fi_comparison: ['fiModule'],
   ai: ['aiEnabled'],
-  /** Reportes generales del menú (no Kanban): alinear con reportes avanzados */
-  reports: ['advancedReports'],
-  /** Publicaciones en redes — coherente con APIs de social */
   social_posts: ['socialMediaEnabled'],
-  /** Catálogo premium / marketplace */
+  campaigns: ['socialMediaEnabled'],
   marketplace: ['marketplaceEnabled'],
-  /** Plantillas de comunicación / documentos */
   contract_templates: ['customTemplates'],
-  /** Vídeos de inventario */
   video_uploads: ['videoUploads'],
-  /** Expediente / solicitudes al cliente */
   customer_files: ['customerDocumentRequestsEnabled'],
+  appointments: ['appointmentScheduling'],
+  public_chat: ['liveChat'],
+  corporate_email: ['corporateEmailEnabled'],
+  custom_branding: ['customBranding'],
+  export_data: ['exportData'],
+  lead_scoring: ['leadScoring'],
+  compensation_portal: ['compensationPortalEnabled'],
+  // DMS siempre disponible en el panel (no bloquear por plan con false legado)
+  dms_service: null,
+  dms_parts: null,
+  dms_finance: null,
+  dms_hr: null,
+  // Inventario competitivo (flag global AND plan; opt-out en membership)
+  vin_camera_scan: ['vin_camera_scan'],
+  share_landing: ['share_landing'],
+  photo_guide: ['photo_guide'],
+  bg_remover: ['bg_remover'],
+  dynamic_scenes: ['dynamic_scenes'],
+  dealer_site_builder: ['dealer_site_builder'],
+  daco_labels: ['daco_labels'],
+  inventory_alliances: ['inventory_alliances'],
+  inventory_feed_sync: ['inventory_feed_sync'],
 };
 
 const SELLER_FEATURE_MEMBERSHIP: Record<string, readonly MembershipFeatureKey[] | null> = {
-  crm_kanban: ['crmAdvanced'],
-  crm_tasks: ['crmAdvanced'],
-  crm_workflows: ['automationWorkflows'],
-  crm_reports: ['advancedReports'],
-  advanced_crm: ['crmAdvanced'],
-  fi_module: ['fiModule'],
-  fi_calculator: ['fiModule'],
-  fi_scoring: ['fiModule'],
-  fi_cosigner: ['fiModule'],
-  ai: ['aiEnabled'],
-  reports: ['advancedReports'],
-  social_posts: ['socialMediaEnabled'],
-  marketplace: ['marketplaceEnabled'],
-  contract_templates: ['customTemplates'],
-  video_uploads: ['videoUploads'],
-  customer_files: ['customerDocumentRequestsEnabled'],
+  ...DEALER_FEATURE_MEMBERSHIP,
+  // Solo dealer
+  dealer_site_builder: null,
+  inventory_alliances: null,
+  inventory_feed_sync: null,
 };
 
 export function getMembershipFeatureKeysForDashboardKey(
@@ -84,22 +111,15 @@ export function getMembershipFeatureKeysForDashboardKey(
   return null;
 }
 
-function membershipFeaturesAllow(
+export function membershipFeaturesAllow(
   features: Record<string, unknown> | undefined,
   keys: readonly MembershipFeatureKey[]
 ): boolean {
   if (!features) {
-    return false;
+    return keys.length > 0 && keys.every((key) => isOptOutMembershipFeature(key));
   }
   for (const key of keys) {
-    const v = features[key];
-    if (key === 'customerDocumentRequestsEnabled') {
-      if (v === false) {
-        return false;
-      }
-      continue;
-    }
-    if (v !== true) {
+    if (!readMembershipFeatureFlag(features, key)) {
       return false;
     }
   }
@@ -119,14 +139,12 @@ export async function membershipAllowsDashboardFeature(
   if (required == null) {
     return true;
   }
+  // Sin tenant: no bloquear módulos opt-out. El resto sigue restringido.
   if (!tenantId?.trim()) {
-    return false;
+    return membershipFeaturesAllow(undefined, required);
   }
-  const membership = await getTenantMembership(tenantId.trim());
-  if (!membership?.features) {
-    return false;
-  }
-  return membershipFeaturesAllow(membership.features as unknown as Record<string, unknown>, required);
+  const features = await getTenantMembershipFeatures(tenantId.trim());
+  return membershipFeaturesAllow(features ?? undefined, required);
 }
 
 /**
@@ -143,4 +161,22 @@ export async function resolveDashboardFeatureEnabled(
   }
   const planOk = await membershipAllowsDashboardFeature(dashboard, featureKey, tenantId ?? undefined);
   return planOk;
+}
+
+/**
+ * Resuelve varios módulos del menú en una sola pasada (lectura fresca del plan).
+ */
+export async function resolveDashboardFeaturesBatch(
+  dashboard: DashboardType,
+  featureKeys: string[],
+  tenantId: string | undefined | null
+): Promise<Record<string, boolean>> {
+  const unique = [...new Set(featureKeys.filter(Boolean))];
+  const out: Record<string, boolean> = {};
+  await Promise.all(
+    unique.map(async (key) => {
+      out[key] = await resolveDashboardFeatureEnabled(dashboard, key, tenantId ?? undefined);
+    })
+  );
+  return out;
 }

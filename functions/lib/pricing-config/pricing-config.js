@@ -113,6 +113,14 @@ exports.getPricingConfig = (0, https_1.onCall)({
                             30: 229,
                         },
                     },
+                    vehicle_page: {
+                        durations: [7, 15, 30],
+                        prices: {
+                            7: 119,
+                            15: 199,
+                            30: 349,
+                        },
+                    },
                 },
                 limits: {
                     maxActivePromotions: 12,

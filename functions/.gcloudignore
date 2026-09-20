@@ -1,0 +1,19 @@
+# Legacy Next.js bundles — production runs on Firebase App Hosting, not Cloud Functions SSR.
+admin/
+dealer/
+seller/
+advertiser/
+public-web/
+
+# TypeScript sources (runtime uses lib/ and bundled webhooks)
+src/
+tsconfig.json
+build-functions.js
+build-webhooks.js
+
+# Local / dev artifacts
+.git/
+.gitignore
+*.log
+.firebase/
+*.md

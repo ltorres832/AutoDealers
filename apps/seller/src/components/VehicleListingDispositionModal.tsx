@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from 'react';
 import type { VehicleListingAction } from '@autodealers/inventory/client';
+import PostSaleDocumentsPanel, { type PostSaleDocPayload } from '@/components/PostSaleDocumentsPanel';
 
 type Mode = 'dispose' | 'sold_options';
 
@@ -12,6 +13,8 @@ interface VehicleListingDispositionModalProps {
   onConfirm: (action: VehicleListingAction | 'keep_active', showPublicSoldBadge?: boolean) => void;
   /** Tras venta completa: textos y sin cancelar sin elegir opción */
   variant?: 'inventory' | 'after_sale';
+  /** Datos para generar Bill of Sale / recibo tras la venta */
+  saleDocumentsPayload?: PostSaleDocPayload | null;
 }
 
 export default function VehicleListingDispositionModal({
@@ -20,6 +23,7 @@ export default function VehicleListingDispositionModal({
   onClose,
   onConfirm,
   variant = 'inventory',
+  saleDocumentsPayload = null,
 }: VehicleListingDispositionModalProps) {
   const afterSale = variant === 'after_sale';
   const [showPublicSoldBadge, setShowPublicSoldBadge] = useState(false);
@@ -44,7 +48,10 @@ export default function VehicleListingDispositionModal({
               del mismo modelo)
             </span>
           </label>
-          <div className="flex gap-2">
+          {saleDocumentsPayload ? (
+            <PostSaleDocumentsPanel payload={saleDocumentsPayload} compact />
+          ) : null}
+          <div className="flex gap-2 mt-4">
             {!afterSale ? (
               <button
                 type="button"
@@ -93,7 +100,7 @@ export default function VehicleListingDispositionModal({
             onClick={() => onConfirm('hide')}
           />
           <OptionButton
-            className="border-green-200 bg-green-50 hover:bg-green-100 mb-4"
+            className="border-green-200 bg-green-50 hover:bg-green-100 mb-2"
             title="Seguir activo"
             subtitle={
               afterSale
@@ -102,11 +109,14 @@ export default function VehicleListingDispositionModal({
             }
             onClick={() => onConfirm('keep_active')}
           />
+          {afterSale && saleDocumentsPayload ? (
+            <PostSaleDocumentsPanel payload={saleDocumentsPayload} compact />
+          ) : null}
           {!afterSale ? (
             <button
               type="button"
               onClick={onClose}
-              className="w-full py-2 text-sm text-gray-600 hover:text-gray-900"
+              className="w-full py-2 text-sm text-gray-600 hover:text-gray-900 mt-2"
             >
               Cancelar
             </button>
@@ -135,7 +145,7 @@ function ModalShell({
       role="presentation"
     >
       <div
-        className="bg-white rounded-xl shadow-xl max-w-md w-full p-6"
+        className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {children}

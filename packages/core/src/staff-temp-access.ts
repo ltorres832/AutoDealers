@@ -11,6 +11,15 @@ import { getSalesEmployee } from './sales-employees';
 
 export type StaffAccessStatus = 'pending' | 'active' | 'expired' | 'revoked' | 'denied';
 
+/** Roles de portal a los que un empleado de ventas puede entrar con grant. */
+export const STAFF_ACCESS_PORTAL_ROLES = [
+  'dealer',
+  'master_dealer',
+  'dealer_admin',
+  'manager',
+  'seller',
+] as const;
+
 export interface StaffAccessTarget {
   targetAccountId?: string;
   targetTenantId: string;
@@ -268,6 +277,25 @@ export async function createStaffAccessGrant(input: {
     throw new Error('Debes indicar la cuenta (tenantId) a la que se otorga el acceso');
   }
 
+  const { isTenantMembershipActive } = await import('./sales-employees');
+  const membershipActive = await isTenantMembershipActive(targetTenantId);
+  if (!membershipActive) {
+    throw new Error(
+      'Solo se puede otorgar acceso a dealers/vendedores con membresía activa de pago (suscripción active/trialing)'
+    );
+  }
+
+  if (input.targetUserId) {
+    const userSnap = await getFirestore().collection('users').doc(input.targetUserId.trim()).get();
+    if (!userSnap.exists) {
+      throw new Error('Usuario de la cuenta no encontrado');
+    }
+    const role = String(userSnap.data()?.role || '');
+    if (!(STAFF_ACCESS_PORTAL_ROLES as readonly string[]).includes(role)) {
+      throw new Error('Solo se puede otorgar acceso a cuentas dealer o vendedor');
+    }
+  }
+
   const durationMinutes = Math.max(15, Math.min(24 * 60, Math.floor(input.durationMinutes)));
   const startsAt = input.startsAt;
   const expiresAt = new Date(startsAt.getTime() + durationMinutes * 60 * 1000);
@@ -510,4 +538,109 @@ export async function denyStaffAccessRequest(input: {
     },
     { merge: true }
   );
+}
+
+export type StaffAccessPortalAccount = {
+  id: string;
+  tenantId: string;
+  userId: string;
+  name: string;
+  companyName?: string;
+  email: string;
+  role: string;
+  status?: string;
+};
+
+/**
+ * Dealers y sellers (roles de portal dealer/vendedor) con tenantId y
+ * membresía activa de pago (tenant.membershipId + suscripción active/trialing).
+ * Sin filtrar por empleado de ventas ni por “cuenta de membresía vendida”.
+ */
+export async function listAllDealerAndSellerAccountsForStaffAccess(): Promise<
+  StaffAccessPortalAccount[]
+> {
+  const db = getFirestore();
+  const byUserId = new Map<string, StaffAccessPortalAccount>();
+
+  const snaps = await Promise.all(
+    STAFF_ACCESS_PORTAL_ROLES.map((role) =>
+      db.collection('users').where('role', '==', role).get()
+    )
+  );
+
+  for (const snap of snaps) {
+    for (const doc of snap.docs) {
+      const data = doc.data() || {};
+      const tenantId = String(data.tenantId || data.dealerId || '').trim();
+      if (!tenantId) continue;
+      const email = String(data.email || '').trim();
+      const name =
+        String(data.name || data.displayName || '').trim() ||
+        (email ? email.split('@')[0] : doc.id);
+      const companyName = String(
+        data.companyName || data.businessName || data.tenantName || ''
+      ).trim();
+      byUserId.set(doc.id, {
+        id: `user:${doc.id}`,
+        tenantId,
+        userId: doc.id,
+        name,
+        companyName: companyName || undefined,
+        email,
+        role: String(data.role || ''),
+        status: data.status != null ? String(data.status) : undefined,
+      });
+    }
+  }
+
+  // Enrich companyName + collect tenants that have a membershipId assigned
+  const tenantIds = [...new Set([...byUserId.values()].map((a) => a.tenantId))];
+  const tenantSnaps = await Promise.all(
+    tenantIds.map((id) => db.collection('tenants').doc(id).get())
+  );
+  const tenantNames = new Map<string, string>();
+  const tenantsWithMembershipId = new Set<string>();
+  tenantSnaps.forEach((snap, i) => {
+    if (!snap.exists) return;
+    const d = snap.data() || {};
+    const n = String(d.name || d.companyName || '').trim();
+    if (n) tenantNames.set(tenantIds[i], n);
+    if (String(d.membershipId || '').trim()) {
+      tenantsWithMembershipId.add(tenantIds[i]);
+    }
+  });
+
+  // Active paid = membershipId on tenant + subscription status active/trialing
+  // (same rule as isTenantMembershipActive)
+  const paidChecks = await Promise.all(
+    [...tenantsWithMembershipId].map(async (tenantId) => {
+      const sub = await db
+        .collection('subscriptions')
+        .where('tenantId', '==', tenantId)
+        .limit(5)
+        .get();
+      if (sub.empty) return null;
+      const ok = sub.docs.some((doc) => {
+        const status = String(doc.data()?.status || '');
+        return status === 'active' || status === 'trialing';
+      });
+      return ok ? tenantId : null;
+    })
+  );
+  const paidTenantIds = new Set(paidChecks.filter((id): id is string => !!id));
+
+  const list = [...byUserId.values()]
+    .filter((a) => paidTenantIds.has(a.tenantId))
+    .map((a) => ({
+      ...a,
+      companyName: a.companyName || tenantNames.get(a.tenantId) || undefined,
+    }));
+
+  list.sort((a, b) => {
+    const la = (a.companyName || a.name || '').toLowerCase();
+    const lb = (b.companyName || b.name || '').toLowerCase();
+    return la.localeCompare(lb, 'es');
+  });
+
+  return list;
 }

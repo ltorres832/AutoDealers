@@ -21,9 +21,20 @@ export async function createSale(
     .collection('sales')
     .doc();
 
+  let enriched = { ...saleData } as Omit<Sale, 'id' | 'createdAt'>;
+  try {
+    const { applyCompensationToSalePayload } = await import('./compensation');
+    enriched = (await applyCompensationToSalePayload(
+      saleData.tenantId,
+      saleData
+    )) as Omit<Sale, 'id' | 'createdAt'>;
+  } catch (error) {
+    console.warn('[sales] No se pudo aplicar compensación automática:', error);
+  }
+
   // Guardar todos los campos de la venta
   const saleToSave: any = {
-    ...saleData,
+    ...enriched,
     createdAt: getFirestoreFieldValue().serverTimestamp(),
   };
 
@@ -419,6 +430,8 @@ export async function completeSale(
   documents?: string[]
 ): Promise<void> {
   const db = getDb();
+  const saleRef = db.collection('tenants').doc(tenantId).collection('sales').doc(saleId);
+  const saleSnap = await saleRef.get();
   const updateData: any = {
     status: 'completed',
     completedAt: getFirestoreFieldValue().serverTimestamp(),
@@ -428,12 +441,23 @@ export async function completeSale(
     updateData.documents = documents;
   }
 
-  await db
-    .collection('tenants')
-    .doc(tenantId)
-    .collection('sales')
-    .doc(saleId)
-    .update(updateData);
+  if (saleSnap.exists) {
+    try {
+      const { applyCompensationToSalePayload } = await import('./compensation');
+      const existing = { id: saleSnap.id, ...saleSnap.data() } as Sale;
+      const enriched = await applyCompensationToSalePayload(tenantId, existing);
+      if (enriched.commission != null) updateData.commission = enriched.commission;
+      if (enriched.commissionRate != null) updateData.commissionRate = enriched.commissionRate;
+      if ((enriched as any).bonusAmount != null) updateData.bonusAmount = (enriched as any).bonusAmount;
+      if ((enriched as any).compensationBreakdown != null) {
+        updateData.compensationBreakdown = (enriched as any).compensationBreakdown;
+      }
+    } catch (error) {
+      console.warn('[sales] No se pudo aplicar compensación al completar:', error);
+    }
+  }
+
+  await saleRef.update(updateData);
 }
 
 /**

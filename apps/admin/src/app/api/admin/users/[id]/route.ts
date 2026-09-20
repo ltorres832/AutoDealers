@@ -32,6 +32,7 @@ const PATCHABLE_TOP_LEVEL = new Set([
   'emailSignatureType',
   'emailAliases',
   'referralCode',
+  'notificationAudience',
   'sellerRating',
   'sellerRatingCount',
   'dealerRating',
@@ -205,6 +206,7 @@ export async function PATCH(
       'advertiser',
       'manager',
       'dealer_admin',
+      'automotive_business',
     ]);
 
     for (const key of PATCHABLE_TOP_LEVEL) {
@@ -256,6 +258,14 @@ export async function PATCH(
       if (key === 'membershipType') {
         if (val === 'dealer' || val === 'seller') {
           firestorePatch.membershipType = val;
+        }
+        continue;
+      }
+      if (key === 'notificationAudience') {
+        if (val === 'all' || val === 'public' || val === 'platform') {
+          firestorePatch.notificationAudience = val;
+        } else if (val === null || val === '') {
+          firestorePatch.notificationAudience = admin.firestore.FieldValue.delete();
         }
         continue;
       }
@@ -388,6 +398,22 @@ export async function PATCH(
 
     if (hasMeaningfulFirestore) {
       await userRef.update(firestorePatch as admin.firestore.UpdateData<admin.firestore.DocumentData>);
+      if (nextRole === 'dealer' && nextTenantId && typeof firestorePatch.status === 'string') {
+        const dealerStatusPatch = {
+          status: firestorePatch.status,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+        await db
+          .collection('tenants')
+          .doc(nextTenantId)
+          .update(dealerStatusPatch)
+          .catch(() => undefined);
+        await db
+          .collection('dealers')
+          .doc(nextTenantId)
+          .update(dealerStatusPatch)
+          .catch(() => undefined);
+      }
     } else if (generateTemporaryPassword) {
       // mustChangePassword ya actualizado en setTemporaryPassword
     }
@@ -407,5 +433,37 @@ export async function PATCH(
   } catch (e) {
     console.error('admin users [id] PATCH:', e);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const auth = await verifyAuth(request);
+    if (!auth || auth.role !== 'admin') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { id } = await params;
+    if (!id) {
+      return NextResponse.json({ error: 'ID requerido' }, { status: 400 });
+    }
+
+    const permanent = request.nextUrl.searchParams.get('permanent') === 'true';
+    if (permanent) {
+      const { adminHardDeletePlatformUser } = await import('@autodealers/core/admin-platform-delete');
+      const result = await adminHardDeletePlatformUser(id, auth.userId);
+      return NextResponse.json({ success: true, permanent: true, ...result });
+    }
+
+    const { adminDeletePlatformUser } = await import('@autodealers/core/admin-platform-delete');
+    const result = await adminDeletePlatformUser(id, auth.userId);
+    return NextResponse.json({ success: true, ...result });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Error al eliminar usuario';
+    const status = msg.includes('no encontrado') ? 404 : msg.includes('administradores') ? 400 : 500;
+    return NextResponse.json({ error: msg }, { status });
   }
 }

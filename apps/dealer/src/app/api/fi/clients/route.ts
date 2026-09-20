@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Verificar que el usuario es dealer
-    const allowedRoles = ['dealer', 'master_dealer', 'manager', 'dealer_admin'];
+    const allowedRoles = ['dealer', 'master_dealer', 'manager', 'dealer_admin', 'fi_manager'];
     if (!allowedRoles.includes(user.role as string)) {
       return NextResponse.json({ error: 'Solo dealers pueden acceder' }, { status: 403 });
     }

@@ -1,6 +1,7 @@
 // Sistema de Configuración de Branding en Documentos
 
 import { getFirestore } from '@autodealers/shared';
+import { PLATFORM_NAME } from '@autodealers/shared/platform-sender';
 
 // Lazy initialization - solo se inicializa cuando se necesita
 function getDb() {
@@ -270,8 +271,30 @@ export async function getOrderedBrandingElements(
   const config = await getDocumentBrandingConfig(tenantId, userId);
   const typeConfig = await getDocumentTypeBranding(tenantId, documentType, userId);
   
+  // Si no hay config guardada, devolver branding por defecto con logos del tenant
   if (!config) {
-    return { logos: [], names: [] };
+    const tenantDoc = await getDb().collection('tenants').doc(tenantId).get();
+    const tenantData = tenantDoc.exists ? tenantDoc.data() : null;
+    const branding = (tenantData?.branding || {}) as Record<string, unknown>;
+    const logoUrl =
+      (typeof branding.logo === 'string' ? branding.logo : undefined) ||
+      tenantData?.logoUrl;
+    const displayName = tenantData?.companyName || tenantData?.name || '';
+    const isSeller = tenantData?.type === 'seller';
+
+    const logos: Array<{ type: 'platform' | 'dealer' | 'seller'; url?: string; name?: string }> = [
+      { type: 'platform', name: PLATFORM_NAME },
+    ];
+    if (isSeller) {
+      logos.push({ type: 'seller', url: logoUrl, name: displayName });
+    } else {
+      logos.push({ type: 'dealer', url: logoUrl, name: displayName });
+    }
+    const names: Array<{ type: 'platform' | 'dealer' | 'seller'; text: string }> = [
+      { type: 'platform', text: PLATFORM_NAME },
+      { type: isSeller ? 'seller' : 'dealer', text: displayName },
+    ];
+    return { logos, names };
   }
   
   // Obtener información del tenant y usuario
@@ -291,23 +314,35 @@ export async function getOrderedBrandingElements(
     logos.push({
       type: 'platform',
       url: config.platformLogoUrl,
-      name: config.platformName || 'AutoDealers',
+      name: config.platformName || PLATFORM_NAME,
     });
   }
   
   if (typeConfig.showDealerLogo && tenantData) {
+    const branding = (tenantData.branding || {}) as Record<string, unknown>;
     logos.push({
       type: 'dealer',
-      url: config.dealerLogoUrl || tenantData.logoUrl,
-      name: config.dealerName || tenantData.name || tenantData.companyName,
+      url:
+        config.dealerLogoUrl ||
+        (typeof branding.logo === 'string' ? branding.logo : undefined) ||
+        tenantData.logoUrl,
+      name: config.dealerName || tenantData.companyName || tenantData.name,
     });
   }
   
-  if (typeConfig.showSellerLogo && userData) {
+  if (typeConfig.showSellerLogo) {
+    const branding = (tenantData?.branding || {}) as Record<string, unknown>;
+    // Vendedor independiente: logo en tenant.branding.logo; dealer-managed: sellerLogoUrl / user photo
     logos.push({
       type: 'seller',
-      url: config.sellerLogoUrl,
-      name: config.sellerName || userData.name,
+      url:
+        config.sellerLogoUrl ||
+        (tenantData?.type === 'seller'
+          ? (typeof branding.logo === 'string' ? branding.logo : undefined) || tenantData?.logoUrl
+          : undefined) ||
+        userData?.photo ||
+        userData?.photoUrl,
+      name: config.sellerName || userData?.name || userData?.displayName || tenantData?.name,
     });
   }
   
@@ -325,21 +360,26 @@ export async function getOrderedBrandingElements(
   if (typeConfig.showPlatformName) {
     names.push({
       type: 'platform',
-      text: config.platformName || 'AutoDealers',
+      text: config.platformName || PLATFORM_NAME,
     });
   }
   
   if (typeConfig.showDealerName && tenantData) {
     names.push({
       type: 'dealer',
-      text: config.dealerName || tenantData.name || tenantData.companyName || '',
+      text: config.dealerName || tenantData.companyName || tenantData.name || '',
     });
   }
   
-  if (typeConfig.showSellerName && userData) {
+  if (typeConfig.showSellerName) {
     names.push({
       type: 'seller',
-      text: config.sellerName || userData.name || '',
+      text:
+        config.sellerName ||
+        userData?.name ||
+        userData?.displayName ||
+        (tenantData?.type === 'seller' ? tenantData?.name || tenantData?.companyName || '' : '') ||
+        '',
     });
   }
   

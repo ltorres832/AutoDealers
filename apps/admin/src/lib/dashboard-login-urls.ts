@@ -1,29 +1,34 @@
+import {
+  resolveAdminUrl,
+  resolveBusinessUrl,
+  resolveDealerUrl,
+  resolvePublicWebUrl,
+  resolveSellerUrl,
+} from '@autodealers/shared/platform-urls';
+
 /** URLs de login de los paneles (para entregar credenciales al cliente). */
 export function getDashboardLoginUrl(role: 'dealer' | 'seller' | 'admin' | string): string {
-  const dealer =
-    process.env.NEXT_PUBLIC_DEALER_APP_URL ||
-    'https://dealer-app--autodealers-7f62e.us-central1.hosted.app';
-  const seller =
-    process.env.NEXT_PUBLIC_SELLER_APP_URL ||
-    'https://seller-app--autodealers-7f62e.us-central1.hosted.app';
-  const adminUrl =
-    process.env.NEXT_PUBLIC_ADMIN_APP_URL ||
-    'https://admin-app--autodealers-7f62e.us-central1.hosted.app';
-
+  if (role === 'customer') {
+    return `${resolvePublicWebUrl()}/mi-garage`;
+  }
   const base =
     role === 'dealer' || role === 'dealer_admin' || role === 'manager'
-      ? dealer
+      ? resolveDealerUrl()
       : role === 'seller'
-        ? seller
-        : role === 'admin'
-          ? adminUrl
-          : seller;
+        ? resolveSellerUrl()
+        : role === 'automotive_business'
+          ? resolveBusinessUrl()
+          : role === 'admin'
+            ? resolveAdminUrl()
+            : resolveSellerUrl();
 
-  return `${base.replace(/\/$/, '')}/login`;
+  return `${base}/login`;
 }
 
 export function getDashboardLabel(role: 'dealer' | 'seller' | string): string {
   if (role === 'dealer' || role === 'dealer_admin' || role === 'manager') return 'Panel dealer';
   if (role === 'seller') return 'Panel vendedor';
+  if (role === 'automotive_business') return 'Panel de negocio';
+  if (role === 'customer') return 'Mi garage';
   return 'Panel';
 }

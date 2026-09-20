@@ -40,9 +40,9 @@ const memberships = [
       socialMediaAnalytics: false, // ❌ No implementado
       marketplaceEnabled: false, // ❌ No implementado
       marketplaceFeatured: false, // ❌ No implementado
-      advancedReports: false, // ❌ Solo reportes básicos implementados
+      advancedReports: true, // ❌ Solo reportes básicos implementados
       customReports: false, // ❌ No implementado
-      exportData: false, // ❌ No implementado
+      exportData: true, // ❌ No implementado
       whiteLabel: false, // ❌ Solo branding básico
       apiAccess: false, // ❌ No implementado
       webhooks: false, // ❌ No implementado
@@ -60,7 +60,7 @@ const memberships = [
       inventorySync: false, // ❌ No implementado
       crmAdvanced: true, // ✅ CRM completo implementado (leads, mensajes, citas, recordatorios, reseñas, casos)
       leadScoring: false, // ❌ No implementado
-      automationWorkflows: false, // ❌ No implementado
+      automationWorkflows: true, // ❌ No implementado
       integrationsUnlimited: false, // ❌ No aplica
       prioritySupport: false, // ❌ No implementado
       dedicatedManager: false, // ❌ No implementado
@@ -85,6 +85,8 @@ const memberships = [
       multiDealerEnabled: false,
       maxDealers: null,
       requiresAdminApproval: false,
+      customerDocumentRequestsEnabled: true,
+      fiModule: true,
     },
   },
   {
@@ -116,9 +118,9 @@ const memberships = [
       socialMediaAnalytics: false, // ❌ No implementado
       marketplaceEnabled: false, // ❌ No implementado
       marketplaceFeatured: false, // ❌ No implementado
-      advancedReports: false, // ❌ Solo reportes básicos
+      advancedReports: true, // ❌ Solo reportes básicos
       customReports: false, // ❌ No implementado
-      exportData: false, // ❌ No implementado
+      exportData: true, // ❌ No implementado
       whiteLabel: false, // ❌ Solo branding básico
       apiAccess: false, // ❌ No implementado
       webhooks: false, // ❌ No implementado
@@ -136,7 +138,7 @@ const memberships = [
       inventorySync: false, // ❌ No implementado
       crmAdvanced: true, // ✅ CRM completo
       leadScoring: false, // ❌ No implementado
-      automationWorkflows: false, // ❌ No implementado
+      automationWorkflows: true, // ❌ No implementado
       integrationsUnlimited: false, // ❌ No aplica
       prioritySupport: false, // ❌ No implementado
       dedicatedManager: false, // ❌ No implementado
@@ -161,6 +163,8 @@ const memberships = [
       multiDealerEnabled: false,
       maxDealers: null,
       requiresAdminApproval: false,
+      customerDocumentRequestsEnabled: true,
+      fiModule: true,
     },
   },
   {
@@ -192,9 +196,9 @@ const memberships = [
       socialMediaAnalytics: false, // ❌ No implementado
       marketplaceEnabled: false, // ❌ No implementado
       marketplaceFeatured: false, // ❌ No implementado
-      advancedReports: false, // ❌ Solo básicos
+      advancedReports: true, // ❌ Solo básicos
       customReports: false, // ❌ No implementado
-      exportData: false, // ❌ No implementado
+      exportData: true, // ❌ No implementado
       whiteLabel: false, // ❌ Solo branding básico
       apiAccess: false, // ❌ No implementado
       webhooks: false, // ❌ No implementado
@@ -212,7 +216,7 @@ const memberships = [
       inventorySync: false, // ❌ No implementado
       crmAdvanced: true, // ✅ CRM completo
       leadScoring: false, // ❌ No implementado
-      automationWorkflows: false, // ❌ No implementado
+      automationWorkflows: true, // ❌ No implementado
       integrationsUnlimited: false, // ❌ No aplica
       prioritySupport: false, // ❌ No implementado
       dedicatedManager: false, // ❌ No implementado
@@ -237,6 +241,8 @@ const memberships = [
       multiDealerEnabled: false,
       maxDealers: null,
       requiresAdminApproval: false,
+      customerDocumentRequestsEnabled: true,
+      fiModule: true,
     },
   },
   
@@ -269,9 +275,9 @@ const memberships = [
       socialMediaAnalytics: false,
       marketplaceEnabled: false,
       marketplaceFeatured: false,
-      advancedReports: false,
+      advancedReports: true,
       customReports: false,
-      exportData: false,
+      exportData: true,
       whiteLabel: false,
       apiAccess: false,
       webhooks: false,
@@ -289,7 +295,7 @@ const memberships = [
       inventorySync: false,
       crmAdvanced: true,
       leadScoring: false,
-      automationWorkflows: false,
+      automationWorkflows: true,
       integrationsUnlimited: false,
       prioritySupport: false,
       dedicatedManager: false,
@@ -344,9 +350,9 @@ const memberships = [
       socialMediaAnalytics: false,
       marketplaceEnabled: false,
       marketplaceFeatured: false,
-      advancedReports: false,
+      advancedReports: true,
       customReports: false,
-      exportData: false,
+      exportData: true,
       whiteLabel: false,
       apiAccess: false,
       webhooks: false,
@@ -364,7 +370,7 @@ const memberships = [
       inventorySync: false,
       crmAdvanced: true,
       leadScoring: false,
-      automationWorkflows: false,
+      automationWorkflows: true,
       integrationsUnlimited: false,
       prioritySupport: false,
       dedicatedManager: false,
@@ -419,9 +425,9 @@ const memberships = [
       socialMediaAnalytics: false,
       marketplaceEnabled: false,
       marketplaceFeatured: false,
-      advancedReports: false,
+      advancedReports: true,
       customReports: false,
-      exportData: false,
+      exportData: true,
       whiteLabel: false,
       apiAccess: false,
       webhooks: false,
@@ -439,7 +445,7 @@ const memberships = [
       inventorySync: false,
       crmAdvanced: true,
       leadScoring: false,
-      automationWorkflows: false,
+      automationWorkflows: true,
       integrationsUnlimited: false,
       prioritySupport: false,
       dedicatedManager: false,
@@ -497,9 +503,9 @@ const memberships = [
       socialMediaAnalytics: false, // ❌ No implementado
       marketplaceEnabled: false, // ❌ No implementado
       marketplaceFeatured: false, // ❌ No implementado
-      advancedReports: false, // ❌ Solo básicos
+      advancedReports: true, // ❌ Solo básicos
       customReports: false, // ❌ No implementado
-      exportData: false, // ❌ No implementado
+      exportData: true, // ❌ No implementado
       whiteLabel: false, // ❌ Solo branding básico
       apiAccess: false, // ❌ No implementado
       webhooks: false, // ❌ No implementado
@@ -517,7 +523,7 @@ const memberships = [
       inventorySync: false, // ❌ No implementado
       crmAdvanced: true, // ✅ CRM completo
       leadScoring: false, // ❌ No implementado
-      automationWorkflows: false, // ❌ No implementado
+      automationWorkflows: true, // ❌ No implementado
       integrationsUnlimited: false, // ❌ No aplica
       prioritySupport: false, // ❌ No implementado
       dedicatedManager: false, // ❌ No implementado
@@ -542,6 +548,8 @@ const memberships = [
       multiDealerEnabled: false,
       maxDealers: null,
       requiresAdminApproval: false,
+      customerDocumentRequestsEnabled: true,
+      fiModule: true,
     },
   },
   {
@@ -573,9 +581,9 @@ const memberships = [
       socialMediaAnalytics: false, // ❌ No implementado
       marketplaceEnabled: false, // ❌ No implementado
       marketplaceFeatured: false, // ❌ No implementado
-      advancedReports: false, // ❌ Solo básicos
+      advancedReports: true, // ❌ Solo básicos
       customReports: false, // ❌ No implementado
-      exportData: false, // ❌ No implementado
+      exportData: true, // ❌ No implementado
       whiteLabel: false, // ❌ Solo branding básico
       apiAccess: false, // ❌ No implementado
       webhooks: false, // ❌ No implementado
@@ -593,7 +601,7 @@ const memberships = [
       inventorySync: false, // ❌ No implementado
       crmAdvanced: true, // ✅ CRM completo
       leadScoring: false, // ❌ No implementado
-      automationWorkflows: false, // ❌ No implementado
+      automationWorkflows: true, // ❌ No implementado
       integrationsUnlimited: false, // ❌ No aplica
       prioritySupport: false, // ❌ No implementado
       dedicatedManager: false, // ❌ No implementado
@@ -618,6 +626,8 @@ const memberships = [
       multiDealerEnabled: false,
       maxDealers: null,
       requiresAdminApproval: false,
+      customerDocumentRequestsEnabled: true,
+      fiModule: true,
     },
   },
   {
@@ -649,9 +659,9 @@ const memberships = [
       socialMediaAnalytics: false, // ❌ No implementado
       marketplaceEnabled: false, // ❌ No implementado
       marketplaceFeatured: false, // ❌ No implementado
-      advancedReports: false, // ❌ Solo básicos
+      advancedReports: true, // ❌ Solo básicos
       customReports: false, // ❌ No implementado
-      exportData: false, // ❌ No implementado
+      exportData: true, // ❌ No implementado
       whiteLabel: false, // ❌ Solo branding básico
       apiAccess: false, // ❌ No implementado
       webhooks: false, // ❌ No implementado
@@ -669,7 +679,7 @@ const memberships = [
       inventorySync: false, // ❌ No implementado
       crmAdvanced: true, // ✅ CRM completo
       leadScoring: false, // ❌ No implementado
-      automationWorkflows: false, // ❌ No implementado
+      automationWorkflows: true, // ❌ No implementado
       integrationsUnlimited: false, // ❌ No aplica
       prioritySupport: false, // ❌ No implementado
       dedicatedManager: false, // ❌ No implementado
@@ -693,6 +703,8 @@ const memberships = [
       multiDealerEnabled: false,
       maxDealers: null,
       requiresAdminApproval: false,
+      customerDocumentRequestsEnabled: true,
+      fiModule: true,
     },
   },
 ];

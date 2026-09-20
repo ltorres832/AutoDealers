@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { getFirestore, getStripeInstance } from '@autodealers/core';
-import * as admin from 'firebase-admin';
 
 const db = getFirestore();
 
@@ -57,16 +56,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Actualizar la solicitud con el estado de pago completado
-    await requestRef.update({
-      status: 'paid',
-      paymentStatus: 'completed',
+    const { activatePaidPromotionFromIntent } = await import('@autodealers/core');
+    await activatePaidPromotionFromIntent({
+      tenantId: auth.tenantId,
+      requestId,
       paymentIntentId,
-      paidAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
-
-    // El webhook de Stripe se encargará de crear la promoción activa
 
     return NextResponse.json({
       success: true,

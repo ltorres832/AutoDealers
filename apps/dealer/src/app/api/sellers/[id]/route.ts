@@ -7,10 +7,13 @@ import { getAppointments } from '@autodealers/crm';
 import { getVehicles } from '@autodealers/inventory';
 import { getCampaigns } from '@autodealers/core';
 import { getPromotions } from '@autodealers/core';
+import { getScheduledPosts } from '@autodealers/core';
 import {
   normalizePromoVideoUrls,
   sellerPromoVideoFields,
 } from '@autodealers/shared/promo-video-urls';
+import { countSellerInventory, getSellerUsage } from '@autodealers/core';
+import { stripWhatsAppPlatforms } from '@/lib/seller-network-activity';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,19 +61,81 @@ export async function GET(
     const allAppointments = await getAppointments(sellerTenantId);
     const sellerAppointments = allAppointments.filter(apt => apt.assignedTo === sellerId);
 
-    // Obtener inventario del vendedor
+    // Inventario del vendedor (por sellerId, no todo el tenant)
     const allVehicles = await getVehicles(sellerTenantId);
-    const sellerVehicles = allVehicles; // Todos los vehículos del tenant del vendedor
+    const sellerVehicles = allVehicles.filter(
+      (v) =>
+        (v as { sellerId?: string }).sellerId === sellerId ||
+        (v as { assignedTo?: string }).assignedTo === sellerId
+    );
+    const sellerUsage = await getSellerUsage(auth.tenantId, sellerId, sellerTenantId);
+    const sellerInventoryCount = await countSellerInventory(
+      auth.tenantId,
+      sellerId,
+      sellerTenantId
+    );
 
-    // Obtener campañas del vendedor
+    // Campañas y promociones del vendedor
     const allCampaigns = await getCampaigns(sellerTenantId);
-    const activeCampaigns = allCampaigns.filter(c => c.status === 'active' || c.status === 'scheduled');
-    const pastCampaigns = allCampaigns.filter(c => c.status === 'completed' || c.status === 'cancelled');
+    const sellerCampaigns = allCampaigns.filter(
+      (c) => (c as { createdBy?: string }).createdBy === sellerId
+    );
+    const activeCampaigns = sellerCampaigns.filter(
+      (c) => c.status === 'active' || c.status === 'scheduled'
+    );
+    const pastCampaigns = sellerCampaigns.filter(
+      (c) => c.status === 'completed' || c.status === 'cancelled'
+    );
 
-    // Obtener promociones del vendedor
     const allPromotions = await getPromotions(sellerTenantId);
-    const activePromotions = allPromotions.filter(p => p.status === 'active' || p.status === 'scheduled');
-    const pastPromotions = allPromotions.filter(p => p.status === 'expired' || p.status === 'paused');
+    const sellerPromotions = allPromotions.filter(
+      (p) => (p as { createdBy?: string }).createdBy === sellerId
+    );
+    const activePromotions = sellerPromotions.filter(
+      (p) => p.status === 'active' || p.status === 'scheduled'
+    );
+    const pastPromotions = sellerPromotions.filter(
+      (p) => p.status === 'expired' || p.status === 'paused'
+    );
+
+    let socialPosts: any[] = [];
+    try {
+      socialPosts = await getScheduledPosts(sellerTenantId, sellerId);
+      socialPosts = socialPosts.map((p) => ({
+        id: p.id,
+        content: p.content,
+        platforms: stripWhatsAppPlatforms(p.platforms),
+        status: p.status,
+        scheduledFor: p.scheduledFor instanceof Date ? p.scheduledFor.toISOString() : p.scheduledFor,
+        publishedAt: p.publishedAt instanceof Date ? p.publishedAt.toISOString() : p.publishedAt,
+        createdAt: p.createdAt instanceof Date ? p.createdAt.toISOString() : p.createdAt,
+      }));
+    } catch (e) {
+      console.warn('seller social posts', e);
+    }
+
+    const campaignsPayload = sellerCampaigns.slice(0, 15).map((c) => ({
+      id: c.id,
+      name: c.name,
+      status: c.status,
+      platforms: stripWhatsAppPlatforms(c.platforms),
+      startDate: (c as any).startedAt instanceof Date
+        ? (c as any).startedAt.toISOString()
+        : (c as any).startedAt || (c as any).startDate,
+      endDate: (c as any).endedAt instanceof Date
+        ? (c as any).endedAt.toISOString()
+        : (c as any).endedAt || (c as any).endDate,
+      createdAt: c.createdAt instanceof Date ? c.createdAt.toISOString() : c.createdAt,
+    }));
+
+    const promotionsPayload = sellerPromotions.slice(0, 15).map((p) => ({
+      id: p.id,
+      name: (p as any).name || (p as any).title,
+      status: p.status,
+      startDate: p.startDate instanceof Date ? p.startDate.toISOString() : p.startDate,
+      endDate: p.endDate instanceof Date ? p.endDate.toISOString() : p.endDate,
+      createdAt: p.createdAt instanceof Date ? p.createdAt.toISOString() : p.createdAt,
+    }));
 
     // Calcular estadísticas
     const completedSales = sellerSales.filter(s => s.status === 'completed');
@@ -99,6 +164,9 @@ export async function GET(
         publicPromoVideoUrl:
           normalizePromoVideoUrls(sellerData.publicPromoVideoUrls, sellerData.publicPromoVideoUrl)[0] ||
           '',
+        departmentTemplate: sellerData.departmentTemplate || null,
+        modulePermissions: sellerData.modulePermissions || {},
+        permissions: sellerData.permissions || {},
         createdAt: sellerData?.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
       },
       stats: {
@@ -109,20 +177,27 @@ export async function GET(
         totalRevenue,
         totalAppointments: sellerAppointments.length,
         upcomingAppointments,
-        totalVehicles: sellerVehicles.length,
+        totalVehicles: sellerInventoryCount,
         availableVehicles,
         soldVehicles,
-        totalCampaigns: allCampaigns.length,
+        totalCampaigns: sellerCampaigns.length,
         activeCampaigns: activeCampaigns.length,
         pastCampaigns: pastCampaigns.length,
-        totalPromotions: allPromotions.length,
+        totalPromotions: sellerPromotions.length,
         activePromotions: activePromotions.length,
         pastPromotions: pastPromotions.length,
+        totalSocialPosts: socialPosts.length,
+        scheduledSocialPosts: socialPosts.filter((p) => p.status === 'scheduled').length,
+        publishedSocialPosts: socialPosts.filter((p) => p.status === 'published').length,
       },
-      leads: sellerLeads.slice(0, 10), // Últimos 10 leads
-      sales: sellerSales.slice(0, 10), // Últimas 10 ventas
-      appointments: sellerAppointments.slice(0, 10), // Próximas 10 citas
-      vehicles: sellerVehicles.slice(0, 10), // Últimos 10 vehículos
+      usage: sellerUsage,
+      leads: sellerLeads.slice(0, 10),
+      sales: sellerSales.slice(0, 10),
+      appointments: sellerAppointments.slice(0, 10),
+      vehicles: sellerVehicles.slice(0, 10),
+      campaigns: campaignsPayload,
+      promotions: promotionsPayload,
+      socialPosts: socialPosts.slice(0, 15),
     });
   } catch (error: any) {
     console.error('Error fetching seller details:', error);
@@ -168,6 +243,12 @@ export async function PATCH(
 
     if (body.name !== undefined) updates.name = body.name;
     if (body.status !== undefined) updates.status = body.status;
+    if (body.departmentTemplate !== undefined) {
+      updates.departmentTemplate = body.departmentTemplate || null;
+    }
+    if (body.modulePermissions !== undefined && typeof body.modulePermissions === 'object') {
+      updates.modulePermissions = body.modulePermissions;
+    }
     if (body.publicPromoVideoUrls !== undefined || body.publicPromoVideoUrl !== undefined) {
       const urls = normalizePromoVideoUrls(body.publicPromoVideoUrls, body.publicPromoVideoUrl);
       Object.assign(updates, sellerPromoVideoFields(urls));

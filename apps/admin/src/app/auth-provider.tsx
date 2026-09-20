@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { resolveClientAuthToken } from '@/lib/auth-token-client';
+import { ensureFirebaseClientAuth } from '@/lib/ensure-firebase-client-auth';
 import '@/lib/install-fetch-auth';
 
 /**
@@ -40,7 +41,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.removeItem('authToken');
           document.cookie = 'authToken=; path=/; max-age=0';
           window.location.href = '/login';
+          return;
         }
+
+        await ensureFirebaseClientAuth();
       } catch {
         /* red de prueba; no bloquear si falla puntual */
       }

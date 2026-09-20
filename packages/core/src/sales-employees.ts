@@ -10,7 +10,7 @@ import {
   resolvePublicWebUrl,
   resolveSellerUrl,
 } from '@autodealers/shared/platform-urls';
-import { createUser, PlatformProfileExistsError } from './users';
+import { createUser } from './users';
 import { createTenant } from './tenants';
 import { finalizeUserRegistration, generateTemporaryPassword, normalizeLoginEmail } from './user-auth-sync';
 import { ensureAuthAccount } from './platform-registration';
@@ -30,6 +30,7 @@ export const SALES_AD_COMMISSION_TYPES = [
   'premium_banner',
   'assigned_banner',
   'paid_promotion',
+  'assigned_promotion_payment',
   'featured_promotion',
   'premium_promotion',
 ] as const;
@@ -82,6 +83,22 @@ export function salesProspectLabel(role: SalesClientRole, relation?: SalesProspe
 
 export function isSalesAdCommissionType(type: unknown): boolean {
   return (SALES_AD_COMMISSION_TYPES as readonly string[]).includes(String(type || ''));
+}
+
+/**
+ * Comisión de anuncio SOLO si el producto salió del portal de ventas.
+ * Compra self-serve del cliente (aunque el tenant esté en sales_employee_accounts) = $0 comisión.
+ */
+export function isSalesPortalAdOrigin(meta: Record<string, unknown> | null | undefined): boolean {
+  if (!meta) return false;
+  const source = String(meta.source || '').trim();
+  const salesAdOrderId = String(meta.salesAdOrderId || '').trim();
+  const employeeId = String(meta.employeeId || meta.salesEmployeeId || '').trim();
+  const assignedByRole = String(meta.assignedByRole || '').trim();
+  if (salesAdOrderId) return true;
+  if (source === 'sales_employee' && employeeId) return true;
+  if (assignedByRole === 'sales_employee' && employeeId) return true;
+  return false;
 }
 
 function requireVisitNotes(notes: unknown): string {
@@ -485,7 +502,11 @@ export async function provisionSalesEmployeeClient(input: {
       throw new Error('Selecciona una categoría válida para el negocio');
     }
     const existing = await findPlatformProfile(email, 'business');
-    if (existing) throw new PlatformProfileExistsError('business');
+    if (existing) {
+      throw new Error(
+        'Esa cuenta ya está registrada. Usa «Vincular cuenta ya registrada» en Membresías. No se crea un duplicado ni se cambia la contraseña.'
+      );
+    }
 
     const slug = await uniqueBusinessSlug(companyName);
     const tenant = await createTenant(companyName, 'automotive_business', undefined, '', companyName);
@@ -522,7 +543,11 @@ export async function provisionSalesEmployeeClient(input: {
     }).catch(() => undefined);
   } else {
     const existing = await findPlatformProfile(email, role);
-    if (existing) throw new PlatformProfileExistsError(role);
+    if (existing) {
+      throw new Error(
+        'Esa cuenta ya está registrada. Usa «Vincular cuenta ya registrada» en Membresías. No se crea un duplicado ni se cambia la contraseña.'
+      );
+    }
     if (role === 'dealer' && !companyName) throw new Error('El nombre de la compañía es requerido');
 
     const tenantRef = getDb().collection('tenants').doc();
@@ -615,6 +640,251 @@ export async function provisionSalesEmployeeClient(input: {
     password,
     loginUrl: getClientPortalLoginUrl(role),
     role,
+  };
+}
+
+type ExistingSalesClient = {
+  userId: string;
+  tenantId: string;
+  email: string;
+  name: string;
+  companyName?: string;
+};
+
+function companyNameMatches(actual: string, wanted: string): boolean {
+  const a = actual.trim().toLowerCase();
+  const b = wanted.trim().toLowerCase();
+  if (!a || !b) return false;
+  return a === b || a.includes(b) || b.includes(a);
+}
+
+async function findExistingSalesClients(input: {
+  email?: string;
+  tenantId?: string;
+  role: SalesClientRole;
+  companyName?: string;
+}): Promise<ExistingSalesClient[]> {
+  const db = getDb();
+  const role = input.role;
+  const wantedEmail = normalizeLoginEmail(input.email || '');
+  const wantedTenantId = String(input.tenantId || '').trim();
+  const wantedCompany = String(input.companyName || '').trim();
+  const found = new Map<string, ExistingSalesClient>();
+
+  const addCandidate = async (userId: string, userData: FirebaseFirestore.DocumentData, tenantHint?: string) => {
+    if (!userMatchesSalesRole(userData.role, role)) return;
+    const email = normalizeLoginEmail(String(userData.email || ''));
+    if (wantedEmail && email && email !== wantedEmail) return;
+
+    let tenantId = String(tenantHint || userData.tenantId || '').trim();
+    let tenantData: FirebaseFirestore.DocumentData | undefined;
+
+    if (tenantId) {
+      const tenantSnap = await db.collection('tenants').doc(tenantId).get();
+      if (tenantSnap.exists) {
+        tenantData = tenantSnap.data() || {};
+        if (tenantData.type && !tenantMatchesSalesRole(tenantData.type, role)) {
+          tenantData = undefined;
+          tenantId = '';
+        }
+      } else {
+        tenantId = '';
+      }
+    }
+
+    if (!tenantId) {
+      const byOwner = await db.collection('tenants').where('ownerId', '==', userId).limit(10).get();
+      const matches = byOwner.docs.filter((doc) => tenantMatchesSalesRole(doc.data()?.type, role));
+      if (matches.length === 1) {
+        tenantId = matches[0].id;
+        tenantData = matches[0].data() || {};
+      } else if (matches.length > 1 && wantedCompany) {
+        const named = matches.filter((doc) =>
+          companyNameMatches(String(doc.data()?.name || ''), wantedCompany)
+        );
+        if (named.length === 1) {
+          tenantId = named[0].id;
+          tenantData = named[0].data() || {};
+        }
+      }
+    }
+
+    if (!tenantId) return;
+    const companyName = String(tenantData?.name || userData.companyName || '').trim();
+    if (wantedCompany && companyName && !companyNameMatches(companyName, wantedCompany)) return;
+    if (wantedTenantId && tenantId !== wantedTenantId) return;
+
+    found.set(`${userId}:${tenantId}`, {
+      userId,
+      tenantId,
+      email: email || wantedEmail,
+      name: String(userData.name || tenantData?.name || email || 'Cliente'),
+      companyName: companyName || undefined,
+    });
+  };
+
+  if (wantedTenantId) {
+    const tenantSnap = await db.collection('tenants').doc(wantedTenantId).get();
+    if (!tenantSnap.exists) {
+      throw new Error('No existe una cuenta con ese tenant.');
+    }
+    const tenant = tenantSnap.data() || {};
+    if (!tenantMatchesSalesRole(tenant.type, role)) {
+      throw new Error('Ese tenant no corresponde al tipo de cuenta seleccionado.');
+    }
+    const ownerId = String(tenant.ownerId || '').trim();
+    if (ownerId) {
+      const ownerSnap = await db.collection('users').doc(ownerId).get();
+      if (ownerSnap.exists) {
+        await addCandidate(ownerSnap.id, ownerSnap.data() || {}, wantedTenantId);
+      }
+    }
+    const usersSnap = await db.collection('users').where('tenantId', '==', wantedTenantId).limit(20).get();
+    for (const doc of usersSnap.docs) {
+      await addCandidate(doc.id, doc.data() || {}, wantedTenantId);
+    }
+  }
+
+  if (wantedEmail) {
+    const usersSnap = await db.collection('users').where('email', '==', wantedEmail).limit(20).get();
+    for (const doc of usersSnap.docs) {
+      await addCandidate(doc.id, doc.data() || {});
+    }
+  }
+
+  return [...found.values()];
+}
+
+function userMatchesSalesRole(role: unknown, target: SalesClientRole): boolean {
+  return salesRoleFromStored(role) === target;
+}
+
+function tenantMatchesSalesRole(type: unknown, target: SalesClientRole): boolean {
+  return salesRoleFromStored(type) === target;
+}
+
+async function assertAccountAvailableForEmployee(employeeId: string, tenantId: string, userId: string) {
+  const db = getDb();
+  const existing = await db.collection(SALES_ACCOUNTS_COL).where('tenantId', '==', tenantId).limit(5).get();
+  for (const doc of existing.docs) {
+    const linkedEmployeeId = String(doc.data()?.employeeId || '');
+    if (linkedEmployeeId === employeeId) {
+      throw new Error('Esta cuenta ya está vinculada a ti.');
+    }
+    if (linkedEmployeeId) {
+      throw new Error('Esta cuenta ya está atribuida a otro empleado de ventas.');
+    }
+  }
+
+  const [userSnap, tenantSnap] = await Promise.all([
+    db.collection('users').doc(userId).get(),
+    db.collection('tenants').doc(tenantId).get(),
+  ]);
+  const userEmployeeId = String(userSnap.data()?.createdBySalesEmployeeId || '').trim();
+  const tenantEmployeeId = String(tenantSnap.data()?.createdBySalesEmployeeId || '').trim();
+  if (userEmployeeId && userEmployeeId !== employeeId) {
+    throw new Error('Esta cuenta ya está atribuida a otro empleado de ventas.');
+  }
+  if (tenantEmployeeId && tenantEmployeeId !== employeeId) {
+    throw new Error('Esta cuenta ya está atribuida a otro empleado de ventas.');
+  }
+}
+
+export async function linkExistingSalesEmployeeAccount(input: {
+  employeeId: string;
+  role: SalesClientRole | string;
+  email?: string;
+  tenantId?: string;
+  companyName?: string;
+}): Promise<{
+  accountId: string;
+  tenantId: string;
+  userId: string;
+  email: string;
+  name: string;
+  role: SalesClientRole;
+  loginUrl: string;
+}> {
+  const employee = await getSalesEmployee(input.employeeId);
+  if (!employee) throw new Error('Empleado no encontrado');
+  if (employee.status !== 'active') throw new Error('El empleado está inactivo');
+
+  const role = parseSalesClientRole(input.role);
+  const email = normalizeLoginEmail(input.email || '');
+  const tenantIdInput = String(input.tenantId || '').trim();
+  const companyName = String(input.companyName || '').trim();
+  if (!email && !tenantIdInput) {
+    throw new Error('Indica el correo de la cuenta ya registrada.');
+  }
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new Error('Correo del cliente inválido');
+  }
+
+  const matches = await findExistingSalesClients({
+    email: email || undefined,
+    tenantId: tenantIdInput || undefined,
+    role,
+    companyName: companyName || undefined,
+  });
+
+  if (matches.length === 0) {
+    const roleLabel = role === 'dealer' ? 'dealer' : role === 'seller' ? 'vendedor' : 'negocio';
+    throw new Error(`No hay una cuenta de ${roleLabel} registrada con esos datos.`);
+  }
+  if (matches.length > 1) {
+    throw new Error(
+      'Hay más de una cuenta con ese correo. Indica el nombre de la compañía para distinguirla.'
+    );
+  }
+
+  const client = matches[0];
+  await assertAccountAvailableForEmployee(employee.id, client.tenantId, client.userId);
+
+  const accountRef = getDb().collection(SALES_ACCOUNTS_COL).doc();
+  await accountRef.set({
+    employeeId: employee.id,
+    role,
+    tenantId: client.tenantId,
+    userId: client.userId,
+    email: client.email || email,
+    name: client.name,
+    companyName: companyName || client.companyName || null,
+    source: 'linked_existing',
+    createdAt: nowTs(),
+    updatedAt: nowTs(),
+  });
+
+  await getDb()
+    .collection('users')
+    .doc(client.userId)
+    .set({ createdBySalesEmployeeId: employee.id, updatedAt: nowTs() }, { merge: true });
+  await getDb()
+    .collection('tenants')
+    .doc(client.tenantId)
+    .set({ createdBySalesEmployeeId: employee.id, updatedAt: nowTs() }, { merge: true });
+
+  await getDb()
+    .collection(SALES_EMPLOYEES_COL)
+    .doc(employee.id)
+    .set(
+      {
+        stats: {
+          ...(employee.stats || {}),
+          totalAccounts: Number(employee.stats?.totalAccounts || 0) + 1,
+        },
+        updatedAt: nowTs(),
+      },
+      { merge: true }
+    );
+
+  return {
+    accountId: accountRef.id,
+    tenantId: client.tenantId,
+    userId: client.userId,
+    email: client.email || email,
+    name: client.name,
+    role,
+    loginUrl: getClientPortalLoginUrl(role),
   };
 }
 
@@ -902,9 +1172,27 @@ export async function createSalesEmployeeAdCommission(input: {
   currency?: string;
   stripePaymentIntentId?: string;
   adKind?: string;
+  /** Obligatorio: prueba de que salió del portal /sales (no self-serve del cliente). */
+  salesAdOrderId?: string | null;
+  source?: string | null;
+  assignedByRole?: string | null;
+  salesEmployeeId?: string | null;
+  requireSalesPortalOrigin?: boolean;
 }): Promise<void> {
-  const employeeId =
-    input.employeeId || (input.tenantId ? await getSalesEmployeeIdForTenant(input.tenantId) : null);
+  const requireOrigin = input.requireSalesPortalOrigin !== false;
+  const originMeta = {
+    employeeId: input.employeeId || input.salesEmployeeId || null,
+    salesEmployeeId: input.salesEmployeeId || input.employeeId || null,
+    salesAdOrderId: input.salesAdOrderId || null,
+    source: input.source || null,
+    assignedByRole: input.assignedByRole || null,
+  };
+  if (requireOrigin && !isSalesPortalAdOrigin(originMeta)) {
+    return;
+  }
+
+  const employeeId = String(input.employeeId || input.salesEmployeeId || '').trim();
+  // Nunca inferir empleado solo por tenant vinculado (self-serve del cliente).
   if (!employeeId) return;
   if (!isSalesAdCommissionType(input.adKind)) return;
   if (input.stripePaymentIntentId) {
@@ -929,6 +1217,8 @@ export async function createSalesEmployeeAdCommission(input: {
     tenantId: input.tenantId || null,
     accountId: account?.id || null,
     stripePaymentIntentId: input.stripePaymentIntentId || null,
+    salesAdOrderId: input.salesAdOrderId || null,
+    source: 'sales_employee',
     adKind: input.adKind || 'ad',
     eligibleAt: admin.firestore.Timestamp.fromDate(new Date()),
     activatedAt: nowTs(),
@@ -1340,14 +1630,20 @@ export async function createSalesEmployeeAppointment(input: {
     if (input.requestedBy === 'admin' && grantMinutes >= 15) {
       if (!tenantId) {
         throw new Error(
-          'Para otorgar acceso debes vincular una cuenta (membresía) a la cita'
+          'Para otorgar acceso debes seleccionar un dealer o vendedor con tenant'
         );
       }
-      let targetUserId: string | undefined;
-      if (accountId) {
-        const accDoc = await getDb().collection(SALES_ACCOUNTS_COL).doc(accountId).get();
-        if (accDoc.exists) {
-          targetUserId = String(accDoc.data()?.userId || '') || undefined;
+      let targetUserId: string | undefined = input.clientUserId
+        ? String(input.clientUserId).trim() || undefined
+        : undefined;
+      if (!targetUserId && accountId) {
+        if (accountId.startsWith('user:')) {
+          targetUserId = accountId.slice(5) || undefined;
+        } else {
+          const accDoc = await getDb().collection(SALES_ACCOUNTS_COL).doc(accountId).get();
+          if (accDoc.exists) {
+            targetUserId = String(accDoc.data()?.userId || '') || undefined;
+          }
         }
       }
       await createStaffAccessGrant({
@@ -1509,6 +1805,41 @@ export async function listSalesEmployeeAppointments(employeeId?: string) {
     .sort((a, b) => String(a.scheduledAt || '').localeCompare(String(b.scheduledAt || '')));
 }
 
+export type SalesAppointmentStatus = 'scheduled' | 'completed' | 'cancelled';
+
+export async function updateSalesEmployeeAppointmentStatus(input: {
+  appointmentId: string;
+  employeeId?: string;
+  status: SalesAppointmentStatus;
+  actor: 'employee' | 'admin';
+  adminUserId?: string;
+}): Promise<void> {
+  const ref = getDb().collection(SALES_APPOINTMENTS_COL).doc(input.appointmentId);
+  const snap = await ref.get();
+  if (!snap.exists) throw new Error('Cita no encontrada');
+  const data = snap.data() || {};
+  if (input.actor === 'employee') {
+    if (!input.employeeId || String(data.employeeId || '') !== input.employeeId) {
+      throw new Error('No autorizado');
+    }
+  }
+  const current = String(data.status || 'scheduled');
+  if (current === input.status) return;
+  if (input.actor === 'employee' && current !== 'scheduled') {
+    throw new Error('Esta cita ya está cerrada');
+  }
+  await ref.set(
+    {
+      status: input.status,
+      statusChangedAt: nowTs(),
+      statusChangedBy: input.actor,
+      statusChangedByAdminId: input.adminUserId || null,
+      updatedAt: nowTs(),
+    },
+    { merge: true }
+  );
+}
+
 export async function isTenantMembershipActive(tenantId: string): Promise<boolean> {
   const tenant = await getDb().collection('tenants').doc(tenantId).get();
   if (!tenant.exists) return false;
@@ -1525,14 +1856,17 @@ export async function isTenantMembershipActive(tenantId: string): Promise<boolea
 export async function getSalesEmployeeDashboardData(employeeId: string) {
   const employee = await getSalesEmployee(employeeId);
   if (!employee) return null;
-  const [accounts, commissions, visits, appointments, notifications, links] = await Promise.all([
-    listSalesEmployeeAccounts(employeeId),
-    listSalesEmployeeCommissions(employeeId),
-    listSalesEmployeeVisits(employeeId),
-    listSalesEmployeeAppointments(employeeId),
-    listSalesEmployeeNotifications(employeeId),
-    listSalesEmployeePaymentLinks(employeeId),
-  ]);
+  const { listSalesEmployeeAdOrders } = await import('./sales-employee-ads');
+  const [accounts, commissions, visits, appointments, notifications, links, adOrders] =
+    await Promise.all([
+      listSalesEmployeeAccounts(employeeId),
+      listSalesEmployeeCommissions(employeeId),
+      listSalesEmployeeVisits(employeeId),
+      listSalesEmployeeAppointments(employeeId),
+      listSalesEmployeeNotifications(employeeId),
+      listSalesEmployeePaymentLinks(employeeId),
+      listSalesEmployeeAdOrders(employeeId),
+    ]);
 
   const now = Date.now();
   const nextPayout = commissions
@@ -1568,6 +1902,7 @@ export async function getSalesEmployeeDashboardData(employeeId: string) {
     appointments,
     notifications,
     paymentLinks: links,
+    adOrders,
     nextPayout: nextPayout
       ? {
           amount: nextPayout.amount,
@@ -1579,7 +1914,7 @@ export async function getSalesEmployeeDashboardData(employeeId: string) {
       : null,
     rules: {
       membership: 'Cobras el 50% del plan a los 14 días si el cliente no cancela. Si cancela en esos 14 días, $0. El otro 50% a los 6 meses si tú y el cliente siguen activos.',
-      ads: 'Los anuncios, banners y promociones pagan 25% del valor pagado, sin espera de 14 días.',
+      ads: 'Los anuncios, banners y promociones pagan 25% del valor pagado, sin espera de 14 días. Se generan cuando el pago queda confirmado y el producto queda aprobado/activo.',
     },
   };
 }

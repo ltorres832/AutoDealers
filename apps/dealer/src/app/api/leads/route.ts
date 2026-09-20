@@ -22,30 +22,114 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const source = searchParams.get('source');
     const search = searchParams.get('search');
+    const sellerIdFilter = searchParams.get('sellerId');
+    const includeSellerLeads =
+      searchParams.get('includeSellerLeads') !== '0' &&
+      (isDealerPortalRole(auth.role) || auth.role === 'dealer');
 
+    // Monitoreo: el dealer ve también sellerOwned (no ocultar)
     const leads = await getLeads(auth.tenantId, {
       status: status ? (status as LeadStatus) : undefined,
       source: source ? (source as LeadSource) : undefined,
-      dealerVisibleOnly: isDealerPortalRole(auth.role) || auth.role === 'dealer',
+      dealerVisibleOnly: false,
     });
 
-    // Filtrar por búsqueda
-    let filteredLeads = leads;
+    const sellerNameById: Record<string, string> = {};
+    let networkLeads: any[] = [];
+
+    if (includeSellerLeads) {
+      try {
+        const { getSellerNetworkActivity } = await import('@/lib/seller-network-activity');
+        const network = await getSellerNetworkActivity(auth.tenantId, {
+          userId: auth.userId,
+          kinds: ['leads', 'sellers'],
+          limitPerSeller: 50,
+          sellerId: sellerIdFilter || undefined,
+        });
+        for (const s of network.sellers) {
+          sellerNameById[s.id] = s.name;
+        }
+        networkLeads = network.leads.map((l) => ({
+          ...l,
+          ownerType: 'seller',
+          ownerId: l.ownerId,
+          ownerName: l.ownerName,
+          sellerOwned: true,
+        }));
+      } catch (e) {
+        console.warn('includeSellerLeads network', e);
+      }
+    }
+
+    // Merge: tenant dealer leads + network (dedupe by id)
+    const byId = new Map<string, any>();
+    for (const lead of leads) {
+      const assigned = (lead as { assignedTo?: string }).assignedTo;
+      byId.set(lead.id, {
+        ...lead,
+        ownerType: assigned && sellerNameById[assigned] ? 'seller' : 'dealer',
+        ownerId: assigned || null,
+        ownerName: assigned ? sellerNameById[assigned] || null : null,
+        createdAt: lead.createdAt instanceof Date ? lead.createdAt : new Date(lead.createdAt as any),
+      });
+    }
+    for (const lead of networkLeads) {
+      if (!byId.has(lead.id)) {
+        byId.set(lead.id, {
+          ...lead,
+          createdAt: lead.createdAt ? new Date(lead.createdAt as string) : new Date(),
+        });
+      } else {
+        const existing = byId.get(lead.id);
+        byId.set(lead.id, {
+          ...existing,
+          ownerType: existing.ownerType || 'seller',
+          ownerId: existing.ownerId || lead.ownerId,
+          ownerName: existing.ownerName || lead.ownerName,
+        });
+      }
+    }
+
+    let filteredLeads = Array.from(byId.values());
+
+    if (sellerIdFilter) {
+      filteredLeads = filteredLeads.filter(
+        (lead) =>
+          lead.assignedTo === sellerIdFilter ||
+          lead.ownerId === sellerIdFilter ||
+          (lead.sellerOwned && lead.assignedTo === sellerIdFilter)
+      );
+    }
+
+    if (status) {
+      filteredLeads = filteredLeads.filter((lead) => lead.status === status);
+    }
+    if (source) {
+      filteredLeads = filteredLeads.filter((lead) => lead.source === source);
+    }
+
     if (search) {
       const searchLower = search.toLowerCase();
-      filteredLeads = leads.filter(
+      filteredLeads = filteredLeads.filter(
         (lead) =>
           (lead.contact?.name || '').toLowerCase().includes(searchLower) ||
           (lead.contact?.phone || '').includes(search) ||
-          (lead.contact?.email || '').toLowerCase().includes(searchLower)
+          (lead.contact?.email || '').toLowerCase().includes(searchLower) ||
+          (lead.ownerName || '').toLowerCase().includes(searchLower)
       );
     }
+
+    const sellers = Object.entries(sellerNameById).map(([id, name]) => ({ id, name }));
 
     return NextResponse.json({
       leads: filteredLeads.map((lead) => ({
         ...lead,
-        createdAt: lead.createdAt.toISOString(),
+        createdAt:
+          lead.createdAt instanceof Date
+            ? lead.createdAt.toISOString()
+            : lead.createdAt || new Date().toISOString(),
       })),
+      sellers,
     });
   } catch (error) {
     console.error('Error fetching leads:', error);

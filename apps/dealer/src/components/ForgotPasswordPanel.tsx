@@ -1,8 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { sendPasswordResetEmail } from 'firebase/auth';
-import { auth } from '@/lib/firebase-client';
 
 export function ForgotPasswordPanel() {
   const [open, setOpen] = useState(false);
@@ -10,10 +8,6 @@ export function ForgotPasswordPanel() {
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  if (!auth || !(auth as { app?: unknown }).app) {
-    return null;
-  }
 
   return (
     <div className="mt-4 border-t border-gray-200 pt-4">
@@ -33,19 +27,22 @@ export function ForgotPasswordPanel() {
             setMsg(null);
             setLoading(true);
             try {
-              await sendPasswordResetEmail(auth, email.trim());
-              setMsg(
-                'Si existe una cuenta con ese correo, recibirás un enlace para restablecer la contraseña. Revisa también la carpeta de spam.'
-              );
-            } catch (ex: unknown) {
-              const code = ex && typeof ex === 'object' && 'code' in ex ? String((ex as { code: string }).code) : '';
-              if (code === 'auth/user-not-found') {
-                setMsg(
-                  'Si existe una cuenta con ese correo, recibirás un enlace. Revisa también la carpeta de spam.'
-                );
-              } else {
-                setErr('No se pudo enviar el correo. Verifica el email e inténtalo de nuevo.');
+              const response = await fetch('/api/auth/password-reset', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email.trim() }),
+              });
+              const data = await response.json().catch(() => ({}));
+              if (!response.ok) {
+                throw new Error(typeof data.error === 'string' ? data.error : 'No se pudo enviar el correo');
               }
+              setMsg(
+                typeof data.message === 'string'
+                  ? data.message
+                  : 'Si existe una cuenta con ese correo, recibirás un enlace para restablecer la contraseña. Revisa también la carpeta de spam.'
+              );
+            } catch {
+              setErr('No se pudo enviar el correo. Verifica el email e inténtalo de nuevo.');
             } finally {
               setLoading(false);
             }

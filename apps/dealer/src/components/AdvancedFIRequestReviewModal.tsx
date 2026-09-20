@@ -8,7 +8,31 @@ import FIApprovalScore from './FIApprovalScore';
 import FICreditReport from './FICreditReport';
 import FIFinancingComparison from './FIFinancingComparison';
 import FICosignerForm from './FICosignerForm';
-import { getCosignerTotalMonthlyIncome, getFITotalMonthlyIncome } from '@autodealers/crm';
+
+function getFITotalMonthlyIncome(request: any): number {
+  let total = request.employment?.monthlyIncome || 0;
+  for (const job of request.additionalEmployments || []) {
+    total += job.monthlyIncome || 0;
+  }
+  for (const src of request.otherIncomeSources || []) {
+    total += src.monthlyAmount || 0;
+  }
+  if (request.spouseInfo?.monthlyIncome) {
+    total += request.spouseInfo.monthlyIncome;
+  }
+  return total;
+}
+
+function getCosignerTotalMonthlyIncome(cosigner: any): number {
+  let total = cosigner.employment?.monthlyIncome || 0;
+  for (const job of cosigner.additionalEmployments || []) {
+    total += job.monthlyIncome || 0;
+  }
+  for (const src of cosigner.otherIncomeSources || []) {
+    total += src.monthlyAmount || 0;
+  }
+  return total;
+}
 
 interface FIRequest {
   id: string;

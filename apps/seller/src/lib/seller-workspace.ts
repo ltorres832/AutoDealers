@@ -5,8 +5,9 @@ import { getFirestore } from '@autodealers/shared';
 export function isIndependentSellerWorkspace(opts: {
   tenantType?: string | null;
   dealerId?: string | null;
+  billingMode?: string | null;
 }): boolean {
-  return String(opts.tenantType || '').trim() === 'seller' && !isDealerManagedSeller(opts.dealerId);
+  return String(opts.tenantType || '').trim() === 'seller' && !isDealerManagedSeller(opts.dealerId, opts.billingMode);
 }
 
 export function sellerCanManageLead(
@@ -22,9 +23,10 @@ export async function resolveIndependentSellerWorkspace(auth: {
   tenantId?: string;
   userId?: string;
   dealerId?: string;
+  billingMode?: string;
 }): Promise<boolean> {
   if (!auth.tenantId || !auth.userId) return false;
-  if (isDealerManagedSeller(auth.dealerId)) return false;
+  if (isDealerManagedSeller(auth.dealerId, auth.billingMode)) return false;
 
   const snap = await getFirestore().collection('tenants').doc(auth.tenantId).get();
   if (!snap.exists) return false;
@@ -37,7 +39,7 @@ export async function resolveIndependentSellerWorkspace(auth: {
 }
 
 export async function assertSellerLeadAccess(
-  auth: { tenantId?: string; userId?: string; dealerId?: string },
+  auth: { tenantId?: string; userId?: string; dealerId?: string; billingMode?: string },
   lead: { assignedTo?: string | null }
 ): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
   if (!auth.userId) {

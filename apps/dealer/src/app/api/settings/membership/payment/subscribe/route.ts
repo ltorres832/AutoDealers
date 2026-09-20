@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth, isDealerPortalRole, billingTenantId } from '@/lib/auth';
-import { getStripeInstance, getFirestore } from '@autodealers/core';
+import { getStripeInstance, getFirestore, salesEmployeeMetadataForTenant } from '@autodealers/core';
 import { getSubscriptionByTenantId, syncMembershipForSubscription } from '@autodealers/billing';
 import { getMembershipById, assertSelfServiceMembership } from '@autodealers/billing';
 import {
@@ -8,6 +8,10 @@ import {
   isEligibleForMembershipTrial,
   stripeSubscriptionPeriodFields,
 } from '@autodealers/billing/membership-trial';
+import {
+  resolveMembershipPricing,
+  ensureIntroToRegularSchedule,
+} from '@autodealers/billing';
 import * as admin from 'firebase-admin';
 
 export const dynamic = 'force-dynamic';
@@ -107,6 +111,14 @@ export async function POST(request: NextRequest) {
       console.warn('Error obteniendo tax rate:', error);
     }
 
+    const pricing = resolveMembershipPricing(membership as unknown as Record<string, unknown>);
+    if (!pricing.checkoutStripePriceId) {
+      return NextResponse.json(
+        { error: 'La membresía no tiene Price de Stripe configurado.' },
+        { status: 400 }
+      );
+    }
+
     // Crear o actualizar suscripción
     let stripeSubscriptionId: string;
     let stripeSubscription: Awaited<ReturnType<typeof stripe.subscriptions.create>>;
@@ -124,7 +136,7 @@ export async function POST(request: NextRequest) {
       stripeSubscription = await stripe.subscriptions.update(
         subscription.stripeSubscriptionId,
         {
-          items: [{ id: primaryItem.id, price: membership.stripePriceId }],
+          items: [{ id: primaryItem.id, price: pricing.checkoutStripePriceId }],
           proration_behavior: 'create_prorations',
           default_payment_method: paymentMethodId,
           metadata: {
@@ -142,7 +154,7 @@ export async function POST(request: NextRequest) {
 
       stripeSubscription = await stripe.subscriptions.create({
         customer: customerId,
-        items: [{ price: membership.stripePriceId }],
+        items: [{ price: pricing.checkoutStripePriceId }],
         payment_settings: {
           payment_method_types: ['card', 'us_bank_account'],
           save_default_payment_method: 'on_subscription',
@@ -155,9 +167,32 @@ export async function POST(request: NextRequest) {
           tenantId: billTid,
           userId: auth.userId,
           membershipId: membershipId,
+          ...(await salesEmployeeMetadataForTenant(billTid!)),
+          ...(pricing.schedule
+            ? {
+                introSchedule: '1',
+                introMonths: String(pricing.schedule.introMonths),
+                introStripePriceId: pricing.schedule.introStripePriceId,
+                regularStripePriceId: pricing.schedule.regularStripePriceId,
+              }
+            : {}),
         },
       });
       stripeSubscriptionId = stripeSubscription.id;
+
+      if (pricing.schedule) {
+        try {
+          await ensureIntroToRegularSchedule({
+            stripe: stripe as any,
+            subscriptionId: stripeSubscriptionId,
+            introStripePriceId: pricing.schedule.introStripePriceId,
+            regularStripePriceId: pricing.schedule.regularStripePriceId,
+            introMonths: pricing.schedule.introMonths,
+          });
+        } catch (schedErr) {
+          console.warn('Intro schedule (dealer subscribe):', schedErr);
+        }
+      }
     }
 
     const periodFields = stripeSubscriptionPeriodFields(stripeSubscription);
@@ -198,7 +233,28 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    await syncMembershipForSubscription(firestoreSubscriptionId, membershipId);
+    if (periodFields.status === 'active' || periodFields.status === 'trialing') {
+      await syncMembershipForSubscription(firestoreSubscriptionId, membershipId);
+      try {
+        const { ensureVoiceProvisionedForTenant } = await import('@autodealers/voice');
+        const voiceResult = await ensureVoiceProvisionedForTenant(billTid!, {
+          source: 'dealer_subscribe',
+          updatedBy: auth.userId,
+        });
+        if (!voiceResult.ok && !voiceResult.skipped) {
+          console.warn('[subscribe] Voice provision:', voiceResult.reason);
+        }
+      } catch (voiceErr) {
+        console.warn('[subscribe] Voice provision skipped:', voiceErr);
+      }
+    } else {
+      console.log('⏳ Suscripción creada sin activar membresía hasta confirmación Stripe:', {
+        tenantId: billTid,
+        userId: auth.userId,
+        stripeSubscriptionId,
+        status: periodFields.status,
+      });
+    }
 
     return NextResponse.json({
       success: true,

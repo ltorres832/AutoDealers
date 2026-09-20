@@ -116,8 +116,8 @@ export default function UpgradeModal({
                 </svg>
               </div>
               <div>
-                <h2 className="text-2xl font-bold">🔒 Feature No Disponible</h2>
-                <p className="text-sm opacity-90">Tu plan actual no incluye esta funcionalidad</p>
+                <h2 className="text-2xl font-bold">Selecciona o activa tu membresía</h2>
+                <p className="text-sm opacity-90">Esta función no está incluida en tu plan</p>
               </div>
             </div>
             <button
@@ -143,7 +143,7 @@ export default function UpgradeModal({
               </div>
               <div className="ml-3">
                 <h3 className="text-sm font-medium text-yellow-800">
-                  {featureName ? `Feature: ${featureName}` : 'Límite Alcanzado'}
+                  {featureName || 'Función no incluida en tu plan'}
                 </h3>
                 <div className="mt-2 text-sm text-yellow-700">
                   <p>{reason}</p>
@@ -153,6 +153,12 @@ export default function UpgradeModal({
                     </p>
                   )}
                 </div>
+                <a
+                  href="/settings/membership"
+                  className="mt-3 inline-flex rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700"
+                >
+                  Seleccionar / activar membresía
+                </a>
               </div>
             </div>
           </div>

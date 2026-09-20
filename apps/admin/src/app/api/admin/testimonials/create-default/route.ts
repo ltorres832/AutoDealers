@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       {
         name: 'Carlos Rodríguez',
         role: 'CEO, AutoMax',
-        text: 'AutoDealers transformó completamente nuestro negocio. Las ventas aumentaron un 40% en 3 meses. La plataforma es intuitiva y el soporte es excepcional.',
+        text: 'AutoDealersOnline transformó completamente nuestro negocio. Las ventas aumentaron un 40% en 3 meses. La plataforma es intuitiva y el soporte es excepcional.',
         image: '👨‍💼',
         rating: 5,
         order: 0,

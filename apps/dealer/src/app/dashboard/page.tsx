@@ -1,11 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRealtimeDashboard } from '@/hooks/useRealtimeDashboard';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { useRealtimeMemberships } from '@/hooks/useRealtimeMemberships';
 import { useRealtimeProfile } from '@/hooks/useRealtimeProfile';
+import { fetchWithAuth } from '@/lib/fetch-with-auth';
+import { RequestSalesOrientation } from '@/components/RequestSalesOrientation';
 
 export default function DealerDashboardPage() {
   const { user, loading: authLoading } = useAuth();
@@ -17,6 +20,91 @@ export default function DealerDashboardPage() {
     : null;
   const { profile: profileInfo } = useRealtimeProfile(user?.tenantId, user?.userId);
   const loading = authLoading || dashboardLoading;
+
+  const [networkExtra, setNetworkExtra] = useState({
+    leads: 0,
+    sales: 0,
+    revenue: 0,
+    campaigns: 0,
+    social: 0,
+    bySeller: {} as Record<
+      string,
+      { sales: number; revenue: number; leads: number; campaigns: number; social: number; name: string }
+    >,
+  });
+
+  useEffect(() => {
+    if (!user?.tenantId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetchWithAuth(
+          '/api/sellers/network-activity?kinds=leads,sales,campaigns,social,sellers&limit=40',
+          {}
+        );
+        const json = await res.json();
+        if (!res.ok || cancelled) return;
+        const bySeller: typeof networkExtra.bySeller = {};
+        let leads = 0;
+        let sales = 0;
+        let revenue = 0;
+        let campaigns = 0;
+        let social = 0;
+        for (const row of json.summaryBySeller || []) {
+          // Solo sumar tenants distintos al dealer para no duplicar realtime
+          if (row.tenantId && row.tenantId !== user.tenantId) {
+            leads += row.totalLeads || 0;
+            sales += row.totalSales || 0;
+            revenue += row.totalRevenue || 0;
+          }
+          campaigns += row.totalCampaigns || 0;
+          social += row.totalSocialPosts || 0;
+          bySeller[row.sellerId] = {
+            sales: row.totalSales || 0,
+            revenue: row.totalRevenue || 0,
+            leads: row.activeLeads || 0,
+            campaigns: row.totalCampaigns || 0,
+            social: row.totalSocialPosts || 0,
+            name: row.sellerName,
+          };
+        }
+        setNetworkExtra({ leads, sales, revenue, campaigns, social, bySeller });
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.tenantId]);
+
+  const mergedStats = data
+    ? {
+        ...data.stats,
+        totalLeads: data.stats.totalLeads + networkExtra.leads,
+        totalSales: data.stats.totalSales + networkExtra.sales,
+        monthlyRevenue: data.stats.monthlyRevenue + networkExtra.revenue,
+        sellerCampaigns: networkExtra.campaigns,
+        sellerSocialPosts: networkExtra.social,
+      }
+    : null;
+
+  const mergedTopSellers = (data?.topSellers || [])
+    .map((s) => {
+      const extra = networkExtra.bySeller[s.id];
+      const sameTenant = !extra; // if not in network summary with other tenant, keep realtime
+      return {
+        ...s,
+        sales: s.sales + (extra && data ? (extra.sales > s.sales ? extra.sales - s.sales : 0) : 0),
+        revenue:
+          s.revenue + (extra && data ? Math.max(0, extra.revenue - s.revenue) : 0),
+        activeLeads: extra?.leads || 0,
+        campaigns: extra?.campaigns || 0,
+        socialPosts: extra?.social || 0,
+        _sameTenant: sameTenant,
+      };
+    })
+    .sort((a, b) => b.revenue - a.revenue);
 
   function getStatusColor(status: string) {
     switch (status) {
@@ -49,6 +137,7 @@ export default function DealerDashboardPage() {
 
   return (
     <div className="w-full">
+      <RequestSalesOrientation />
       <div className="mb-6">
         <div className="flex justify-between items-start">
           <div>
@@ -128,7 +217,7 @@ export default function DealerDashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white rounded-lg shadow p-6">
           <p className="text-sm text-gray-600 mb-2">Total de Leads</p>
-          <p className="text-3xl font-bold text-gray-900">{data.stats.totalLeads}</p>
+          <p className="text-3xl font-bold text-gray-900">{mergedStats?.totalLeads ?? data.stats.totalLeads}</p>
           <p className="text-sm text-green-600 mt-1">
             {data.stats.activeLeads} activos
           </p>
@@ -142,7 +231,7 @@ export default function DealerDashboardPage() {
         </div>
         <div className="bg-white rounded-lg shadow p-6">
           <p className="text-sm text-gray-600 mb-2">Ventas Totales</p>
-          <p className="text-3xl font-bold text-gray-900">{data.stats.totalSales}</p>
+          <p className="text-3xl font-bold text-gray-900">{mergedStats?.totalSales ?? data.stats.totalSales}</p>
           <p className="text-sm text-gray-500 mt-1">
             {data.stats.sellersSales} por vendedores
           </p>
@@ -150,7 +239,10 @@ export default function DealerDashboardPage() {
         <div className="bg-white rounded-lg shadow p-6">
           <p className="text-sm text-gray-600 mb-2">Revenue Mensual</p>
           <p className="text-3xl font-bold text-gray-900">
-            ${data.stats.monthlyRevenue.toLocaleString()}
+            ${(mergedStats?.monthlyRevenue ?? data.stats.monthlyRevenue).toLocaleString()}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">
+            Incluye vendedores vinculados · {networkExtra.campaigns} campañas / {networkExtra.social} posts
           </p>
         </div>
       </div>
@@ -172,15 +264,21 @@ export default function DealerDashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-bold mb-4">Top Vendedores</h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold">Top Vendedores</h2>
+            <Link href="/sellers/activity" className="text-sm text-primary-600">
+              Actividad →
+            </Link>
+          </div>
           <div className="space-y-4">
-            {data.topSellers.length === 0 ? (
+            {mergedTopSellers.length === 0 ? (
               <p className="text-gray-500 text-center py-4">No hay vendedores</p>
             ) : (
-              data.topSellers.map((seller, index) => (
-                <div
+              mergedTopSellers.map((seller, index) => (
+                <Link
                   key={seller.id}
-                  className="flex items-center justify-between p-4 border rounded"
+                  href={`/sellers/${seller.id}`}
+                  className="flex items-center justify-between p-4 border rounded hover:bg-slate-50"
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
@@ -191,7 +289,7 @@ export default function DealerDashboardPage() {
                     <div>
                       <p className="font-medium">{seller.name}</p>
                       <p className="text-sm text-gray-500">
-                        {seller.sales} ventas
+                        {seller.sales} ventas · {seller.activeLeads} leads · {seller.campaigns} campañas
                       </p>
                     </div>
                   </div>
@@ -200,7 +298,7 @@ export default function DealerDashboardPage() {
                       ${seller.revenue.toLocaleString()}
                     </p>
                   </div>
-                </div>
+                </Link>
               ))
             )}
           </div>

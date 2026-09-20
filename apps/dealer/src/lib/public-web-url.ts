@@ -1,18 +1,14 @@
 import type { NextRequest } from 'next/server';
+import {
+  buildReviewInvitePublicUrl as buildReviewInviteUrl,
+  getPublicWebBaseUrl as resolvePublicWebBaseUrl,
+} from '@autodealers/shared/platform-urls';
 
-const DEFAULT_PUBLIC_WEB = 'https://autodealers-7f62e.web.app';
-
-export function getPublicWebBaseUrl(request: NextRequest): string {
-  const fromEnv = process.env.NEXT_PUBLIC_PUBLIC_WEB_URL?.replace(/\/$/, '');
-  if (fromEnv) return fromEnv;
-
-  const origin = request.nextUrl.origin.replace(/^https?:\/\/dealer\./, 'https://');
-  if (/localhost|127\.0\.0\.1|0\.0\.0\.0/i.test(origin)) {
-    return DEFAULT_PUBLIC_WEB;
-  }
-  return origin;
+/** @deprecated request is ignored — public web is always www.autodealers-online.com */
+export function getPublicWebBaseUrl(_request?: NextRequest): string {
+  return resolvePublicWebBaseUrl();
 }
 
-export function buildReviewInvitePublicUrl(request: NextRequest, token: string): string {
-  return `${getPublicWebBaseUrl(request)}/evaluar/${encodeURIComponent(token)}`;
+export function buildReviewInvitePublicUrl(_request: NextRequest, token: string): string {
+  return buildReviewInviteUrl(token);
 }

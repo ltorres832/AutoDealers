@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       success: allSuccess,
       results,
       message: allSuccess
-        ? 'Publicado con la cuenta de soporte de AutoDealers'
+        ? 'Publicado con la cuenta de soporte de AutoDealersOnline'
         : 'Algunas publicaciones fallaron',
     });
   } catch (error: unknown) {

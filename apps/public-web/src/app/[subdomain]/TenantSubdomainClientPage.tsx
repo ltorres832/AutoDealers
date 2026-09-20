@@ -1,10 +1,11 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import SubdomainSellerWebsite from '@/components/SubdomainSellerWebsite';
 import { isMarketplaceRootHost, isPlatformAppSubdomain } from '@/lib/public-production-hosts';
+import { isReservedSubdomainSlug } from '@/lib/public-seo';
 import ChatWidget from '../../components/ChatWidget';
 import VehicleDetailModal from './VehicleDetailModal';
 import { getFirstPhoto, handleImageError } from '../../lib/vehicle-image';
@@ -13,9 +14,13 @@ import HeroBanner from '../../components/HeroBanner';
 import SidebarBanner from '../../components/SidebarBanner';
 import SponsoredContent from '../../components/SponsoredContent';
 import BetweenContentBanner from '../../components/BetweenContentBanner';
+import PaidPromotionsSection from '../../components/PaidPromotionsSection';
 import PublicPromoVideoGrid from '../../components/PublicPromoVideoGrid';
 import { SocialMediaLinks } from '@/components/SocialMediaLinks';
 import { getPublicVehicleConditionLabel } from '@/lib/vehicle-condition-label';
+import { buildTelHref, buildWhatsAppHref } from '@/lib/contact-links';
+import VehicleImageFrame from '@/components/VehicleImageFrame';
+import PublicHeroCta from '@/components/PublicHeroCta';
 
 interface Vehicle {
   id: string;
@@ -26,6 +31,9 @@ interface Vehicle {
   currency: string;
   photos?: string[];
   images?: string[];
+  videos?: string[];
+  videoUrl?: string;
+  video?: string;
   description: string;
   mileage?: number;
   condition: string;
@@ -79,6 +87,9 @@ interface Tenant {
       title?: string;
       subtitle?: string;
       ctaText?: string;
+      mediaMode?: 'gradient' | 'image' | 'video';
+      backgroundImage?: string;
+      backgroundVideoUrl?: string;
       /** YouTube, Vimeo o URL HTTPS a .mp4/.webm */
       promoVideoUrl?: string;
     };
@@ -230,6 +241,14 @@ export default function TenantSubdomainClientPage() {
   }, [params]);
 
   useEffect(() => {
+    const rawSub = params?.subdomain;
+    const norm = rawSub ? String(rawSub).trim().toLowerCase() : '';
+    if (norm && isReservedSubdomainSlug(norm)) {
+      window.location.replace('/');
+    }
+  }, [params]);
+
+  useEffect(() => {
     // Si no hay subdominio detectado y no est├í en params, redirigir a la p├ígina ra├¡z
     if (!subdomain && (!params?.subdomain || params.subdomain === 'undefined')) {
       if (typeof window !== 'undefined') {
@@ -249,10 +268,14 @@ export default function TenantSubdomainClientPage() {
       // Si no se puede redirigir, mostrar error despu├⌐s de un momento
       setTimeout(() => {
         if (!subdomain) {
-          setError('No se detect├│ un subdominio. Por favor, accede usando un subdominio v├ílido (ej: demo.autodealers-7f62e.web.app) o visita la p├ígina principal.');
+          setError('No se detectó un subdominio. Por favor, accede usando un subdominio válido (ej: midealer.autodealers-online.com) o visita la página principal.');
           setLoading(false);
         }
       }, 1000);
+      return;
+    }
+
+    if (subdomain && isReservedSubdomainSlug(subdomain)) {
       return;
     }
 
@@ -467,8 +490,9 @@ export default function TenantSubdomainClientPage() {
 
   // Subdominio t├⌐cnico de App Hosting (ej: t-1593654656---public-web-app-xxx): redirigir, no mostrar error
   const paramSub = params?.subdomain;
+  const paramSubNorm = paramSub ? String(paramSub).trim().toLowerCase() : '';
   const isTechSub = paramSub && (String(paramSub).includes('---') || String(paramSub).includes('public-web-app') || String(paramSub).startsWith('t-'));
-  if (isTechSub) {
+  if (isTechSub || (paramSubNorm && isReservedSubdomainSlug(paramSubNorm))) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gray-50">
         <div className="text-center">
@@ -529,7 +553,7 @@ export default function TenantSubdomainClientPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen overflow-x-hidden bg-gray-50">
       {/* Header */}
       <header
         className="bg-white shadow sticky top-0 z-40"
@@ -537,19 +561,19 @@ export default function TenantSubdomainClientPage() {
           backgroundColor: tenant.branding.primaryColor || '#E10600',
         }}
       >
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-4">
+        <div className="container mx-auto px-3 py-3 sm:px-4 sm:py-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-3 sm:gap-4">
               {tenant.branding.logo && (
                 <img
                   src={tenant.branding.logo}
                   alt={tenant.name}
-                  className="h-12 w-auto"
+                  className="h-10 max-w-[42vw] object-contain sm:h-12 sm:max-w-none"
                 />
               )}
-              <div>
-                <h1 className="text-2xl font-bold text-white">{tenant.name}</h1>
-                <p className="text-white/80 text-sm">
+              <div className="min-w-0">
+                <h1 className="truncate text-lg font-bold text-white sm:text-2xl">{tenant.name}</h1>
+                <p className="line-clamp-1 text-xs text-white/80 sm:text-sm">
                   {tenant.description
                     ? tenant.description.substring(0, 50) + (tenant.description.length > 50 ? '...' : '')
                     : 'Tu concesionario de confianza'}
@@ -575,14 +599,20 @@ export default function TenantSubdomainClientPage() {
               >
                 Agendar Cita
               </Link>
+              <Link
+                href={`/${subdomain}/vender`}
+                className="rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-primary-700 hover:bg-gray-100"
+              >
+                Vender tu auto
+              </Link>
             </nav>
-            <div className="flex gap-3">
+            <div className="flex w-full gap-2 sm:w-auto sm:gap-3">
               {tenant.contactPhone && (
                 <a
-                  href={`https://wa.me/${tenant.contactPhone.replace(/[^0-9]/g, '')}`}
+                  href={buildWhatsAppHref(tenant.contactPhone) || '#'}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="bg-green-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-600 flex items-center gap-2 text-sm"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-green-500 px-3 py-2 text-sm font-medium text-white hover:bg-green-600 sm:flex-none sm:px-4"
                 >
                   <span>≡ƒÆ¼</span>
                   WhatsApp
@@ -590,7 +620,7 @@ export default function TenantSubdomainClientPage() {
               )}
               <button
                 onClick={() => setShowContactForm(true)}
-                className="bg-white text-primary-600 px-4 py-2 rounded-lg font-medium hover:bg-gray-100 text-sm"
+                className="flex-1 rounded-lg bg-white px-3 py-2 text-sm font-medium text-primary-600 hover:bg-gray-100 sm:flex-none sm:px-4"
               >
                 Contactar
               </button>
@@ -605,51 +635,51 @@ export default function TenantSubdomainClientPage() {
       </div>
 
       {/* Hero Section */}
-      <section
-        className="bg-gradient-to-r from-primary-600 to-primary-800 text-white py-20 relative overflow-hidden"
-        style={{
-          background: `linear-gradient(135deg, ${tenant.branding.primaryColor || '#E10600'} 0%, ${tenant.branding.secondaryColor || '#0A0A0A'} 100%)`
-        }}
-      >
-        {/* Decorative Elements */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 left-0 w-72 h-72 bg-white rounded-full -translate-x-1/2 -translate-y-1/2"></div>
-          <div className="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full translate-x-1/2 translate-y-1/2"></div>
-        </div>
-
-        <div className="container mx-auto px-4 text-center relative z-10">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4 animate-fade-in max-w-4xl mx-auto break-words whitespace-normal px-2">
-            {tenant.websiteSettings?.hero?.title || 'Encuentra el veh├¡culo perfecto para ti'}
-          </h2>
-          <p className="text-xl mb-8 text-white/90 max-w-3xl mx-auto break-words whitespace-normal px-2">
-            {tenant.websiteSettings?.hero?.subtitle || `Tenemos ${vehicles.length} veh├¡culos disponibles para ti`}
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+      <PublicHeroCta
+        title={
+          tenant.websiteSettings?.hero?.title || 'Encuentra el vehículo perfecto para ti'
+        }
+        subtitle={
+          tenant.websiteSettings?.hero?.subtitle ||
+          `Tenemos ${vehicles.length} vehículos disponibles para ti`
+        }
+        heroMedia={tenant.websiteSettings?.hero}
+        gradientCss={`linear-gradient(135deg, ${tenant.branding.primaryColor || '#E10600'} 0%, ${tenant.branding.secondaryColor || '#0A0A0A'} 100%)`}
+        contentClassName="container mx-auto px-4 text-center relative z-10"
+        cta={
+          <div className="mx-auto flex max-w-xl flex-col justify-center gap-3 sm:max-w-none sm:flex-row sm:gap-4">
             {tenant.websiteSettings?.hero?.ctaText && (
               <button
+                type="button"
                 onClick={() => {
                   document.getElementById('inventory')?.scrollIntoView({ behavior: 'smooth' });
                 }}
-                className="bg-white text-primary-600 px-8 py-4 rounded-lg font-bold hover:bg-gray-100 text-lg transition shadow-lg hover:shadow-xl"
+                className="w-full rounded-lg bg-white px-6 py-3 text-base font-bold text-primary-600 shadow-lg transition hover:bg-gray-100 hover:shadow-xl sm:w-auto sm:px-8 sm:py-4 sm:text-lg"
               >
                 {tenant.websiteSettings.hero.ctaText}
               </button>
             )}
             <Link
               href={subdomain ? `/${subdomain}/pre-qualify` : '#'}
-              className="bg-green-600 text-white px-8 py-4 rounded-lg font-bold hover:bg-green-700 text-lg transition shadow-lg hover:shadow-xl"
+              className="w-full rounded-lg bg-green-600 px-6 py-3 text-base font-bold text-white shadow-lg transition hover:bg-green-700 hover:shadow-xl sm:w-auto sm:px-8 sm:py-4 sm:text-lg"
             >
-              ≡ƒÜù Pre-Cualificaci├│n Gratis
+              Pre-Cualificación Gratis
             </Link>
             <Link
               href={`/${subdomain}/appointment`}
-              className="bg-white/20 backdrop-blur text-white px-8 py-4 rounded-lg font-bold hover:bg-white/30 text-lg border-2 border-white/50 transition"
+              className="w-full rounded-lg border-2 border-white/50 bg-white/20 px-6 py-3 text-base font-bold text-white backdrop-blur transition hover:bg-white/30 sm:w-auto sm:px-8 sm:py-4 sm:text-lg"
             >
-              ≡ƒôà Agendar Cita
+              Agendar Cita
+            </Link>
+            <Link
+              href={`/${subdomain}/vender`}
+              className="w-full rounded-lg border-2 border-amber-300/60 bg-amber-500/90 px-6 py-3 text-base font-bold text-white shadow-lg transition hover:bg-amber-500 sm:w-auto sm:px-8 sm:py-4 sm:text-lg"
+            >
+              Vender tu auto
             </Link>
           </div>
-        </div>
-      </section>
+        }
+      />
 
       {/* Seller Profile Section */}
       {tenant.sellerInfo && tenant.sellerInfo.name && (
@@ -657,32 +687,32 @@ export default function TenantSubdomainClientPage() {
           <div className="container mx-auto px-4">
             <div className="max-w-3xl mx-auto">
               <h2 className="text-3xl font-bold mb-8 text-center">Conoce a tu Vendedor</h2>
-              <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-8 md:p-12 flex flex-col md:flex-row items-center gap-8 shadow-lg">
+              <div className="flex flex-col items-center gap-6 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 p-5 shadow-lg sm:p-8 md:flex-row md:gap-8 md:p-12">
                 {tenant.sellerInfo.photo ? (
                   <div className="relative">
                     <img
                       src={tenant.sellerInfo.photo}
                       alt={tenant.sellerInfo.name}
-                      className="w-48 h-48 rounded-full object-cover border-4 border-white shadow-xl"
+                      className="h-32 w-32 rounded-full border-4 border-white object-cover shadow-xl sm:h-48 sm:w-48"
                       onError={(e) => {
                         // Si la imagen falla, mostrar placeholder
                         (e.target as HTMLImageElement).style.display = 'none';
                         (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
                       }}
                     />
-                    <div className="w-48 h-48 rounded-full bg-primary-600 hidden items-center justify-center text-6xl text-white border-4 border-white shadow-xl">
+                    <div className="hidden h-32 w-32 items-center justify-center rounded-full border-4 border-white bg-primary-600 text-4xl text-white shadow-xl sm:h-48 sm:w-48 sm:text-6xl">
                       {tenant.sellerInfo.name.charAt(0).toUpperCase()}
                     </div>
                   </div>
                 ) : (
-                  <div className="w-48 h-48 rounded-full bg-gradient-to-br from-primary-600 to-primary-800 flex items-center justify-center text-6xl text-white border-4 border-white shadow-xl font-bold">
+                  <div className="flex h-32 w-32 items-center justify-center rounded-full border-4 border-white bg-gradient-to-br from-primary-600 to-primary-800 text-4xl font-bold text-white shadow-xl sm:h-48 sm:w-48 sm:text-6xl">
                     {tenant.sellerInfo.name.charAt(0).toUpperCase()}
                   </div>
                 )}
                 <div className="flex-1 text-center md:text-left">
-                  <h3 className="text-3xl font-bold mb-3 text-gray-900">{tenant.sellerInfo.name}</h3>
+                  <h3 className="mb-3 text-2xl font-bold text-gray-900 sm:text-3xl">{tenant.sellerInfo.name}</h3>
                   {tenant.sellerInfo.bio ? (
-                    <p className="text-gray-700 text-lg leading-relaxed mb-6">
+                    <p className="mb-6 text-base leading-relaxed text-gray-700 sm:text-lg">
                       {tenant.sellerInfo.bio}
                     </p>
                   ) : (
@@ -693,13 +723,13 @@ export default function TenantSubdomainClientPage() {
                   <div className="flex flex-col sm:flex-row gap-3 justify-center md:justify-start">
                     <Link
                       href={`/${subdomain}/appointment`}
-                      className="inline-block bg-primary-600 text-white px-8 py-3 rounded-lg hover:bg-primary-700 font-medium transition shadow-lg hover:shadow-xl text-center"
+                      className="inline-block rounded-lg bg-primary-600 px-6 py-3 text-center font-medium text-white shadow-lg transition hover:bg-primary-700 hover:shadow-xl sm:px-8"
                     >
                       ≡ƒôà Agendar una Cita
                     </Link>
                     <Link
                       href={subdomain ? `/${subdomain}/pre-qualify` : '#'}
-                      className="inline-block bg-green-600 text-white px-8 py-3 rounded-lg hover:bg-green-700 font-medium transition shadow-lg hover:shadow-xl text-center"
+                      className="inline-block rounded-lg bg-green-600 px-6 py-3 text-center font-medium text-white shadow-lg transition hover:bg-green-700 hover:shadow-xl sm:px-8"
                     >
                       ≡ƒÜù Pre-Cualificaci├│n
                     </Link>
@@ -854,13 +884,14 @@ export default function TenantSubdomainClientPage() {
       {/* Social Media Posts Section */}
       {tenant && <SocialPostsSection subdomain={subdomain} tenant={tenant} />}
 
-      {/* Sponsored Content Section */}
-      <SponsoredContent />
+      <PaidPromotionsSection />
 
-      {/* Between Content Banner - UPDATED 2025-01-04 */}
+      {/* Same order as www: wide banner, then the 3 offer cards — both ABOVE inventory */}
       <div className="container mx-auto px-4">
         <BetweenContentBanner />
       </div>
+
+      <SponsoredContent />
 
       <PublicPromoVideoGrid
         urls={
@@ -907,53 +938,9 @@ export default function TenantSubdomainClientPage() {
               <div className="text-center py-12">
                 <p className="text-gray-600 text-lg mb-4">
                   {vehicles.length === 0
-                    ? 'No hay veh├¡culos disponibles en este momento'
-                    : 'No se encontraron veh├¡culos con los filtros seleccionados'}
+                    ? 'No hay vehículos disponibles en este momento'
+                    : 'No se encontraron vehículos con los filtros seleccionados'}
                 </p>
-                {/* Debug info siempre visible para ayudar al usuario */}
-                <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded text-left text-sm max-w-2xl mx-auto">
-                  <p><strong>≡ƒöì Informaci├│n de Debug:</strong></p>
-                  <p>Total veh├¡culos recibidos del servidor: <strong>{vehicles.length}</strong></p>
-                  <p>Veh├¡culos despu├⌐s de filtrar: <strong>{filteredVehicles.length}</strong></p>
-                  <p>B├║squeda actual: <strong>"{searchTerm}"</strong></p>
-                  <p>Marca seleccionada: <strong>{selectedMake}</strong></p>
-                  {vehicles.length > 0 ? (
-                    <div className="mt-2">
-                      <p><strong>Γ£à Veh├¡culos recibidos (primeros 3):</strong></p>
-                      <pre className="text-xs overflow-auto max-h-40 bg-white p-2 rounded border">
-                        {JSON.stringify(vehicles.slice(0, 3).map((v: any) => ({
-                          id: v.id,
-                          make: v.make,
-                          model: v.model,
-                          year: v.year,
-                          price: v.price,
-                          status: v.status,
-                          hasPhotos: v.photos?.length > 0,
-                          photosCount: v.photos?.length || 0,
-                        })), null, 2)}
-                      </pre>
-                      <p className="mt-2 text-xs text-gray-600">
-                        ≡ƒÆí Si ves veh├¡culos aqu├¡ pero no se muestran arriba, puede ser un problema con los filtros.
-                        Intenta limpiar la b├║squeda y seleccionar "Todas las marcas".
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="mt-2">
-                      <p className="text-red-600"><strong>ΓÜá∩╕Å No se recibieron veh├¡culos del servidor</strong></p>
-                      <p className="text-xs text-gray-600 mt-1">
-                        Esto puede significar que:
-                      </p>
-                      <ul className="text-xs text-gray-600 list-disc list-inside mt-1">
-                        <li>El tenant no tiene veh├¡culos creados</li>
-                        <li>Los veh├¡culos tienen status 'sold'</li>
-                        <li>Hay un problema con el endpoint /api/tenant/{subdomain}</li>
-                      </ul>
-                      <p className="text-xs text-gray-600 mt-2">
-                        Revisa la consola del navegador (F12) para ver los logs del servidor.
-                      </p>
-                    </div>
-                  )}
-                </div>
               </div>
             ) : (
               <>
@@ -961,7 +948,7 @@ export default function TenantSubdomainClientPage() {
                   Mostrando {filteredVehicles.length} de {vehicles.length} veh├¡culos
                 </p>
                 {/* Grid de veh├¡culos - 4 columnas en pantallas grandes */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
                   {filteredVehicles.map((vehicle) => (
                     <div
                       key={vehicle.id}
@@ -969,15 +956,13 @@ export default function TenantSubdomainClientPage() {
                       onClick={() => setSelectedVehicle(vehicle)}
                     >
                       {getFirstPhoto(vehicle) ? (
-                        <div className="relative h-64 bg-white overflow-hidden">
-                          <img
+                        <VehicleImageFrame
                             src={getFirstPhoto(vehicle)!}
                             alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
-                            className="w-full h-full object-contain object-center group-hover:scale-[1.02] transition-transform duration-300"
-                            loading="lazy"
-                            referrerPolicy="no-referrer"
+                            className="h-52 sm:h-64"
+                            imageClassName="transition-transform duration-300 group-hover:scale-[1.02]"
                             onError={handleImageError}
-                          />
+                        >
                           {(() => {
                             const label = getPublicVehicleConditionLabel(vehicle);
                             if (!label) return null;
@@ -1002,9 +987,9 @@ export default function TenantSubdomainClientPage() {
                               +{(vehicle.photos?.length || vehicle.images?.length || 1) - 1} fotos
                             </div>
                           )}
-                        </div>
+                        </VehicleImageFrame>
                       ) : (
-                        <div className="relative h-64 bg-white border border-gray-100 flex items-center justify-center">
+                        <div className="relative flex h-52 items-center justify-center border border-gray-100 bg-white sm:h-64">
                           <div className="text-gray-400">
                             <svg className="w-24 h-24 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -1012,11 +997,11 @@ export default function TenantSubdomainClientPage() {
                           </div>
                         </div>
                       )}
-                      <div className="p-6">
-                        <h3 className="font-bold text-xl mb-2 group-hover:text-primary-600 transition">
+                      <div className="p-4 sm:p-6">
+                        <h3 className="mb-2 text-lg font-bold leading-snug transition group-hover:text-primary-600 sm:text-xl">
                           {vehicle.year} {vehicle.make} {vehicle.model}
                         </h3>
-                        <p className="text-3xl font-bold text-green-600 mb-4">
+                        <p className="mb-4 text-2xl font-bold text-green-600 sm:text-3xl">
                           {vehicle.currency} {vehicle.price.toLocaleString()}
                         </p>
                         <div className="flex flex-wrap gap-2 mb-4 text-sm text-gray-600">
@@ -1040,20 +1025,20 @@ export default function TenantSubdomainClientPage() {
                         <p className="text-sm text-gray-700 mb-4 line-clamp-2">
                           {vehicle.description}
                         </p>
-                        <div className="flex gap-2">
+                        <div className="flex flex-col gap-2 min-[420px]:flex-row">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedVehicle(vehicle);
                             }}
-                            className="flex-1 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition font-medium"
+                            className="flex-1 rounded-lg bg-primary-600 px-4 py-2 font-medium text-white transition hover:bg-primary-700"
                           >
                             Ver Detalles
                           </button>
                           <Link
                             href={subdomain ? `/${subdomain}/appointment?vehicleId=${vehicle.id}` : '#'}
                             onClick={(e) => e.stopPropagation()}
-                            className="flex-1 text-center bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition font-medium"
+                            className="flex-1 rounded-lg bg-green-600 px-4 py-2 text-center font-medium text-white transition hover:bg-green-700"
                           >
                             Agendar
                           </Link>
@@ -1084,37 +1069,37 @@ export default function TenantSubdomainClientPage() {
             </h2>
             <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
               {/* Informaci├│n de Contacto */}
-              <div className="bg-white rounded-lg shadow p-6">
+              <div className="rounded-lg bg-white p-4 shadow sm:p-6">
                 <h3 className="text-xl font-bold mb-4">Informaci├│n de Contacto</h3>
                 <div className="space-y-3">
                   {tenant.contactPhone && (
-                    <div className="flex items-center space-x-3">
+                    <div className="flex min-w-0 items-center gap-3">
                       <span className="text-2xl">≡ƒô₧</span>
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-sm text-gray-600">Tel├⌐fono</p>
-                        <a href={`tel:${tenant.contactPhone}`} className="text-primary-600 hover:underline">
+                        <a href={buildTelHref(tenant.contactPhone) || '#'} className="break-words text-primary-600 hover:underline">
                           {tenant.contactPhone}
                         </a>
                       </div>
                     </div>
                   )}
                   {tenant.contactEmail && (
-                    <div className="flex items-center space-x-3">
+                    <div className="flex min-w-0 items-center gap-3">
                       <span className="text-2xl">Γ£ë∩╕Å</span>
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-sm text-gray-600">Email</p>
-                        <a href={`mailto:${tenant.contactEmail}`} className="text-primary-600 hover:underline">
+                        <a href={`mailto:${tenant.contactEmail}`} className="break-all text-primary-600 hover:underline">
                           {tenant.contactEmail}
                         </a>
                       </div>
                     </div>
                   )}
                   {tenant.address && (tenant.address.street || tenant.address.city) && (
-                    <div className="flex items-start space-x-3">
+                    <div className="flex min-w-0 items-start gap-3">
                       <span className="text-2xl">≡ƒôì</span>
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-sm text-gray-600">Direcci├│n</p>
-                        <p className="text-gray-900">
+                        <p className="break-words text-gray-900">
                           {[
                             tenant.address.street,
                             tenant.address.city,
@@ -1127,11 +1112,11 @@ export default function TenantSubdomainClientPage() {
                     </div>
                   )}
                   {tenant.businessHours && (
-                    <div className="flex items-start space-x-3">
+                    <div className="flex min-w-0 items-start gap-3">
                       <span className="text-2xl">≡ƒòÉ</span>
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-sm text-gray-600">Horarios de Atenci├│n</p>
-                        <p className="text-gray-900 whitespace-pre-line">{tenant.businessHours}</p>
+                        <p className="whitespace-pre-line break-words text-gray-900">{tenant.businessHours}</p>
                       </div>
                     </div>
                   )}
@@ -1147,15 +1132,15 @@ export default function TenantSubdomainClientPage() {
               </div>
 
               {/* Formulario de Contacto */}
-              <div className="bg-white rounded-lg shadow p-6">
+              <div className="rounded-lg bg-white p-4 shadow sm:p-6">
                 <h3 className="text-xl font-bold mb-4">Env├¡anos un Mensaje</h3>
                 <div className="space-y-3">
                   {tenant.contactPhone && (
                     <a
-                      href={`https://wa.me/${tenant.contactPhone.replace(/[^0-9]/g, '')}`}
+                      href={buildWhatsAppHref(tenant.contactPhone) || '#'}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-full bg-green-500 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-600 flex items-center justify-center gap-2"
+                      className="flex w-full items-center justify-center gap-2 rounded-lg bg-green-500 px-4 py-3 font-medium text-white hover:bg-green-600 sm:px-6"
                     >
                       <span>≡ƒÆ¼</span>
                       Escribir por WhatsApp
@@ -1164,20 +1149,20 @@ export default function TenantSubdomainClientPage() {
                   <button
                     type="button"
                     onClick={() => setShowContactForm(true)}
-                    className="w-full bg-primary-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-700 cursor-pointer"
+                    className="w-full cursor-pointer rounded-lg bg-primary-600 px-4 py-3 font-medium text-white hover:bg-primary-700 sm:px-6"
                   >
                     Abrir Formulario de Contacto
                   </button>
                   <Link
                     href={`/${subdomain}/appointment`}
-                    className="w-full bg-primary-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-700 flex items-center justify-center gap-2"
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-3 font-medium text-white hover:bg-primary-700 sm:px-6"
                   >
                     ≡ƒôà Agendar una Cita
                   </Link>
                 </div>
                 {tenant.description && (
                   <div className="mt-6 pt-6 border-t">
-                    <p className="text-gray-700 text-sm leading-relaxed">
+                    <p className="break-words text-sm leading-relaxed text-gray-700">
                       {tenant.description}
                     </p>
                   </div>
@@ -1220,7 +1205,7 @@ export default function TenantSubdomainClientPage() {
             <div>
               <h3 className="text-lg font-bold mb-4">{tenant.name}</h3>
               {tenant.description && (
-                <p className="text-gray-400 text-sm leading-relaxed">{tenant.description.substring(0, 150)}</p>
+                <p className="break-words text-sm leading-relaxed text-gray-400">{tenant.description.substring(0, 150)}</p>
               )}
               {tenant.socialMedia && Object.keys(tenant.socialMedia).length > 0 && (
                 <div className="mt-4 flex gap-3">
@@ -1271,6 +1256,9 @@ export default function TenantSubdomainClientPage() {
                 <Link href={`/${subdomain}/appointment`} className="block hover:text-white transition">
                   Agendar Cita
                 </Link>
+                <Link href={`/${subdomain}/vender`} className="block hover:text-white transition font-medium text-amber-300">
+                  Vender tu auto
+                </Link>
                 <Link href={`/${subdomain}/pre-qualify`} className="block hover:text-white transition font-medium text-primary-400">
                   ≡ƒÜù Pre-Cualificaci├│n
                 </Link>
@@ -1283,17 +1271,17 @@ export default function TenantSubdomainClientPage() {
               <h4 className="font-semibold mb-4">Contacto</h4>
               <div className="space-y-3 text-sm text-gray-400">
                 {tenant.contactPhone && (
-                  <a href={`tel:${tenant.contactPhone}`} className="block hover:text-white transition">
+                  <a href={buildTelHref(tenant.contactPhone) || '#'} className="block break-words transition hover:text-white">
                     ≡ƒô₧ {tenant.contactPhone}
                   </a>
                 )}
                 {tenant.contactEmail && (
-                  <a href={`mailto:${tenant.contactEmail}`} className="block hover:text-white transition">
+                  <a href={`mailto:${tenant.contactEmail}`} className="block break-all transition hover:text-white">
                     Γ£ë∩╕Å {tenant.contactEmail}
                   </a>
                 )}
                 {tenant.address && (tenant.address.street || tenant.address.city) && (
-                  <p className="block">
+                  <p className="block break-words">
                     ≡ƒôì {[tenant.address.street, tenant.address.city, tenant.address.state].filter(Boolean).join(', ')}
                   </p>
                 )}
@@ -1325,14 +1313,17 @@ export default function TenantSubdomainClientPage() {
 
           {/* Bottom Bar */}
           <div className="border-t border-gray-800 mt-8 pt-6">
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-400">
-              <p>┬⌐ {new Date().getFullYear()} {tenant.name}. Todos los derechos reservados.</p>
-              <div className="flex gap-4">
+            <div className="flex flex-col items-center justify-between gap-4 text-center text-sm text-gray-400 md:flex-row md:text-left">
+              <p className="break-words">┬⌐ {new Date().getFullYear()} {tenant.name}. Todos los derechos reservados.</p>
+              <div className="flex flex-wrap justify-center gap-4">
                 <Link href={`/${subdomain}/pre-qualify`} className="hover:text-white transition">
                   Pre-Cualificaci├│n
                 </Link>
                 <Link href={`/${subdomain}/appointment`} className="hover:text-white transition">
                   Agendar Cita
+                </Link>
+                <Link href={`/${subdomain}/vender`} className="hover:text-white transition">
+                  Vender tu auto
                 </Link>
               </div>
             </div>
@@ -1532,7 +1523,7 @@ function SocialPostsSection({ subdomain, tenant }: { subdomain: string | null; t
     <section id="social" className="bg-white py-16">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold mb-4">S├¡guenos en Redes Sociales</h2>
+          <h2 className="mb-4 text-3xl font-bold leading-tight sm:text-4xl">S├¡guenos en Redes Sociales</h2>
           <p className="text-gray-600">Mira nuestras ├║ltimas publicaciones</p>
         </div>
 
@@ -1563,9 +1554,9 @@ function SocialPostsSection({ subdomain, tenant }: { subdomain: string | null; t
                 </div>
               )}
 
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 {/* Platforms */}
-                <div className="flex gap-2 mb-3">
+                <div className="mb-3 flex flex-wrap gap-2">
                   {post.platforms.map((platform: string) => (
                     <span
                       key={platform}
@@ -1578,7 +1569,7 @@ function SocialPostsSection({ subdomain, tenant }: { subdomain: string | null; t
                 </div>
 
                 {/* Content */}
-                <p className="text-gray-700 mb-3 line-clamp-3">{post.content}</p>
+                <p className="mb-3 line-clamp-3 break-words text-gray-700">{post.content}</p>
 
                 {/* Hashtags */}
                 {post.metadata?.hashtags && post.metadata.hashtags.length > 0 && (
@@ -1610,13 +1601,13 @@ function SocialPostsSection({ subdomain, tenant }: { subdomain: string | null; t
         {tenant.socialMedia && Object.keys(tenant.socialMedia).length > 0 && (
           <div className="mt-8 text-center">
             <p className="text-gray-600 mb-4">S├¡guenos para m├ís contenido:</p>
-            <div className="flex justify-center gap-4">
+            <div className="flex flex-col justify-center gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
               {tenant.socialMedia.facebook && (
                 <a
                   href={tenant.socialMedia.facebook}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="bg-primary-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-700 flex items-center gap-2"
+                  className="flex items-center justify-center gap-2 rounded-lg bg-primary-600 px-6 py-3 font-medium text-white hover:bg-primary-700"
                 >
                   ≡ƒôÿ Facebook
                 </a>
@@ -1626,7 +1617,7 @@ function SocialPostsSection({ subdomain, tenant }: { subdomain: string | null; t
                   href={tenant.socialMedia.instagram}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="bg-gradient-to-r from-primary-500 to-brand-red-bright500 text-white px-6 py-3 rounded-lg font-medium hover:opacity-90 flex items-center gap-2"
+                  className="flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-primary-500 to-brand-red-bright500 px-6 py-3 font-medium text-white hover:opacity-90"
                 >
                   ≡ƒô╖ Instagram
                 </a>
@@ -1636,7 +1627,7 @@ function SocialPostsSection({ subdomain, tenant }: { subdomain: string | null; t
                   href={tenant.socialMedia.tiktok}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="bg-black text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-800 flex items-center gap-2"
+                  className="flex items-center justify-center gap-2 rounded-lg bg-black px-6 py-3 font-medium text-white hover:bg-gray-800"
                 >
                   ≡ƒÄ╡ TikTok
                 </a>
@@ -1696,11 +1687,11 @@ function ReviewsSection({ subdomain }: { subdomain: string | null }) {
     <section id="reviews" className="bg-gray-50 py-16">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold mb-4">Rese├▒as de Nuestros Clientes</h2>
+          <h2 className="mb-4 text-3xl font-bold leading-tight sm:text-4xl">Rese├▒as de Nuestros Clientes</h2>
           {reviews.length > 0 ? (
             <>
               {averageRating > 0 && (
-                <div className="flex items-center justify-center gap-2 mb-2">
+                <div className="mb-2 flex flex-wrap items-center justify-center gap-2">
                   <span className="text-3xl font-bold">{averageRating.toFixed(1)}</span>
                   {renderStars(Math.round(averageRating))}
                   <span className="text-gray-600">({reviews.length} rese├▒as)</span>

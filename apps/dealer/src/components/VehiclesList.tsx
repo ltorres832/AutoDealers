@@ -25,6 +25,7 @@ export default function VehiclesList() {
   const [user, setUser] = useState<SessionUser>(null);
   const [userLoading, setUserLoading] = useState(true);
   const [filter, setFilter] = useState<InventoryFilter>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -77,16 +78,32 @@ export default function VehiclesList() {
 
   const visibleVehicles = useMemo(() => {
     void refreshKey;
+    const q = searchQuery.trim().toLowerCase();
+    const vinQ = searchQuery.trim().toUpperCase().replace(/[\s\-]/g, '');
     return vehicles.filter((v) => {
-      const extended = v as RealtimeInventoryVehicle & { deleted?: boolean };
+      const extended = v as RealtimeInventoryVehicle & {
+        deleted?: boolean;
+        vin?: string;
+        stockNumber?: string;
+        specifications?: { vin?: string; stockNumber?: string };
+      };
       if (extended.deleted === true) return false;
-      if (filter === 'all') return true;
-      if (filter === 'available') return v.status === 'available';
-      if (filter === 'sold') return v.status === 'sold';
-      if (filter === 'hidden') return v.status === 'hidden';
-      return true;
+      if (filter === 'available' && v.status !== 'available') return false;
+      else if (filter === 'sold' && v.status !== 'sold') return false;
+      else if (filter === 'hidden' && v.status !== 'hidden') return false;
+      if (!q) return true;
+      const vin = String(extended.vin || extended.specifications?.vin || '')
+        .toUpperCase()
+        .replace(/[\s\-]/g, '');
+      const stock = String(
+        extended.stockNumber || extended.specifications?.stockNumber || ''
+      ).toLowerCase();
+      const hay = [v.make, v.model, String(v.year || ''), vin, stock]
+        .join(' ')
+        .toLowerCase();
+      return hay.includes(q) || (vinQ.length >= 6 && vin.includes(vinQ));
     });
-  }, [vehicles, filter, refreshKey]);
+  }, [vehicles, filter, refreshKey, searchQuery]);
 
   if (userLoading || loading) {
     return (
@@ -131,6 +148,16 @@ export default function VehiclesList() {
 
   return (
     <>
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <input
+          type="search"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Buscar por marca, modelo, VIN o stock…"
+          className="w-full sm:w-80 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+        />
+      </div>
+
       <div className="flex flex-wrap items-center gap-2 mb-6">
         {tabs.map((tab) => (
           <button

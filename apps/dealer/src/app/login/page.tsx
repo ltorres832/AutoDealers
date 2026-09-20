@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithCustomToken } from 'firebase/auth';
 import { auth } from '@/lib/firebase-client';
 import { canAccessDealerApp } from '@/lib/dealer-portal-roles';
 import { ForgotPasswordPanel } from '@/components/ForgotPasswordPanel';
@@ -80,30 +80,12 @@ export default function LoginPage() {
         }
       }
 
-      // Autenticar con Firebase Auth
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      
-      // Obtener un token fresco (sin forzar renovación para evitar cuota)
-      const token = await userCredential.user.getIdToken(false);
-      
-      // Verificar que el token sea válido
-      if (!token || token.length < 200) {
-        throw new Error('Error al obtener token de autenticación. Por favor, intenta nuevamente.');
-      }
-      
-      if (!token.startsWith('eyJ')) {
-        throw new Error('Error: El token obtenido no tiene el formato correcto. Por favor, intenta nuevamente.');
-      }
-      
-      console.log('✅ Token obtenido correctamente, longitud:', token.length);
-
-      // Validar usuario con la API (verifica estado y rol)
       const loginResponse = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: userCredential.user.uid,
-          token: token,
+          email,
+          password,
         }),
       });
 
@@ -138,6 +120,20 @@ export default function LoginPage() {
       }
 
       const loginData = await loginResponse.json();
+      if (!loginData.customToken && !loginData.sessionToken) {
+        throw new Error('Error al obtener token de acceso.');
+      }
+
+      let token = String(loginData.sessionToken || '');
+      if (loginData.customToken) {
+        const userCredential = await signInWithCustomToken(auth, loginData.customToken);
+        token = await userCredential.user.getIdToken(false);
+        if (!token || token.length < 200 || !token.startsWith('eyJ')) {
+          throw new Error('Error al obtener token de autenticación. Por favor, intenta nuevamente.');
+        }
+      } else if (!token) {
+        throw new Error('Error al obtener token de acceso.');
+      }
 
       if (!canAccessDealerApp(loginData.user?.role)) {
         throw new Error('Solo cuentas de concesionario o vendedores pueden acceder aquí');
@@ -166,6 +162,9 @@ export default function LoginPage() {
       
       // Guardar con un nombre específico para dealer
       document.cookie = `authToken=${cookieValue}; path=/; max-age=86400; SameSite=Lax${isSecure ? '; Secure' : ''}`;
+      if (loginData.user?.id) {
+        document.cookie = `authProfileId=${encodeURIComponent(loginData.user.id)}; path=/; max-age=86400; SameSite=Lax${isSecure ? '; Secure' : ''}`;
+      }
       
       console.log('✅ Token guardado en cookie, longitud:', token.length);
       
@@ -240,7 +239,7 @@ export default function LoginPage() {
   return (
     <div className="brand-login-shell brand-top-accent">
       <header className="brand-login-header">
-        <h1 className="text-2xl font-bold tracking-tight">AutoDealers</h1>
+        <h1 className="text-2xl font-bold tracking-tight">AutoDealersOnline</h1>
         <p className="text-sm text-white/90 mt-1">Portal Dealer</p>
       </header>
       <div className="brand-login-body">

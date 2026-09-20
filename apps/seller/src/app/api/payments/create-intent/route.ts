@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import Stripe from 'stripe';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2023-10-16',
-});
+import { getStripeInstance } from '@autodealers/core';
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,6 +21,8 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const stripe = await getStripeInstance();
 
     // Crear Payment Intent
     const paymentIntent = await stripe.paymentIntents.create({

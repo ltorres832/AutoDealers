@@ -9,6 +9,7 @@ interface ProfileData {
   companyName?: string; // Nombre de la compañía (solo para dealers)
   email: string;
   phone?: string;
+  photo?: string;
   address?: string;
   city?: string;
   state?: string;
@@ -34,6 +35,7 @@ export default function ProfileSettingsPage() {
     companyName: '',
     email: '',
     phone: '',
+    photo: '',
     address: '',
     city: '',
     state: '',
@@ -46,6 +48,7 @@ export default function ProfileSettingsPage() {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   useEffect(() => {
     fetchProfile();
@@ -63,6 +66,56 @@ export default function ProfileSettingsPage() {
       console.error('Error:', error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor selecciona una imagen');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      alert('La imagen debe ser menor a 10MB');
+      return;
+    }
+    setUploadingPhoto(true);
+    try {
+      const formData = new FormData();
+      formData.append('photo', file);
+      const response = await fetchWithAuth('/api/settings/profile/photo', {
+        method: 'POST',
+        body: formData,
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setProfileData({ ...profileData, photo: data.photoUrl });
+      } else {
+        const err = await response.json().catch(() => ({}));
+        alert(err.error || 'Error al subir la foto');
+      }
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      alert('Error al subir la foto');
+    } finally {
+      setUploadingPhoto(false);
+      e.target.value = '';
+    }
+  }
+
+  async function handleRemovePhoto() {
+    if (!confirm('¿Eliminar la foto del concesionario?')) return;
+    try {
+      const response = await fetchWithAuth('/api/settings/profile/photo', { method: 'DELETE' });
+      if (response.ok) {
+        setProfileData({ ...profileData, photo: '' });
+      } else {
+        alert('Error al eliminar la foto');
+      }
+    } catch (error) {
+      console.error('Error removing photo:', error);
+      alert('Error al eliminar la foto');
     }
   }
 
@@ -148,6 +201,53 @@ export default function ProfileSettingsPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Foto del concesionario — grande a propósito (no tocar tamaño del seller) */}
+        <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
+          <h2 className="text-xl font-bold mb-2">Foto del concesionario</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Sube una foto completa del dealer / fachada / equipo. Vista previa grande para que se vea bien.
+          </p>
+          <div className="flex flex-col md:flex-row gap-6 items-start">
+            <div className="w-full max-w-xl">
+              {profileData.photo ? (
+                <img
+                  src={profileData.photo}
+                  alt="Foto del concesionario"
+                  className="w-full max-h-[420px] object-cover rounded-xl border border-gray-200 shadow-sm"
+                />
+              ) : (
+                <div className="w-full h-64 rounded-xl bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-500">
+                  Sin foto — sube una imagen ancha (recomendado 1200×800+)
+                </div>
+              )}
+            </div>
+            <div className="flex-1 space-y-3">
+              <label className="inline-block">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoUpload}
+                  className="hidden"
+                  disabled={uploadingPhoto}
+                />
+                <span className="inline-block px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 cursor-pointer">
+                  {uploadingPhoto ? 'Subiendo...' : profileData.photo ? 'Cambiar foto' : 'Subir foto'}
+                </span>
+              </label>
+              {profileData.photo ? (
+                <button
+                  type="button"
+                  onClick={handleRemovePhoto}
+                  className="block px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50"
+                >
+                  Eliminar
+                </button>
+              ) : null}
+              <p className="text-xs text-gray-500">JPG/PNG/WebP · máximo 10MB</p>
+            </div>
+          </div>
+        </div>
+
         {/* Calificaciones */}
         {(profileData.dealerRating || 0) > 0 && (
           <div className="bg-white rounded-lg shadow border border-gray-200 p-6">

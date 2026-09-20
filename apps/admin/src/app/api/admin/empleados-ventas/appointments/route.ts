@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
       notes: String(body.notes || ''),
       requestedBy: 'admin',
       createdByAdminId: auth.userId,
+      clientUserId: String(body.clientUserId || ''),
       grantAccessDurationMinutes:
         body.grantAccess === true ? Number(body.grantAccessDurationMinutes || 120) : undefined,
     });

@@ -2,8 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-import { getTenantBySubdomain } from '@autodealers/core';
+import { getFirestore, getTenantBySubdomain } from '@autodealers/core';
 import { getAppointmentsBySeller } from '@autodealers/crm';
+
+async function resolveActiveTenant(identifier: string): Promise<{ id: string; status?: string } | null> {
+  const value = identifier.trim();
+  if (!value) return null;
+  const bySubdomain = await getTenantBySubdomain(value);
+  if (bySubdomain?.status === 'active') return { id: bySubdomain.id, status: bySubdomain.status };
+  const doc = await getFirestore().collection('tenants').doc(value).get();
+  if (!doc.exists) return null;
+  const data = doc.data() || {};
+  if (data.status !== 'active') return null;
+  return { id: doc.id, status: data.status };
+}
 
 export async function GET(
   request: NextRequest,
@@ -15,10 +27,10 @@ export async function GET(
     const sellerId = searchParams.get('sellerId');
     const date = searchParams.get('date'); // YYYY-MM-DD
 
-    // Obtener tenant por subdominio
-    const tenant = await getTenantBySubdomain(subdomain);
+    // Obtener tenant por subdominio o por tenantId legacy.
+    const tenant = await resolveActiveTenant(subdomain);
 
-    if (!tenant || tenant.status !== 'active') {
+    if (!tenant) {
       return NextResponse.json(
         { error: 'Tenant not found or inactive' },
         { status: 404 }

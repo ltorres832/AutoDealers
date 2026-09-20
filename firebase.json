@@ -53,7 +53,17 @@
         "node_modules",
         ".git",
         "firebase-debug.log",
-        "firebase-debug.*.log"
+        "firebase-debug.*.log",
+        "admin/**",
+        "dealer/**",
+        "seller/**",
+        "advertiser/**",
+        "public-web/**",
+        "src/**",
+        ".next/**",
+        "tsconfig.json",
+        "build-functions.js",
+        "build-webhooks.js"
       ],
       "predeploy": [
         "npm run predeploy:functions"
@@ -95,6 +105,8 @@
         "**/node_modules/**",
         "**/.next/**",
         "**/out/**",
+        "**/.git/**",
+        ".git/**",
         ".firebase/**",
         "functions/**",
         "autodealers_flutter/**",
@@ -111,6 +123,8 @@
         "**/node_modules/**",
         "**/.next/**",
         "**/out/**",
+        "**/.git/**",
+        ".git/**",
         ".firebase/**",
         "functions/**",
         "autodealers_flutter/**",
@@ -127,6 +141,8 @@
         "**/node_modules/**",
         "**/.next/**",
         "**/out/**",
+        "**/.git/**",
+        ".git/**",
         ".firebase/**",
         "functions/**",
         "autodealers_flutter/**",
@@ -143,6 +159,8 @@
         "**/node_modules/**",
         "**/.next/**",
         "**/out/**",
+        "**/.git/**",
+        ".git/**",
         ".firebase/**",
         "functions/**",
         "autodealers_flutter/**",
@@ -150,6 +168,25 @@
         "apps/admin/**",
         "apps/dealer/**",
         "apps/seller/**"
+      ]
+    },
+    {
+      "backendId": "business-app",
+      "rootDir": "apps/business",
+      "ignore": [
+        "**/node_modules/**",
+        "**/.next/**",
+        "**/out/**",
+        "**/.git/**",
+        ".git/**",
+        ".firebase/**",
+        "functions/**",
+        "autodealers_flutter/**",
+        "apps/public-web/**",
+        "apps/admin/**",
+        "apps/dealer/**",
+        "apps/seller/**",
+        "apps/advertiser/**"
       ]
     }
   ],

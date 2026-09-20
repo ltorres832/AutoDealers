@@ -24,7 +24,7 @@ export async function POST(
                      'unknown';
     const userAgent = request.headers.get('user-agent') || 'unknown';
 
-    await acceptPolicy(id, userId, ipAddress, userAgent);
+    await acceptPolicy(userId, id, ipAddress, userAgent);
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('Error accepting policy:', error);

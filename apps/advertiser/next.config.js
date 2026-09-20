@@ -43,6 +43,7 @@ const nextConfig = {
   webpack: (config, { isServer }) => {
     // Resolver alias para los paquetes del monorepo
     const path = require('path');
+    const webpack = require('webpack');
     config.resolve.extensionAlias = {
       '.js': ['.ts', '.tsx', '.js', '.jsx'],
       '.jsx': ['.tsx', '.jsx'],
@@ -52,6 +53,18 @@ const nextConfig = {
     config.resolve.alias = {
       ...config.resolve.alias,
       '@autodealers/core': path.resolve(__dirname, '../../packages/core/src'),
+      '@autodealers/core/ad-placement-dimensions': path.resolve(
+        __dirname,
+        '../../packages/core/src/ad-placement-dimensions.ts'
+      ),
+      '@autodealers/core/ad-placement-explainer': path.resolve(
+        __dirname,
+        '../../packages/core/src/ad-placement-explainer.tsx'
+      ),
+      '@autodealers/core/ad-creative': path.resolve(
+        __dirname,
+        '../../packages/core/src/ad-creative.ts'
+      ),
       '@autodealers/billing': path.resolve(__dirname, '../../packages/billing/src'),
       '@autodealers/crm': path.resolve(__dirname, '../../packages/crm/src'),
       '@autodealers/messaging': path.resolve(__dirname, '../../packages/messaging/src'),
@@ -62,6 +75,14 @@ const nextConfig = {
 
     // Excluir módulos de Node.js del bundle del cliente
     if (!isServer) {
+      // Ignorar imports con esquema node:* en el cliente (p. ej. node:crypto)
+      config.plugins = config.plugins || [];
+      config.plugins.push(
+        new webpack.IgnorePlugin({
+          resourceRegExp: /^node:/,
+        })
+      );
+
       config.resolve.fallback = {
         ...config.resolve.fallback,
         fs: false,

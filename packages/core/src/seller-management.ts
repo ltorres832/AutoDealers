@@ -97,6 +97,7 @@ export type AdminSellerListFilters = {
   search?: string;
   /** independent = sin dealerId; linked = con dealerId */
   linkType?: 'all' | 'independent' | 'linked';
+  includeCancelled?: boolean;
 };
 
 export type AdminSellerRow = User & {
@@ -139,6 +140,8 @@ export async function getAllSellersForAdmin(
 
   if (filters.status) {
     rows = rows.filter((s) => (s.status || 'active') === filters.status);
+  } else if (!filters.includeCancelled) {
+    rows = rows.filter((s) => (s.status || 'active') !== 'cancelled');
   }
 
   if (filters.search) {

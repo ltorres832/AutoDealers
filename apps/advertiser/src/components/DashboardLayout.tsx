@@ -11,12 +11,21 @@ interface Advertiser {
   plan: string;
 }
 
+interface RequiredPolicy {
+  id: string;
+  title: string;
+  content: string;
+  version: string;
+}
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [advertiser, setAdvertiser] = useState<Advertiser | null>(null);
   const [loading, setLoading] = useState(true);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [requiredPolicies, setRequiredPolicies] = useState<RequiredPolicy[]>([]);
+  const [acceptingPolicies, setAcceptingPolicies] = useState(false);
 
   useEffect(() => {
     fetchAdvertiser();
@@ -25,6 +34,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     setMobileNavOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    if (!advertiser?.id || pathname === '/login') return;
+    void fetchRequiredPolicies();
+  }, [advertiser?.id, pathname]);
 
   async function fetchAdvertiser() {
     try {
@@ -35,7 +49,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (!contentType || !contentType.includes('application/json')) {
         // Si no es JSON, probablemente es HTML (error o redirección)
         if (response.status === 401 || response.status === 403 || response.status === 0) {
-          router.push('/login');
+          const next = `${pathname}${typeof window !== 'undefined' ? window.location.search : ''}`;
+          router.push(`/login?next=${encodeURIComponent(next)}`);
           return;
         }
         console.error('Expected JSON but got:', contentType);
@@ -51,7 +66,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (response.ok) {
         setAdvertiser(data.advertiser);
       } else if (response.status === 401 || response.status === 403) {
-        router.push('/login');
+        const next = `${pathname}${typeof window !== 'undefined' ? window.location.search : ''}`;
+        router.push(`/login?next=${encodeURIComponent(next)}`);
       } else {
         console.error('Error fetching advertiser:', data);
       }
@@ -78,6 +94,43 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }
 
+  async function fetchRequiredPolicies() {
+    try {
+      const response = await fetch('/api/policies/required', {
+        credentials: 'include',
+        cache: 'no-store',
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      setRequiredPolicies(Array.isArray(data.policies) ? data.policies : []);
+    } catch (error) {
+      console.error('Error fetching advertiser policies:', error);
+    }
+  }
+
+  async function acceptRequiredPolicies() {
+    if (!requiredPolicies.length) return;
+    setAcceptingPolicies(true);
+    try {
+      await Promise.all(
+        requiredPolicies.map((policy) =>
+          fetch(`/api/policies/${encodeURIComponent(policy.id)}/accept`, {
+            method: 'POST',
+            credentials: 'include',
+          }).then((response) => {
+            if (!response.ok) throw new Error('No se pudo aceptar una política');
+          })
+        )
+      );
+      await fetchRequiredPolicies();
+    } catch (error) {
+      console.error('Error accepting advertiser policies:', error);
+      alert('No se pudieron aceptar las políticas. Intenta nuevamente.');
+    } finally {
+      setAcceptingPolicies(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -88,6 +141,39 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex min-h-[100dvh] bg-gray-50">
+      {requiredPolicies.length > 0 && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="border-b border-gray-200 p-6">
+              <h2 className="text-2xl font-bold text-gray-900">Políticas requeridas</h2>
+              <p className="mt-2 text-sm text-gray-600">
+                Debes aceptar estas políticas para continuar usando el panel de anunciante.
+              </p>
+            </div>
+            <div className="max-h-[55vh] space-y-4 overflow-y-auto p-6">
+              {requiredPolicies.map((policy) => (
+                <section key={policy.id} className="rounded-xl border border-gray-200 p-4">
+                  <h3 className="text-lg font-semibold text-gray-900">{policy.title}</h3>
+                  <p className="mt-1 text-xs text-gray-500">Versión {policy.version}</p>
+                  <div className="mt-4 max-h-44 overflow-y-auto whitespace-pre-wrap rounded-lg bg-gray-50 p-4 text-sm text-gray-700">
+                    {policy.content}
+                  </div>
+                </section>
+              ))}
+            </div>
+            <div className="flex justify-end border-t border-gray-200 p-6">
+              <button
+                type="button"
+                onClick={acceptRequiredPolicies}
+                disabled={acceptingPolicies}
+                className="rounded-lg bg-primary-600 px-6 py-3 font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
+              >
+                {acceptingPolicies ? 'Aceptando...' : 'Aceptar y continuar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <button
         type="button"
         aria-label="Abrir menú"

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
+import { dealerManagedPaymentsResponse } from '@/lib/dealer-managed-guard';
 import { getFirestore, getStripeInstance } from '@autodealers/core';
 import * as admin from 'firebase-admin';
 
@@ -11,6 +12,9 @@ export async function POST(request: NextRequest) {
     if (!auth || !auth.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const dealerBlock = dealerManagedPaymentsResponse(auth);
+    if (dealerBlock) return dealerBlock;
 
     const body = await request.json();
     const { paymentIntentId, promotionId } = body;

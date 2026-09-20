@@ -10,7 +10,8 @@ export function pickSocialPlatforms(platforms: unknown): ('facebook' | 'instagra
 export function campaignContentToPostContent(
   contentObj: unknown,
   fallbackDescription: string,
-  fallbackName: string
+  fallbackName: string,
+  fallbackImageUrl?: string
 ): PostContent {
   const text =
     typeof contentObj === 'object' &&
@@ -25,7 +26,14 @@ export function campaignContentToPostContent(
     Array.isArray((contentObj as { images?: string[] }).images) &&
     (contentObj as { images?: string[] }).images!.length > 0
       ? String((contentObj as { images?: string[] }).images![0])
-      : undefined;
+      : fallbackImageUrl?.trim() || undefined;
+
+  if (!firstImage) {
+    throw new Error(
+      'Las campañas en redes sociales requieren al menos una imagen (Facebook e Instagram).'
+    );
+  }
+
   return { text, imageUrl: firstImage };
 }
 

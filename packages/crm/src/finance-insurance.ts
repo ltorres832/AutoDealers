@@ -472,7 +472,22 @@ export async function submitFIRequest(
     console.error('Error ejecutando workflows:', error);
   }
 
-  // La notificación se maneja desde la API route que llama a esta función
+  try {
+    const clientDoc = await db
+      .collection('tenants')
+      .doc(tenantId)
+      .collection('fi_clients')
+      .doc(currentData.clientId)
+      .get();
+    const { notifyFIRequestSubmitted } = await import('@autodealers/core');
+    await notifyFIRequestSubmitted(tenantId, {
+      requestId,
+      clientName: clientDoc.data()?.name || 'Cliente',
+      sellerUserId: currentData.createdBy || submittedBy,
+    });
+  } catch (error) {
+    console.error('Error notificando envío F&I desde servicio compartido:', error);
+  }
 }
 
 /**
@@ -1418,8 +1433,12 @@ export async function submitDocumentToRequest(
     throw new Error('Solicitud de documentos no encontrada o expirada');
   }
 
-  if (docRequest.status !== 'pending') {
-    throw new Error('Esta solicitud de documentos ya fue procesada');
+  if (docRequest.status === 'expired') {
+    throw new Error('Esta solicitud de documentos expiró');
+  }
+
+  if (!['pending', 'submitted'].includes(docRequest.status)) {
+    throw new Error('Esta solicitud de documentos no está disponible');
   }
 
   const db = getDb();
@@ -1435,10 +1454,22 @@ export async function submitDocumentToRequest(
     uploadedAt: new Date(),
   };
 
+  const submittedTypes = new Set([
+    ...docRequest.submittedDocuments.map((doc) => doc.type),
+    document.type,
+  ]);
+  const requiredDocuments = docRequest.requestedDocuments.filter((doc) => doc.required);
+  const documentsToComplete = requiredDocuments.length > 0 ? requiredDocuments : docRequest.requestedDocuments;
+  const nextStatus = documentsToComplete.every((doc) => submittedTypes.has(doc.type))
+    ? 'submitted'
+    : 'pending';
+
   await docRequestRef.update({
     submittedDocuments: getFirestoreFieldValue().arrayUnion(submittedDoc),
-    status: 'submitted',
-    submittedAt: getFirestoreFieldValue().serverTimestamp(),
+    status: nextStatus,
+    ...(nextStatus === 'submitted'
+      ? { submittedAt: getFirestoreFieldValue().serverTimestamp() }
+      : {}),
     updatedAt: getFirestoreFieldValue().serverTimestamp(),
   });
 
@@ -1464,7 +1495,6 @@ export async function submitDocumentToRequest(
       title: 'Documento F&I recibido',
       message: `${clientName} subió: ${document.name}`,
       sellerId,
-      excludeUserIds: docRequest.requestedBy ? [docRequest.requestedBy] : undefined,
       requestId: docRequest.requestId,
       clientId: docRequest.clientId,
       route: `/fi/requests/${docRequest.requestId}`,

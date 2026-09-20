@@ -19,7 +19,23 @@ interface Appointment {
   scheduledAt: string | Date;
   duration: number;
   status: string;
+  notes?: string;
+  customerName?: string;
+  customerPhone?: string;
+  serviceType?: string;
+  technicianId?: string;
+  reminderRequested?: boolean;
+  repairOrderId?: string;
 }
+
+const APT_STATUSES = [
+  { value: 'scheduled', label: 'Programada' },
+  { value: 'confirmed', label: 'Confirmada' },
+  { value: 'in_progress', label: 'En progreso' },
+  { value: 'completed', label: 'Completada' },
+  { value: 'no_show', label: 'No se presentó' },
+  { value: 'cancelled', label: 'Cancelada' },
+];
 
 export default function AppointmentsPage() {
   const { user } = useAuth();
@@ -44,7 +60,7 @@ export default function AppointmentsPage() {
       : new Date(apt.scheduledAt);
     return {
       id: apt.id,
-      title: `${apt.type} - ${apt.leadId}`,
+      title: `${apt.customerName || apt.serviceType || apt.type} · ${apt.status}`,
       start: scheduledAt.toISOString(),
       end: new Date(
         scheduledAt.getTime() + apt.duration * 60 * 1000
@@ -52,8 +68,12 @@ export default function AppointmentsPage() {
       backgroundColor:
         apt.status === 'confirmed'
           ? '#10B981'
+          : apt.status === 'in_progress'
+          ? '#2563EB'
           : apt.status === 'completed'
           ? '#6B7280'
+          : apt.status === 'no_show' || apt.status === 'cancelled'
+          ? '#9CA3AF'
           : '#E10600',
     };
   });
@@ -76,6 +96,28 @@ export default function AppointmentsPage() {
         >
           Nueva Cita
         </button>
+      </div>
+
+      <div className="bg-white rounded-lg shadow p-4 mb-6">
+        <h2 className="font-semibold mb-3">Lista</h2>
+        {appointments.length === 0 ? (
+          <p className="text-sm text-gray-500">No hay citas. Crea la primera.</p>
+        ) : (
+          <ul className="divide-y text-sm">
+            {appointments.map((apt) => (
+              <li key={apt.id} className="py-2 flex flex-wrap justify-between gap-2">
+                <button type="button" className="text-left" onClick={() => setSelectedAppointment(apt)}>
+                  <span className="font-medium">{apt.customerName || apt.serviceType || apt.type}</span>
+                  {' · '}
+                  {APT_STATUSES.find((s) => s.value === apt.status)?.label || apt.status}
+                </button>
+                {apt.leadId ? (
+                  <Link href={`/leads/${apt.leadId}`} className="text-primary-600">Lead</Link>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <div className="bg-white rounded-lg shadow p-6">
@@ -102,20 +144,78 @@ export default function AppointmentsPage() {
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 space-y-4">
             <h2 className="text-xl font-semibold">Detalle de cita</h2>
             <p className="text-sm text-gray-600">
-              Tipo: <strong>{selectedAppointment.type}</strong>
+              Cliente: <strong>{selectedAppointment.customerName || '—'}</strong>
               <br />
-              Estado: <strong>{selectedAppointment.status}</strong>
+              Tipo: <strong>{selectedAppointment.serviceType || selectedAppointment.type}</strong>
               <br />
-              Lead:{' '}
-              <Link
-                href={`/leads/${selectedAppointment.leadId}`}
-                className="font-semibold text-primary-600 hover:underline"
-              >
-                Ver ficha del lead
-              </Link>
-              <span className="text-gray-400 font-normal"> · </span>
-              <span className="font-mono text-xs text-gray-500">{selectedAppointment.leadId}</span>
+              Notas: {selectedAppointment.notes || '—'}
+              <br />
+              {selectedAppointment.leadId ? (
+                <>
+                  Lead:{' '}
+                  <Link
+                    href={`/leads/${selectedAppointment.leadId}`}
+                    className="font-semibold text-primary-600 hover:underline"
+                  >
+                    Ver ficha del lead
+                  </Link>
+                </>
+              ) : (
+                'Sin lead vinculado'
+              )}
+              {selectedAppointment.repairOrderId ? (
+                <>
+                  <br />
+                  RO:{' '}
+                  <Link href="/service" className="text-primary-600 hover:underline">
+                    Ver taller
+                  </Link>
+                </>
+              ) : null}
             </p>
+            <label className="block text-sm">
+              Estado
+              <select
+                className="mt-1 w-full border rounded px-3 py-2"
+                value={selectedAppointment.status}
+                onChange={async (e) => {
+                  await fetchWithAuth(`/api/appointments/${selectedAppointment.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: e.target.value }),
+                  });
+                  setSelectedAppointment({ ...selectedAppointment, status: e.target.value });
+                }}
+              >
+                {APT_STATUSES.map((s) => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              className="w-full border py-2 rounded hover:bg-gray-50"
+              onClick={async () => {
+                const res = await fetchWithAuth(`/api/appointments/${selectedAppointment.id}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    action: 'to_ro',
+                    customerName: selectedAppointment.customerName,
+                    customerPhone: selectedAppointment.customerPhone,
+                  }),
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                  alert(data.error || 'No se pudo crear la RO');
+                  return;
+                }
+                setSelectedAppointment(null);
+                window.location.href = '/service';
+              }}
+            >
+              Convertir a orden de trabajo
+            </button>
             {selectedAppointment.status === 'scheduled' && (
               <button
                 type="button"
@@ -177,10 +277,14 @@ function CreateAppointmentModal({
     leadId: '',
     assignedTo: '',
     vehicleIds: [] as string[],
-    type: 'test_drive',
+    type: 'service',
     scheduledAt: '',
     duration: 60,
     notes: '',
+    customerName: '',
+    customerPhone: '',
+    serviceType: '',
+    reminderRequested: true,
   });
   const [leads, setLeads] = useState<any[]>([]);
   const [vehicles, setVehicles] = useState<any[]>([]);
@@ -256,12 +360,11 @@ function CreateAppointmentModal({
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-2">Lead/Cliente *</label>
+            <label className="block text-sm font-medium mb-2">Lead / cliente</label>
             <select
               value={formData.leadId}
               onChange={(e) => setFormData({ ...formData, leadId: e.target.value })}
               className="w-full border rounded px-3 py-2"
-              required
             >
               <option value="">Seleccionar lead...</option>
               {leads.map((lead) => (
@@ -297,7 +400,9 @@ function CreateAppointmentModal({
               className="w-full border rounded px-3 py-2"
               required
             >
-              <option value="test_drive">Prueba de Manejo</option>
+              <option value="service">Servicio / taller</option>
+              <option value="maintenance">Mantenimiento</option>
+              <option value="test_drive">Prueba de manejo</option>
               <option value="inspection">Inspección</option>
               <option value="consultation">Consulta</option>
               <option value="delivery">Entrega</option>
@@ -350,6 +455,33 @@ function CreateAppointmentModal({
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Cliente (si no hay lead)</label>
+              <input
+                className="w-full border rounded px-3 py-2"
+                value={formData.customerName}
+                onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Teléfono</label>
+              <input
+                className="w-full border rounded px-3 py-2"
+                value={formData.customerPhone}
+                onChange={(e) => setFormData({ ...formData, customerPhone: e.target.value })}
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Tipo de servicio</label>
+            <input
+              className="w-full border rounded px-3 py-2"
+              placeholder="Cambio de aceite, alineación…"
+              value={formData.serviceType}
+              onChange={(e) => setFormData({ ...formData, serviceType: e.target.value })}
+            />
+          </div>
           <div>
             <label className="block text-sm font-medium mb-2">Notas</label>
             <textarea
@@ -359,6 +491,14 @@ function CreateAppointmentModal({
               rows={3}
             />
           </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={formData.reminderRequested}
+              onChange={(e) => setFormData({ ...formData, reminderRequested: e.target.checked })}
+            />
+            Recordatorio al cliente
+          </label>
 
           <div className="flex gap-2 justify-end pt-4">
             <button

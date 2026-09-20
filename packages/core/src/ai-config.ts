@@ -2,6 +2,7 @@
 
 import { getFirestore } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
+import { getOpenAIApiKey } from './credentials';
 
 const db = getFirestore();
 
@@ -56,12 +57,12 @@ const DEFAULT_AI_CONFIG: AIConfig = {
   autoGenerateContent: false,
   classificationSettings: {
     enabled: false,
-    model: 'gpt-4-turbo-preview',
+    model: 'gpt-4o-mini',
     temperature: 0.3,
   },
   responseSettings: {
     enabled: false,
-    model: 'gpt-4-turbo-preview',
+    model: 'gpt-4o-mini',
     temperature: 0.7,
     maxTokens: 200,
     requireApproval: true,
@@ -69,7 +70,7 @@ const DEFAULT_AI_CONFIG: AIConfig = {
   },
   contentSettings: {
     enabled: false,
-    model: 'gpt-4-turbo-preview',
+    model: 'gpt-4o-mini',
     temperature: 0.8,
     style: 'professional',
   },
@@ -81,28 +82,89 @@ const DEFAULT_AI_CONFIG: AIConfig = {
   },
 };
 
+function normalizeDashboardAIConfig(data: Record<string, any> | undefined): Partial<AIConfig> {
+  if (!data) return {};
+
+  const autoResponseChannels = Array.isArray(data.autoResponses?.channels)
+    ? data.autoResponses.channels
+    : [];
+
+  return {
+    enabled: data.enabled === true,
+    provider: data.provider || (data.enabled === true ? 'openai' : undefined),
+    autoClassifyLeads:
+      data.leadClassification?.autoClassify === true ||
+      data.leadClassification?.enabled === true,
+    classificationSettings: {
+      ...DEFAULT_AI_CONFIG.classificationSettings,
+      enabled:
+        data.leadClassification?.enabled === true ||
+        data.leadClassification?.autoClassify === true,
+    },
+    autoRespondMessages:
+      data.autoResponses?.enabled === true &&
+      (autoResponseChannels.length === 0 ||
+        autoResponseChannels.includes('messages') ||
+        autoResponseChannels.includes('whatsapp') ||
+        autoResponseChannels.includes('facebook') ||
+        autoResponseChannels.includes('instagram')),
+    autoRespondEmails:
+      data.autoResponses?.enabled === true &&
+      (autoResponseChannels.length === 0 || autoResponseChannels.includes('email')),
+    autoSuggestFollowUps: data.autoFollowups?.enabled === true,
+    autoGenerateContent:
+      data.socialContent?.enabled === true || data.emailGeneration?.enabled === true,
+    responseSettings: {
+      ...DEFAULT_AI_CONFIG.responseSettings,
+      enabled:
+        data.autoResponses?.enabled === true ||
+        data.responseSuggestions?.enabled === true,
+      requireApproval:
+        data.autoResponses?.requireApproval ??
+        DEFAULT_AI_CONFIG.responseSettings.requireApproval,
+      minConfidence:
+        data.autoResponses?.minConfidence ??
+        DEFAULT_AI_CONFIG.responseSettings.minConfidence,
+    },
+    contentSettings: {
+      ...DEFAULT_AI_CONFIG.contentSettings,
+      enabled: data.socialContent?.enabled === true || data.emailGeneration?.enabled === true,
+    },
+    advancedSettings: {
+      ...DEFAULT_AI_CONFIG.advancedSettings,
+      sentimentAnalysis:
+        data.leadClassification?.detectSentiment === true ||
+        data.advancedSentiment?.enabled === true,
+      leadScoring: data.leadClassification?.assignPriority === true,
+      conversationSummarization: data.analytics?.enabled === true,
+    },
+  };
+}
+
 /**
  * Obtiene la configuración de IA de un tenant
  */
 export async function getAIConfig(tenantId: string): Promise<AIConfig> {
   try {
-    const configDoc = await db
-      .collection('tenants')
-      .doc(tenantId)
-      .collection('settings')
-      .doc('ai')
-      .get();
+    const settingsRef = db.collection('tenants').doc(tenantId).collection('settings');
+    const [legacyDoc, dashboardDoc] = await Promise.all([
+      settingsRef.doc('ai').get(),
+      settingsRef.doc('ai_config').get(),
+    ]);
 
-    if (!configDoc.exists) {
+    if (!legacyDoc.exists && !dashboardDoc.exists) {
       return DEFAULT_AI_CONFIG;
     }
 
-    const data = configDoc.data();
+    const legacyData = legacyDoc.data();
+    const dashboardData = dashboardDoc.data();
+    const normalizedDashboard = normalizeDashboardAIConfig(dashboardData);
     return {
       ...DEFAULT_AI_CONFIG,
-      ...data,
-      createdAt: data?.createdAt?.toDate(),
-      updatedAt: data?.updatedAt?.toDate(),
+      ...normalizedDashboard,
+      ...legacyData,
+      createdAt: legacyData?.createdAt?.toDate?.() || dashboardData?.createdAt?.toDate?.(),
+      updatedAt: legacyData?.updatedAt?.toDate?.() || dashboardData?.updatedAt?.toDate?.(),
     } as AIConfig;
   } catch (error) {
     console.error('Error obteniendo configuración de IA:', error);
@@ -143,14 +205,12 @@ export async function updateAIConfig(
 export async function getAIApiKey(tenantId: string): Promise<string | null> {
   try {
     const config = await getAIConfig(tenantId);
-    
-    if (!config.enabled || !config.apiKey) {
+
+    if (!config.enabled) {
       return null;
     }
 
-    // TODO: Desencriptar la API key
-    // Por ahora retornamos directamente (en producción debe estar encriptada)
-    return config.apiKey;
+    return config.apiKey || (await getOpenAIApiKey()) || null;
   } catch (error) {
     console.error('Error obteniendo API key de IA:', error);
     return null;
@@ -162,7 +222,10 @@ export async function getAIApiKey(tenantId: string): Promise<string | null> {
  */
 export async function isAIEnabled(tenantId: string): Promise<boolean> {
   const config = await getAIConfig(tenantId);
-  return config.enabled && config.provider !== 'none' && !!config.apiKey;
+  if (!config.enabled || config.provider === 'none') {
+    return false;
+  }
+  return Boolean(config.apiKey || (await getOpenAIApiKey()));
 }
 
 /**
@@ -176,13 +239,13 @@ export async function getAIModel(
   
   switch (type) {
     case 'classification':
-      return config.classificationSettings.model || 'gpt-4-turbo-preview';
+      return config.classificationSettings.model || 'gpt-4o-mini';
     case 'response':
-      return config.responseSettings.model || 'gpt-4-turbo-preview';
+      return config.responseSettings.model || 'gpt-4o-mini';
     case 'content':
-      return config.contentSettings.model || 'gpt-4-turbo-preview';
+      return config.contentSettings.model || 'gpt-4o-mini';
     default:
-      return config.model || 'gpt-4-turbo-preview';
+      return config.model || 'gpt-4o-mini';
   }
 }
 

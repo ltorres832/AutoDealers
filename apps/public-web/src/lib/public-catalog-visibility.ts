@@ -1,12 +1,29 @@
 /**
- * Reglas para listados del catálogo público (vehículos y vendedores).
- * Centralizado para que API /vehicles, /search y la home se comporten igual.
+ * Reglas para listados del catálogo público (vehículos, dealers, vendedores, ads).
+ * Centralizado para que API /vehicles, /search, home, related y ads se comporten igual.
+ *
+ * Cuentas demo (isDemo / visibility:'demo' / IDs conocidos) NUNCA entran al marketplace.
+ * Sus páginas privadas (/promo/..., /dealer/{id}, /seller/{id}) siguen accesibles por URL directa.
  */
 
 import { freeListingExpiresAtMs } from '@autodealers/core';
+import { isDemoPromoAccount } from '@/lib/demo-account';
+
+export {
+  KNOWN_DEMO_TENANT_IDS,
+  KNOWN_DEMO_USER_IDS,
+  isKnownDemoId,
+  isDemoPromoAccount,
+  tenantIdFromResourcePath,
+  isDemoResourcePath,
+} from '@/lib/demo-account';
 
 /** Tenant incluido en catálogo multi-tenant (antes solo status===active; muchos docs no tienen el campo) */
-export function isTenantEligibleForPublicCatalog(data: Record<string, unknown>): boolean {
+export function isTenantEligibleForPublicCatalog(
+  data: Record<string, unknown>,
+  id?: string | null
+): boolean {
+  if (isDemoPromoAccount(data, id)) return false;
   const s = String(data.status ?? '')
     .toLowerCase()
     .trim();
@@ -24,6 +41,11 @@ function isPublishedFlagOff(v: { publishedOnPublicPage?: unknown }): boolean {
 
 /** Vehículo listable en APIs públicas (tras traer datos de Firestore) */
 export function isVehicleVisibleOnPublicListing(v: {
+  id?: string;
+  tenantId?: string;
+  sellerId?: string;
+  dealerId?: string;
+  ownerId?: string;
   status?: string;
   publishedOnPublicPage?: boolean | null;
   deleted?: boolean;
@@ -31,8 +53,10 @@ export function isVehicleVisibleOnPublicListing(v: {
   showPublicSoldBadge?: boolean;
   isFreePublicListing?: boolean;
   freeListingExpiresAt?: unknown;
+  tenantHasActiveMembership?: boolean;
 }): boolean {
-  if (v.isFreePublicListing === true) {
+  if (isDemoPromoAccount(v as Record<string, unknown>, v.id)) return false;
+  if (v.isFreePublicListing === true && v.tenantHasActiveMembership !== true) {
     const exp = freeListingExpiresAtMs(v.freeListingExpiresAt);
     if (exp != null && exp < Date.now()) return false;
   }
@@ -77,7 +101,11 @@ export function isVehicleVisibleOnPublicListing(v: {
  * Usuario (seller/dealer) listable en búsqueda pública.
  * Excluir solo estados claramente vetados; `pending`, etc. entran (antes quedaban fuera).
  */
-export function isSellerVisibleOnPublicListing(data: Record<string, unknown>): boolean {
+export function isSellerVisibleOnPublicListing(
+  data: Record<string, unknown>,
+  id?: string | null
+): boolean {
+  if (isDemoPromoAccount(data, id)) return false;
   if (data.isActive === false) return false;
   const s = String(data.status ?? '')
     .toLowerCase()
@@ -89,8 +117,11 @@ export function isSellerVisibleOnPublicListing(data: Record<string, unknown>): b
 }
 
 /** Misma lógica que sellers (dealers en users/) */
-export function isDealerVisibleOnPublicListing(data: Record<string, unknown>): boolean {
-  return isSellerVisibleOnPublicListing(data);
+export function isDealerVisibleOnPublicListing(
+  data: Record<string, unknown>,
+  id?: string | null
+): boolean {
+  return isSellerVisibleOnPublicListing(data, id);
 }
 
 /**

@@ -28,6 +28,26 @@ try {
 }
 
 try {
+  const { salesEmployeePayoutsDaily } = require('./lib/sales-employees/payout-cron');
+  exports.salesEmployeePayoutsDaily = salesEmployeePayoutsDaily;
+} catch (err) {
+  console.warn(
+    'salesEmployeePayoutsDaily no cargado (ejecuta npm run build en functions/):',
+    err && err.message ? err.message : err
+  );
+}
+
+try {
+  const { inventoryFeedSyncDaily } = require('./lib/inventory/feed-sync-cron');
+  exports.inventoryFeedSyncDaily = inventoryFeedSyncDaily;
+} catch (err) {
+  console.warn(
+    'inventoryFeedSyncDaily no cargado (ejecuta npm run build en functions/):',
+    err && err.message ? err.message : err
+  );
+}
+
+try {
   const { processQueuedAdsEveryFiveMinutes } = require('./lib/advertiser/process-ad-queue-cron');
   exports.processQueuedAdsEveryFiveMinutes = processQueuedAdsEveryFiveMinutes;
 } catch (err) {
@@ -86,11 +106,15 @@ try {
     twilioVoiceInbound,
     twilioVoiceTwiml,
     twilioVoiceStatus,
+    twilioVoiceVoicemailComplete,
+    twilioVoiceVoicemailMenu,
     processVoiceOutboundQueue,
   } = require('./lib/webhooks/twilio-voice');
   exports.twilioVoiceInbound = twilioVoiceInbound;
   exports.twilioVoiceTwiml = twilioVoiceTwiml;
   exports.twilioVoiceStatus = twilioVoiceStatus;
+  exports.twilioVoiceVoicemailComplete = twilioVoiceVoicemailComplete;
+  exports.twilioVoiceVoicemailMenu = twilioVoiceVoicemailMenu;
   exports.processVoiceOutboundQueue = processVoiceOutboundQueue;
 } catch (err) {
   console.warn('Twilio voice webhooks no cargados:', err && err.message ? err.message : err);

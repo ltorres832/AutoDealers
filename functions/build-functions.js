@@ -18,9 +18,20 @@ try {
   console.warn('⚠️  functions TypeScript reportó diagnósticos heredados, pero emitió lib/. Continuando build.');
 }
 
-run('node ./build-webhooks.js');
-
 const { validateDeployPackage } = require('./deploy-manifest');
+const existing = validateDeployPackage(functionsDir);
+if (existing.ok) {
+  console.log('✅ Bundles de webhooks ya válidos; se omite rebuild.');
+} else {
+  try {
+    run('node ./build-webhooks.js');
+  } catch (err) {
+    const whatsapp = path.join(functionsDir, 'lib', 'webhooks', 'whatsapp.js');
+    if (!fs.existsSync(whatsapp)) throw err;
+    console.warn('⚠️  Rebuild de webhooks falló; se reutilizan bundles existentes en lib/webhooks/.');
+  }
+}
+
 const validation = validateDeployPackage(functionsDir);
 if (!validation.ok) {
   console.error('❌ Validación del paquete de functions falló:');

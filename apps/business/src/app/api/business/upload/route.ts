@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireBusiness } from '@/lib/auth';
 import { uploadFile } from '@autodealers/core';
+import { BUSINESS_SERVICE_PHOTO, BUSINESS_SERVICE_VIDEO } from '@/lib/business-media-specs';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,10 +22,14 @@ export async function POST(request: NextRequest) {
   if (!isImage && !isVideo) {
     return NextResponse.json({ error: 'Solo se permiten fotos o videos' }, { status: 400 });
   }
-  const maxBytes = isVideo ? 40 * 1024 * 1024 : 8 * 1024 * 1024;
+  const maxBytes = isVideo ? BUSINESS_SERVICE_VIDEO.maxBytes : BUSINESS_SERVICE_PHOTO.maxBytes;
   if (file.size > maxBytes) {
     return NextResponse.json(
-      { error: isVideo ? 'El video no puede superar 40 MB' : 'La imagen no puede superar 8 MB' },
+      {
+        error: isVideo
+          ? `El video no puede superar ${BUSINESS_SERVICE_VIDEO.maxMb} MB`
+          : `La imagen no puede superar ${BUSINESS_SERVICE_PHOTO.maxMb} MB`,
+      },
       { status: 400 }
     );
   }

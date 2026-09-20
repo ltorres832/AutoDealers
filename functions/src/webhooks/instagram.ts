@@ -14,9 +14,15 @@ import { createNotification, resolveMetaWebhookVerifyToken } from '@autodealers/
 import { UnifiedMessagingService } from '@autodealers/messaging';
 import { publicWebhookHttpsOptions } from './public-http';
 
+/** GET de verificación Meta es liviano; POST carga CRM — 512MiB evita OOM en cold start. */
+const instagramWebhookHttpsOptions = {
+  ...publicWebhookHttpsOptions,
+  memory: '512MiB' as const,
+};
+
 const db = getFirestore();
 
-export const instagramWebhookGet = onRequest(publicWebhookHttpsOptions, async (req, res) => {
+export const instagramWebhookGet = onRequest(instagramWebhookHttpsOptions, async (req, res) => {
   const mode = req.query['hub.mode'] as string;
   const token = req.query['hub.verify_token'] as string;
   const challenge = req.query['hub.challenge'] as string;
@@ -31,7 +37,7 @@ export const instagramWebhookGet = onRequest(publicWebhookHttpsOptions, async (r
   res.status(403).json({ error: 'Invalid token' });
 });
 
-export const instagramWebhookPost = onRequest(publicWebhookHttpsOptions, async (req, res) => {
+export const instagramWebhookPost = onRequest(instagramWebhookHttpsOptions, async (req, res) => {
   try {
     // Meta envía GET de verificación a la misma URL que POST: soportar ambos en el endpoint POST.
     if (req.method === 'GET') {
@@ -206,6 +212,14 @@ export const instagramWebhookPost = onRequest(publicWebhookHttpsOptions, async (
         channels: ['system'],
         metadata: { leadId: lead.id } as any,
       } as any);
+
+      // Agente de voz: llamada automática de seguimiento si está configurada
+      try {
+        const voice: any = await import('@autodealers/voice');
+        await voice.maybeEnqueueSocialLeadCall(tenantId, lead);
+      } catch (voiceError) {
+        console.warn('Auto-llamada de voz omitida (Instagram):', voiceError);
+      }
     }
 
     const unifiedService = new UnifiedMessagingService();
@@ -214,8 +228,8 @@ export const instagramWebhookPost = onRequest(publicWebhookHttpsOptions, async (
     const leadId = lead.id;
 
     try {
-      const { classifyLeadWithTenantConfig, generateResponseWithTenantConfig } =
-        await import('@autodealers/ai');
+      const { classifyInboundLead, resolveInboundResponse } =
+        await import('@autodealers/messaging');
 
       const leadDoc = await db
         .collection('tenants')
@@ -225,7 +239,7 @@ export const instagramWebhookPost = onRequest(publicWebhookHttpsOptions, async (
         .get();
       const leadData = leadDoc.data();
 
-      const classification = await classifyLeadWithTenantConfig(tenantId, {
+      const classification = await classifyInboundLead(tenantId, {
         name: leadData?.contact?.name || messagePayload.metadata.contactName || 'Cliente',
         phone: messagePayload.from,
         source: 'instagram',
@@ -250,52 +264,55 @@ export const instagramWebhookPost = onRequest(publicWebhookHttpsOptions, async (
           });
       }
 
-      if (leadData?.status === 'new') {
-        const autoResponse = await generateResponseWithTenantConfig(
-          tenantId,
-          `Lead de Instagram - ${leadData?.contact?.name || 'Cliente'}`,
-          messagePayload.content,
-          leadData?.interactions?.map((i: { content?: string }) => i.content) || []
-        );
+      const resolved = await resolveInboundResponse({
+        tenantId,
+        channel: 'instagram',
+        message: messagePayload.content,
+        leadId,
+        leadStatus: leadData?.status,
+        clientName: leadData?.contact?.name || messagePayload.metadata.contactName || 'Cliente',
+        leadHistory:
+          leadData?.interactions?.map((i: { content?: string }) => i.content) || [],
+      });
 
-        if (autoResponse && !autoResponse.requiresApproval) {
-          const graphRes = await fetch(`https://graph.facebook.com/v18.0/${pageId}/messages`, {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              recipient: { id: messagePayload.from },
-              message: { text: autoResponse.content },
-            }),
-          });
+      if (resolved.content && !resolved.requiresApproval) {
+        const graphRes = await fetch(`https://graph.facebook.com/v18.0/${pageId}/messages`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            recipient: { id: messagePayload.from },
+            message: { text: resolved.content },
+          }),
+        });
 
-          if (graphRes.ok) {
-            await db
-              .collection('tenants')
-              .doc(tenantId)
-              .collection('messages')
-              .add({
-                tenantId,
-                channel: 'instagram',
-                direction: 'outbound',
-                from: pageId,
-                to: messagePayload.from,
-                content: autoResponse.content,
-                metadata: {
-                  autoGenerated: true,
-                  leadId,
-                  aiConfidence: autoResponse.confidence,
-                },
-                status: 'sent',
-                createdAt: admin.firestore.FieldValue.serverTimestamp(),
-              });
-          }
+        if (graphRes.ok) {
+          await db
+            .collection('tenants')
+            .doc(tenantId)
+            .collection('messages')
+            .add({
+              tenantId,
+              channel: 'instagram',
+              direction: 'outbound',
+              from: pageId,
+              to: messagePayload.from,
+              content: resolved.content,
+              metadata: {
+                autoGenerated: true,
+                leadId,
+                responseSource: resolved.source,
+                aiConfidence: resolved.confidence,
+              },
+              status: 'sent',
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
         }
       }
     } catch (aiError) {
-      console.warn('IA processing skipped:', aiError);
+      console.warn('Inbound auto-response skipped:', aiError);
     }
 
     res.status(200).json({ received: true, leadId });

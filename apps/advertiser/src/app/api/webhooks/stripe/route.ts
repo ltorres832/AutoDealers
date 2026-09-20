@@ -3,8 +3,13 @@ import Stripe from 'stripe';
 import {
   getFirestore,
   getStripeInstance,
+  getStripeAdvertiserWebhookSecret,
   getStripeAdvertiserWebhookSecretValue,
+  isValidStripeWebhookSecret,
+  activationSchedulePatch,
+  createSalesEmployeeAdCommission,
 } from '@autodealers/core';
+import { resolveAdvertiserUrl } from '@autodealers/shared/platform-urls';
 import * as admin from 'firebase-admin';
 
 const db = getFirestore();
@@ -31,6 +36,29 @@ function isPayAsYouGoAdvertiser(data: FirebaseFirestore.DocumentData): boolean {
     data.plan === undefined ||
     data.billingModel === 'pay_per_ad'
   );
+}
+
+/** Verificación rápida: abre esta URL o usa Stripe "Send test webhook". */
+export async function GET() {
+  const secret = await getStripeAdvertiserWebhookSecret();
+  const webhookSecretConfigured = isValidStripeWebhookSecret(secret);
+
+  return NextResponse.json({
+    ok: true,
+    service: 'autodealers-advertiser-stripe-webhook',
+    endpoint: `${resolveAdvertiserUrl()}/api/webhooks/stripe`,
+    method: 'POST',
+    events: [
+      'checkout.session.completed',
+      'customer.subscription.updated',
+      'customer.subscription.deleted',
+      'payment_intent.succeeded',
+      'invoice.payment_succeeded',
+    ],
+    webhookSecretConfigured,
+    stripeDashboardHint:
+      'Stripe Dashboard → Developers → Webhooks → endpoint de advertiser → Signing secret (whsec_...)',
+  });
 }
 
 export async function POST(request: NextRequest) {
@@ -82,14 +110,18 @@ export async function POST(request: NextRequest) {
               updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             });
           } else if (action === 'ad_payment' && session.metadata?.adId) {
-            // Pago de anuncio individual: activar anuncio automáticamente
-            await db.collection('sponsored_content').doc(session.metadata.adId).update({
+            const adId = session.metadata.adId;
+            const adSnap = await db.collection('sponsored_content').doc(adId).get();
+            const adData = (adSnap.data() || {}) as Record<string, unknown>;
+            await db.collection('sponsored_content').doc(adId).update({
               status: 'active',
+              paymentStatus: 'paid',
               approvedAt: admin.firestore.FieldValue.serverTimestamp(),
               updatedAt: admin.firestore.FieldValue.serverTimestamp(),
               paymentSessionId: session.id,
               paymentIntentId: session.payment_intent,
               paidAt: admin.firestore.FieldValue.serverTimestamp(),
+              ...activationSchedulePatch(adData),
             });
           } else if (session.subscription) {
             const advertiserSnap = await db.collection('advertisers').doc(advertiserId).get();
@@ -157,14 +189,32 @@ export async function POST(request: NextRequest) {
       case 'payment_intent.succeeded': {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
         const customerId = paymentIntent.customer as string;
+        const adAmount = Number(paymentIntent.amount_received || paymentIntent.amount || 0) / 100;
+        if (adAmount > 0 && paymentIntent.metadata?.source === 'sales_employee' && paymentIntent.metadata?.employeeId) {
+          await createSalesEmployeeAdCommission({
+            employeeId: paymentIntent.metadata.employeeId,
+            tenantId: paymentIntent.metadata?.tenantId,
+            amountPaid: adAmount,
+            currency: paymentIntent.currency,
+            stripePaymentIntentId: paymentIntent.id,
+            adKind: 'premium_banner',
+            salesAdOrderId: paymentIntent.metadata?.salesAdOrderId || null,
+            source: 'sales_employee',
+            salesEmployeeId: paymentIntent.metadata.employeeId,
+          }).catch((err) => console.warn('[advertiser stripe] sales employee ad commission:', err));
+        }
         
         if (customerId && paymentIntent.metadata?.adId) {
-          // Actualizar anuncio si tiene adId en metadata
-          await db.collection('sponsored_content').doc(paymentIntent.metadata.adId).update({
+          const adId = paymentIntent.metadata.adId;
+          const adSnap = await db.collection('sponsored_content').doc(adId).get();
+          const adData = (adSnap.data() || {}) as Record<string, unknown>;
+          await db.collection('sponsored_content').doc(adId).update({
             status: 'active',
+            paymentStatus: 'paid',
             paymentIntentId: paymentIntent.id,
             paidAt: admin.firestore.FieldValue.serverTimestamp(),
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            ...activationSchedulePatch(adData),
           });
         }
         break;
@@ -175,12 +225,16 @@ export async function POST(request: NextRequest) {
         const customerId = invoice.customer as string;
         
         if (customerId && invoice.metadata?.adId) {
-          // Actualizar anuncio si tiene adId en metadata
-          await db.collection('sponsored_content').doc(invoice.metadata.adId).update({
+          const adId = invoice.metadata.adId;
+          const adSnap = await db.collection('sponsored_content').doc(adId).get();
+          const adData = (adSnap.data() || {}) as Record<string, unknown>;
+          await db.collection('sponsored_content').doc(adId).update({
             status: 'active',
+            paymentStatus: 'paid',
             invoiceId: invoice.id,
             paidAt: admin.firestore.FieldValue.serverTimestamp(),
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            ...activationSchedulePatch(adData),
           });
         }
         break;

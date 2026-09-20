@@ -19,6 +19,7 @@
     "@autodealers/shared": "*",
     "@stripe/react-stripe-js": "^2.4.0",
     "@stripe/stripe-js": "^2.4.0",
+    "@zxing/library": "^0.23.0",
     "firebase": "^11.0.0",
     "firebase-admin": "^12.7.0",
     "next": "^16.1.6",

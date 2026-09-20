@@ -14,6 +14,7 @@ buildConfig:
     npm run build --workspace=@autodealers/ai
     npm run build --workspace=@autodealers/messaging
     npm run build --workspace=@autodealers/reports
+    npm run build --workspace=@autodealers/voice
     cd apps/seller && npm run build
   outputDir: .next
 
@@ -80,12 +81,20 @@ env:
     availability:
       - RUNTIME
   - variable: NEXT_PUBLIC_APP_URL
-    value: https://sellers.autodealers-online.com
+    value: https://seller.autodealers-online.com
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_PUBLIC_WEB_URL
     value: https://www.autodealers-online.com
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_PLATFORM_DOMAIN
+    value: autodealers-online.com
+    availability:
+      - BUILD
+      - RUNTIME
   - variable: STRIPE_SECRET_KEY
     secret: STRIPE_SECRET_KEY
     availability:

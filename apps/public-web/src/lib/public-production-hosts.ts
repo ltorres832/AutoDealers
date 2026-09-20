@@ -1,3 +1,5 @@
+import { PLATFORM_APEX, PLATFORM_URLS } from '@autodealers/shared/platform-urls';
+
 /** Subdominios reservados para paneles de la plataforma (no son tenants). */
 export const PLATFORM_APP_SUBDOMAINS = [
   'www',
@@ -9,6 +11,7 @@ export const PLATFORM_APP_SUBDOMAINS = [
   'dealer',
   'seller',
   'advertiser',
+  'business',
   'api',
   'public-web',
   'public-web-app',
@@ -16,18 +19,13 @@ export const PLATFORM_APP_SUBDOMAINS = [
   'seller-app',
   'admin-app',
   'advertiser-app',
+  'business-app',
 ] as const;
 
-export const PLATFORM_APEX = 'autodealers-online.com';
+export { PLATFORM_APEX };
 
 /** URLs de producción por app (override con env en cada apphosting.yaml). */
-export const PLATFORM_APP_URLS = {
-  public: 'https://www.autodealers-online.com',
-  admin: 'https://admin.autodealers-online.com',
-  dealer: 'https://dealers.autodealers-online.com',
-  seller: 'https://sellers.autodealers-online.com',
-  advertiser: 'https://ads.autodealers-online.com',
-} as const;
+export const PLATFORM_APP_URLS = PLATFORM_URLS;
 
 /** Dominio público de producción (www). */
 export const PUBLIC_PRODUCTION_BASE_URL = PLATFORM_APP_URLS.public;
@@ -41,11 +39,8 @@ export function isPlatformApexHost(hostname: string): boolean {
   return host === PLATFORM_APEX || host.endsWith(`.${PLATFORM_APEX}`);
 }
 
-
 /** Hosts donde `/` puede mostrar la web del vendedor raíz (sin subdominio de tenant). */
 export const PUBLIC_ROOT_HOSTS = new Set([
-  'autodealers-7f62e.web.app',
-  'autodealers-7f62e.firebaseapp.com',
   'www.autodealers-online.com',
   'autodealers-online.com',
 ]);

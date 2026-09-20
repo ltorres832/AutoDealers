@@ -37,7 +37,7 @@ export const getAIConfig = onCall(
           provider: 'openai', // 'openai' | 'anthropic'
           openai: {
             apiKey: '', // No se retorna
-            model: 'gpt-4-turbo-preview',
+            model: 'gpt-4o-mini',
             temperature: 0.7,
             maxTokens: 200,
           },

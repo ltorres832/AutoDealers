@@ -144,13 +144,13 @@ export default function GuiaCredencialesMetaPage() {
                 En <strong>"URI de redirección de OAuth válidos"</strong>, agrega:
                 <div className="bg-gray-100 p-3 rounded mt-2 font-mono text-sm">
                   <div className="font-mono text-xs break-all">
-                    seller-app--autodealers-7f62e.us-central1.hosted.app
+                    seller.autodealers-online.com
                   </div>
                   <div className="text-xs text-gray-600 mt-1">
                     (Dominios de la app en Meta → Básico, sin https)
                   </div>
                   <div className="mt-2 font-mono text-xs break-all">
-                    https://seller-app--autodealers-7f62e.us-central1.hosted.app/api/settings/integrations/callback
+                    https://seller.autodealers-online.com/api/settings/integrations/callback
                   </div>
                   <div className="mt-1 font-mono text-xs break-all">
                     http://localhost:3003/api/settings/integrations/callback

@@ -3,6 +3,14 @@
 import { FormEvent, useEffect, useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { SpecializationMultiSelect } from '@/components/SpecializationMultiSelect';
+import { MediaFitFrame, MEDIA_FIT_IMG, MEDIA_FIT_VIDEO } from '@/components/MediaFitFrame';
+import {
+  BUSINESS_SERVICE_PHOTO,
+  BUSINESS_SERVICE_PHOTO_HINT,
+  BUSINESS_SERVICE_VIDEO,
+  BUSINESS_SERVICE_VIDEO_HINT,
+  businessMediaTooLargeMessage,
+} from '@/lib/business-media-specs';
 
 type Service = {
   id: string;
@@ -66,6 +74,12 @@ export default function BusinessServicesPage() {
 
   async function uploadMedia(file: File | null, kind: 'image' | 'video') {
     if (!file) return;
+    const limit = kind === 'video' ? BUSINESS_SERVICE_VIDEO : BUSINESS_SERVICE_PHOTO;
+    const tooLarge = businessMediaTooLargeMessage(file, limit.maxBytes, limit.maxMb);
+    if (tooLarge) {
+      setError(tooLarge);
+      return;
+    }
     setUploading(true);
     setError('');
     try {
@@ -179,11 +193,14 @@ export default function BusinessServicesPage() {
         />
 
         <div>
-          <p className="text-sm font-semibold mb-2">Fotos</p>
+          <p className="text-sm font-semibold mb-1">Fotos</p>
+          <p className="text-xs leading-relaxed text-slate-500 mb-2">{BUSINESS_SERVICE_PHOTO_HINT}</p>
           <div className="flex flex-wrap gap-3 mb-2">
             {form.photoUrls.map((url) => (
               <div key={url} className="relative">
-                <img src={url} alt="" className="w-24 h-24 object-cover rounded-xl border" />
+                <MediaFitFrame aspect="photo" className="w-28 rounded-xl border" background="bg-white">
+                  <img src={url} alt="" className={MEDIA_FIT_IMG} />
+                </MediaFitFrame>
                 <button
                   type="button"
                   className="absolute -top-2 -right-2 bg-white border rounded-full w-6 h-6 text-xs"
@@ -196,16 +213,25 @@ export default function BusinessServicesPage() {
           </div>
           <label className="text-sm font-semibold text-primary-700 cursor-pointer">
             {uploading ? 'Subiendo…' : 'Subir foto'}
-            <input type="file" accept="image/*" className="hidden" disabled={uploading} onChange={(e) => void uploadMedia(e.target.files?.[0] || null, 'image')} />
+            <input
+              type="file"
+              accept={BUSINESS_SERVICE_PHOTO.accept}
+              className="hidden"
+              disabled={uploading}
+              onChange={(e) => void uploadMedia(e.target.files?.[0] || null, 'image')}
+            />
           </label>
         </div>
 
         <div>
-          <p className="text-sm font-semibold mb-2">Videos</p>
+          <p className="text-sm font-semibold mb-1">Videos</p>
+          <p className="text-xs leading-relaxed text-slate-500 mb-2">{BUSINESS_SERVICE_VIDEO_HINT}</p>
           <div className="flex flex-wrap gap-3 mb-2">
             {form.videoUrls.map((url) => (
               <div key={url} className="relative">
-                <video src={url} className="w-40 h-24 rounded-xl border bg-black" controls />
+                <MediaFitFrame aspect="video" className="w-44 rounded-xl border" background="bg-black">
+                  <video src={url} className={MEDIA_FIT_VIDEO} controls />
+                </MediaFitFrame>
                 <button
                   type="button"
                   className="absolute -top-2 -right-2 bg-white border rounded-full w-6 h-6 text-xs"
@@ -218,7 +244,13 @@ export default function BusinessServicesPage() {
           </div>
           <label className="text-sm font-semibold text-primary-700 cursor-pointer">
             {uploading ? 'Subiendo…' : 'Subir video'}
-            <input type="file" accept="video/*" className="hidden" disabled={uploading} onChange={(e) => void uploadMedia(e.target.files?.[0] || null, 'video')} />
+            <input
+              type="file"
+              accept={BUSINESS_SERVICE_VIDEO.accept}
+              className="hidden"
+              disabled={uploading}
+              onChange={(e) => void uploadMedia(e.target.files?.[0] || null, 'video')}
+            />
           </label>
         </div>
 
@@ -237,35 +269,65 @@ export default function BusinessServicesPage() {
       {services.length === 0 ? (
         <p className="text-slate-500">Todavía no hay servicios. Agrégalos con foto o video.</p>
       ) : (
-        <ul className="space-y-3">
-          {services.map((svc) => (
+        <ul className="space-y-4">
+          {services.map((svc) => {
+            const specialtyLabels = taxonomy.specialties.filter((opt) => (svc.specialtySlugs || []).includes(opt.slug));
+            const scopeLabels = taxonomy.vehicleScopes.filter((opt) => (svc.vehicleScopeSlugs || []).includes(opt.slug));
+            return (
             <li key={svc.id} className="bg-white rounded-2xl border p-4">
-              <div className="flex flex-wrap justify-between gap-3">
-                <div className="flex gap-3">
-                  <div className="w-20 h-20 rounded-xl overflow-hidden bg-slate-100 border shrink-0">
-                    {svc.photoUrls?.[0] ? (
-                      <img src={svc.photoUrls[0]} alt={svc.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-slate-400">🧰</div>
-                    )}
-                  </div>
-                  <div>
-                    <div className="font-bold">{svc.name}{svc.isActive === false ? ' · inactivo' : ''}</div>
+              <div className="flex flex-wrap justify-between gap-3 mb-3">
+                <div>
+                    <div className="font-bold text-lg">{svc.name}{svc.isActive === false ? ' · inactivo' : ''}</div>
                     <div className="text-sm text-slate-500">
                       {svc.priceCents != null ? `$${(svc.priceCents / 100).toFixed(2)}` : 'Cotizar'}
                       {svc.durationMinutes ? ` · ${svc.durationMinutes} min` : ''}
                     </div>
-                    {svc.description ? <p className="text-sm mt-1 text-slate-600">{svc.description}</p> : null}
-                    {(svc.videoUrls?.length || 0) > 0 ? <p className="text-xs text-slate-500 mt-1">{svc.videoUrls?.length} video(s)</p> : null}
-                  </div>
                 </div>
                 <div className="flex gap-2 h-fit">
                   <button type="button" className="px-3 py-2 text-sm border rounded-xl" onClick={() => edit(svc)}>Editar</button>
                   <button type="button" className="px-3 py-2 text-sm border rounded-xl text-red-600" onClick={() => void remove(svc.id)}>Eliminar</button>
                 </div>
               </div>
+              {svc.description ? <p className="text-sm text-slate-600 whitespace-pre-wrap mb-3">{svc.description}</p> : <p className="text-sm text-slate-400 mb-3">Sin descripción</p>}
+              {specialtyLabels.length ? (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {specialtyLabels.map((item) => (
+                    <span key={item.slug} className="px-2 py-0.5 rounded-full bg-primary-50 text-primary-800 text-xs font-semibold">{item.label}</span>
+                  ))}
+                </div>
+              ) : null}
+              {scopeLabels.length ? (
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {scopeLabels.map((item) => (
+                    <span key={item.slug} className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold">{item.label}</span>
+                  ))}
+                </div>
+              ) : null}
+              {(svc.photoUrls?.length || 0) > 0 ? (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {svc.photoUrls!.map((url) => (
+                    <MediaFitFrame key={url} aspect="photo" className="w-28 rounded-xl border" background="bg-white">
+                      <img src={url} alt={svc.name} className={MEDIA_FIT_IMG} />
+                    </MediaFitFrame>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400 mb-3">Este servicio aún no tiene fotos</p>
+              )}
+              {(svc.videoUrls?.length || 0) > 0 ? (
+                <div className="flex flex-wrap gap-3">
+                  {svc.videoUrls!.map((url) => (
+                    <MediaFitFrame key={url} aspect="video" className="w-44 rounded-xl border" background="bg-black">
+                      <video src={url} className={MEDIA_FIT_VIDEO} controls />
+                    </MediaFitFrame>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400">Este servicio aún no tiene videos</p>
+              )}
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </DashboardLayout>

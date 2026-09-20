@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     const usersSnapshot = await db
       .collection('users')
       .where('role', 'in', ['manager', 'dealer_admin'])
-      .where('dealerId', '==', authData.tenantId)
+      .where('dealerId', '==', authData.primaryTenantId || authData.tenantId)
       .get();
 
     const users = usersSnapshot.docs.map((doc) => {
@@ -33,8 +33,11 @@ export async function GET(request: NextRequest) {
         role: data.role,
         status: data.status,
         tenantId: data.tenantId,
+        tenantIds: data.tenantIds || (data.tenantId ? [data.tenantId] : []),
         dealerId: data.dealerId,
         permissions: data.permissions || {},
+        departmentTemplate: data.departmentTemplate || null,
+        modulePermissions: data.modulePermissions || {},
         settings: data.settings || {},
         createdAt: data.createdAt?.toDate()?.toISOString(),
         updatedAt: data.updatedAt?.toDate()?.toISOString(),
@@ -65,7 +68,10 @@ export async function POST(request: NextRequest) {
       password, 
       phone,
       role, 
-      permissions 
+      permissions,
+      tenantIds,
+      departmentTemplate,
+      modulePermissions,
     } = body;
 
     if (!name || !email || !password || !role) {
@@ -86,6 +92,31 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
+    const allowedTenantIds = Array.from(
+      new Set([
+        authData.primaryTenantId || authData.tenantId,
+        authData.tenantId,
+        ...(authData.associatedDealers || []),
+        ...(authData.tenantIds || []),
+      ].filter(Boolean) as string[])
+    );
+    const requestedTenantIds = Array.isArray(tenantIds)
+      ? tenantIds.map((id: unknown) => String(id).trim()).filter(Boolean)
+      : [authData.tenantId];
+    if (requestedTenantIds.length === 0) {
+      return NextResponse.json(
+        { error: 'Debes seleccionar al menos un dealer para este empleado.' },
+        { status: 400 }
+      );
+    }
+    const invalidTenant = requestedTenantIds.find((id: string) => !allowedTenantIds.includes(id));
+    if (invalidTenant) {
+      return NextResponse.json(
+        { error: `No tienes permiso para otorgar acceso al dealer ${invalidTenant}.` },
+        { status: 403 }
+      );
+    }
+
     // Crear usuario en Firebase Auth
     const userRecord = await auth.createUser({
       email,
@@ -97,8 +128,10 @@ export async function POST(request: NextRequest) {
     // Establecer custom claims
     await auth.setCustomUserClaims(userRecord.uid, {
       role,
-      tenantId: authData.tenantId,
-      dealerId: authData.tenantId,
+      tenantId: requestedTenantIds[0],
+      tenantIds: requestedTenantIds,
+      dealerId: authData.primaryTenantId || authData.tenantId,
+      permissions: permissions || {},
     });
 
     // Crear documento en Firestore con toda la información
@@ -106,12 +139,15 @@ export async function POST(request: NextRequest) {
       email,
       name,
       role,
-      tenantId: authData.tenantId,
-      dealerId: authData.tenantId,
+      tenantId: requestedTenantIds[0],
+      tenantIds: requestedTenantIds,
+      dealerId: authData.primaryTenantId || authData.tenantId,
       status: 'active',
       permissions: permissions || {},
       membershipId: '',
       membershipType: 'dealer',
+      departmentTemplate: departmentTemplate || null,
+      modulePermissions: modulePermissions && typeof modulePermissions === 'object' ? modulePermissions : {},
       settings: {
         notifications: {
           push: true,

@@ -90,6 +90,13 @@ export async function POST(
 
     console.log(`✅ Banner ${id} aprobado por admin ${auth.userId}`);
 
+    try {
+      const { ensureSalesAdCommissionOnBannerApprove } = await import('@autodealers/core');
+      await ensureSalesAdCommissionOnBannerApprove({ tenantId, bannerId: id });
+    } catch (err) {
+      console.warn('[banners/approve] sales commission:', err);
+    }
+
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('Error approving banner:', error);

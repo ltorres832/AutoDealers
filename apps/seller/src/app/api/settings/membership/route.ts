@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import {
-  getSubscriptionByTenantId,
+  getSubscriptionByUserId,
   getMembershipById,
   isDealerManagedSeller,
-  resolveBillingTenantId,
 } from '@autodealers/billing';
+import { getUserById } from '@autodealers/core';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (isDealerManagedSeller(auth.dealerId)) {
+    if (isDealerManagedSeller(auth.dealerId, auth.billingMode)) {
       return NextResponse.json(
         {
           error: 'dealer_managed',
@@ -26,21 +26,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const billingTenantId = resolveBillingTenantId(auth.tenantId, auth.dealerId);
+    const user = await getUserById(auth.userId);
+    const subscription = await getSubscriptionByUserId(auth.userId);
+    const membershipId = subscription?.membershipId || user?.membershipId;
 
-    if (!billingTenantId) {
-      return NextResponse.json(
-        {
-          error: 'No billing tenant',
-          message: 'No tienes una suscripción activa. Selecciona un plan de membresía.',
-        },
-        { status: 404 }
-      );
-    }
-
-    const subscription = await getSubscriptionByTenantId(billingTenantId);
-
-    if (!subscription) {
+    if (!membershipId) {
       return NextResponse.json(
         {
           error: 'No subscription found',
@@ -51,25 +41,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (!subscription.membershipId) {
-      return NextResponse.json(
-        {
-          error: 'Invalid subscription',
-          dealerManaged: false,
-          message: 'La suscripción no tiene un plan asociado. Contacta a soporte.',
-        },
-        { status: 400 }
-      );
-    }
-
-    const membership = await getMembershipById(subscription.membershipId);
+    const membership = await getMembershipById(membershipId);
 
     if (!membership) {
       return NextResponse.json(
         {
           error: 'Membership not found',
           dealerManaged: false,
-          membershipId: subscription.membershipId,
+          membershipId,
           message: 'No se encontró información del plan. Contacta a soporte.',
         },
         { status: 404 }
@@ -78,17 +57,18 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       membership,
-      subscription: {
-        id: subscription.id,
-        status: subscription.status,
-        currentPeriodStart: subscription.currentPeriodStart,
-        currentPeriodEnd: subscription.currentPeriodEnd,
-        cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
-        daysPastDue: subscription.daysPastDue,
-        statusReason: subscription.statusReason,
-      },
+      subscription: subscription
+        ? {
+            id: subscription.id,
+            status: subscription.status,
+            currentPeriodStart: subscription.currentPeriodStart,
+            currentPeriodEnd: subscription.currentPeriodEnd,
+            cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+            daysPastDue: subscription.daysPastDue,
+            statusReason: subscription.statusReason,
+          }
+        : null,
       dealerManaged: false,
-      billingTenantId,
     });
   } catch (error: unknown) {
     console.error('❌ [SELLER MEMBERSHIP] Error fetching membership:', error);

@@ -1,9 +1,44 @@
 import { isDealerPortalRole } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirestore, getAuth } from '@autodealers/shared';
+import {
+  createAppCustomToken,
+  resolveAuthenticatedUserId,
+} from '@autodealers/core/app-passwords';
+import { ensureAuthCustomClaims } from '@autodealers/core/user-auth-sync';
 import * as admin from 'firebase-admin';
+import { getFirebaseWebClientConfig, AUTODEALERS_FIREBASE_WEB_DEFAULTS } from '@autodealers/shared/firebase-web-client-config';
 
 export const dynamic = 'force-dynamic';
+
+async function legacyFirebaseSignIn(email: string, password: string): Promise<string | null> {
+  const apiKeys = [
+    getFirebaseWebClientConfig().apiKey,
+    AUTODEALERS_FIREBASE_WEB_DEFAULTS.apiKey,
+  ].filter((key, index, all) => key && all.indexOf(key) === index);
+  for (const apiKey of apiKeys) {
+    const res = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${encodeURIComponent(apiKey)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, returnSecureToken: true }),
+      }
+    );
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.localId) return String(data.localId);
+  }
+  return null;
+}
+
+function createDealerSessionToken(userId: string, role: string): string {
+  const sessionData = {
+    uid: userId,
+    role,
+    exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24,
+  };
+  return Buffer.from(JSON.stringify(sessionData)).toString('base64');
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,9 +51,43 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { userId, token } = body;
+    let profileId = body.userId as string | undefined;
+    let { token } = body;
+    let authUserId = profileId;
+    let issuedCustomToken = false;
+    let issuedSessionToken = false;
+    const email = String(body.email || '').trim();
+    const password = String(body.password || '');
 
-    if (!userId || !token) {
+    if (!profileId && !token && email && password) {
+      const authResult = await resolveAuthenticatedUserId({
+        appKey: 'dealer',
+        email,
+        password,
+        firebaseSignIn: legacyFirebaseSignIn,
+      });
+      if ('error' in authResult) {
+        return NextResponse.json({ error: 'Email o contraseña incorrectos' }, { status: 401 });
+      }
+      profileId = authResult.userId;
+      authUserId = authResult.authUserId;
+      try {
+        const claims = await ensureAuthCustomClaims(profileId, authUserId);
+        token = await createAppCustomToken(authUserId, 'dealer', claims);
+        issuedCustomToken = true;
+      } catch (tokenError) {
+        console.error('Dealer login: custom token creation failed', tokenError);
+        return NextResponse.json(
+          {
+            error:
+              'No se pudo generar el acceso de Firebase. Intenta de nuevo o contacta a soporte.',
+          },
+          { status: 500 }
+        );
+      }
+    }
+
+    if (!profileId || !token) {
       return NextResponse.json(
         { error: 'User ID and token are required' },
         { status: 400 }
@@ -31,7 +100,11 @@ export async function POST(request: NextRequest) {
     // Verificar el token de Firebase
     let decodedToken: admin.auth.DecodedIdToken;
     try {
-      decodedToken = await auth.verifyIdToken(token);
+      decodedToken = issuedCustomToken
+        ? ({ uid: authUserId, email } as admin.auth.DecodedIdToken)
+        : issuedSessionToken
+          ? ({ uid: profileId, email } as admin.auth.DecodedIdToken)
+        : await auth.verifyIdToken(token);
     } catch (error: any) {
       console.error('Error verifying ID token:', error);
       return NextResponse.json(
@@ -40,16 +113,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Asegurarse de que el UID del token coincide con el userId enviado
-    if (decodedToken.uid !== userId) {
-      return NextResponse.json(
-        { error: 'Token no coincide con el usuario' },
-        { status: 401 }
-      );
+    if (!issuedSessionToken && !issuedCustomToken) {
+      const profileDoc = await db.collection('users').doc(profileId).get();
+      const linkedAuth = String(profileDoc.data()?.authUserId || profileId);
+      if (decodedToken.uid !== linkedAuth && decodedToken.uid !== profileId) {
+        return NextResponse.json(
+          { error: 'Token no coincide con el usuario' },
+          { status: 401 }
+        );
+      }
     }
 
     // Obtener información del usuario desde Firestore
-    let userDoc = await db.collection('users').doc(userId).get();
+    let userDoc = await db.collection('users').doc(profileId).get();
     
     // Si no está en users, buscar en tenants/{tenantId}/sub_users
     if (!userDoc.exists) {
@@ -61,7 +137,7 @@ export async function POST(request: NextRequest) {
           .collection('tenants')
           .doc(tenantId)
           .collection('sub_users')
-          .doc(userId)
+          .doc(profileId)
           .get();
         
         if (subUserDoc.exists) {
@@ -79,7 +155,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({
               success: true,
               user: {
-                id: userId,
+                id: profileId,
                 email: subUserData.email || decodedToken.email || '',
                 name: subUserData.name || subUserData.email || 'Usuario',
                 role: 'dealer',
@@ -124,12 +200,14 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      customToken: issuedCustomToken ? token : undefined,
+      sessionToken: issuedSessionToken ? token : undefined,
       user: {
-        id: userId,
+        id: profileId,
         email: userData.email || decodedToken.email || '',
         name: userData.name || userData.email || 'Usuario',
         role: userData.role,
-        tenantId: userData.tenantId || userId, // Si no tiene tenantId, usar userId como fallback
+        tenantId: userData.tenantId || profileId, // Si no tiene tenantId, usar profileId como fallback
       },
     });
   } catch (error: any) {
@@ -140,5 +218,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-

@@ -81,6 +81,13 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    if (brandingUpdates.logo && auth.userId) {
+      const { retryRegistrationSocialAnnounceWhenReady } = await import('@autodealers/core');
+      void retryRegistrationSocialAnnounceWhenReady(auth.tenantId, auth.userId).catch((err) =>
+        console.warn('[dealer branding] social announce retry:', err)
+      );
+    }
+
     return NextResponse.json({
       success: true,
       ...brandingUpdates,

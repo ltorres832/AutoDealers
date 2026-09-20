@@ -5,6 +5,7 @@ import { normalizeWebsiteSettingsFromFirestore } from '@/lib/website-settings-no
 import { normalizeMisplacedFirebaseAppHostingUrl } from '@/lib/normalize-app-hosting-url';
 import { normalizeVehiclesArray } from '@/lib/vehicle-photos-normalize';
 import { isSellerVisibleOnPublicListing } from '@/lib/public-catalog-visibility';
+import { isRegisteredDemoPromoSeller } from '@/lib/demo-promo-seller';
 import {
   filterVehiclesForSellerPublicCatalog,
   vehicleBelongsToSeller,
@@ -17,6 +18,10 @@ import { normalizePromoVideoUrls } from '@autodealers/shared/promo-video-urls';
 import { normalizePublicTrustGalleryPhotos, normalizePublicTrustGalleryItems } from '@autodealers/shared/public-trust-gallery';
 import { resolvePublicProfileText } from '@autodealers/shared/settings-profile';
 import { resolveBusinessHours } from '@/lib/resolve-business-hours';
+import {
+  flagsForFeaturedPromotion,
+  getActiveFeaturedByTarget,
+} from '@/lib/public-featured-promotions';
 
 // Exportar configuración de runtime
 export const runtime = 'nodejs';
@@ -88,7 +93,11 @@ export async function GET(
     }
 
     const sellerData = sellerDoc.data();
-    if (sellerData?.role !== 'seller' || !isSellerVisibleOnPublicListing(sellerData as Record<string, unknown>)) {
+    const promoSellerAccess = isRegisteredDemoPromoSeller(sellerId);
+    if (
+      sellerData?.role !== 'seller' ||
+      (!isSellerVisibleOnPublicListing(sellerData as Record<string, unknown>, sellerId) && !promoSellerAccess)
+    ) {
       return NextResponse.json({ error: 'Vendedor no encontrado' }, { status: 404 });
     }
 
@@ -187,10 +196,37 @@ export async function GET(
         ? String((tenantData.sellerInfo as { id: string }).id).trim()
         : '';
 
+    // Sync de inventario del dealer (solo vendedores dealer-managed con el toggle activo)
+    let syncDealerTenantId = '';
+    if (
+      sellerData.syncDealerInventory === true &&
+      sellerData.billingMode !== 'self_service' &&
+      typeof sellerData.dealerId === 'string' &&
+      sellerData.dealerId.trim()
+    ) {
+      const ref = sellerData.dealerId.trim();
+      try {
+        const dealerTenantDoc = await db.collection('tenants').doc(ref).get();
+        if (dealerTenantDoc.exists) {
+          syncDealerTenantId = ref;
+        } else {
+          const dealerUserDoc = await db.collection('users').doc(ref).get();
+          const tid = dealerUserDoc.data()?.tenantId;
+          if (typeof tid === 'string' && tid.trim()) syncDealerTenantId = tid.trim();
+        }
+      } catch {
+        syncDealerTenantId = '';
+      }
+    }
+
     const vehicles = filterVehiclesForSellerPublicCatalog(
       allVehicles.filter((v): v is Record<string, unknown> => v != null),
       sellerId,
-      { tenantPrimarySellerId: tenantPrimarySellerId || sellerId }
+      {
+        tenantPrimarySellerId: tenantPrimarySellerId || sellerId,
+        syncDealerInventory: Boolean(syncDealerTenantId),
+        dealerTenantId: syncDealerTenantId || undefined,
+      }
     );
 
     console.log(
@@ -236,8 +272,16 @@ export async function GET(
 
     console.log(`✅ Preparing response with ${vehicles.length} vehicles`);
 
+    const [featuredVehicles, featuredSellers] = await Promise.all([
+      getActiveFeaturedByTarget('vehicle'),
+      getActiveFeaturedByTarget('seller'),
+    ]);
+    const sellerFeaturedFlags = flagsForFeaturedPromotion(featuredSellers.get(`seller:${sellerId}`));
     const vehiclesOut = normalizeVehiclesArray(
-      vehicles.map((v) => ({ ...v } as Record<string, unknown>))
+      vehicles.map((v) => ({
+        ...v,
+        ...flagsForFeaturedPromotion(featuredVehicles.get(`vehicle:${v.id}`)),
+      } as Record<string, unknown>))
     );
 
     const publicReviews = await getPublicReviewsForSeller(
@@ -276,7 +320,7 @@ export async function GET(
         id: sellerDoc.id,
         name: sellerData.name || 'Vendedor',
         title: sellerData.title || sellerData.jobTitle || 'Vendedor profesional',
-        photo: sellerData.photo || sellerData.photoUrl || '',
+        photo: sellerData.photo || sellerData.profilePhoto || sellerData.photoUrl || '',
         sellerRating,
         sellerRatingCount,
         email: sellerData.email || '',
@@ -300,6 +344,7 @@ export async function GET(
         publicTrustGalleryItems: normalizePublicTrustGalleryItems(
           sellerData.publicTrustGalleryPhotos
         ),
+        ...sellerFeaturedFlags,
         socialMedia: {
           ...pickSocialMedia(tenantData?.socialMedia),
           ...pickSocialMedia(sellerData.socialMedia),

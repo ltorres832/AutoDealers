@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
+import { dealerManagedPaymentsResponse } from '@/lib/dealer-managed-guard';
 import { getFirestore } from '@autodealers/shared';
 import { getStripeService } from '@autodealers/core';
 import * as admin from 'firebase-admin';
@@ -12,6 +13,9 @@ export async function POST(request: NextRequest) {
     if (!auth || !auth.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const dealerBlock = dealerManagedPaymentsResponse(auth);
+    if (dealerBlock) return dealerBlock;
 
     const body = await request.json();
     const { title, description, ctaText, linkType, linkValue, imageUrl, videoUrl, mediaType, duration, paymentMethodId } = body;
@@ -39,7 +43,8 @@ export async function POST(request: NextRequest) {
 
     // Obtener precio desde configuración
     const { getBannerPrice, getBannerDurations } = await import('@autodealers/core');
-    const placement = (body.placement || 'hero') as 'hero' | 'sidebar' | 'between_content' | 'sponsors_section';
+    const { parseAdPlacement } = await import('@autodealers/core/ad-placements');
+    const placement = parseAdPlacement(body.placement);
     const availableDurations = await getBannerDurations(placement);
     const price = await getBannerPrice(placement, Number(duration));
 
@@ -112,6 +117,8 @@ export async function POST(request: NextRequest) {
         tenantId: auth.tenantId,
         userId: auth.userId,
         type: 'premium_banner',
+        bannerId: bannerRef.id,
+        placement,
         title,
         description,
         ctaText,
@@ -120,7 +127,7 @@ export async function POST(request: NextRequest) {
         imageUrl,
         videoUrl,
         mediaType: mediaType || 'image',
-        duration,
+        duration: String(duration),
       },
       customerId,
       paymentMethodId // Método de pago guardado (opcional)
@@ -137,6 +144,7 @@ export async function POST(request: NextRequest) {
       videoUrl: mediaType === 'video' ? videoUrl : undefined,
       mediaType: mediaType || 'image',
       duration,
+      placement,
       price,
       status: 'pending',
       approved: false,
@@ -162,6 +170,8 @@ export async function POST(request: NextRequest) {
         paymentIntentId: paymentIntent.id,
         bannerId: bannerRef.id,
         paymentCompleted: true,
+        price,
+        placement,
       });
     }
 
@@ -175,6 +185,8 @@ export async function POST(request: NextRequest) {
         paymentIntentId: paymentIntent.id,
         bannerId: bannerRef.id,
         requiresAction: true,
+        price,
+        placement,
       });
     }
 
@@ -184,6 +196,8 @@ export async function POST(request: NextRequest) {
       clientSecret: paymentIntent.client_secret,
       paymentIntentId: paymentIntent.id,
       bannerId: bannerRef.id,
+      price,
+      placement,
     });
   } catch (error: any) {
     console.error('Error purchasing premium banner:', error);

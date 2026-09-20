@@ -35,7 +35,7 @@ const DEFAULT_PLANS = {
     amount: 59900, // $599.00 en centavos
     currency: 'usd',
     features: [
-      'Banner en Hero (rotación)',
+      'Banner principal superior (rotación)',
       'Impresiones ilimitadas',
       'Targeting avanzado',
       'A/B testing',

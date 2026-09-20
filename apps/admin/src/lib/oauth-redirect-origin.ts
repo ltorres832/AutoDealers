@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
+import { resolveAdminUrl } from '@autodealers/shared/platform-urls';
 
 const DEV_ORIGIN = 'http://localhost:3001';
-const PROD_ORIGIN = 'https://admin-app--autodealers-7f62e.us-central1.hosted.app';
 
 /**
  * Origen público del admin para OAuth Meta y redirects post-callback.
@@ -25,7 +25,7 @@ export function getOAuthRedirectOrigin(request?: NextRequest): string {
     const url = request.nextUrl;
     if (url.hostname === '0.0.0.0' || url.hostname === '127.0.0.1') {
       if (process.env.NODE_ENV === 'production') {
-        return PROD_ORIGIN;
+        return resolveAdminUrl();
       }
       const port = url.port || '3001';
       return `http://localhost:${port}`;
@@ -39,7 +39,7 @@ export function getOAuthRedirectOrigin(request?: NextRequest): string {
   }
 
   if (process.env.NODE_ENV === 'production') {
-    return PROD_ORIGIN;
+    return resolveAdminUrl();
   }
 
   return DEV_ORIGIN;

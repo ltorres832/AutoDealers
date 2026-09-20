@@ -265,7 +265,7 @@ export default function ChatWidget({
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 bg-gradient-to-r from-primary-600 to-brand-red-bright600 text-white rounded-full p-5 shadow-2xl hover:from-primary-700 hover:to-brand-red-bright700 transition-all transform hover:scale-110 z-50 group"
+        className="group fixed bottom-4 right-4 z-50 rounded-full bg-gradient-to-r from-primary-600 to-brand-red-bright600 p-4 text-white shadow-2xl transition-all hover:scale-110 hover:from-primary-700 hover:to-brand-red-bright700 sm:bottom-6 sm:right-6 sm:p-5"
         aria-label="Abrir chat"
       >
         <svg
@@ -289,10 +289,10 @@ export default function ChatWidget({
   }
 
   return (
-    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 inset-x-4 sm:inset-x-auto w-auto sm:w-[min(24rem,calc(100vw-2rem))] h-[min(600px,calc(100dvh-2rem))] bg-white rounded-2xl shadow-2xl flex flex-col z-50 border border-gray-200 overflow-hidden">
-      <div className="bg-gradient-to-r from-primary-600 to-brand-red-bright600 text-white p-4 rounded-t-2xl flex justify-between items-center">
-        <div>
-          <h3 className="font-bold text-lg">{tenantName}</h3>
+    <div className="fixed inset-x-2 bottom-2 z-50 flex h-[min(620px,calc(100svh-1rem))] w-auto flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:inset-x-auto sm:bottom-6 sm:right-6 sm:w-[min(24rem,calc(100vw-2rem))]">
+      <div className="flex items-center justify-between gap-3 rounded-t-2xl bg-gradient-to-r from-primary-600 to-brand-red-bright600 p-4 text-white">
+        <div className="min-w-0">
+          <h3 className="truncate text-lg font-bold">{tenantName}</h3>
           <p className="text-sm text-white/90">Chatea con nosotros</p>
         </div>
         <button
@@ -306,7 +306,7 @@ export default function ChatWidget({
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+      <div className="flex-1 space-y-4 overflow-y-auto bg-gray-50 p-3 sm:p-4">
         {showNameForm ? (
           <div className="space-y-4">
             <p className="text-gray-700">Para comenzar, por favor ingresa tu información:</p>
@@ -362,13 +362,13 @@ export default function ChatWidget({
                   className={`flex ${message.fromClient ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-xs px-4 py-2 rounded-lg ${
+                    className={`max-w-[85%] break-words rounded-lg px-4 py-2 sm:max-w-xs ${
                       message.fromClient
                         ? 'bg-primary-600 text-white'
                         : 'bg-white text-gray-900 border border-gray-200'
                     }`}
                   >
-                    <p>{message.content}</p>
+                    <p className="break-words">{message.content}</p>
                     <p
                       className={`text-xs mt-1 ${
                         message.fromClient ? 'text-primary-100' : 'text-gray-500'
@@ -386,7 +386,7 @@ export default function ChatWidget({
       </div>
 
       {!showNameForm && (
-        <div className="p-4 border-t bg-white">
+        <div className="border-t bg-white p-3 sm:p-4">
           <div className="flex gap-2">
             <input
               type="text"
@@ -398,13 +398,13 @@ export default function ChatWidget({
                 }
               }}
               placeholder="Escribe un mensaje..."
-              className="flex-1 border rounded px-3 py-2"
+              className="min-w-0 flex-1 rounded border px-3 py-2"
               disabled={loading}
             />
             <button
               onClick={() => void sendMessage()}
               disabled={loading || !newMessage.trim()}
-              className="bg-primary-600 text-white px-4 py-2 rounded hover:bg-primary-700 disabled:bg-gray-300"
+              className="rounded bg-primary-600 px-3 py-2 text-white hover:bg-primary-700 disabled:bg-gray-300 sm:px-4"
             >
               {loading ? '...' : 'Enviar'}
             </button>

@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
   const db = getFirestore();
 
   const { searchParams } = new URL(request.url);
-  const type = searchParams.get('type') as 'dealer' | 'seller' | null;
+  const type = searchParams.get('type') as 'dealer' | 'seller' | 'business' | null;
   const userId = searchParams.get('userId');
   const showMultiDealer = searchParams.get('showMultiDealer') === 'true';
 

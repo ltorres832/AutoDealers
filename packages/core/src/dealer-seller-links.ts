@@ -4,6 +4,7 @@
  */
 
 import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
+import { resolveSellerUrl } from '@autodealers/shared/platform-urls';
 import * as admin from 'firebase-admin';
 import { applyRegistrationLinks, normalizeLoginEmail } from './user-auth-sync';
 import { createNotification } from './notifications';
@@ -50,7 +51,7 @@ export interface DealerSellerLink {
   sellerName: string;
   status: DealerSellerLinkStatus;
   message?: string;
-  inviteSource?: 'email' | 'code';
+  inviteSource?: 'email' | 'code' | 'admin_direct' | 'dealer_direct' | 'transfer';
   inviteCode?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -122,8 +123,12 @@ function mapLinkDoc(
     status: (data.status as DealerSellerLinkStatus) || 'pending',
     message: typeof data.message === 'string' ? data.message : undefined,
     inviteSource:
-      data.inviteSource === 'code' || data.inviteSource === 'email'
-        ? (data.inviteSource as 'email' | 'code')
+      data.inviteSource === 'code' ||
+      data.inviteSource === 'email' ||
+      data.inviteSource === 'admin_direct' ||
+      data.inviteSource === 'dealer_direct' ||
+      data.inviteSource === 'transfer'
+        ? (data.inviteSource as DealerSellerLink['inviteSource'])
         : undefined,
     inviteCode: typeof data.inviteCode === 'string' ? data.inviteCode : undefined,
     createdAt,
@@ -258,10 +263,14 @@ async function syncSubUserLink(
   active: boolean
 ): Promise<void> {
   const ref = getDb().collection('sub_users').doc(sellerUserId);
+  const nestedRef = getDb()
+    .collection('tenants')
+    .doc(dealerTenantId)
+    .collection('sub_users')
+    .doc(sellerUserId);
   const ts = getFirestoreFieldValue().serverTimestamp();
   if (active) {
-    await ref.set(
-      {
+    const payload = {
         tenantId: sellerTenantId,
         sellerTenantId,
         dealerTenantId,
@@ -281,11 +290,16 @@ async function syncSubUserLink(
         linkSource: 'dealer_seller_invite',
         updatedAt: ts,
         createdAt: ts,
-      },
-      { merge: true }
-    );
+      };
+    await Promise.all([
+      ref.set(payload, { merge: true }),
+      nestedRef.set(payload, { merge: true }),
+    ]);
   } else {
-    await ref.set({ isActive: false, updatedAt: ts }, { merge: true });
+    await Promise.all([
+      ref.set({ isActive: false, updatedAt: ts }, { merge: true }),
+      nestedRef.set({ isActive: false, updatedAt: ts }, { merge: true }),
+    ]);
   }
 }
 
@@ -477,9 +491,7 @@ export async function createDealerSellerInvite(input: {
   const saved = mapInviteDoc(await ref.get());
   if (!saved) throw new Error('No se pudo crear el código');
 
-  const base =
-    (process.env.NEXT_PUBLIC_APP_URL || process.env.PUBLIC_APP_URL || '').trim() ||
-    'https://seller-app--autodealers-7f62e.us-central1.hosted.app';
+  const base = resolveSellerUrl();
   const url = `${base.replace(/\/$/, '')}/settings/dealer-link?code=${encodeURIComponent(code)}`;
 
   return { invite: saved, url };
@@ -627,6 +639,250 @@ export async function acceptDealerSellerLink(
   return updated;
 }
 
+async function activateSellerDealerLink(input: {
+  dealerTenantId: string;
+  dealerUserId: string;
+  sellerUserId: string;
+  sellerTenantId: string;
+  sellerEmail: string;
+  sellerName: string;
+  source: 'admin_direct' | 'dealer_direct' | 'transfer';
+  assignedByUserId: string;
+  inheritDealerMembership?: boolean;
+}): Promise<DealerSellerLink> {
+  const dealerName = await loadDealerName(input.dealerTenantId);
+  const dealerTenantSnap = await getDb().collection('tenants').doc(input.dealerTenantId).get();
+  const dealerMembershipId = (dealerTenantSnap.data()?.membershipId as string) || '';
+  const ts = getFirestoreFieldValue().serverTimestamp();
+
+  await getDb()
+    .collection('users')
+    .doc(input.sellerUserId)
+    .update({
+      dealerId: input.dealerTenantId,
+      billingMode: input.inheritDealerMembership === false ? 'self_service' : 'dealer_managed',
+      ...(input.inheritDealerMembership !== false && dealerMembershipId
+        ? { membershipId: dealerMembershipId }
+        : {}),
+      updatedAt: ts,
+    });
+
+  try {
+    await getDb()
+      .collection('tenants')
+      .doc(input.sellerTenantId)
+      .update({
+        ...(input.inheritDealerMembership !== false && dealerMembershipId
+          ? { membershipId: dealerMembershipId }
+          : {}),
+        updatedAt: ts,
+      });
+  } catch {
+    /* ignore */
+  }
+
+  await applyRegistrationLinks(
+    input.sellerUserId,
+    { tenantId: input.sellerTenantId, dealerId: input.dealerTenantId },
+    'seller'
+  );
+
+  await syncSubUserLink(
+    input.dealerTenantId,
+    input.sellerUserId,
+    input.sellerTenantId,
+    input.sellerEmail,
+    input.sellerName,
+    input.dealerUserId,
+    true
+  );
+
+  const ref = getDb()
+    .collection('dealer_seller_links')
+    .doc(linkDocId(input.dealerTenantId, input.sellerUserId));
+  await ref.set(
+    {
+      dealerTenantId: input.dealerTenantId,
+      dealerUserId: input.dealerUserId,
+      dealerName,
+      sellerUserId: input.sellerUserId,
+      sellerEmail: input.sellerEmail,
+      sellerTenantId: input.sellerTenantId,
+      sellerName: input.sellerName,
+      status: 'accepted',
+      inviteSource: input.source,
+      assignedByUserId: input.assignedByUserId,
+      respondedAt: ts,
+      updatedAt: ts,
+      createdAt: ts,
+    },
+    { merge: true }
+  );
+
+  const saved = mapLinkDoc(await ref.get());
+  if (!saved) throw new Error('No se pudo activar la vinculación');
+  return saved;
+}
+
+export async function assignSellerToDealerDirect(input: {
+  dealerTenantId: string;
+  dealerUserId: string;
+  sellerUserId: string;
+  assignedByUserId: string;
+  source?: 'admin_direct' | 'dealer_direct';
+  inheritDealerMembership?: boolean;
+}): Promise<DealerSellerLink> {
+  const dealerTenantId = input.dealerTenantId.trim();
+  const seller = await assertIndependentSeller(input.sellerUserId);
+  await assertDealerCanAddSeller(dealerTenantId);
+  return activateSellerDealerLink({
+    dealerTenantId,
+    dealerUserId: input.dealerUserId,
+    sellerUserId: seller.userId,
+    sellerTenantId: seller.tenantId,
+    sellerEmail: seller.email,
+    sellerName: seller.name,
+    source: input.source || 'admin_direct',
+    assignedByUserId: input.assignedByUserId,
+    inheritDealerMembership: input.inheritDealerMembership,
+  });
+}
+
+export async function transferSellerToDealer(input: {
+  sellerUserId: string;
+  fromDealerTenantId?: string;
+  toDealerTenantId: string;
+  toDealerUserId: string;
+  transferredByUserId: string;
+  inheritDealerMembership?: boolean;
+}): Promise<DealerSellerLink> {
+  const sellerSnap = await getDb().collection('users').doc(input.sellerUserId).get();
+  if (!sellerSnap.exists || sellerSnap.data()?.role !== 'seller') {
+    throw new Error('Vendedor no encontrado');
+  }
+  const sellerData = sellerSnap.data() || {};
+  const sellerTenantId = String(sellerData.tenantId || '').trim();
+  const sellerMembershipId = String(sellerData.membershipId || '').trim();
+  if (!sellerTenantId) throw new Error('El vendedor no tiene tenant asociado');
+
+  const currentDealerId = String(sellerData.dealerId || input.fromDealerTenantId || '').trim();
+  if (currentDealerId) {
+    const currentLink = mapLinkDoc(
+      await getDb()
+        .collection('dealer_seller_links')
+        .doc(linkDocId(currentDealerId, input.sellerUserId))
+        .get()
+    );
+    if (currentLink?.status === 'accepted') {
+      await unlinkSellerFromDealer(currentLink, true);
+    } else {
+      await syncSubUserLink(
+        currentDealerId,
+        input.sellerUserId,
+        sellerTenantId,
+        String(sellerData.email || ''),
+        String(sellerData.name || 'Vendedor'),
+        input.transferredByUserId,
+        false
+      );
+    }
+  }
+
+  await assertDealerCanAddSeller(input.toDealerTenantId);
+  const link = await activateSellerDealerLink({
+    dealerTenantId: input.toDealerTenantId,
+    dealerUserId: input.toDealerUserId,
+    sellerUserId: input.sellerUserId,
+    sellerTenantId,
+    sellerEmail: String(sellerData.email || ''),
+    sellerName: String(sellerData.name || 'Vendedor'),
+    source: 'transfer',
+    assignedByUserId: input.transferredByUserId,
+    inheritDealerMembership: input.inheritDealerMembership,
+  });
+  if (input.inheritDealerMembership === false && sellerMembershipId) {
+    const ts = getFirestoreFieldValue().serverTimestamp();
+    await Promise.all([
+      getDb().collection('users').doc(input.sellerUserId).update({
+        membershipId: sellerMembershipId,
+        updatedAt: ts,
+      }),
+      getDb().collection('tenants').doc(sellerTenantId).set(
+        {
+          membershipId: sellerMembershipId,
+          updatedAt: ts,
+        },
+        { merge: true }
+      ),
+    ]);
+  }
+  return link;
+}
+
+export async function removeSellerFromDealer(input: {
+  sellerUserId: string;
+  dealerTenantId?: string;
+  removedByUserId: string;
+  cancelSellerAccount?: boolean;
+  preserveSellerMembership?: boolean;
+}): Promise<void> {
+  const sellerSnap = await getDb().collection('users').doc(input.sellerUserId).get();
+  if (!sellerSnap.exists || sellerSnap.data()?.role !== 'seller') {
+    throw new Error('Vendedor no encontrado');
+  }
+  const seller = sellerSnap.data() || {};
+  const sellerTenantId = String(seller.tenantId || '').trim();
+  const sellerMembershipId = String(seller.membershipId || '').trim();
+  const dealerTenantId = String(input.dealerTenantId || seller.dealerId || '').trim();
+  if (dealerTenantId) {
+    const link = mapLinkDoc(
+      await getDb()
+        .collection('dealer_seller_links')
+        .doc(linkDocId(dealerTenantId, input.sellerUserId))
+        .get()
+    );
+    if (link?.status === 'accepted') {
+      await unlinkSellerFromDealer(link, true);
+      if (input.preserveSellerMembership && sellerMembershipId) {
+        const ts = getFirestoreFieldValue().serverTimestamp();
+        await Promise.all([
+          getDb().collection('users').doc(input.sellerUserId).update({
+            membershipId: sellerMembershipId,
+            updatedAt: ts,
+          }),
+          sellerTenantId
+            ? getDb().collection('tenants').doc(sellerTenantId).set(
+                {
+                  membershipId: sellerMembershipId,
+                  updatedAt: ts,
+                },
+                { merge: true }
+              )
+            : Promise.resolve(),
+        ]);
+      }
+    } else {
+      await syncSubUserLink(
+        dealerTenantId,
+        input.sellerUserId,
+        String(seller.tenantId || ''),
+        String(seller.email || ''),
+        String(seller.name || 'Vendedor'),
+        input.removedByUserId,
+        false
+      );
+    }
+  }
+  if (input.cancelSellerAccount) {
+    const ts = getFirestoreFieldValue().serverTimestamp();
+    await getDb().collection('users').doc(input.sellerUserId).update({
+      status: 'cancelled',
+      dealerId: admin.firestore.FieldValue.delete(),
+      updatedAt: ts,
+    });
+  }
+}
+
 export async function rejectDealerSellerLink(
   linkId: string,
   sellerUserId: string
@@ -690,6 +946,7 @@ async function unlinkSellerFromDealer(link: DealerSellerLink, byDealer: boolean)
     .doc(link.sellerUserId)
     .update({
       dealerId: admin.firestore.FieldValue.delete(),
+      billingMode: 'self_service',
       membershipId: admin.firestore.FieldValue.delete(),
       updatedAt: ts,
     });

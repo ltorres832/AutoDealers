@@ -91,7 +91,7 @@ export async function savePlatformFacebookIntegration(input: {
 
   await db.collection('tenants').doc(tenantId).set(
     {
-      name: 'AutoDealers Platform',
+      name: 'AutoDealersOnline Platform',
       type: 'platform',
       status: 'active',
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),

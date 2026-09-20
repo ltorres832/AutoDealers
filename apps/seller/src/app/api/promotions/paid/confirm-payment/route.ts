@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
+import { dealerManagedPaymentsResponse } from '@/lib/dealer-managed-guard';
 import { getFirestore, getStripeInstance } from '@autodealers/core';
-import * as admin from 'firebase-admin';
 
 const db = getFirestore();
 
@@ -11,6 +11,9 @@ export async function POST(request: NextRequest) {
     if (!auth || !auth.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const dealerBlock = dealerManagedPaymentsResponse(auth);
+    if (dealerBlock) return dealerBlock;
 
     const body = await request.json();
     const { paymentIntentId, requestId } = body;
@@ -57,13 +60,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Actualizar la solicitud con el estado de pago completado
-    await requestRef.update({
-      status: 'paid',
-      paymentStatus: 'completed',
+    const { activatePaidPromotionFromIntent } = await import('@autodealers/core');
+    await activatePaidPromotionFromIntent({
+      tenantId: auth.tenantId,
+      requestId,
       paymentIntentId,
-      paidAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
     return NextResponse.json({

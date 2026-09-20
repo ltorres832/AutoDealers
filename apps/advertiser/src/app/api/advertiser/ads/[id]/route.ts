@@ -109,6 +109,8 @@ export async function PUT(
       title,
       description,
       imageUrl,
+      images,
+      animation,
       videoUrl,
       linkUrl,
       linkType,
@@ -127,6 +129,8 @@ export async function PUT(
     if (title !== undefined) updateData.title = title;
     if (description !== undefined) updateData.description = description;
     if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
+    if (images !== undefined) updateData.images = Array.isArray(images) ? images : [];
+    if (animation !== undefined) updateData.animation = animation;
     if (videoUrl !== undefined) updateData.videoUrl = videoUrl;
     if (linkUrl !== undefined) updateData.linkUrl = linkUrl;
     if (linkType !== undefined) updateData.linkType = linkType;
@@ -205,10 +209,20 @@ export async function DELETE(
       );
     }
 
-    // Solo permitir eliminar si está pendiente, pausado o rechazado
-    if (!['pending', 'paused', 'rejected'].includes(data?.status)) {
+    // Cancelar/eliminar: pendientes de pago, pausados, rechazados o cancelados
+    const deletableStatuses = [
+      'pending',
+      'paused',
+      'rejected',
+      'cancelled',
+      'payment_pending',
+      'payment_failed',
+      'queued_setup_pending',
+      'queued',
+    ];
+    if (!deletableStatuses.includes(String(data?.status || ''))) {
       return NextResponse.json(
-        { error: 'Solo se pueden eliminar anuncios pendientes, pausados o rechazados' },
+        { error: 'Para anuncios activos, pausa primero el anuncio y luego podrás eliminarlo' },
         { status: 400 }
       );
     }

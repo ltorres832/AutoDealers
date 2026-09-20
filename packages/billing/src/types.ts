@@ -1,6 +1,6 @@
 // Tipos del módulo de facturación
 
-export type MembershipType = 'dealer' | 'seller';
+export type MembershipType = 'dealer' | 'seller' | 'business';
 
 export type SubscriptionStatus =
   | 'active'
@@ -96,17 +96,88 @@ export interface MembershipFeatures {
   adminAssignOnly?: boolean;
   /** Plan personalizado creado por admin; no aparece en catálogo público ni autoservicio. */
   customMembership?: boolean;
+
+  // ============ Agente de Voz IA ============
+  /** Agente de voz IA habilitado (master switch) */
+  voiceAIEnabled?: boolean;
+  /** Llamadas entrantes atendidas por el agente */
+  voiceInboundEnabled?: boolean;
+  /** Llamadas salientes automáticas (seguimientos, leads sociales) */
+  voiceOutboundEnabled?: boolean;
+  /** Citas de servicio/mantenimiento por voz */
+  voiceServiceCallsEnabled?: boolean;
+  /** Campañas de llamadas masivas (reactivación, cumpleaños) */
+  voiceCampaignsEnabled?: boolean;
+  /** Minutos de voz al mes (entrantes + salientes); null = ilimitado */
+  maxVoiceMinutesPerMonth?: number | null;
+  /** Llamadas salientes al mes; null = ilimitado */
+  maxVoiceOutboundCallsPerMonth?: number | null;
+  /** Llamadas entrantes al mes; null = ilimitado */
+  maxVoiceInboundCallsPerMonth?: number | null;
+
+  // ============ DMS / ops ============
+  /** Portal Mi compensación (ventas, comisiones, bonos, pagos, vacaciones) */
+  compensationPortalEnabled?: boolean;
+  /** Módulo servicio / órdenes de reparación */
+  dmsServiceEnabled?: boolean;
+  /** Módulo piezas */
+  dmsPartsEnabled?: boolean;
+  /** Finanzas dealer (AR/caja) */
+  dmsFinanceEnabled?: boolean;
+  /** RR.HH. extendido (asistencia, expediente) */
+  dmsHrEnabled?: boolean;
+  /** API pública / integraciones tenant */
+  publicApiEnabled?: boolean;
+
+  // ============ Límites de uso medibles (metering) ============
+  /** Mensajes al mes (WhatsApp/FB/IG/SMS salientes); null = ilimitado */
+  maxMessagesPerMonth?: number | null;
+  /** Respuestas de IA al mes (chat, clasificación, contenido); null = ilimitado */
+  maxAiResponsesPerMonth?: number | null;
+  /** Emails al mes; null = ilimitado */
+  maxEmailsPerMonth?: number | null;
+
+  // ============ Facturación por exceso (overage) ============
+  /** Permite consumir por encima del límite facturando el exceso automáticamente */
+  overageBillingEnabled?: boolean;
+
+  // ============ Inventario competitivo (INV360 catch-up; opt-out) ============
+  vin_camera_scan?: boolean;
+  share_landing?: boolean;
+  photo_guide?: boolean;
+  bg_remover?: boolean;
+  dynamic_scenes?: boolean;
+  dealer_site_builder?: boolean;
+  daco_labels?: boolean;
+  inventory_alliances?: boolean;
+  inventory_feed_sync?: boolean;
 }
 
 export interface Membership {
   id: string;
   name: string;
   type: MembershipType;
+  /** Precio regular (post-lanzamiento / post-intro). */
   price: number;
   currency: string;
   billingCycle: 'monthly' | 'yearly';
   features: MembershipFeatures;
   stripePriceId: string;
+  stripeProductId?: string;
+  /**
+   * Precio de lanzamiento en catálogo (hasta launchEndsAt).
+   * Requiere launchStripePriceId para cobrar correctamente.
+   */
+  launchPrice?: number;
+  launchEndsAt?: Date;
+  launchStripePriceId?: string;
+  /**
+   * Precio intro por N ciclos de facturación; luego pasa a `price` / stripePriceId.
+   * Requiere introStripePriceId + stripePriceId (schedule en Stripe).
+   */
+  introPrice?: number;
+  introMonths?: number;
+  introStripePriceId?: string;
   isActive: boolean;
   createdAt: Date;
   updatedAt?: Date;
@@ -139,6 +210,8 @@ export interface Subscription {
   daysPastDue?: number; // Días desde que venció el pago
   /** Fin del período de prueba Stripe (primer cobro automático) */
   trialEndsAt?: Date;
+  /** Días de cortesía acumulados (admin) */
+  courtesyDays?: number;
   suspendedAt?: Date; // Fecha de suspensión
   reactivatedAt?: Date; // Fecha de reactivación
   paymentAttempts?: number; // Intentos de pago fallidos

@@ -298,6 +298,82 @@ export function getAuth(): any {
   }
 }
 
+const TOKEN_SIGNER_APP_NAME = 'autodealers-token-signer-v2';
+
+function sanitizeServiceAccountEmail(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  const cleaned = String(raw)
+    .replace(/^\uFEFF/, '')
+    .replace(/[\r\n\u0000]/g, '')
+    .trim();
+  const match = cleaned.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/);
+  return match?.[0] || cleaned || undefined;
+}
+
+function sanitizePrivateKey(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  let key = String(raw)
+    .replace(/^\uFEFF/, '')
+    .replace(/\\n/g, '\n')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .trim();
+  return key || undefined;
+}
+
+/**
+ * Auth con certificado de servicio para createCustomToken.
+ * En App Hosting/Cloud Run el Admin por defecto usa ADC (sin private key);
+ * createCustomToken falla ahí y el login cae a sessionToken → bounce al /login.
+ */
+export function getAuthForCustomTokens(): any {
+  const admin = getAdmin();
+  const projectId = (
+    process.env.FIREBASE_PROJECT_ID ||
+    process.env.GOOGLE_CLOUD_PROJECT ||
+    'autodealers-7f62e'
+  )
+    .replace(/[\r\n]/g, '')
+    .trim();
+  const clientEmail = sanitizeServiceAccountEmail(process.env.FIREBASE_CLIENT_EMAIL);
+  const privateKey = sanitizePrivateKey(process.env.FIREBASE_PRIVATE_KEY);
+
+  const hasCert =
+    !!projectId &&
+    !!clientEmail &&
+    !!privateKey &&
+    (privateKey.includes('BEGIN') || privateKey.length > 100);
+
+  if (hasCert) {
+    try {
+      let signerApp: any;
+      try {
+        signerApp = admin.app(TOKEN_SIGNER_APP_NAME);
+      } catch {
+        signerApp = admin.initializeApp(
+          {
+            credential: admin.credential.cert({
+              projectId,
+              clientEmail,
+              privateKey,
+            }),
+            projectId,
+          },
+          TOKEN_SIGNER_APP_NAME
+        );
+      }
+      return admin.auth(signerApp);
+    } catch (certError: any) {
+      console.warn(
+        'getAuthForCustomTokens: cert signer failed, falling back to default auth',
+        certError?.message || certError
+      );
+    }
+  }
+
+  return getAuth();
+}
+
 /**
  * Obtiene la instancia de Storage
  * IMPORTANTE: NO lanza errores durante la importación, solo cuando se usa

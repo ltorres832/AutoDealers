@@ -84,7 +84,7 @@ Sugiere los 3 vehículos más adecuados. Responde solo con los IDs separados por
     const openai = new OpenAI({ apiKey });
 
     const completion = await openai.chat.completions.create({
-      model: config.responseSettings.model || 'gpt-4-turbo-preview',
+      model: config.responseSettings.model || 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -176,7 +176,7 @@ Proporciona:
 Responde en formato JSON:`;
 
     const completion = await openai.chat.completions.create({
-      model: config.responseSettings.model || 'gpt-4-turbo-preview',
+      model: config.responseSettings.model || 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -276,7 +276,7 @@ Sugiere un precio optimizado basado en:
 Responde en formato JSON con: suggestedPrice (número), reasoning (texto), marketComparison (texto)`;
 
     const completion = await openai.chat.completions.create({
-      model: config.responseSettings.model || 'gpt-4-turbo-preview',
+      model: config.responseSettings.model || 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -383,7 +383,7 @@ Proporciona:
 Responde en formato JSON:`;
 
     const completion = await openai.chat.completions.create({
-      model: config.responseSettings.model || 'gpt-4-turbo-preview',
+      model: config.responseSettings.model || 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -468,7 +468,7 @@ Evalúa:
 Responde en formato JSON:`;
 
     const completion = await openai.chat.completions.create({
-      model: config.responseSettings.model || 'gpt-4-turbo-preview',
+      model: config.responseSettings.model || 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -546,7 +546,7 @@ Sugiere 3-5 horarios óptimos considerando:
 Responde en formato JSON con suggestedTimes (array) y reasoning (texto)`;
 
     const completion = await openai.chat.completions.create({
-      model: config.responseSettings.model || 'gpt-4-turbo-preview',
+      model: config.responseSettings.model || 'gpt-4o-mini',
       messages: [
         {
           role: 'system',

@@ -41,9 +41,9 @@ export default function BusinessDashboardPage() {
   return (
     <DashboardLayout>
       <div className="flex items-center gap-4 mb-2">
-        <div className="w-20 h-20 rounded-2xl overflow-hidden bg-white border flex items-center justify-center">
+        <div className="relative w-20 h-20 rounded-2xl overflow-hidden bg-white border flex items-center justify-center">
           {data?.business?.logoUrl ? (
-            <img src={data.business.logoUrl} alt={data.business.name || 'Perfil'} className="w-full h-full object-cover" />
+            <img src={data.business.logoUrl} alt={data.business.name || 'Perfil'} className="absolute inset-0 h-full w-full object-contain" />
           ) : (
             <span className="text-2xl text-slate-400">{String(data?.business?.name || 'N').charAt(0)}</span>
           )}
@@ -61,7 +61,7 @@ export default function BusinessDashboardPage() {
       <RequestSalesOrientation />
       {!data?.business?.logoUrl ? (
         <Link href="/dashboard/profile" className="block mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900 font-semibold">
-          Falta la foto del negocio. Súbela en Perfil público para que los clientes te reconozcan.
+          Falta el logo (foto de perfil). Súbelo en Perfil público: es la imagen con la que los clientes te reconocen.
         </Link>
       ) : null}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">

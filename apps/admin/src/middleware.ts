@@ -22,11 +22,11 @@ export function middleware(request: NextRequest) {
     if (wantsJson && !wantsHtml || isApiClient) {
       // Return JSON response for API/backend requests
       return NextResponse.json({
-        service: 'AutoDealers Admin Panel API',
+        service: 'AutoDealersOnline Admin Panel API',
         version: '1.0.0',
         status: 'healthy',
         timestamp: new Date().toISOString(),
-        message: 'AutoDealers Admin Panel API Backend is running',
+        message: 'AutoDealersOnline Admin Panel API Backend is running',
         endpoints: {
           api: '/api',
           health: '/api/health',

@@ -15,6 +15,7 @@ export default function DashboardSidebar({ mobileOpen, onClose }: { mobileOpen: 
     { href: '/dashboard/payments', label: 'Cobros AutoDealers', icon: '💳' },
     { href: '/dashboard/membership', label: 'Membresía', icon: '⭐' },
     { href: '/dashboard/profile', label: 'Perfil público', icon: '👤' },
+    { href: '/dashboard/security', label: 'Seguridad', icon: '🔒' },
   ];
 
   return (

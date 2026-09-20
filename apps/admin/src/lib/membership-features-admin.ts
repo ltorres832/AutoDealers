@@ -1,82 +1,22 @@
 import { coerceMembershipNumber, repairMisserializedEpochNumber } from '@/lib/membership-number-utils';
+import { applyMembershipFeatureDependencyGates } from '@autodealers/billing/membership-display';
+import {
+  ADMIN_BOOLEAN_FEATURE_KEYS,
+  MEMBERSHIP_NUMERIC_FEATURE_KEYS,
+  OPT_OUT_MEMBERSHIP_FEATURE_KEYS,
+} from '@autodealers/billing/membership-feature-catalog';
 
 /**
  * Normalización de features al guardar desde el admin.
  * Solo lo guardado aquí es lo que puede aparecer en tarjetas y catálogos.
  */
 
-export const ADMIN_NUMERIC_FEATURE_KEYS = [
-  'maxSellers',
-  'maxInventory',
-  'maxCampaigns',
-  'maxPromotions',
-  'maxLeadsPerMonth',
-  'maxAppointmentsPerMonth',
-  'maxStorageGB',
-  'maxApiCallsPerMonth',
-  'maxCorporateEmails',
-  'maxDealers',
-  'maxCustomerDocumentRequestsPerMonth',
-] as const;
+export const ADMIN_NUMERIC_FEATURE_KEYS = MEMBERSHIP_NUMERIC_FEATURE_KEYS;
 
-export const ADMIN_BOOLEAN_FEATURE_KEYS = [
-  'customSubdomain',
-  'customDomain',
-  'aiEnabled',
-  'aiAutoResponses',
-  'aiContentGeneration',
-  'aiLeadClassification',
-  'socialMediaEnabled',
-  'socialMediaScheduling',
-  'socialMediaAnalytics',
-  'marketplaceEnabled',
-  'marketplaceFeatured',
-  'advancedReports',
-  'customReports',
-  'exportData',
-  'whiteLabel',
-  'apiAccess',
-  'webhooks',
-  'ssoEnabled',
-  'multiLanguage',
-  'customTemplates',
-  'emailMarketing',
-  'smsMarketing',
-  'whatsappMarketing',
-  'videoUploads',
-  'virtualTours',
-  'liveChat',
-  'appointmentScheduling',
-  'paymentProcessing',
-  'inventorySync',
-  'crmAdvanced',
-  'leadScoring',
-  'automationWorkflows',
-  'integrationsUnlimited',
-  'prioritySupport',
-  'dedicatedManager',
-  'trainingSessions',
-  'customBranding',
-  'mobileApp',
-  'offlineMode',
-  'dataBackup',
-  'complianceTools',
-  'analyticsAdvanced',
-  'aBTesting',
-  'seoTools',
-  'customIntegrations',
-  'freePromotionsOnLanding',
-  'corporateEmailEnabled',
-  'emailSignatureBasic',
-  'emailSignatureAdvanced',
-  'emailAliases',
-  'multiDealerEnabled',
-  'multipleDealers',
-  'requiresAdminApproval',
-  'fiModule',
-  'fiMultipleManagers',
-  'customerDocumentRequestsEnabled',
-] as const;
+export { ADMIN_BOOLEAN_FEATURE_KEYS };
+
+/** Inventario competitivo + expediente + DMS/compensación: ausente en planes viejos = activo (opt-out). */
+const OPT_OUT_KEYS = OPT_OUT_MEMBERSHIP_FEATURE_KEYS;
 
 const KNOWN_FEATURE_KEYS = new Set<string>([
   ...ADMIN_NUMERIC_FEATURE_KEYS,
@@ -115,12 +55,20 @@ export function normalizeFeaturesForAdminEdit(
     }
   }
 
-  return out;
+  // Planes creados antes de estos toggles: conservar acceso (activo salvo false explícito).
+  for (const key of OPT_OUT_KEYS) {
+    if (!Object.prototype.hasOwnProperty.call(out, key)) {
+      out[key] = true;
+    }
+  }
+
+  return applyMembershipFeatureDependencyGates(out);
 }
 
 /**
  * Reemplaza por completo las features al guardar desde el admin.
  * - Booleanos: siempre true/false explícito.
+ * - Opt-out: si el form no trae la clave, se guarda true (no destruir acceso por omisión).
  * - Numéricos: solo se guardan si el admin puso un número (vacío = sin clave).
  * - Dinámicos/otros: se conservan si tienen valor activo.
  */
@@ -130,7 +78,15 @@ export function prepareAdminMembershipFeaturesForSave(
   const out: Record<string, unknown> = {};
 
   for (const key of ADMIN_BOOLEAN_FEATURE_KEYS) {
-    out[key] = patch[key] === true || patch[key] === 'true';
+    if (OPT_OUT_KEYS.includes(key)) {
+      if (!Object.prototype.hasOwnProperty.call(patch, key)) {
+        out[key] = true;
+      } else {
+        out[key] = patch[key] === true || patch[key] === 'true';
+      }
+    } else {
+      out[key] = patch[key] === true || patch[key] === 'true';
+    }
   }
 
   for (const key of ADMIN_NUMERIC_FEATURE_KEYS) {
@@ -145,7 +101,7 @@ export function prepareAdminMembershipFeaturesForSave(
     out[key] = value;
   }
 
-  return out;
+  return applyMembershipFeatureDependencyGates(out);
 }
 
 /** @deprecated Usar prepareAdminMembershipFeaturesForSave (reemplazo total). */

@@ -22,17 +22,18 @@ export async function GET(request: NextRequest) {
       .collection('tenants')
       .where('type', '==', 'dealer')
       .where('status', '==', 'active')
-      .orderBy('name', 'asc')
       .limit(100)
       .get();
 
-    const dealers = dealersSnapshot.docs.map((doc) => ({
-      id: doc.id,
-      name: doc.data().name,
-      email: doc.data().email || '',
-      companyName: doc.data().companyName || '',
-      subdomain: doc.data().subdomain || '',
-    }));
+    const dealers = dealersSnapshot.docs
+      .map((doc) => ({
+        id: doc.id,
+        name: doc.data().name,
+        email: doc.data().email || '',
+        companyName: doc.data().companyName || '',
+        subdomain: doc.data().subdomain || '',
+      }))
+      .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'es'));
 
     return createSuccessResponse({ dealers });
   } catch (error: any) {

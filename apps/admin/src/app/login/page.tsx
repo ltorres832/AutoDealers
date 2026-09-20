@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ForgotPasswordPanel } from '@/components/ForgotPasswordPanel';
+import { ensureFirebaseClientAuth } from '@/lib/ensure-firebase-client-auth';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -68,6 +69,8 @@ export default function LoginPage() {
       localStorage.setItem('userEmail', data.user.email);
       localStorage.setItem('userId', data.user.uid);
 
+      await ensureFirebaseClientAuth();
+
       // Actualizar último acceso
       try {
         await fetch('/api/users/update-last-access', {
@@ -103,7 +106,7 @@ export default function LoginPage() {
   return (
     <div className="brand-login-shell brand-top-accent">
       <header className="brand-login-header">
-        <h1 className="text-2xl font-bold tracking-tight">AutoDealers</h1>
+        <h1 className="text-2xl font-bold tracking-tight">AutoDealersOnline</h1>
         <p className="text-sm text-white/90 mt-1">Panel de Administración</p>
       </header>
       <div className="brand-login-body">
@@ -172,14 +175,16 @@ export default function LoginPage() {
 
         <ForgotPasswordPanel />
 
+        {process.env.NODE_ENV !== 'production' && (
         <div className="mt-6 p-4 bg-primary-50 rounded-lg border border-primary-100">
           <p className="text-xs text-gray-600 mb-2 font-medium">💡 Credenciales de prueba:</p>
           <p className="text-xs text-gray-700 font-mono">📧 admin@autodealers.com</p>
           <p className="text-xs text-gray-700 font-mono">🔑 Admin123456</p>
         </div>
+        )}
 
         <p className="text-center text-xs text-gray-500 mt-6">
-          © 2024 AutoDealers. Todos los derechos reservados.
+          © 2024 AutoDealersOnline. Todos los derechos reservados.
         </p>
       </div>
       </div>

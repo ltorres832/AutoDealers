@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
+import { dealerManagedPaymentsResponse } from '@/lib/dealer-managed-guard';
 import { getFirestore } from '@autodealers/shared';
 import { getStripeService } from '@autodealers/core';
 import * as admin from 'firebase-admin';
@@ -12,6 +13,9 @@ export async function POST(request: NextRequest) {
     if (!auth || !auth.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const dealerBlock = dealerManagedPaymentsResponse(auth);
+    if (dealerBlock) return dealerBlock;
 
     const body = await request.json();
     const { promotionScope, vehicleId, duration, paymentMethodId } = body;
@@ -111,10 +115,12 @@ export async function POST(request: NextRequest) {
       {
         tenantId: auth.tenantId,
         userId: auth.userId,
+        requestId: requestRef.id,
         promotionScope,
-        vehicleId: vehicleId || null,
-        duration,
+        vehicleId: vehicleId || '',
+        duration: String(duration),
         type: 'paid_promotion',
+        placement: typeof body.placement === 'string' ? body.placement : '',
       },
       customerId,
       paymentMethodId // Método de pago guardado (opcional)
@@ -126,6 +132,7 @@ export async function POST(request: NextRequest) {
       vehicleId: vehicleId || null,
       duration,
       price,
+      placement: typeof body.placement === 'string' ? body.placement : null,
       status: 'pending_payment',
       paymentIntentId: paymentIntent.id,
       requestedBy: auth.userId,

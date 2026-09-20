@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { getSpecsDescription, validateImage, validateVideo } from '@/lib/advertiser-specs-client';
+import { listAdPlacementOptions } from '@autodealers/core/ad-placements';
+import { AdPlacementPageMap } from '@/components/AdPlacementPageMap';
 
 interface Advertiser {
   id: string;
@@ -23,7 +25,7 @@ export default function CreateSponsoredContentModal({
     title: '',
     description: '',
     type: 'banner' as 'banner' | 'promotion' | 'sponsor',
-    placement: 'sponsors_section' as 'hero' | 'sidebar' | 'sponsors_section' | 'between_content',
+    placement: 'sponsors_section' as 'hero' | 'sidebar' | 'sponsors_section' | 'between_content' | 'vehicle_page',
     linkUrl: '',
     linkType: 'external' as 'external' | 'landing_page',
     budget: '',
@@ -32,10 +34,11 @@ export default function CreateSponsoredContentModal({
     endDate: '',
     targetLocation: [] as string[],
     targetVehicleTypes: [] as string[],
+    animation: 'fade' as 'none' | 'fade' | 'slide' | 'kenburns',
   });
-  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [videoFile, setVideoFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,24 +62,30 @@ export default function CreateSponsoredContentModal({
   }
 
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
-    const validation = validateImage(file, formData.placement);
-    if (!validation.valid) {
-      setError(validation.error || 'Imagen inválida');
-      return;
+    const accepted: File[] = [];
+    for (const file of files) {
+      const validation = validateImage(file, formData.placement);
+      if (!validation.valid) {
+        setError(validation.error || 'Imagen inválida');
+        continue;
+      }
+      accepted.push(file);
     }
+    if (accepted.length === 0) return;
 
-    setImageFile(file);
+    setImageFiles((prev) => [...prev, ...accepted].slice(0, 8));
     setError(null);
-
-    // Crear preview
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setImagePreview(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    accepted.forEach((file) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreviews((prev) => [...prev, reader.result as string].slice(0, 8));
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
   }
 
   function handleVideoChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -109,8 +118,8 @@ export default function CreateSponsoredContentModal({
       return;
     }
 
-    if (!imageFile && !videoFile) {
-      setError('Debes subir una imagen o video');
+    if (imageFiles.length === 0 && !videoFile) {
+      setError('Debes subir al menos una imagen o un video');
       return;
     }
 
@@ -124,7 +133,8 @@ export default function CreateSponsoredContentModal({
     try {
       // Subir imagen si existe
       let imageUrl = '';
-      if (imageFile) {
+      const uploadedImages: string[] = [];
+      for (const imageFile of imageFiles) {
         const formDataImage = new FormData();
         formDataImage.append('file', imageFile);
         formDataImage.append('type', 'sponsored_content');
@@ -139,8 +149,9 @@ export default function CreateSponsoredContentModal({
         }
 
         const uploadData = await uploadResponse.json();
-        imageUrl = uploadData.url;
+        uploadedImages.push(uploadData.url);
       }
+      imageUrl = uploadedImages[0] || '';
 
       // Subir video si existe
       let videoUrl = '';
@@ -175,6 +186,8 @@ export default function CreateSponsoredContentModal({
           type: formData.type,
           placement: formData.placement,
           imageUrl,
+          images: uploadedImages,
+          animation: formData.animation,
           videoUrl: videoUrl || undefined,
           linkUrl: formData.linkUrl,
           linkType: formData.linkType,
@@ -264,27 +277,30 @@ export default function CreateSponsoredContentModal({
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Ubicación (Placement) *
+                ¿Dónde va a salir el anuncio? *
               </label>
               <select
                 value={formData.placement}
                 onChange={(e) => {
                   setFormData({ ...formData, placement: e.target.value as any });
-                  setImageFile(null);
+                  setImageFiles([]);
+                  setImagePreviews([]);
                   setVideoFile(null);
-                  setImagePreview(null);
                   setVideoPreview(null);
                 }}
                 className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 required
               >
-                <option value="sponsors_section">Sección Patrocinadores</option>
-                <option value="sidebar">Sidebar</option>
-                <option value="hero">Hero (Solo Premium)</option>
-                <option value="between_content">Entre Contenido</option>
+                {listAdPlacementOptions().map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.label} — {item.pixelSize}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
+
+          <AdPlacementPageMap placement={formData.placement} />
 
           {/* Especificaciones */}
           <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
@@ -350,24 +366,59 @@ export default function CreateSponsoredContentModal({
             </p>
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Animación
+            </label>
+            <select
+              value={formData.animation}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  animation: e.target.value as typeof formData.animation,
+                })
+              }
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              <option value="fade">Fundido (fade)</option>
+              <option value="slide">Deslizamiento</option>
+              <option value="kenburns">Ken Burns (zoom suave)</option>
+              <option value="none">Sin movimiento</option>
+            </select>
+            <p className="mt-1 text-xs text-gray-500">
+              Fundido: transiciona suave. Deslizamiento: entra de lado. Ken Burns: zoom lento. Sin movimiento: estático.
+            </p>
+          </div>
+
           {/* Imagen */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Imagen *
+              Imágenes del anuncio (slideshow, hasta 8) *
             </label>
             <input
               type="file"
               accept="image/jpeg,image/jpg,image/png,image/webp"
+              multiple
               onChange={handleImageChange}
               className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
-            {imagePreview && (
-              <div className="mt-4">
-                <img
-                  src={imagePreview}
-                  alt="Preview"
-                  className="max-w-md h-48 object-contain border border-gray-200 rounded-lg"
-                />
+            {imagePreviews.length > 0 && (
+              <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
+                {imagePreviews.map((src, index) => (
+                  <div key={`${src}-${index}`} className="relative">
+                    <img src={src} alt={`Preview ${index + 1}`} className="h-24 w-full object-cover rounded-lg border" />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setImageFiles((prev) => prev.filter((_, i) => i !== index));
+                        setImagePreviews((prev) => prev.filter((_, i) => i !== index));
+                      }}
+                      className="absolute right-1 top-1 rounded bg-black/60 px-1.5 text-xs text-white"
+                    >
+                      Quitar
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
           </div>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { createSponsoredContent, getAdvertiserById } from '@autodealers/core';
+import { resolveAdCreativePayload } from '@autodealers/core/ad-creative';
 import * as admin from 'firebase-admin';
 
 // Admin crea un anuncio para un anunciante
@@ -24,6 +25,8 @@ export async function POST(
       placement,
       mediaType,
       imageUrl,
+      images,
+      animation,
       videoUrl,
       linkUrl,
       linkType,
@@ -33,7 +36,7 @@ export async function POST(
       durationDays,
     } = body;
 
-    if (!title || !type || !placement || !linkUrl || !durationDays) {
+    if (!type || !placement || !durationDays) {
       return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 });
     }
 
@@ -49,14 +52,21 @@ export async function POST(
 
     // Validar medio
     const media = mediaType === 'video' ? 'video' : 'image';
-    if (media === 'image' && !imageUrl) {
+    const creative = resolveAdCreativePayload({ imageUrl, images, animation });
+    if (media === 'image' && !creative.imageUrl) {
       return NextResponse.json({ error: 'Debes proporcionar una imagen' }, { status: 400 });
     }
     if (media === 'video' && !videoUrl) {
       return NextResponse.json({ error: 'Debes proporcionar un video' }, { status: 400 });
     }
 
-    const priceNumber = typeof price === 'number' ? price : Number(price ?? 0);
+    const { getBannerPrice, getPromotionPrice } = await import('@autodealers/core');
+    const officialPrice =
+      type === 'banner'
+        ? await getBannerPrice(placement, duration)
+        : await getPromotionPrice(type === 'sponsor' ? 'dealer' : 'vehicle', duration);
+    const priceNumber =
+      officialPrice > 0 ? officialPrice : typeof price === 'number' ? price : Number(price ?? 0);
 
     const start = new Date();
     const end = new Date(start.getTime());
@@ -67,10 +77,12 @@ export async function POST(
       advertiserName: advertiser.companyName,
       campaignName: campaignName || '',
       type: type as 'banner' | 'promotion' | 'sponsor',
-      placement: placement as 'hero' | 'sidebar' | 'sponsors_section' | 'between_content',
-      title,
+      placement: placement as 'hero' | 'sidebar' | 'sponsors_section' | 'between_content' | 'vehicle_page',
+      title: title || '',
       description: description || '',
-      imageUrl: media === 'image' ? imageUrl || '' : '',
+      imageUrl: media === 'image' ? creative.imageUrl : '',
+      images: media === 'image' ? creative.images : [],
+      animation: creative.animation,
       videoUrl: media === 'video' ? videoUrl || '' : '',
       linkUrl,
       linkType: (linkType as 'external' | 'landing_page') || 'external',

@@ -37,7 +37,8 @@ export async function POST(request: NextRequest) {
 
     if (isSellerRole(auth.role)) {
       const isTrustGalleryUpload = type === 'seller_public_trust_gallery' && isImage;
-      if (!isVideo && !isTrustGalleryUpload) {
+      const isWebsiteHeroImage = type === 'website_hero_image' && isImage;
+      if (!isVideo && !isTrustGalleryUpload && !isWebsiteHeroImage) {
         return NextResponse.json(
           { error: 'Los vendedores pueden subir videos o fotos para su página pública' },
           { status: 403 }
@@ -58,6 +59,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (isVideo && !['video/mp4', 'video/webm', 'video/quicktime'].includes(file.type)) {
+      return NextResponse.json(
+        { error: 'Formato de video no permitido. Usa MP4 o WebM.' },
+        { status: 400 }
+      );
+    }
+
+    if (isVideo && type === 'vehicle') {
+      const { canExecuteFeature } = await import('@autodealers/core');
+      const check = await canExecuteFeature(auth.tenantId, 'uploadVideo');
+      if (!check.allowed) {
+        return NextResponse.json(
+          {
+            error: check.reason || 'La subida de videos no está incluida en tu plan',
+            reason: check.reason || 'Activa o selecciona una membresía que incluya videos de vehículos.',
+            upgradeRequired: true,
+          },
+          { status: 403 }
+        );
+      }
+    }
+
     if (type === 'dealer_website_promo') {
       if (isSellerRole(auth.role)) {
         return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
@@ -75,6 +98,26 @@ export async function POST(request: NextRequest) {
       url = await uploadBufferToAccessibleUrl(bucket, filePath, buffer, file.type, {
         tenantId: auth.tenantId,
         type: 'dealer_website_promo',
+      });
+    } else if (type === 'website_hero_image' || type === 'website_hero_video') {
+      const wantVideo = type === 'website_hero_video';
+      if (wantVideo && !isVideo) {
+        return NextResponse.json({ error: 'Solo se permiten archivos de video' }, { status: 400 });
+      }
+      if (!wantVideo && !isImage) {
+        return NextResponse.json({ error: 'Solo se permiten imágenes' }, { status: 400 });
+      }
+      const { getStorage } = await import('@autodealers/core');
+      const { uploadBufferToAccessibleUrl } = await import('@autodealers/shared/firebase-storage-upload');
+      const storage = getStorage();
+      const bucket = storage.bucket();
+      const timestamp = Date.now();
+      const sanitizedFilename = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const filePath = `tenants/${auth.tenantId}/website-hero/${auth.userId}/${timestamp}_${sanitizedFilename}`;
+      url = await uploadBufferToAccessibleUrl(bucket, filePath, buffer, file.type, {
+        tenantId: auth.tenantId,
+        userId: auth.userId,
+        type,
       });
     } else if (type === 'seller_public_trust_gallery' && isImage) {
       const { getStorage } = await import('@autodealers/core');

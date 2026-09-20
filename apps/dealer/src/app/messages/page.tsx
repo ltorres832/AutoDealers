@@ -1,334 +1,64 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import Link from 'next/link';
+import { useEffect, useState, useCallback } from 'react';
+import { WhatsAppInboxPanel } from '@autodealers/shared/client';
 import { useRealtimeMessages, useRealtimeConversation } from '@/hooks/useRealtimeMessages';
 import { fetchWithAuth } from '@/lib/fetch-with-auth';
 import { getDealerActiveTenantId } from '@/lib/dealer-tenant-storage';
 
-interface Message {
-  id: string;
-  channel: string;
-  direction: string;
-  from: string;
-  to: string;
-  content: string;
-  createdAt: string;
-  leadId?: string;
-}
-
-interface Conversation {
-  leadId: string;
-  leadName: string;
-  messages: Message[];
-  unread: number;
-}
-
 export default function MessagesPage() {
-  const [user, setUser] = useState<any>(null);
-  const [selectedConversation, setSelectedConversation] =
-    useState<Conversation | null>(null);
-  const [newMessage, setNewMessage] = useState('');
-  const [generatingAI, setGeneratingAI] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [user, setUser] = useState<{ tenantId?: string } | null>(null);
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
 
   useEffect(() => {
     void fetchWithAuth('/api/user', {})
-      .then((res) => {
-        if (!res.ok) throw new Error('auth');
-        return res.json();
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.user) setUser(data.user);
       })
-      .then((data) => setUser(data.user))
       .catch((err) => console.error('Error fetching user:', err));
   }, []);
 
   const tenantId = getDealerActiveTenantId(user?.tenantId ?? null) || user?.tenantId || '';
+
   const { conversations, loading } = useRealtimeMessages(tenantId);
+  const selectedConversation =
+    conversations.find((c) => c.leadId === selectedLeadId) ?? null;
+
   const { messages: conversationMessages, loading: messagesLoading } = useRealtimeConversation(
     tenantId,
-    selectedConversation?.leadId
+    selectedLeadId ?? undefined
   );
 
-  useEffect(() => {
-    if (selectedConversation) {
-      scrollToBottom();
-    }
-  }, [conversationMessages, selectedConversation]);
-
-  // Ya no necesario - se usa tiempo real
-
-  async function sendMessage() {
-    if (!newMessage.trim() || !selectedConversation) return;
-
-    try {
-      const response = await fetch('/api/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          leadId: selectedConversation.leadId,
-          channel: 'whatsapp',
-          content: newMessage,
-        }),
-      });
-
-      if (response.ok) {
-        setNewMessage('');
-        // Los mensajes se actualizan automáticamente con tiempo real
-      }
-    } catch (error) {
-      console.error('Error:', error);
-    }
-  }
-
-  async function generateAIResponse() {
-    if (!selectedConversation) return;
-
-    // Obtener el último mensaje del cliente
-    const lastInboundMessage = conversationMessages
-      .filter((m) => m.direction === 'inbound')
-      .pop();
-
-    if (!lastInboundMessage) {
-      alert('No hay mensajes del cliente para responder');
-      return;
-    }
-
-    setGeneratingAI(true);
-    try {
-      const response = await fetch('/api/ai/generate-response', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          leadId: selectedConversation.leadId,
-          message: lastInboundMessage.content,
-          context: 'Conversación de venta de auto',
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setNewMessage(data.response);
-        
-        // Si requiere aprobación, mostrar advertencia
-        if (data.requiresApproval) {
-          alert(`Respuesta generada con confianza ${(data.confidence * 100).toFixed(0)}%. Por favor revisa antes de enviar.`);
-        }
-      } else {
-        const error = await response.json();
-        alert(error.error || 'Error al generar respuesta');
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      alert('Error al generar respuesta con IA');
-    } finally {
-      setGeneratingAI(false);
-    }
-  }
-
-  function scrollToBottom() {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }
-
-  if (loading) {
-    return (
-      <div className="flex justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-      </div>
-    );
-  }
+  const handleGenerateAI = useCallback(async (leadId: string, lastInbound: string) => {
+    const response = await fetchWithAuth('/api/ai/generate-response', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        leadId,
+        message: lastInbound,
+        context: 'Conversación de venta de auto por WhatsApp',
+      }),
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    return typeof data.response === 'string' ? data.response : null;
+  }, []);
 
   return (
-    <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
-      <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">Mensajería</h1>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 min-h-[calc(100dvh-12rem)] md:h-[calc(100dvh-200px)]">
-        <div
-          className={`${
-            selectedConversation ? 'hidden md:block' : 'block'
-          } bg-white rounded-lg shadow overflow-y-auto min-h-0`}
-        >
-          <div className="p-4 border-b">
-            <h2 className="font-bold">Conversaciones</h2>
-          </div>
-          <div>
-            {conversations.length === 0 ? (
-              <p className="p-4 text-gray-500 text-center">
-                No hay conversaciones
-              </p>
-            ) : (
-              conversations.map((conv) => (
-                <div
-                  key={conv.leadId}
-                  onClick={() => {
-                    setSelectedConversation(conv as unknown as Conversation);
-                  }}
-                  className={`p-4 border-b cursor-pointer hover:bg-gray-50 ${
-                    selectedConversation?.leadId === conv.leadId
-                      ? 'bg-primary-50'
-                      : ''
-                  }`}
-                >
-                  <div className="flex justify-between items-start gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium truncate">{conv.leadName}</p>
-                      <Link
-                        href={`/leads/${conv.leadId}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-xs text-primary-600 hover:underline"
-                      >
-                        Ver ficha del lead
-                      </Link>
-                    </div>
-                    {conv.unread > 0 && (
-                      <span className="bg-primary-600 text-white text-xs rounded-full px-2 py-1 shrink-0">
-                        {conv.unread}
-                      </span>
-                    )}
-                  </div>
-                  {conv.messages.length > 0 && (
-                    <p className="text-sm text-gray-500 truncate">
-                      {conv.messages[conv.messages.length - 1].content}
-                    </p>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        <div
-          className={`${
-            selectedConversation ? 'flex' : 'hidden md:flex'
-          } md:col-span-2 bg-white rounded-lg shadow flex-col min-h-[calc(100dvh-14rem)] md:min-h-0 min-w-0`}
-        >
-          {selectedConversation ? (
-            <>
-              <div className="p-4 border-b flex flex-wrap items-center justify-between gap-2 shrink-0">
-                <div className="flex items-center gap-2 min-w-0">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedConversation(null)}
-                    className="md:hidden shrink-0 p-2 -ml-1 text-gray-600 hover:bg-gray-100 rounded-lg"
-                    aria-label="Volver a conversaciones"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                  </button>
-                  <h2 className="font-bold truncate">{selectedConversation.leadName}</h2>
-                </div>
-                <Link
-                  href={`/leads/${selectedConversation.leadId}`}
-                  className="text-sm font-medium text-primary-600 hover:underline"
-                >
-                  Ver ficha del lead →
-                </Link>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {messagesLoading ? (
-                  <div className="text-center text-gray-500">Cargando mensajes...</div>
-                ) : (
-                  conversationMessages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex ${
-                        message.direction === 'outbound'
-                          ? 'justify-end'
-                          : 'justify-start'
-                      }`}
-                    >
-                      <div
-                        className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                          message.direction === 'outbound'
-                            ? 'bg-primary-600 text-white'
-                            : 'bg-gray-200 text-gray-900'
-                        }`}
-                      >
-                        <p>{message.content}</p>
-                        <p
-                          className={`text-xs mt-1 ${
-                            message.direction === 'outbound'
-                              ? 'text-primary-100'
-                              : 'text-gray-500'
-                          }`}
-                        >
-                          {(() => {
-                            const createdAt = message.createdAt;
-                            if (createdAt instanceof Date) {
-                              return createdAt.toLocaleTimeString();
-                            }
-                            if (createdAt && typeof createdAt === 'object' && 'toDate' in createdAt) {
-                              return (createdAt as any).toDate().toLocaleTimeString();
-                            }
-                            if (typeof createdAt === 'string') {
-                              return new Date(createdAt).toLocaleTimeString();
-                            }
-                            return 'N/A';
-                          })()}
-                        </p>
-                      </div>
-                    </div>
-                  ))
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-
-              <div className="p-4 border-t">
-                <div className="flex gap-2 mb-2">
-                  <button
-                    onClick={generateAIResponse}
-                    disabled={generatingAI || !selectedConversation}
-                    className="bg-primary-600 text-white px-4 py-2 rounded hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
-                    title="Generar respuesta automática con IA"
-                  >
-                    {generatingAI ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        Generando...
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                        </svg>
-                        IA
-                      </>
-                    )}
-                  </button>
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        sendMessage();
-                      }
-                    }}
-                    placeholder="Escribe un mensaje..."
-                    className="flex-1 border rounded px-3 py-2"
-                  />
-                  <button
-                    onClick={sendMessage}
-                    className="bg-primary-600 text-white px-6 py-2 rounded hover:bg-primary-700"
-                  >
-                    Enviar
-                  </button>
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="flex items-center justify-center h-full text-gray-500">
-              Selecciona una conversación
-            </div>
-          )}
-        </div>
-      </div>
+    <div className="container mx-auto px-3 py-4 sm:px-4 sm:py-8">
+      <WhatsAppInboxPanel
+        tenantId={tenantId}
+        conversations={conversations}
+        loading={loading}
+        selectedConversation={selectedConversation}
+        onSelectConversation={(conv) => setSelectedLeadId(conv?.leadId ?? null)}
+        conversationMessages={conversationMessages}
+        messagesLoading={messagesLoading}
+        onGenerateAI={handleGenerateAI}
+        integrationsHref="/settings/integrations"
+        leadHref={(id) => `/leads/${id}`}
+      />
     </div>
   );
 }
-
-
-

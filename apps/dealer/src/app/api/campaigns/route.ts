@@ -65,19 +65,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Debes seleccionar al menos una plataforma' }, { status: 400 });
     }
 
-    // Validar que la membresía permita redes sociales (opcional, no bloquea si falla)
-    try {
-      const { tenantHasFeature } = await import('@autodealers/core');
-      const canUseSocial = await tenantHasFeature(auth.tenantId, 'socialMediaEnabled');
-      if (!canUseSocial) {
-        return NextResponse.json(
-          { error: 'Su membresía no incluye gestión de campañas en redes sociales' },
-          { status: 403 }
-        );
-      }
-    } catch (featureError) {
-      console.warn('Could not check feature:', featureError);
-      // Continuar sin bloquear si no se puede verificar
+    const { canExecuteFeature } = await import('@autodealers/core');
+    const socialCheck = await canExecuteFeature(auth.tenantId, 'useSocialMedia');
+    if (!socialCheck.allowed) {
+      return NextResponse.json(
+        { error: socialCheck.reason || 'Su membresía no incluye gestión de campañas en redes sociales' },
+        { status: 403 }
+      );
+    }
+
+    const campaignLimit = await canExecuteFeature(auth.tenantId, 'createCampaign');
+    if (!campaignLimit.allowed) {
+      return NextResponse.json(
+        {
+          error: campaignLimit.reason || 'Límite de campañas alcanzado',
+          limit: campaignLimit.limit,
+          current: campaignLimit.current,
+          remaining: campaignLimit.remaining,
+        },
+        { status: 403 }
+      );
     }
 
     // Validar campos obligatorios

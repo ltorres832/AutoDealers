@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getFirestore } from '@autodealers/core';
 import { getRewardConfig, updateRewardConfig } from '@autodealers/core';
-
-const db = getFirestore();
 
 export async function GET(request: NextRequest) {
   try {
@@ -31,17 +28,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Verificar que el admin existe (opcional, pero útil para debugging)
-    const adminUser = await db.collection('admin_users').doc(auth.userId).get();
-    if (!adminUser.exists) {
-      console.error('❌ Referrals config GET - Admin user not found:', auth.userId);
-      return NextResponse.json(
-        { error: 'Usuario admin no encontrado', details: `Admin ID: ${auth.userId}` },
-        { status: 404 }
-      );
-    }
-
-    // Todos los admins pueden gestionar configuración de referidos
     const config = await getRewardConfig();
 
     return NextResponse.json({ config });
@@ -65,15 +51,6 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const adminUser = await db.collection('admin_users').doc(auth.userId).get();
-    if (!adminUser.exists) {
-      return NextResponse.json(
-        { error: 'Usuario admin no encontrado' },
-        { status: 404 }
-      );
-    }
-
-    // Todos los admins pueden gestionar configuración de referidos
     const body = await request.json();
     const { config } = body;
 

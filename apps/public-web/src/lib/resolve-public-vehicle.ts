@@ -1,6 +1,7 @@
 import { getFirestore } from '@autodealers/core';
 import { getVehicleById } from '@autodealers/inventory';
 import {
+  isKnownDemoId,
   isTenantEligibleForPublicCatalog,
   isVehicleVisibleOnPublicListing,
 } from '@/lib/public-catalog-visibility';
@@ -33,9 +34,11 @@ export async function findPublicVehicleById(
 ): Promise<{ vehicle: Record<string, unknown>; tenantId: string } | null> {
   const db = getFirestore();
   const sellerId = options?.sellerId?.trim() || '';
-  const hinted = options?.hintTenantId
+  const hintedRaw = options?.hintTenantId
     ? await resolvePublicCatalogTenantId(options.hintTenantId)
     : null;
+  // Demo tenants never resolve on marketplace vehicle detail, even with hint.
+  const hinted = hintedRaw && !isKnownDemoId(hintedRaw) ? hintedRaw : null;
 
   const tenantIdsToTry: string[] = [];
   if (hinted) tenantIdsToTry.push(hinted);
@@ -78,7 +81,7 @@ export async function findPublicVehicleById(
 
   const tenantsSnapshot = await db.collection('tenants').get();
   for (const doc of tenantsSnapshot.docs) {
-    if (!isTenantEligibleForPublicCatalog(doc.data() as Record<string, unknown>)) continue;
+    if (!isTenantEligibleForPublicCatalog(doc.data() as Record<string, unknown>, doc.id)) continue;
     if (!tenantIdsToTry.includes(doc.id)) tenantIdsToTry.push(doc.id);
   }
 

@@ -41,6 +41,8 @@ export interface Lead {
     preferredChannel: string;
     /** Pueblo / ciudad (formularios Meta, web, etc.) */
     city?: string;
+    /** Foto del cliente si se subió (ficha CRM) */
+    photo?: string;
   };
   interestedVehicles?: string[];
   /** Texto libre de interés (p. ej. desde admin); preferir `interestedVehicles` cuando sea lista de IDs */
@@ -132,7 +134,7 @@ export interface Message {
   id: string;
   tenantId: string;
   leadId?: string;
-  channel: 'whatsapp' | 'facebook' | 'instagram' | 'email' | 'sms';
+  channel: 'whatsapp' | 'facebook' | 'instagram' | 'email' | 'sms' | 'phone';
   direction: 'inbound' | 'outbound';
   from: string;
   to: string;
@@ -150,12 +152,19 @@ export interface Appointment {
   leadId: string;
   assignedTo: string;
   vehicleIds: string[];
-  type: 'consultation' | 'test_drive' | 'delivery';
+  type: 'consultation' | 'test_drive' | 'delivery' | 'service' | 'maintenance' | 'inspection' | 'other';
   scheduledAt: Date;
   duration: number;
-  status: 'scheduled' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
+  status: 'scheduled' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'no_show';
   location?: string;
   notes?: string;
+  customerName?: string;
+  customerPhone?: string;
+  serviceType?: string;
+  technicianId?: string;
+  advisorId?: string;
+  reminderRequested?: boolean;
+  repairOrderId?: string;
   reminders: Reminder[];
   createdAt: Date;
   updatedAt: Date;

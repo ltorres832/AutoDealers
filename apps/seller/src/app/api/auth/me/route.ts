@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
         email: auth.email,
         role: auth.role,
         dealerId: auth.dealerId,
+        billingMode: auth.billingMode,
         isIndependentWorkspace,
       },
     });

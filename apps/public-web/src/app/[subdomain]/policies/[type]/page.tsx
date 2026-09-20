@@ -1,22 +1,22 @@
 // generateStaticParams está en layout.tsx
-'use client';
-
-import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import PublicBackButton from '@/components/PublicBackButton';
+import {
+  getPublicPoliciesForSubdomain,
+} from '@/lib/public-policies';
 
-type PolicyType = 'privacy' | 'terms' | 'cookies' | 'returns' | 'warranty';
+export const dynamic = 'force-dynamic';
 
-interface Policy {
-  type: PolicyType;
-  title: string;
-  content: string;
-  enabled: boolean;
-  lastUpdated?: string;
-  tenantName?: string;
-  tenantSubdomain?: string;
-}
+type PolicyType =
+  | 'privacy'
+  | 'terms'
+  | 'cookies'
+  | 'returns'
+  | 'warranty'
+  | 'shipping'
+  | 'data_protection'
+  | 'disclaimer'
+  | 'custom';
 
 const POLICY_INFO: Record<PolicyType, { label: string; icon: string }> = {
   privacy: { label: 'Política de Privacidad', icon: '🔒' },
@@ -24,55 +24,25 @@ const POLICY_INFO: Record<PolicyType, { label: string; icon: string }> = {
   cookies: { label: 'Política de Cookies', icon: '🍪' },
   returns: { label: 'Política de Devoluciones', icon: '↩️' },
   warranty: { label: 'Política de Garantías', icon: '🛡️' },
+  shipping: { label: 'Política de Envíos', icon: '🚚' },
+  data_protection: { label: 'Protección de Datos', icon: '🔐' },
+  disclaimer: { label: 'Disclosures', icon: '⚠️' },
+  custom: { label: 'Política Personalizada', icon: '📄' },
 };
 
-export default function PolicyPage() {
-  const params = useParams();
-  const subdomain = params.subdomain as string;
-  const type = params.type as PolicyType;
-  const [policy, setPolicy] = useState<Policy | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [tenant, setTenant] = useState<any>(null);
+type PageProps = {
+  params: Promise<{ subdomain: string; type: string }>;
+};
 
-  useEffect(() => {
-    fetchPolicy();
-    fetchTenant();
-  }, [subdomain, type]);
-
-  async function fetchTenant() {
-    try {
-      const response = await fetch(`/api/tenant/${subdomain}`);
-      const data = await response.json();
-      setTenant(data.tenant);
-    } catch (error) {
-      console.error('Error fetching tenant:', error);
-    }
-  }
-
-  async function fetchPolicy() {
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/policies/${subdomain}/${type}`);
-      if (response.ok) {
-        const data = await response.json();
-        setPolicy(data.policy);
-      } else {
-        console.error('Error fetching policy');
-      }
-    } catch (error) {
-      console.error('Error:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-      </div>
-    );
-  }
+export default async function PolicyPage({ params }: PageProps) {
+  const { subdomain, type: rawType } = await params;
+  const decodedKey = decodeURIComponent(rawType);
+  const { tenant, policies, allPolicies } = await getPublicPoliciesForSubdomain(subdomain, 'es');
+  const policy =
+    allPolicies.find((p) => p.id === decodedKey || p.slug === decodedKey) ||
+    policies[decodedKey] ||
+    null;
+  const enabledPolicies = allPolicies.filter((p) => p.enabled);
 
   if (!policy || !policy.enabled) {
     return (
@@ -96,35 +66,30 @@ export default function PolicyPage() {
     );
   }
 
-  const primaryColor = tenant?.branding?.primaryColor || '#E10600';
-  const policyInfo = POLICY_INFO[type];
+  const type = policy.type as PolicyType;
+  const policyInfo = POLICY_INFO[type] || { label: policy.title, icon: '📄' };
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header
-        className="bg-white shadow"
-        style={{
-          backgroundColor: primaryColor,
-        }}
-      >
+      <header className="border-b border-gray-200 bg-white shadow-sm">
         <div className="container mx-auto px-4 py-6">
           <div className="flex justify-between items-center">
             <div>
               <Link href={`/${subdomain}`}>
-                <h1 className="text-3xl font-bold text-white">{tenant?.name || 'Concesionario'}</h1>
+                <h1 className="text-3xl font-bold text-gray-900">{tenant?.name || 'Concesionario'}</h1>
               </Link>
-              <p className="text-white/80 mt-1">Tu concesionario de confianza</p>
+              <p className="text-gray-600 mt-1">Tu catálogo de confianza</p>
             </div>
             <div className="flex flex-wrap items-center gap-2 justify-end">
               <PublicBackButton
-                className="bg-white/20 text-white px-6 py-3 rounded-lg font-medium hover:bg-white/30"
+                className="rounded-lg border border-gray-300 bg-white px-6 py-3 font-medium text-gray-700 hover:bg-gray-50"
               >
                 Volver
               </PublicBackButton>
               <Link
                 href={`/${subdomain}`}
-                className="text-sm text-white/90 hover:text-white underline underline-offset-2 hidden sm:inline"
+                className="text-sm text-primary-600 hover:text-primary-700 underline underline-offset-2 hidden sm:inline"
               >
                 Inicio
               </Link>
@@ -162,10 +127,9 @@ export default function PolicyPage() {
               <h1 className="text-4xl font-bold text-gray-900">{policy.title}</h1>
             </div>
 
-            <div
-              className="prose prose-lg max-w-none"
-              dangerouslySetInnerHTML={{ __html: formatMarkdown(policy.content) }}
-            />
+            <div className="prose prose-lg max-w-none whitespace-pre-wrap text-gray-700">
+              {policy.content}
+            </div>
 
             {policy.lastUpdated && (
               <div className="mt-8 pt-6 border-t border-gray-200">
@@ -184,17 +148,17 @@ export default function PolicyPage() {
           <div className="mt-8 bg-white rounded-lg shadow border border-gray-200 p-6">
             <h2 className="text-xl font-bold mb-4">Otras Políticas</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {(Object.keys(POLICY_INFO) as PolicyType[]).map((policyType) => {
-                if (policyType === type) return null;
-                const info = POLICY_INFO[policyType];
+              {enabledPolicies.map((otherPolicy) => {
+                if ((otherPolicy.id || otherPolicy.slug) === (policy.id || policy.slug)) return null;
+                const info = POLICY_INFO[otherPolicy.type as PolicyType] || POLICY_INFO.custom;
                 return (
                   <Link
-                    key={policyType}
-                    href={`/${subdomain}/policies/${policyType}`}
+                    key={otherPolicy.id || otherPolicy.slug || `${otherPolicy.type}-${otherPolicy.title}`}
+                    href={`/${subdomain}/policies/${encodeURIComponent(otherPolicy.slug || otherPolicy.id || otherPolicy.type)}`}
                     className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-primary-500 hover:bg-primary-50 transition"
                   >
                     <span className="text-2xl">{info.icon}</span>
-                    <span className="font-medium">{info.label}</span>
+                    <span className="font-medium">{otherPolicy.title || info.label}</span>
                   </Link>
                 );
               })}
@@ -227,15 +191,15 @@ export default function PolicyPage() {
             <div>
               <h4 className="font-semibold mb-4">Políticas</h4>
               <div className="space-y-2 text-sm">
-                {(Object.keys(POLICY_INFO) as PolicyType[]).map((policyType) => {
-                  const info = POLICY_INFO[policyType];
+                {enabledPolicies.map((otherPolicy) => {
+                  const info = POLICY_INFO[otherPolicy.type as PolicyType] || POLICY_INFO.custom;
                   return (
                     <Link
-                      key={policyType}
-                      href={`/${subdomain}/policies/${policyType}`}
+                      key={otherPolicy.id || otherPolicy.slug || `${otherPolicy.type}-${otherPolicy.title}`}
+                      href={`/${subdomain}/policies/${encodeURIComponent(otherPolicy.slug || otherPolicy.id || otherPolicy.type)}`}
                       className="text-gray-400 hover:text-white block"
                     >
-                      {info.label}
+                      {otherPolicy.title || info.label}
                     </Link>
                   );
                 })}
@@ -249,46 +213,6 @@ export default function PolicyPage() {
       </footer>
     </div>
   );
-}
-
-// Función simple para convertir Markdown básico a HTML
-function formatMarkdown(text: string): string {
-  let html = text;
-  
-  // Títulos
-  html = html.replace(/^### (.*$)/gim, '<h3 class="text-xl font-bold mt-6 mb-3">$1</h3>');
-  html = html.replace(/^## (.*$)/gim, '<h2 class="text-2xl font-bold mt-8 mb-4">$1</h2>');
-  html = html.replace(/^# (.*$)/gim, '<h1 class="text-3xl font-bold mt-8 mb-4">$1</h1>');
-  
-  // Negrita
-  html = html.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold">$1</strong>');
-  
-  // Listas con viñetas
-  html = html.replace(/^- (.*$)/gim, '<li class="ml-4">$1</li>');
-  html = html.replace(/^(\d+)\. (.*$)/gim, '<li class="ml-4">$2</li>');
-  
-  // Agrupar listas
-  html = html.replace(/(<li.*<\/li>\n?)+/g, '<ul class="list-disc list-inside my-4 space-y-2">$&</ul>');
-  
-  // Párrafos
-  html = html.split('\n\n').map(p => {
-    if (!p.trim() || p.trim().startsWith('<')) return p;
-    return `<p class="mb-4 text-gray-700 leading-relaxed">${p.trim()}</p>`;
-  }).join('\n');
-  
-  // Código inline
-  html = html.replace(/`([^`]+)`/g, '<code class="bg-gray-200 px-1 rounded text-sm">$1</code>');
-  
-  // Tablas básicas
-  html = html.replace(/\|(.+)\|/g, (match, content) => {
-    const cells = content.split('|').map((cell: string) => cell.trim());
-    return `<tr>${cells.map((cell: string) => `<td class="border px-4 py-2">${cell}</td>`).join('')}</tr>`;
-  });
-  
-  // Enlaces
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-primary-600 hover:underline" target="_blank" rel="noopener noreferrer">$1</a>');
-  
-  return html;
 }
 
 

@@ -39,14 +39,21 @@ export async function POST(request: NextRequest) {
 
     const appointment = await createAppointment({
       tenantId: auth.tenantId,
-      leadId: body.leadId,
+      leadId: body.leadId || '',
       assignedTo: body.assignedTo || auth.userId,
       vehicleIds: body.vehicleIds || [],
-      type: body.type,
+      type: body.type || 'service',
       scheduledAt: new Date(body.scheduledAt),
       duration: body.duration || 60,
       location: body.location,
-      status: 'scheduled',
+      notes: body.notes,
+      customerName: body.customerName,
+      customerPhone: body.customerPhone,
+      serviceType: body.serviceType,
+      technicianId: body.technicianId,
+      advisorId: body.advisorId || auth.userId,
+      reminderRequested: Boolean(body.reminderRequested),
+      status: body.status || 'scheduled',
     });
 
     return NextResponse.json({ appointment }, { status: 201 });

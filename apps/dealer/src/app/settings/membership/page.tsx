@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { useRealtimeMemberships } from '@/hooks/useRealtimeMemberships';
 import { MembershipOnboardingNotice } from '@autodealers/shared/client';
-import { MembershipBenefitsDisplay } from '@autodealers/billing/client';
+import { MembershipBenefitsDisplay, UsageMonthWidget } from '@autodealers/billing/client';
+import { membershipAllowsMultiDealerNetwork } from '@autodealers/billing/membership-network';
 
 interface Membership {
   id: string;
@@ -47,15 +48,15 @@ export default function MembershipPage() {
   const availableMemberships = useMemo(() => {
     if (isMultiDealer === null) return [];
     return isMultiDealer
-      ? allMemberships.filter((m) => m.features?.multiDealerEnabled === true)
-      : allMemberships.filter((m) => !m.features?.multiDealerEnabled);
+      ? allMemberships.filter((m) => membershipAllowsMultiDealerNetwork(m.features))
+      : allMemberships.filter((m) => !membershipAllowsMultiDealerNetwork(m.features));
   }, [allMemberships, isMultiDealer]);
 
   const membershipsEmptyReason = useMemo(() => {
     if (isMultiDealer === null) return null;
     if (availableMemberships.length > 0) return null;
     if (allMemberships.length === 0) {
-      return 'No hay planes de concesionario en el catálogo. Créalos y actívalos en Admin → Membresías.';
+      return 'No hay planes de concesionario disponibles en este momento. Contacta a soporte si el problema continúa.';
     }
     return baseEmptyReason || 'Hay planes de concesionario pero ninguno está activo para tu tipo de cuenta.';
   }, [availableMemberships.length, allMemberships.length, baseEmptyReason, isMultiDealer]);
@@ -87,7 +88,9 @@ export default function MembershipPage() {
           const response = await fetchWithAuth('/api/settings/membership', {});
           if (response.ok) {
             const data = await response.json();
-            const isMulti = data.membership?.features?.multiDealerEnabled === true;
+            const isMulti =
+              data.isMultiDealerAccount === true ||
+              membershipAllowsMultiDealerNetwork(data.membership?.features);
             setIsMultiDealer(isMulti);
           }
         } catch (error) {
@@ -314,7 +317,13 @@ export default function MembershipPage() {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <MembershipOnboardingNotice accountLabel="concesionario" />
+      <MembershipOnboardingNotice
+        accountLabel="concesionario"
+        hasActivePlan={
+          Boolean(subscription) &&
+          ['active', 'trialing', 'past_due'].includes(String(subscription?.status || ''))
+        }
+      />
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Configuración</h1>
         <p className="text-gray-600">
@@ -440,9 +449,18 @@ export default function MembershipPage() {
                   {membershipToShow.billingCycle === 'monthly' ? 'Mensual' : 'Anual'}
                   {' • '}
                   {membershipToShow.currency === 'USD' ? '$' : membershipToShow.currency}
-                  {membershipToShow.price.toLocaleString()}
+                  {(
+                    typeof (membershipToShow as { displayPrice?: number }).displayPrice === 'number'
+                      ? (membershipToShow as { displayPrice: number }).displayPrice
+                      : membershipToShow.price
+                  ).toLocaleString()}
                   {membershipToShow.billingCycle === 'monthly' ? '/mes' : '/año'}
                 </p>
+                {(membershipToShow as { pricingBadge?: string }).pricingBadge ? (
+                  <p className="text-xs font-semibold text-amber-700 mt-1">
+                    {(membershipToShow as { pricingBadge: string }).pricingBadge}
+                  </p>
+                ) : null}
               </div>
               {subscription ? (
                 <span className={`px-4 py-2 rounded-full text-sm font-medium ${getStatusColor(subscription.status)}`}>
@@ -548,6 +566,11 @@ export default function MembershipPage() {
         })()}
       </div>
 
+      {/* Uso del mes */}
+      <div className="mb-8">
+        <UsageMonthWidget upgradeHref="/settings/membership" />
+      </div>
+
       {/* Cambiar Membresía */}
       <div>
         <h2 className="text-2xl font-bold text-gray-900 mb-4">Cambiar Membresía</h2>
@@ -569,11 +592,20 @@ export default function MembershipPage() {
                 <h3 className="text-xl font-semibold mb-2">{membership.name}</h3>
                 <div className="text-2xl font-bold text-primary-600">
                   {membership.currency === 'USD' ? '$' : membership.currency}
-                  {membership.price.toLocaleString()}
+                  {(
+                    typeof (membership as { displayPrice?: number }).displayPrice === 'number'
+                      ? (membership as { displayPrice: number }).displayPrice
+                      : membership.price
+                  ).toLocaleString()}
                   <span className="text-sm font-normal text-gray-600">
                     /{membership.billingCycle === 'monthly' ? 'mes' : 'año'}
                   </span>
                 </div>
+                {(membership as { pricingBadge?: string }).pricingBadge ? (
+                  <p className="text-xs font-semibold text-amber-700 mt-1">
+                    {(membership as { pricingBadge: string }).pricingBadge}
+                  </p>
+                ) : null}
               </div>
 
               <MembershipBenefitsDisplay

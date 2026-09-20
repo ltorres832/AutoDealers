@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FIWorkflow } from '@autodealers/crm';
+import type { FIWorkflow } from '@autodealers/crm';
 
 export default function FIWorkflowsManager() {
   const [workflows, setWorkflows] = useState<FIWorkflow[]>([]);

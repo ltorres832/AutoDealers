@@ -69,7 +69,7 @@ export function isAllowedPlatformFacebookPage(
     return {
       allowed: false,
       reason:
-        'Esa página es de un vendedor (Auto Sales), no de AutoDealers. Conecta con la cuenta que administra la página oficial.',
+        'Esa página es de un vendedor (Auto Sales), no de AutoDealersOnline. Conecta con la cuenta que administra la página oficial.',
     };
   }
   if (settings.officialFacebookPageId && id !== settings.officialFacebookPageId) {

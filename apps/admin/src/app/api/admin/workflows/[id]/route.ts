@@ -80,3 +80,35 @@ export async function GET(
   }
 }
 
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const auth = await verifyAuth(request);
+    if (!auth || auth.role !== 'admin') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { id: workflowId } = await params;
+    const { searchParams } = new URL(request.url);
+    const tenantId = String(searchParams.get('tenantId') || '').trim();
+
+    if (!tenantId) {
+      return NextResponse.json({ error: 'tenantId is required' }, { status: 400 });
+    }
+
+    const db = getFirestore();
+    const ref = db.collection('tenants').doc(tenantId).collection('workflows').doc(workflowId);
+    const snap = await ref.get();
+    if (!snap.exists) {
+      return NextResponse.json({ error: 'Workflow not found' }, { status: 404 });
+    }
+    await ref.delete();
+    return NextResponse.json({ success: true });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Error deleting workflow';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+

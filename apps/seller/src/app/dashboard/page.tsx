@@ -5,10 +5,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase-client';
-import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
-import { useRealtimeMemberships } from '@/hooks/useRealtimeMemberships';
 import { useRealtimeDashboard } from '@/hooks/useRealtimeDashboard';
 import { useRealtimeProfile } from '@/hooks/useRealtimeProfile';
+import { RequestSalesOrientation } from '@/components/RequestSalesOrientation';
 
 export default function SellerDashboardPage() {
   const [user, setUser] = useState<any>(null);
@@ -19,12 +18,7 @@ export default function SellerDashboardPage() {
 
   const sellerId = user?.id || user?.userId;
   const { data, loading: dashboardLoading } = useRealtimeDashboard(tenantId, sellerId);
-  const { profile: profileInfo, loading: profileLoading } = useRealtimeProfile(tenantId, sellerId);
-  const { subscription, loading: subscriptionLoading } = useRealtimeSubscription(tenantId);
-  const { memberships, loading: membershipsLoading } = useRealtimeMemberships('seller');
-  const currentMembership = subscription?.membershipId
-    ? memberships.find((m) => m.id === subscription.membershipId)
-    : null;
+  const { profile: profileInfo } = useRealtimeProfile(tenantId, sellerId);
 
   useEffect(() => {
     if (!auth) {
@@ -131,35 +125,6 @@ export default function SellerDashboardPage() {
     };
   }, [router]);
 
-  function getStatusColor(status: string) {
-    switch (status) {
-      case 'active':
-      case 'trialing':
-        return 'bg-green-100 text-green-700 border-green-300';
-      case 'past_due':
-      case 'unpaid':
-        return 'bg-yellow-100 text-yellow-700 border-yellow-300';
-      case 'suspended':
-        return 'bg-red-100 text-red-700 border-red-300';
-      case 'cancelled':
-        return 'bg-gray-100 text-gray-700 border-gray-300';
-      default:
-        return 'bg-gray-100 text-gray-700 border-gray-300';
-    }
-  }
-
-  function getStatusLabel(status: string) {
-    const labels: Record<string, string> = {
-      active: 'Activa',
-      past_due: 'Pago Pendiente',
-      cancelled: 'Cancelada',
-      suspended: 'Suspendida',
-      trialing: 'En Prueba',
-      unpaid: 'No Pagado',
-    };
-    return labels[status] || status;
-  }
-
   if (authLoading || dashboardLoading) {
     return (
       <div className="flex justify-center p-8">
@@ -183,6 +148,7 @@ export default function SellerDashboardPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <RequestSalesOrientation />
       <div className="mb-6">
         <div className="flex justify-between items-start">
           <div>
@@ -275,46 +241,6 @@ export default function SellerDashboardPage() {
         </div>
       )}
 
-      {/* Membership Status Card */}
-      {currentMembership && subscription && (
-        <div className={`mb-6 p-4 rounded-lg border-2 ${getStatusColor(subscription.status)}`}>
-          <div className="flex justify-between items-center">
-            <div>
-              <div className="flex items-center gap-3">
-                <h3 className="font-semibold text-lg">Membresía: {currentMembership.name}</h3>
-                <span className="px-3 py-1 rounded-full text-xs font-medium bg-white/50">
-                  {getStatusLabel(subscription.status)}
-                </span>
-              </div>
-              {subscription.statusReason && (
-                <p className="text-sm mt-1 opacity-90">
-                  {subscription.statusReason}
-                </p>
-              )}
-              <p className="text-sm mt-1">
-                Próximo pago: {(() => {
-                  let date: Date;
-                  if (subscription.currentPeriodEnd instanceof Date) {
-                    date = subscription.currentPeriodEnd;
-                  } else if (subscription.currentPeriodEnd && typeof subscription.currentPeriodEnd === 'object' && 'toDate' in subscription.currentPeriodEnd) {
-                    date = (subscription.currentPeriodEnd as any).toDate();
-                  } else {
-                    date = new Date(subscription.currentPeriodEnd as string | number);
-                  }
-                  return date.toLocaleDateString();
-                })()}
-              </p>
-            </div>
-            <Link
-              href="/settings/membership"
-              className="px-4 py-2 bg-white/80 hover:bg-white rounded-lg font-medium text-sm transition-colors"
-            >
-              Gestionar Membresía
-            </Link>
-          </div>
-        </div>
-      )}
-
       {/* Estadísticas Principales */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white rounded-lg shadow p-6">
@@ -390,30 +316,16 @@ export default function SellerDashboardPage() {
         </div>
       </div>
 
-      {/* Estadísticas de Promociones - SIEMPRE VISIBLE - TEST */}
-      <div 
-        className="mb-8" 
-        style={{ 
-          backgroundColor: '#faf5ff', 
-          padding: '24px', 
-          borderRadius: '8px', 
-          border: '2px solid #e9d5ff',
-          marginTop: '24px',
-          marginBottom: '24px',
-          minHeight: '200px'
-        }}
-      >
-        <div style={{ backgroundColor: 'transparent' }}>
+      {/* Estadísticas de Promociones */}
+      <div className="mb-8">
+        <div>
           <div className="flex justify-between items-center mb-4">
-            <h2 
-              className="text-2xl font-bold" 
-              style={{ color: '#1f2937', fontSize: '24px', fontWeight: 'bold' }}
-            >
+            <h2 className="text-2xl font-bold text-gray-900">
               📊 Estadísticas de Promociones
             </h2>
             <Link
               href="/promotions"
-              style={{ color: '#9333ea', fontSize: '14px', fontWeight: '500' }}
+              className="text-primary-600 hover:text-primary-700 text-sm font-medium"
             >
               Ver todas →
             </Link>

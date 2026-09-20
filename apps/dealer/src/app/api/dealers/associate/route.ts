@@ -50,11 +50,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const userWithNetwork = user as typeof user & { associatedDealers?: string[] };
+    const userWithNetwork = user as typeof user & {
+      associatedDealers?: string[];
+      dealerNetworkId?: string;
+    };
     const currentAssociatedDealers = userWithNetwork.associatedDealers ?? [];
 
     const body = await request.json();
-    const { email } = body;
+    const { email, name } = body;
 
     if (!email) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
@@ -83,7 +86,8 @@ export async function POST(request: NextRequest) {
     const rawMax = membership.features?.maxDealers;
     const maxCap =
       rawMax === null || rawMax === undefined ? -1 : Number(rawMax);
-    const networkSize = 1 + currentAssociatedDealers.length;
+    const uniqueAssociated = currentAssociatedDealers.filter((id) => id !== billTid);
+    const networkSize = 1 + uniqueAssociated.length;
 
     if (maxCap !== -1 && networkSize >= maxCap) {
       return NextResponse.json(
@@ -99,11 +103,67 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Este dealer ya está asociado' }, { status: 400 });
     }
 
-    // Agregar el dealer a la lista de dealers asociados
+    const ts = admin.firestore.FieldValue.serverTimestamp();
     await db.collection('users').doc(auth.userId).update({
       associatedDealers: admin.firestore.FieldValue.arrayUnion(dealerTenantId),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: ts,
     });
+
+    if (userWithNetwork.dealerNetworkId) {
+      const networkRef = db.collection('dealer_networks').doc(userWithNetwork.dealerNetworkId);
+      const networkDoc = await networkRef.get();
+      if (networkDoc.exists) {
+        const network = networkDoc.data() || {};
+        const roster = Array.isArray(network.dealers) ? network.dealers : [];
+        const requestedName = String(name || '').trim().toLowerCase();
+        const dealerName = String(
+          name || dealerData.businessName || dealerData.companyName || dealerData.name || email
+        ).trim();
+        let replaced = false;
+        const nextRoster = roster.map((item: any) => {
+          const rosterName = String(item.name || item.displayName || '').trim().toLowerCase();
+          const isPending = !item.tenantId || item.status === 'pending_tenant_link';
+          if (!replaced && isPending && requestedName && rosterName === requestedName) {
+            replaced = true;
+            return {
+              ...item,
+              name: item.name || dealerName,
+              displayName: item.displayName || dealerName,
+              tenantId: dealerTenantId,
+              status: 'active',
+              linkedBy: auth.userId,
+              linkedAt: ts,
+            };
+          }
+          return item;
+        });
+        if (!replaced) {
+          nextRoster.push({
+            name: dealerName,
+            displayName: dealerName,
+            tenantId: dealerTenantId,
+            role: 'member',
+            status: 'active',
+            addedBy: auth.userId,
+            addedAt: ts,
+          });
+        }
+        await Promise.all([
+          networkRef.update({
+            dealers: nextRoster,
+            updatedAt: ts,
+          }),
+          db.collection('tenants').doc(dealerTenantId).set(
+            {
+              dealerNetworkId: userWithNetwork.dealerNetworkId,
+              multiDealerPrimary: false,
+              updatedAt: ts,
+            },
+            { merge: true }
+          ),
+        ]);
+      }
+    }
 
     return NextResponse.json({
       success: true,

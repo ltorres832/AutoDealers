@@ -1,0 +1,57 @@
+[
+  {
+    "id": "login_api",
+    "ok": true,
+    "detail": "{\"status\":200,\"hasCustom\":false,\"hasSession\":true,\"role\":\"seller\"}"
+  },
+  {
+    "id": "firebase_sign_in",
+    "ok": true,
+    "detail": "uid=BRaL9edMRfNhEXNsMou0l7oCHFI2 keys=0 tokenLen=1086"
+  },
+  {
+    "id": "firebase_reauth_dashboard",
+    "ok": false,
+    "detail": "ok=false keys=0 err=Error: page.evaluate: Execution context was destroyed, most likely because of a navigation."
+  },
+  {
+    "id": "login",
+    "ok": true,
+    "detail": "URL=https://seller.autodealers-online.com/inventory"
+  },
+  {
+    "id": "inventory_page",
+    "ok": true,
+    "detail": "visible=true url=https://seller.autodealers-online.com/inventory"
+  },
+  {
+    "id": "vin_field_visible",
+    "ok": false,
+    "detail": "vinVisible=false"
+  },
+  {
+    "id": "vin_required_marker",
+    "ok": true,
+    "detail": "required=true label="
+  },
+  {
+    "id": "share_visible",
+    "ok": true,
+    "detail": "Compartir en inventario"
+  },
+  {
+    "id": "daco_visible",
+    "ok": true,
+    "detail": "Etiqueta DACO en inventario"
+  },
+  {
+    "id": "photo_guide_visible",
+    "ok": true,
+    "detail": "Guía de fotos en inventario"
+  },
+  {
+    "id": "fatal",
+    "ok": false,
+    "detail": "locator.click: Timeout 45000ms exceeded.\nCall log:\n  - waiting for getByRole('button', { name: /Compartir/i }).first()\n    - locator resolved to <button type=\"button\" class=\"flex-1 min-w-[100px] px-3 py-2 rounded-lg border border-sky-200 bg-sky-50 text-sky-900 text-sm font-medium hover:bg-sky-100\">🔗 Compartir / QR</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <textarea rows=\"4\" required=\"\" class=\"w-full border rounded px-3 py-2\"></textarea> from <div class=\"fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4\">…</div> subtree intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <textarea rows=\"4\" required=\"\" class=\"w-full border rounded px-3 py-2\"></textarea> from <div class=\"fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4\">…</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    80 × waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <textarea rows=\"4\" required=\"\" class=\"w-full border rounded px-3 py-2\"></textarea> from <div class=\"fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4\">…</div> subtree intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n"
+  }
+]

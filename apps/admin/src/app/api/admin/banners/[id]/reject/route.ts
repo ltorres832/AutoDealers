@@ -82,7 +82,7 @@ export async function POST(
 <p>Tu solicitud de banner premium <strong>${bannerTitle}</strong> fue rechazada.</p>
 <p><strong>Motivo:</strong> ${reason.trim()}</p>
 <p>Puedes editar el banner y volver a enviarlo desde tu panel.</p>
-<p>Equipo AutoDealers</p>`,
+<p>Equipo AutoDealersOnline</p>`,
         tenantId
       ).catch((err) => console.warn('Banner rejection email failed:', err));
     }

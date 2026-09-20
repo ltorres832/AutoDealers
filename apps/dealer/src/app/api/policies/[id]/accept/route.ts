@@ -23,7 +23,7 @@ export async function POST(
     const userAgent = request.headers.get('user-agent') || 'unknown';
 
     const { id: policyId } = await params;
-    await acceptPolicy(policyId, userId, ipAddress, userAgent);
+    await acceptPolicy(userId, policyId, ipAddress, userAgent);
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('Error accepting policy:', error);

@@ -1,5 +1,10 @@
 /** Vendedor creado por un dealer: la suscripción la paga el concesionario. */
-export function isDealerManagedSeller(dealerId?: string | null): boolean {
+export function isDealerManagedSeller(
+  dealerId?: string | null,
+  billingMode?: string | null
+): boolean {
+  if (billingMode === 'self_service') return false;
+  if (billingMode === 'dealer_managed') return true;
   return Boolean(dealerId?.trim());
 }
 
@@ -9,15 +14,17 @@ export function isDealerManagedSeller(dealerId?: string | null): boolean {
  */
 export function resolveBillingTenantId(
   tenantId?: string | null,
-  dealerId?: string | null
+  dealerId?: string | null,
+  billingMode?: string | null
 ): string | undefined {
-  if (isDealerManagedSeller(dealerId)) return dealerId!.trim();
+  if (isDealerManagedSeller(dealerId, billingMode)) return dealerId!.trim();
   return tenantId?.trim() || undefined;
 }
 
 export function getBillingTenantId(auth: {
   tenantId?: string;
   dealerId?: string;
+  billingMode?: string;
 }): string | undefined {
-  return resolveBillingTenantId(auth.tenantId, auth.dealerId);
+  return resolveBillingTenantId(auth.tenantId, auth.dealerId, auth.billingMode);
 }

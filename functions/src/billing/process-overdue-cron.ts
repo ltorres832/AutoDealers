@@ -6,8 +6,7 @@ import { defineSecret } from 'firebase-functions/params';
 
 const cronSecret = defineSecret('CRON_SECRET');
 
-const DEFAULT_ADMIN_APP_URL =
-  'https://admin-app--autodealers-7f62e.us-central1.hosted.app';
+const DEFAULT_ADMIN_APP_URL = 'https://admin.autodealers-online.com';
 
 export const processOverdueSubscriptionsDaily = onSchedule(
   {

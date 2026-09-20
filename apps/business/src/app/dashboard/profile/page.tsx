@@ -3,6 +3,12 @@
 import { FormEvent, useEffect, useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { SpecializationMultiSelect } from '@/components/SpecializationMultiSelect';
+import { MediaFitFrame, MEDIA_FIT_IMG } from '@/components/MediaFitFrame';
+import {
+  BUSINESS_PROFILE_PHOTO,
+  BUSINESS_PROFILE_PHOTO_HINT,
+  businessMediaTooLargeMessage,
+} from '@/lib/business-media-specs';
 
 export default function BusinessProfilePage() {
   const [form, setForm] = useState({
@@ -54,14 +60,41 @@ export default function BusinessProfilePage() {
       });
   }, []);
 
+  async function readJson(res: Response): Promise<{
+    error?: string;
+    logoUrl?: string;
+    business?: { logoUrl?: string };
+  }> {
+    const text = await res.text();
+    if (!text) return {};
+    try {
+      return JSON.parse(text) as { error?: string; logoUrl?: string; business?: { logoUrl?: string } };
+    } catch {
+      throw new Error(
+        res.ok
+          ? 'El servidor no devolvió JSON válido'
+          : `No se pudo subir la imagen (error ${res.status})`
+      );
+    }
+  }
+
   async function uploadPhoto(file: File | null) {
     if (!file) return;
+    const tooLarge = businessMediaTooLargeMessage(
+      file,
+      BUSINESS_PROFILE_PHOTO.maxBytes,
+      BUSINESS_PROFILE_PHOTO.maxMb
+    );
+    if (tooLarge) {
+      alert(tooLarge);
+      return;
+    }
     setUploading(true);
     try {
       const data = new FormData();
       data.append('photo', file);
       const res = await fetch('/api/business/profile/photo', { method: 'POST', body: data });
-      const json = await res.json();
+      const json = await readJson(res);
       if (!res.ok) throw new Error(json.error || 'No se pudo subir la imagen');
       setForm((prev) => ({ ...prev, logoUrl: json.logoUrl || json.business?.logoUrl || '' }));
     } catch (err) {
@@ -82,7 +115,7 @@ export default function BusinessProfilePage() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || 'No se pudo guardar');
-      alert('Perfil guardado. La foto aparece en tu ficha pública de /servicios.');
+      alert('Perfil guardado. El logo es tu foto de perfil en /servicios y en las tarjetas públicas.');
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Error al guardar');
     } finally {
@@ -93,31 +126,42 @@ export default function BusinessProfilePage() {
   return (
     <DashboardLayout>
       <h1 className="text-3xl font-black mb-2">Perfil público</h1>
-      <p className="text-slate-600 mb-6">La foto de aquí es la que ven los clientes. Sin imagen, solo aparece la inicial.</p>
+      <p className="text-slate-600 mb-6">
+        La foto de perfil es el logo del negocio: la imagen con la que los clientes te reconocen y te
+        encuentran en el directorio, las tarjetas y las fichas. No uses la foto de un servicio.
+      </p>
       <form onSubmit={handleSubmit} className="bg-white rounded-2xl border p-6 grid gap-4 max-w-xl">
         <div>
-          <p className="text-sm font-semibold text-slate-800 mb-1">Foto visible del negocio</p>
+          <p className="text-sm font-semibold text-slate-800 mb-1">Foto de perfil (logo del negocio)</p>
           <p className="text-xs text-slate-500 mb-3">
-            Obligatoria para que el cliente te identifique. Se muestra en este panel y en tu ficha.
+            Es tu marca. Aparece en tarjetas, búsqueda, directorio y el encabezado de tu ficha pública.
+            Sin logo, solo se ve la inicial.
           </p>
-          <div className="flex items-center gap-4">
-            <div className="w-32 h-32 rounded-2xl bg-slate-100 overflow-hidden border-2 border-primary-200 flex items-center justify-center">
+          <div className="flex items-start gap-4">
+            <MediaFitFrame
+              aspect="square"
+              className="w-32 rounded-2xl border-2 border-primary-200 flex items-center justify-center"
+              background="bg-white"
+            >
               {form.logoUrl ? (
-                <img src={form.logoUrl} alt={form.name || 'Foto del negocio'} className="w-full h-full object-cover" />
+                <img src={form.logoUrl} alt={form.name || 'Foto del negocio'} className={MEDIA_FIT_IMG} />
               ) : (
                 <span className="text-3xl text-slate-400">{(form.name || 'N').charAt(0).toUpperCase()}</span>
               )}
+            </MediaFitFrame>
+            <div>
+              <label className="text-sm font-semibold text-primary-700 cursor-pointer">
+                {uploading ? 'Subiendo…' : form.logoUrl ? 'Cambiar logo' : 'Subir logo'}
+                <input
+                  type="file"
+                  accept={BUSINESS_PROFILE_PHOTO.accept}
+                  className="hidden"
+                  disabled={uploading}
+                  onChange={(e) => void uploadPhoto(e.target.files?.[0] || null)}
+                />
+              </label>
+              <p className="mt-2 max-w-sm text-xs leading-relaxed text-slate-500">{BUSINESS_PROFILE_PHOTO_HINT}</p>
             </div>
-            <label className="text-sm font-semibold text-primary-700 cursor-pointer">
-              {uploading ? 'Subiendo…' : form.logoUrl ? 'Cambiar foto' : 'Subir foto'}
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                disabled={uploading}
-                onChange={(e) => void uploadPhoto(e.target.files?.[0] || null)}
-              />
-            </label>
           </div>
         </div>
         <input className="border rounded-xl px-4 py-3" placeholder="Nombre" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />

@@ -18,6 +18,8 @@ export interface PublishSocialVehicle {
   features?: string[];
   photos?: string[];
   images?: string[];
+  videos?: string[];
+  generatedVideoUrl?: string;
   tenantId?: string;
 }
 
@@ -35,11 +37,21 @@ export interface PublishVehicleToSocialModalProps {
 }
 
 type Platform = 'facebook' | 'instagram';
+type MediaChoice = 'photo' | 'video' | 'both';
 
 function vehicleImages(v: PublishSocialVehicle): string[] {
   if (v.photos?.length) return v.photos;
   if (v.images?.length) return v.images;
   return [];
+}
+
+function vehicleVideos(v: PublishSocialVehicle): string[] {
+  const list: string[] = [];
+  if (v.generatedVideoUrl) list.push(v.generatedVideoUrl);
+  for (const url of v.videos ?? []) {
+    if (typeof url === 'string' && url && !list.includes(url)) list.push(url);
+  }
+  return list;
 }
 
 export function PublishVehicleToSocialModal({
@@ -54,6 +66,7 @@ export function PublishVehicleToSocialModal({
   settingsIntegrationsHref: settingsIntegrationsHrefProp,
 }: PublishVehicleToSocialModalProps) {
   const images = useMemo(() => vehicleImages(vehicle), [vehicle]);
+  const videos = useMemo(() => vehicleVideos(vehicle), [vehicle]);
   const label = `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
   const settingsIntegrationsHref =
     settingsIntegrationsHrefProp ??
@@ -73,6 +86,8 @@ export function PublishVehicleToSocialModal({
   const [postText, setPostText] = useState('');
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [imageUrl, setImageUrl] = useState(images[0] ?? '');
+  const [videoUrl, setVideoUrl] = useState(videos[0] ?? '');
+  const [mediaChoice, setMediaChoice] = useState<MediaChoice>('photo');
   const [aiGenerating, setAiGenerating] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [publishMode, setPublishMode] = useState<'now' | 'schedule'>('now');
@@ -88,6 +103,14 @@ export function PublishVehicleToSocialModal({
   useEffect(() => {
     setImageUrl(images[0] ?? '');
   }, [images]);
+
+  useEffect(() => {
+    setVideoUrl(videos[0] ?? '');
+    if (videos.length === 0) setMediaChoice('photo');
+  }, [videos]);
+
+  const includePhoto = mediaChoice !== 'video';
+  const includeVideo = mediaChoice !== 'photo' && videos.length > 0;
 
   useEffect(() => {
     let cancelled = false;
@@ -204,8 +227,16 @@ export function PublishVehicleToSocialModal({
       showToast('warning', 'Selecciona Facebook o Instagram');
       return;
     }
-    if (!imageUrl) {
+    if (includePhoto && !imageUrl) {
       showToast('warning', 'El vehículo necesita al menos una foto');
+      return;
+    }
+    if (includeVideo && !videoUrl) {
+      showToast('warning', 'Selecciona el video a publicar');
+      return;
+    }
+    if (!includePhoto && !includeVideo) {
+      showToast('warning', 'Selecciona foto, video o ambos');
       return;
     }
 
@@ -213,7 +244,8 @@ export function PublishVehicleToSocialModal({
     try {
       const content = {
         text: postText,
-        imageUrl,
+        ...(includePhoto ? { imageUrl } : {}),
+        ...(includeVideo ? { videoUrl } : {}),
         hashtags,
       };
 
@@ -320,31 +352,95 @@ export function PublishVehicleToSocialModal({
           </div>
 
           <div className="p-6 space-y-5">
-            {imageUrl ? (
+            {videos.length > 0 ? (
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">¿Qué quieres publicar?</p>
+                <div className="flex flex-wrap gap-2">
+                  {(
+                    [
+                      { value: 'photo', label: '📷 Solo foto' },
+                      { value: 'video', label: '🎬 Solo video' },
+                      { value: 'both', label: '📷 + 🎬 Ambos' },
+                    ] as const
+                  ).map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setMediaChoice(opt.value)}
+                      className={`px-4 py-2 rounded-xl border-2 text-sm font-medium transition ${
+                        mediaChoice === opt.value
+                          ? 'border-primary-600 bg-primary-50 text-primary-900'
+                          : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                {mediaChoice === 'both' ? (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Se publican la foto y el video en cada red seleccionada.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
+            {includePhoto ? (
+              imageUrl ? (
+                <div className="rounded-xl overflow-hidden border border-gray-200">
+                  <img src={imageUrl} alt={label} className="w-full max-h-48 object-cover" />
+                  {images.length > 1 ? (
+                    <div className="flex gap-2 p-2 overflow-x-auto bg-gray-50">
+                      {images.slice(0, 6).map((url) => (
+                        <button
+                          key={url}
+                          type="button"
+                          onClick={() => setImageUrl(url)}
+                          className={`shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 ${
+                            imageUrl === url ? 'border-primary-600' : 'border-transparent'
+                          }`}
+                        >
+                          <img src={url} alt="" className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
+                  Agrega fotos al vehículo antes de publicar en redes.
+                </div>
+              )
+            ) : null}
+
+            {includeVideo && videoUrl ? (
               <div className="rounded-xl overflow-hidden border border-gray-200">
-                <img src={imageUrl} alt={label} className="w-full max-h-48 object-cover" />
-                {images.length > 1 ? (
-                  <div className="flex gap-2 p-2 overflow-x-auto bg-gray-50">
-                    {images.slice(0, 6).map((url) => (
+                <div className="aspect-video bg-gray-900">
+                  <video key={videoUrl} src={videoUrl} controls className="w-full h-full" />
+                </div>
+                {videos.length > 1 ? (
+                  <div className="flex flex-col gap-1 p-2 bg-gray-50">
+                    {videos.slice(0, 4).map((url, i) => (
                       <button
                         key={url}
                         type="button"
-                        onClick={() => setImageUrl(url)}
-                        className={`shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 ${
-                          imageUrl === url ? 'border-primary-600' : 'border-transparent'
+                        onClick={() => setVideoUrl(url)}
+                        className={`text-left text-xs px-2 py-1 rounded-lg border ${
+                          videoUrl === url
+                            ? 'border-primary-600 bg-primary-50 text-primary-900 font-medium'
+                            : 'border-transparent text-gray-600 hover:bg-gray-100'
                         }`}
                       >
-                        <img src={url} alt="" className="w-full h-full object-cover" />
+                        {url === vehicle.generatedVideoUrl ? '🎬 Video generado con fotos' : `🎥 Video ${i + 1}`}
                       </button>
                     ))}
                   </div>
                 ) : null}
+                <p className="text-xs text-gray-500 px-3 py-2 bg-gray-50 border-t border-gray-100">
+                  En Instagram el video se publica como Reel; el procesamiento puede tardar unos minutos.
+                </p>
               </div>
-            ) : (
-              <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
-                Agrega fotos al vehículo antes de publicar en redes.
-              </div>
-            )}
+            ) : null}
 
             {loadingIntegrations ? (
               <p className="text-sm text-gray-500">Cargando integraciones…</p>
@@ -514,7 +610,13 @@ export function PublishVehicleToSocialModal({
                 disabled={publishing || !postText.trim()}
                 className="px-5 py-2 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 disabled:opacity-50"
               >
-                {publishing ? 'Publicando…' : publishMode === 'now' ? 'Publicar ahora' : 'Programar'}
+                {publishing
+                  ? includeVideo
+                    ? 'Publicando… (el video puede tardar)'
+                    : 'Publicando…'
+                  : publishMode === 'now'
+                    ? 'Publicar ahora'
+                    : 'Programar'}
               </button>
             ) : null}
           </div>

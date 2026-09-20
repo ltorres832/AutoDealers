@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { fetchWithAuth } from '@/lib/fetch-with-auth';
 import type { CrmSlaConfig } from '@autodealers/crm';
-import { DEFAULT_CRM_SLA } from '@autodealers/crm';
+import { DEFAULT_CRM_SLA } from '@/lib/lead-sla-client';
 
 export default function CrmSlaSettingsPage() {
   const [loading, setLoading] = useState(true);

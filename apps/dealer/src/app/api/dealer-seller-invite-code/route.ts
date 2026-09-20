@@ -9,9 +9,9 @@ import {
   buildSellerJoinDealerUrl,
 } from '@autodealers/core/dealer-seller-invite-codes';
 
-const SELLER_APP_ORIGIN =
-  process.env.NEXT_PUBLIC_SELLER_URL?.trim() ||
-  'https://seller-app--autodealers-7f62e.us-central1.hosted.app';
+import { resolveSellerUrl } from '@autodealers/shared/platform-urls';
+
+const SELLER_APP_ORIGIN = resolveSellerUrl();
 
 export async function GET(request: NextRequest) {
   try {

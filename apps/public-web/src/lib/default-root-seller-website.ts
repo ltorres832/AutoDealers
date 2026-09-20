@@ -1,6 +1,8 @@
 import {
   getDefaultRootSellerId,
   isPublicRootHost,
+  isPlatformAppSubdomain,
+  PLATFORM_APP_URLS,
   PUBLIC_PRODUCTION_BASE_URL,
   PUBLIC_ROOT_HOSTS,
   resolvedPublicBaseUrl,

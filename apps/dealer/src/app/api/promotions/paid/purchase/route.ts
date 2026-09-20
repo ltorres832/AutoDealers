@@ -203,10 +203,12 @@ export async function POST(request: NextRequest) {
       {
         tenantId: auth.tenantId,
         userId: auth.userId,
+        requestId: requestRef.id,
         promotionScope,
-        vehicleId: vehicleId || null,
-        duration,
+        vehicleId: vehicleId || '',
+        duration: String(duration),
         type: 'paid_promotion',
+        placement: typeof body.placement === 'string' ? body.placement : '',
       },
       customerId,
       paymentMethodId // Método de pago guardado (opcional)
@@ -218,6 +220,7 @@ export async function POST(request: NextRequest) {
       vehicleId: vehicleId || null,
       duration,
       price,
+      placement: typeof body.placement === 'string' ? body.placement : null,
       status: 'pending_payment',
       paymentIntentId: paymentIntent.id,
       requestedBy: auth.userId,

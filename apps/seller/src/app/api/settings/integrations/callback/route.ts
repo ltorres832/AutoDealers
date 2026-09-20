@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { decodeSocialOAuthState, publishPendingTenantRegistrationFacebookPost } from '@autodealers/core';
+import {
+  decodeSocialOAuthState,
+  getMetaCredentials,
+  publishPendingTenantRegistrationFacebookPost,
+} from '@autodealers/core';
 import { META_PAGES_GRAPH_FIELDS } from '@autodealers/core/meta-oauth-scopes';
 import { finalizeMetaUserAccessToken, type MetaTokenHealth } from '@autodealers/core/meta-token-health';
 import { buildAppRedirectUrl } from '@/lib/app-origin';
@@ -168,17 +172,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Obtener credenciales globales desde system_settings.credentials (donde el admin las guarda)
-    const credentialsDoc = await db.collection('system_settings').doc('credentials').get();
-    
-    let clientId: string | undefined;
-    let clientSecret: string | undefined;
-
-    if (credentialsDoc.exists) {
-      const credentialsData = credentialsDoc.data();
-      clientId = credentialsData?.metaAppId;
-      clientSecret = credentialsData?.metaAppSecret;
-    }
+    // Credenciales globales de Meta: entorno / Secret Manager y, como fallback
+    // heredado, system_settings.credentials
+    const metaCreds = await getMetaCredentials();
+    let clientId: string | undefined = metaCreds.appId;
+    let clientSecret: string | undefined = metaCreds.appSecret;
 
     // Si no hay credenciales globales, intentar obtener del tenant (compatibilidad hacia atrás)
     if (!clientId || !clientSecret) {

@@ -1,0 +1,90 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": [
+      "ES2020",
+      "DOM"
+    ],
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "allowJs": false,
+    "strict": false,
+    "noImplicitAny": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "composite": false,
+    "incremental": false,
+    "noEmitOnError": false,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@autodealers/core": [
+        "../../packages/core/dist"
+      ],
+      "@autodealers/core/*": [
+        "../../packages/core/dist/*"
+      ],
+      "@autodealers/shared": [
+        "../../packages/shared/dist"
+      ],
+      "@autodealers/shared/*": [
+        "../../packages/shared/dist/*"
+      ],
+      "@autodealers/billing": [
+        "../../packages/billing/dist"
+      ],
+      "@autodealers/billing/*": [
+        "../../packages/billing/dist/*"
+      ],
+      "@autodealers/messaging": [
+        "../../packages/messaging/dist"
+      ],
+      "@autodealers/messaging/*": [
+        "../../packages/messaging/dist/*"
+      ],
+      "@autodealers/inventory": [
+        "../../packages/inventory/dist"
+      ],
+      "@autodealers/inventory/*": [
+        "../../packages/inventory/dist/*"
+      ],
+      "@autodealers/ai": [
+        "../../packages/ai/dist"
+      ],
+      "@autodealers/ai/*": [
+        "../../packages/ai/dist/*"
+      ],
+      "@autodealers/reports": [
+        "../../packages/reports/dist"
+      ],
+      "@autodealers/reports/*": [
+        "../../packages/reports/dist/*"
+      ],
+      "@autodealers/crm": [
+        "../../packages/crm/dist"
+      ],
+      "@autodealers/crm/*": [
+        "../../packages/crm/dist/*"
+      ]
+    }
+  },
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/dist/**",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "**/*.d.ts"
+  ]
+}

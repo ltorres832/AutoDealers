@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { getFirestore, getStripeInstance } from '@autodealers/core';
-import * as admin from 'firebase-admin';
 
 const db = getFirestore();
 
@@ -57,12 +56,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Actualizar el banner con el estado de pago completado
-    await bannerRef.update({
-      paymentStatus: 'paid',
+    const { markPremiumBannerPaid } = await import('@autodealers/core');
+    await markPremiumBannerPaid({
+      tenantId: auth.tenantId,
+      bannerId,
       paymentIntentId,
-      paidAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
     return NextResponse.json({

@@ -41,13 +41,56 @@ export async function GET(request: NextRequest) {
       sellerId,
     });
 
+    // Ampliar con ventas de vendedores vinculados (otros tenants)
+    try {
+      const { getSellerNetworkActivity } = await import('@/lib/seller-network-activity');
+      const network = await getSellerNetworkActivity(auth.tenantId, {
+        userId: auth.userId,
+        kinds: ['sales', 'sellers'],
+        limitPerSeller: 100,
+        sellerId: scope === 'seller' ? sellerId : undefined,
+      });
+      let extraCount = 0;
+      let extraRevenue = 0;
+      const bySeller = { ...(report.bySeller || {}) } as Record<
+        string,
+        { count: number; revenue: number }
+      >;
+      for (const sale of network.sales) {
+        const created = sale.createdAt ? new Date(String(sale.createdAt)) : null;
+        if (created && (created < startDate || created > endDate)) continue;
+        if (sale.sellerTenantId === auth.tenantId) continue; // ya en report
+        const rev = Number(sale.salePrice || sale.total || sale.price || 0);
+        extraCount++;
+        extraRevenue += rev;
+        const sid = String(sale.ownerId || 'unknown');
+        if (!bySeller[sid]) bySeller[sid] = { count: 0, revenue: 0 };
+        bySeller[sid].count++;
+        bySeller[sid].revenue += rev;
+      }
+      return NextResponse.json({
+        report: {
+          ...report,
+          total: (report.total || 0) + extraCount,
+          totalRevenue: (report.totalRevenue || 0) + extraRevenue,
+          bySeller,
+        },
+      });
+    } catch (e) {
+      console.warn('sales report network merge', e);
+    }
+
     return NextResponse.json({ report });
   } catch (error) {
     console.error('Error generating sales report:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      report: {
+        total: 0,
+        totalRevenue: 0,
+        bySeller: {},
+        byStatus: {},
+      },
+    });
   }
 }
 

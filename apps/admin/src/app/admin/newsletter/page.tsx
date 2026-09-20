@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { AdminDeleteButton } from '@/components/AdminDeleteButton';
 
 type AudienceRow = {
   email: string;
@@ -214,7 +215,7 @@ export default function AdminNewsletterPage() {
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2"
-              placeholder="Novedades AutoDealers — junio 2026"
+              placeholder="Novedades AutoDealersOnline — junio 2026"
             />
           </div>
           <div>
@@ -259,12 +260,22 @@ export default function AdminNewsletterPage() {
             <ul className="space-y-3 max-h-[420px] overflow-y-auto">
               {campaigns.map((c) => (
                 <li key={c.id} className="border border-gray-100 rounded-lg p-3 text-sm">
-                  <p className="font-semibold text-gray-900">{c.subject}</p>
-                  <p className="text-gray-500 mt-1">
-                    {c.sentAt ? new Date(c.sentAt).toLocaleString('es') : '—'} ·{' '}
-                    {c.successful}/{c.totalRecipients} enviados
-                    {c.failed ? ` · ${c.failed} fallidos` : ''}
-                  </p>
+                  <div className="flex justify-between items-start gap-2">
+                    <div>
+                      <p className="font-semibold text-gray-900">{c.subject}</p>
+                      <p className="text-gray-500 mt-1">
+                        {c.sentAt ? new Date(c.sentAt).toLocaleString('es') : '—'} ·{' '}
+                        {c.successful}/{c.totalRecipients} enviados
+                        {c.failed ? ` · ${c.failed} fallidos` : ''}
+                      </p>
+                    </div>
+                    <AdminDeleteButton
+                      deleteUrl={`/api/admin/newsletter/campaigns/${c.id}`}
+                      label="Eliminar"
+                      onDeleted={() => void load()}
+                      className="text-xs px-2 py-0.5 rounded bg-red-100 text-red-700 hover:bg-red-200 shrink-0"
+                    />
+                  </div>
                 </li>
               ))}
             </ul>

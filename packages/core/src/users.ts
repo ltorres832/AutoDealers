@@ -5,6 +5,15 @@ import { getFirestore, getAuth } from '@autodealers/shared';
 import * as admin from 'firebase-admin';
 import { generateReferralCode } from './referrals';
 import { normalizeLoginEmail, resolveRegistrationLinks } from './user-auth-sync';
+import {
+  ensureAuthAccount,
+  findPlatformProfile,
+  PlatformProfileExistsError,
+  resolveAppKeyForRole,
+  storeAppPasswordForProfile,
+} from './platform-registration';
+
+export { PlatformProfileExistsError } from './platform-registration';
 
 // Lazy initialization - solo se inicializa cuando se necesita
 function getDb() {
@@ -28,13 +37,28 @@ export async function createUser(
   membershipId?: string
 ): Promise<User> {
   const normalizedEmail = normalizeLoginEmail(email);
+  if (role === 'customer') {
+    throw new Error('Las cuentas de cliente se crean con registerCustomerAccount');
+  }
+  const profileKind =
+    role === 'automotive_business'
+      ? 'business'
+      : role === 'dealer' || role === 'master_dealer' || role === 'dealer_admin' || role === 'manager'
+        ? 'dealer'
+        : 'seller';
 
-  // Crear usuario en Firebase Auth
-  const userRecord = await getAuthInstance().createUser({
+  const existingProfile = await findPlatformProfile(normalizedEmail, profileKind);
+  if (existingProfile) {
+    throw new PlatformProfileExistsError(profileKind);
+  }
+
+  const { authUserId, created } = await ensureAuthAccount({
     email: normalizedEmail,
     password,
     displayName: name,
   });
+
+  const profileId = created ? authUserId : getDb().collection('users').doc().id;
 
   let resolvedTenantId = tenantId?.trim() || undefined;
   let resolvedDealerId = dealerId?.trim() || undefined;
@@ -47,7 +71,7 @@ export async function createUser(
       tenantId: resolvedTenantId,
       tenantType: tData.type,
       tenantOwnerId: tData.ownerId,
-      userId: userRecord.uid,
+      userId: profileId,
       explicitDealerId: resolvedDealerId,
     });
     if (links.tenantId) {
@@ -60,19 +84,23 @@ export async function createUser(
     }
   }
 
-  // Establecer custom claims después de crear el usuario
-  const claims: Record<string, string> = { role };
-  if (resolvedTenantId) claims.tenantId = resolvedTenantId;
-  if (resolvedDealerId) claims.dealerId = resolvedDealerId;
-  await getAuthInstance().setCustomUserClaims(userRecord.uid, claims);
+  // Establecer custom claims solo en la primera cuenta Auth (evita pisar otro perfil)
+  if (created) {
+    const claims: Record<string, string> = { role };
+    if (resolvedTenantId) claims.tenantId = resolvedTenantId;
+    if (resolvedDealerId) claims.dealerId = resolvedDealerId;
+    await getAuthInstance().setCustomUserClaims(authUserId, claims);
+  }
 
   // Crear documento en Firestore - Limpiar undefined
   const userData: any = {
     email: normalizedEmail,
+    authUserId,
     name,
     role,
     membershipId: membershipId || '',
-    membershipType: role === 'dealer' ? 'dealer' : 'seller',
+    membershipType:
+      role === 'automotive_business' ? 'business' : role === 'dealer' ? 'dealer' : 'seller',
     status: 'active',
     settings:
       role === 'seller' || role === 'dealer'
@@ -110,7 +138,7 @@ export async function createUser(
   let referralCode: string | null = null;
   if (role === 'dealer' || role === 'seller') {
     try {
-      referralCode = await generateReferralCode(userRecord.uid);
+      referralCode = await generateReferralCode(profileId);
       userData.referralCode = referralCode;
     } catch (error) {
       console.error('Error generando código de referido:', error);
@@ -119,14 +147,28 @@ export async function createUser(
   }
 
   const db = getDb();
-  await getDb().collection('users').doc(userRecord.uid).set({
+  if (!created && profileId !== authUserId) {
+    const original = await db.collection('users').doc(authUserId).get();
+    if (original.exists && !original.data()?.authUserId) {
+      await original.ref.set({ authUserId }, { merge: true });
+    }
+  }
+  await db.collection('users').doc(profileId).set({
     ...userData,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 
+  await storeAppPasswordForProfile({
+    appKey: resolveAppKeyForRole(role),
+    email: normalizedEmail,
+    profileId,
+    authUserId,
+    password,
+  });
+
   return {
-    id: userRecord.uid,
+    id: profileId,
     ...userData,
     referralCode: referralCode || undefined,
   };

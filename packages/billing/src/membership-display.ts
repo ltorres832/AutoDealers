@@ -4,10 +4,15 @@
  */
 
 import { membershipAllowsMultiDealerNetwork } from './membership-network';
+import {
+  ADMIN_BOOLEAN_FEATURE_KEYS as CATALOG_BOOLEAN_KEYS,
+  MEMBERSHIP_NUMERIC_FEATURE_KEYS,
+  getMembershipFeatureLabel,
+} from './membership-feature-catalog';
 
 export type MembershipFeaturesLoose = Record<string, unknown>;
 
-export type MembershipPlanKind = 'dealer' | 'seller';
+export type MembershipPlanKind = 'dealer' | 'seller' | 'business';
 
 export type DynamicFeatureCatalogEntry = {
   key: string;
@@ -21,85 +26,84 @@ export type MembershipDisplayOptions = {
   dynamicCatalog?: DynamicFeatureCatalogEntry[];
 };
 
+/** Etiqueta visible junto a beneficios anunciados pero aún no disponibles. */
+export const COMING_SOON_FEATURE_LABEL = 'Próximamente';
+
+/** Claves de membresía que se muestran con check + badge Próximamente. */
+export const COMING_SOON_MEMBERSHIP_FEATURE_KEYS = new Set<string>([
+  'voiceAIEnabled',
+  'voiceInboundEnabled',
+  'voiceOutboundEnabled',
+  'voiceServiceCallsEnabled',
+]);
+
+export function isComingSoonMembershipFeature(key: string | undefined | null): boolean {
+  return Boolean(key && COMING_SOON_MEMBERSHIP_FEATURE_KEYS.has(key));
+}
+
+export function withComingSoonFeatureLabel(text: string, featureKey?: string): string {
+  if (!isComingSoonMembershipFeature(featureKey)) return text;
+  return `${text} · ${COMING_SOON_FEATURE_LABEL}`;
+}
+
+export function parseMembershipFeatureLine(line: string): { text: string; comingSoon: boolean } {
+  const marker = ` · ${COMING_SOON_FEATURE_LABEL}`;
+  if (line.endsWith(marker)) {
+    return { text: line.slice(0, -marker.length), comingSoon: true };
+  }
+  return { text: line, comingSoon: false };
+}
+
 /** Claves booleanas del admin que deben tener etiqueta en buildMembershipFeatureLines. */
-export const ADMIN_BOOLEAN_FEATURE_KEYS = [
-  'customSubdomain',
-  'customDomain',
-  'aiEnabled',
-  'aiAutoResponses',
-  'aiContentGeneration',
-  'aiLeadClassification',
-  'socialMediaEnabled',
-  'socialMediaScheduling',
-  'socialMediaAnalytics',
-  'marketplaceEnabled',
-  'marketplaceFeatured',
-  'advancedReports',
-  'customReports',
-  'exportData',
-  'whiteLabel',
-  'apiAccess',
-  'webhooks',
-  'ssoEnabled',
-  'multiLanguage',
-  'customTemplates',
-  'emailMarketing',
-  'smsMarketing',
-  'whatsappMarketing',
-  'videoUploads',
-  'virtualTours',
-  'liveChat',
-  'appointmentScheduling',
-  'paymentProcessing',
-  'inventorySync',
-  'crmAdvanced',
-  'leadScoring',
-  'automationWorkflows',
-  'integrationsUnlimited',
-  'prioritySupport',
-  'dedicatedManager',
-  'trainingSessions',
-  'customBranding',
-  'mobileApp',
-  'offlineMode',
-  'dataBackup',
-  'complianceTools',
-  'analyticsAdvanced',
-  'aBTesting',
-  'seoTools',
-  'customIntegrations',
-  'freePromotionsOnLanding',
-  'corporateEmailEnabled',
+export const ADMIN_BOOLEAN_FEATURE_KEYS = CATALOG_BOOLEAN_KEYS;
+
+export const ADMIN_NUMERIC_LIMIT_KEYS = MEMBERSHIP_NUMERIC_FEATURE_KEYS;
+
+export { getMembershipFeatureLabel };
+
+/** Beneficios de email corporativo: solo si corporateEmailEnabled está activo. */
+export const CORPORATE_EMAIL_DEPENDENT_BOOLEAN_KEYS = [
   'emailSignatureBasic',
   'emailSignatureAdvanced',
   'emailAliases',
-  'multiDealerEnabled',
-  'requiresAdminApproval',
-  'fiModule',
-  'fiMultipleManagers',
-  'customerDocumentRequestsEnabled',
 ] as const;
 
-export const ADMIN_NUMERIC_LIMIT_KEYS = [
-  'maxSellers',
-  'maxInventory',
-  'maxCampaigns',
-  'maxPromotions',
-  'maxLeadsPerMonth',
-  'maxAppointmentsPerMonth',
-  'maxStorageGB',
-  'maxApiCallsPerMonth',
-  'maxCorporateEmails',
-  'maxDealers',
-  'maxCustomerDocumentRequestsPerMonth',
+export const CORPORATE_EMAIL_DEPENDENT_NUMERIC_KEYS = ['maxCorporateEmails'] as const;
+
+/** Beneficios del agente de voz: solo si voiceAIEnabled está activo. */
+export const VOICE_AI_DEPENDENT_BOOLEAN_KEYS = [
+  'voiceInboundEnabled',
+  'voiceOutboundEnabled',
+  'voiceServiceCallsEnabled',
+  'voiceCampaignsEnabled',
 ] as const;
+
+export const VOICE_AI_DEPENDENT_NUMERIC_KEYS = [
+  'maxVoiceMinutesPerMonth',
+  'maxVoiceOutboundCallsPerMonth',
+  'maxVoiceInboundCallsPerMonth',
+] as const;
+
+/** Claves ya cubiertas por el catálogo fijo o metadatos internos (no mostrar como extra). */
+const INTERNAL_FEATURE_KEYS = new Set([
+  'adminAssignOnly',
+  'customMembership',
+  'multipleDealers',
+  'publicWebsite',
+  'status',
+  'stripePriceId',
+]);
 
 function isMultiDealerPlan(features: MembershipFeaturesLoose): boolean {
   return membershipAllowsMultiDealerNetwork(features);
 }
 
-function isTruthyBoolean(v: unknown): boolean {
+export function isTruthyMembershipBoolean(v: unknown): boolean {
   return v === true || v === 'true';
+}
+
+function isTruthyBoolean(v: unknown): boolean {
+  return isTruthyMembershipBoolean(v);
 }
 
 function num(f: MembershipFeaturesLoose, key: string): number | null | undefined {
@@ -115,19 +119,58 @@ function num(f: MembershipFeaturesLoose, key: string): number | null | undefined
   return undefined;
 }
 
+/** Elimina hijos huérfanos (firma de email, max correos) si el toggle padre está apagado. */
+export function applyMembershipFeatureDependencyGates(
+  f: MembershipFeaturesLoose | undefined
+): MembershipFeaturesLoose {
+  if (!f || typeof f !== 'object') return {};
+  const out: MembershipFeaturesLoose = { ...f };
+
+  if (!isTruthyMembershipBoolean(out.corporateEmailEnabled)) {
+    for (const key of CORPORATE_EMAIL_DEPENDENT_NUMERIC_KEYS) {
+      delete out[key];
+    }
+    for (const key of CORPORATE_EMAIL_DEPENDENT_BOOLEAN_KEYS) {
+      out[key] = false;
+    }
+  }
+
+  if (!isTruthyMembershipBoolean(out.customerDocumentRequestsEnabled)) {
+    delete out.maxCustomerDocumentRequestsPerMonth;
+  }
+
+  if (!isTruthyMembershipBoolean(out.voiceAIEnabled)) {
+    for (const key of VOICE_AI_DEPENDENT_NUMERIC_KEYS) {
+      delete out[key];
+    }
+    for (const key of VOICE_AI_DEPENDENT_BOOLEAN_KEYS) {
+      out[key] = false;
+    }
+  }
+
+  if (!isTruthyMembershipBoolean(out.multiDealerEnabled)) {
+    delete out.maxDealers;
+    out.requiresAdminApproval = false;
+    out.multipleDealers = false;
+  }
+
+  return out;
+}
+
 /** Solo deja claves que el admin configuró explícitamente para mostrar en catálogo. */
 export function compactFeaturesForCatalogDisplay(
   f: MembershipFeaturesLoose | undefined
 ): MembershipFeaturesLoose {
   if (!f || typeof f !== 'object') return {};
+  const gated = applyMembershipFeatureDependencyGates(f);
   const out: MembershipFeaturesLoose = {};
 
   for (const key of ADMIN_BOOLEAN_FEATURE_KEYS) {
-    if (isTruthyBoolean(f[key])) out[key] = true;
+    if (isTruthyBoolean(gated[key])) out[key] = true;
   }
 
   for (const key of ADMIN_NUMERIC_LIMIT_KEYS) {
-    const v = num(f, key);
+    const v = num(gated, key);
     if (typeof v === 'number' && Number.isFinite(v)) out[key] = v;
   }
 
@@ -137,7 +180,7 @@ export function compactFeaturesForCatalogDisplay(
     ...INTERNAL_FEATURE_KEYS,
   ]);
 
-  for (const [key, raw] of Object.entries(f)) {
+  for (const [key, raw] of Object.entries(gated)) {
     if (known.has(key)) continue;
     if (isTruthyBoolean(raw)) out[key] = true;
     else if (typeof raw === 'number' && Number.isFinite(raw)) out[key] = raw;
@@ -189,7 +232,10 @@ export function buildMembershipLimitLines(
 
   push(
     'maxInventory',
-    (n) => `\u{1F697} ${n.toLocaleString('es-ES')} vehículos`
+    (n) =>
+      planKind === 'business'
+        ? `\u{1F9F0} ${n.toLocaleString('es-ES')} piezas o productos`
+        : `\u{1F697} ${n.toLocaleString('es-ES')} vehículos`
   );
   push(
     'maxCampaigns',
@@ -220,8 +266,38 @@ export function buildMembershipLimitLines(
     (n) =>
       `\u{1F4CE} ${n.toLocaleString('es-ES')} solicitudes de documento al cliente/mes (expediente)`
   );
+  if (isTruthyBoolean(f.voiceAIEnabled)) {
+    push(
+      'maxVoiceMinutesPerMonth',
+      (n) => `\u{1F399}\uFE0F ${n.toLocaleString('es-ES')} minutos de voz IA/mes`
+    );
+    push(
+      'maxVoiceOutboundCallsPerMonth',
+      (n) => `\u{1F4DE} ${n.toLocaleString('es-ES')} llamadas salientes IA/mes`
+    );
+    push(
+      'maxVoiceInboundCallsPerMonth',
+      (n) => `\u{1F4F2} ${n.toLocaleString('es-ES')} llamadas entrantes IA/mes`
+    );
+  }
+  push(
+    'maxMessagesPerMonth',
+    (n) => `\u{1F4AC} ${n.toLocaleString('es-ES')} mensajes/mes`
+  );
+  push(
+    'maxAiResponsesPerMonth',
+    (n) => `\u{1F916} ${n.toLocaleString('es-ES')} respuestas IA/mes`
+  );
+  push(
+    'maxEmailsPerMonth',
+    (n) => `\u{1F4E7} ${n.toLocaleString('es-ES')} emails/mes`
+  );
 
-  if (typeof f.maxCorporateEmails === 'number' && Number.isFinite(f.maxCorporateEmails)) {
+  if (
+    isTruthyBoolean(f.corporateEmailEnabled) &&
+    typeof f.maxCorporateEmails === 'number' &&
+    Number.isFinite(f.maxCorporateEmails)
+  ) {
     limits.push(`\u{1F4E7} ${f.maxCorporateEmails} correo(s) corporativo(s)`);
   }
 
@@ -235,14 +311,22 @@ export function buildMembershipFeatureLines(
 ): string[] {
   const out: string[] = [];
   const planKind = options?.planKind ?? 'dealer';
-  const t = (cond: unknown, label: string) => {
-    if (isTruthyBoolean(cond)) out.push(label);
+  const t = (cond: unknown, label: string, key?: string) => {
+    if (isTruthyBoolean(cond)) out.push(withComingSoonFeatureLabel(label, key));
   };
 
   const hasPublicSite = isTruthyBoolean(f.customSubdomain);
 
-  t(hasPublicSite, '\u{1F310} Página web con subdominio propio (URL pública del concesionario)');
-  t(f.customDomain, '\u{1F517} Dominio personalizado (marca propia en la web)');
+  if (hasPublicSite) {
+    out.push(
+      planKind === 'business'
+        ? '\u{1F310} Página web con subdominio propio (ficha pública del taller o servicio)'
+        : '\u{1F310} Página web con subdominio propio (URL pública del concesionario)'
+    );
+  }
+  if (planKind !== 'business') {
+    t(f.customDomain, '\u{1F517} Dominio personalizado (marca propia en la web)');
+  }
   t(f.aiEnabled, '\u{1F916} IA habilitada');
   t(f.aiAutoResponses, '\u{1F4AC} Respuestas automáticas (IA)');
   t(f.aiContentGeneration, '\u{2728} Generación de contenido con IA');
@@ -250,8 +334,18 @@ export function buildMembershipFeatureLines(
   t(f.socialMediaEnabled, '\u{1F4F1} Redes sociales');
   t(f.socialMediaScheduling, '\u{1F4C6} Programación en redes');
   t(f.socialMediaAnalytics, '\u{1F4CA} Analytics de redes');
-  t(f.marketplaceEnabled, '\u{1F6D2} Marketplace');
-  t(f.marketplaceFeatured, '\u2B50 Destacado en marketplace');
+  t(
+    f.marketplaceEnabled,
+    planKind === 'business'
+      ? '\u{1F6D2} Directorio público de servicios (/servicios)'
+      : '\u{1F6D2} Marketplace'
+  );
+  t(
+    f.marketplaceFeatured,
+    planKind === 'business'
+      ? '\u2B50 Destacado en el directorio de servicios'
+      : '\u2B50 Destacado en marketplace'
+  );
   t(f.advancedReports, '\u{1F4C8} Reportes avanzados');
   t(f.customReports, '\u{1F4C4} Reportes personalizados');
   t(f.exportData, '\u2B07\uFE0F Exportar datos');
@@ -267,12 +361,26 @@ export function buildMembershipFeatureLines(
   t(f.emailMarketing, '\u{1F4E7} Email marketing');
   t(f.smsMarketing, '\u{1F4F2} SMS marketing');
   t(f.whatsappMarketing, '\u{1F4AC} WhatsApp marketing');
-  t(f.videoUploads, '\u{1F3A5} Vídeos de vehículos');
+  t(
+    f.videoUploads,
+    planKind === 'business' ? '\u{1F3A5} Vídeos de tus servicios' : '\u{1F3A5} Vídeos de vehículos'
+  );
   t(f.virtualTours, '\u{1F504} Tours virtuales');
   t(f.liveChat, '\u{1F4AC} Chat en vivo');
   t(f.appointmentScheduling, '\u{1F4C5} Citas / agenda');
   t(f.paymentProcessing, '\u{1F4B3} Procesamiento de pagos');
   t(f.inventorySync, '\u{1F504} Sincronización de inventario');
+  t(f.vin_camera_scan, '\u{1F4F7} Escaneo VIN con cámara / decodificación');
+  t(f.share_landing, '\u{1F517} Landing y QR para compartir vehículo');
+  t(f.photo_guide, '\u{1F4F8} Guía de fotos por ángulos');
+  t(f.bg_remover, '\u{1F3A8} Quitar fondo de fotos (IA)');
+  t(f.dynamic_scenes, '\u{1F3AC} Escenas dinámicas (fondos de estudio)');
+  if (planKind === 'dealer') {
+    t(f.dealer_site_builder, '\u{1F310} Constructor de sitio web del dealer');
+    t(f.inventory_alliances, '\u{1F91D} Alianzas de inventario entre dealers');
+    t(f.inventory_feed_sync, '\u{1F4E5} Sincronización de inventario por feed URL');
+  }
+  t(f.daco_labels, '\u{1F3F7}\uFE0F Etiquetas DACO imprimibles con QR');
   t(f.integrationsUnlimited, '\u{1F50C} Integraciones ilimitadas');
   t(f.prioritySupport, '\u{1F3A7} Soporte prioritario');
   t(f.dedicatedManager, '\u{1F464} Gerente de cuenta');
@@ -291,13 +399,25 @@ export function buildMembershipFeatureLines(
   if (planKind === 'dealer') {
     t(f.fiMultipleManagers, '\u{1F465} Varios gerentes F&I');
   }
-  t(f.corporateEmailEnabled, '\u{1F4E7} Email corporativo (@tu-marca.dominio)');
-  t(f.emailSignatureBasic, '\u2709\uFE0F Firma de email básica');
-  t(f.emailSignatureAdvanced, '\u2709\uFE0F Firma de email avanzada');
-  t(f.emailAliases, '\u2709\uFE0F Alias de correo');
+  const corporateEmailOn = isTruthyBoolean(f.corporateEmailEnabled);
+  t(corporateEmailOn, '\u{1F4E7} Email corporativo (@tu-marca.dominio)');
+  if (corporateEmailOn) {
+    t(f.emailSignatureBasic, '\u2709\uFE0F Firma de email básica');
+    t(f.emailSignatureAdvanced, '\u2709\uFE0F Firma de email avanzada');
+    t(f.emailAliases, '\u2709\uFE0F Alias de correo');
+  }
   if (isTruthyBoolean(f.customerDocumentRequestsEnabled)) {
     out.push('\u{1F4CE} Solicitudes de documentos al cliente (portal / expediente CRM)');
   }
+  const voiceAIOn = isTruthyBoolean(f.voiceAIEnabled);
+  t(voiceAIOn, '\u{1F399}\uFE0F Agente de Voz IA (llamadas con voz humana en español)', 'voiceAIEnabled');
+  if (voiceAIOn) {
+    t(f.voiceInboundEnabled, '\u{1F4F2} Llamadas entrantes atendidas por IA', 'voiceInboundEnabled');
+    t(f.voiceOutboundEnabled, '\u{1F4DE} Llamadas de seguimiento automáticas (IA)', 'voiceOutboundEnabled');
+    t(f.voiceServiceCallsEnabled, '\u{1F527} Citas de servicio/mantenimiento por voz', 'voiceServiceCallsEnabled');
+    t(f.voiceCampaignsEnabled, '\u{1F4E3} Campañas de llamadas (reactivación, cumpleaños)');
+  }
+  t(f.overageBillingEnabled, '\u{1F4B0} Uso adicional con facturación automática (sin bloqueos)');
   if (planKind === 'dealer') {
     if (isMultiDealerPlan(f)) {
       t(f.multiDealerEnabled, '\u{1F3E2} Plan multi-concesionario (red de concesionarios)');
@@ -309,16 +429,6 @@ export function buildMembershipFeatureLines(
 
   return out;
 }
-
-/** Claves ya cubiertas por el catálogo fijo o metadatos internos (no mostrar como extra). */
-const INTERNAL_FEATURE_KEYS = new Set([
-  'adminAssignOnly',
-  'customMembership',
-  'multipleDealers',
-  'publicWebsite',
-  'status',
-  'stripePriceId',
-]);
 
 function humanizeFeatureKey(key: string): string {
   const spaced = key
@@ -400,8 +510,17 @@ export function buildMembershipDisplayLines(
   const limits = buildMembershipLimitLines(compact, options);
   const features = buildMembershipFeatureLines(compact, options);
   const extra = buildExtraDynamicDisplayLines(compact, options);
-  return {
+  const out = {
     limits: [...limits, ...extra.limits],
     features: [...features, ...extra.features],
   };
+  // Membresías de servicios (type/planKind business): nunca mostrar copy de dealer/concesionario.
+  if (options?.planKind === 'business') {
+    const junk = /dealer|dealers|concesionario|concesionarios/i;
+    return {
+      limits: out.limits.filter((line) => !junk.test(line)),
+      features: out.features.filter((line) => !junk.test(line)),
+    };
+  }
+  return out;
 }

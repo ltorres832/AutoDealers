@@ -84,6 +84,8 @@ export default function VehiclesList() {
                         currency: vehicle.currency,
                         status: vehicle.status,
                         photos: vehicle.photos,
+                        videos: vehicle.videos,
+                        generatedVideoUrl: vehicle.generatedVideoUrl,
                       })
                     }
                     className="mt-4 w-full px-4 py-2 rounded font-medium text-sm bg-gradient-to-r from-primary-600 to-primary-600 text-white hover:from-primary-700 hover:to-primary-700"

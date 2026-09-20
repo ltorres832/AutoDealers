@@ -39,6 +39,8 @@ export function useRealtimeSalesAdmin(onChange: () => void): { realtimeReady: bo
         'sales_employee_commissions',
         'sales_employee_visits',
         'sales_employee_appointments',
+        'sales_employee_ad_orders',
+        'sales_employee_payment_links',
         'staff_access_requests',
         'staff_access_grants',
       ];

@@ -10,6 +10,7 @@ import { useRealtimeLead } from '@/hooks/useRealtimeLead';
 import type { LeadStatus } from '@autodealers/crm';
 import type { CrmPipelineSettings } from '@autodealers/core';
 import { LeadFullProfile } from '@/components/LeadProfileSections';
+import { LeadCrmWorkspace } from '@/components/LeadCrmWorkspace';
 
 const FALLBACK_STATUS_OPTIONS: { value: LeadStatus; label: string }[] = [
   { value: 'new', label: 'Nuevo' },
@@ -149,13 +150,22 @@ export default function LeadDetailPage() {
       </div>
 
       <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between border-b border-gray-200 pb-6">
-        <div>
+        <div className="flex items-start gap-4">
+          <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 border flex items-center justify-center shrink-0">
+            {lead.contact.photo ? (
+              <img src={lead.contact.photo} alt={lead.contact.name} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-xl font-bold text-gray-400">{lead.contact.name.charAt(0).toUpperCase()}</span>
+            )}
+          </div>
+          <div>
           <h1 className="text-3xl font-bold text-gray-900">{lead.contact.name}</h1>
           <p className="text-gray-600 mt-1">
             {lead.contact.phone}
             {lead.contact.email ? ` · ${lead.contact.email}` : ''}
           </p>
           <p className="text-xs text-gray-400 mt-2 font-mono">ID: {lead.id}</p>
+          </div>
         </div>
         <div className="flex flex-col gap-2 min-w-[200px]">
           <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Estado en pipeline</label>
@@ -185,6 +195,9 @@ export default function LeadDetailPage() {
         </div>
       </header>
 
+      <div className="mb-8">
+        <LeadCrmWorkspace lead={lead} />
+      </div>
       <LeadFullProfile lead={lead} />
     </div>
   );

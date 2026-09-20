@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { FinancingOption } from '@autodealers/crm';
+import type { FinancingOption } from '@autodealers/crm';
 
 interface FIFinancingComparisonProps {
   requestId: string;

@@ -100,6 +100,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Crear Payment Intent para pago integrado
+    const salesOriginMeta: Record<string, string> = {};
+    if (bannerData?.source === 'sales_employee' || bannerData?.assignedByRole === 'sales_employee') {
+      if (bannerData.salesEmployeeId) salesOriginMeta.employeeId = String(bannerData.salesEmployeeId);
+      if (bannerData.salesEmployeeId) salesOriginMeta.salesEmployeeId = String(bannerData.salesEmployeeId);
+      if (bannerData.salesAdOrderId) salesOriginMeta.salesAdOrderId = String(bannerData.salesAdOrderId);
+      salesOriginMeta.source = 'sales_employee';
+      salesOriginMeta.assignedByRole = 'sales_employee';
+    }
+
     const paymentIntent = await stripeService.createPaymentIntent(
       bannerData.price,
       'usd',
@@ -117,6 +126,7 @@ export async function POST(request: NextRequest) {
         linkValue: bannerData.linkValue,
         imageUrl: bannerData.imageUrl,
         duration: bannerData.duration,
+        ...salesOriginMeta,
       },
       customerId
     );

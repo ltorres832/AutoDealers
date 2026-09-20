@@ -48,64 +48,63 @@ export async function createAppointment(
     updatedAt: new Date(),
   };
 
-  // Obtener información del lead y vendedor para la notificación
-  try {
-    const { getLeadById } = await import('./leads');
-    const lead = await getLeadById(appointmentData.tenantId, appointmentData.leadId);
-    const sellerDoc = await db.collection('users').doc(appointmentData.assignedTo).get();
-    const sellerName = sellerDoc.data()?.name || 'Vendedor';
+  void (async () => {
+    try {
+      const { getLeadById } = await import('./leads');
+      const lead = await getLeadById(appointmentData.tenantId, appointmentData.leadId);
+      const sellerDoc = await db.collection('users').doc(appointmentData.assignedTo).get();
+      const sellerName = sellerDoc.data()?.name || 'Vendedor';
 
-    const appointmentDate = new Date(appointmentData.scheduledAt);
-    const formattedDate = appointmentDate.toLocaleDateString('es-ES', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+      const appointmentDate = new Date(appointmentData.scheduledAt);
+      const formattedDate = appointmentDate.toLocaleDateString('es-ES', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
 
-    // Notificar a gerentes / dealers (excluye al vendedor asignado para evitar duplicado)
-    const { notifyManagersAndAdmins, createNotification } = await import('@autodealers/core');
-    const { resolveUserNotificationChannels } = await import('./user-notification-channels');
-    await notifyManagersAndAdmins(
-      appointmentData.tenantId,
-      {
+      const { notifyManagersAndAdmins, createNotification } = await import('@autodealers/core');
+      const { resolveUserNotificationChannels } = await import('./user-notification-channels');
+      await notifyManagersAndAdmins(
+        appointmentData.tenantId,
+        {
+          type: 'appointment_created',
+          title: 'Nueva Cita Programada',
+          message: `Se ha programado una nueva cita de tipo ${appointmentData.type} para ${lead?.contact?.name || 'Cliente'} (${lead?.contact?.phone || ''}) con ${sellerName} el ${formattedDate}.`,
+          metadata: {
+            appointmentId: newAppointment.id,
+            leadId: appointmentData.leadId,
+            assignedTo: appointmentData.assignedTo,
+            assignedToName: sellerName,
+            type: appointmentData.type,
+            scheduledAt: appointmentData.scheduledAt.toISOString(),
+            contactName: lead?.contact?.name,
+            contactPhone: lead?.contact?.phone,
+          },
+        },
+        { excludeUserIds: [appointmentData.assignedTo] }
+      );
+
+      const sellerChannels = await resolveUserNotificationChannels(appointmentData.assignedTo);
+      await createNotification({
+        tenantId: appointmentData.tenantId,
+        userId: appointmentData.assignedTo,
         type: 'appointment_created',
-        title: 'Nueva Cita Programada',
-        message: `Se ha programado una nueva cita de tipo ${appointmentData.type} para ${lead?.contact?.name || 'Cliente'} (${lead?.contact?.phone || ''}) con ${sellerName} el ${formattedDate}.`,
+        title: 'Nueva cita - revisa y confirma',
+        message: `Cita (${appointmentData.type}) con ${lead?.contact?.name || 'cliente'} el ${formattedDate}.`,
+        channels: sellerChannels,
         metadata: {
           appointmentId: newAppointment.id,
           leadId: appointmentData.leadId,
-          assignedTo: appointmentData.assignedTo,
-          assignedToName: sellerName,
-          type: appointmentData.type,
-          scheduledAt: appointmentData.scheduledAt.toISOString(),
-          contactName: lead?.contact?.name,
-          contactPhone: lead?.contact?.phone,
+          route: '/appointments',
         },
-      },
-      { excludeUserIds: [appointmentData.assignedTo] }
-    );
-
-    const sellerChannels = await resolveUserNotificationChannels(appointmentData.assignedTo);
-    await createNotification({
-      tenantId: appointmentData.tenantId,
-      userId: appointmentData.assignedTo,
-      type: 'appointment_created',
-      title: 'Nueva cita — revisa y confirma',
-      message: `Cita (${appointmentData.type}) con ${lead?.contact?.name || 'cliente'} el ${formattedDate}.`,
-      channels: sellerChannels,
-      metadata: {
-        appointmentId: newAppointment.id,
-        leadId: appointmentData.leadId,
-        route: '/appointments',
-      },
-    });
-  } catch (error) {
-    // No fallar si las notificaciones no están disponibles
-    console.warn('Manager notification skipped for new appointment:', error);
-  }
+      });
+    } catch (error) {
+      console.warn('Manager notification skipped for new appointment:', error);
+    }
+  })();
 
   return newAppointment;
 }
@@ -188,23 +187,12 @@ export async function getAppointmentsBySeller(
   endDate?: Date
 ): Promise<Appointment[]> {
   const db = getDb();
-  let query: any = db
+  const snapshot = await db
     .collection('tenants')
     .doc(tenantId)
     .collection('appointments')
-    .where('assignedTo', '==', sellerId);
-
-  if (startDate) {
-    query = query.where('scheduledAt', '>=', startDate);
-  }
-
-  if (endDate) {
-    query = query.where('scheduledAt', '<=', endDate);
-  }
-
-  query = query.orderBy('scheduledAt', 'asc');
-
-  const snapshot = await query.get();
+    .where('assignedTo', '==', sellerId)
+    .get();
 
   return snapshot.docs.map((doc: any) => {
     const data = doc.data();
@@ -215,7 +203,13 @@ export async function getAppointmentsBySeller(
       createdAt: data?.createdAt?.toDate() || new Date(),
       updatedAt: data?.updatedAt?.toDate() || new Date(),
     } as Appointment;
-  });
+  })
+    .filter((appointment: Appointment) => {
+      if (startDate && appointment.scheduledAt < startDate) return false;
+      if (endDate && appointment.scheduledAt > endDate) return false;
+      return true;
+    })
+    .sort((a: Appointment, b: Appointment) => a.scheduledAt.getTime() - b.scheduledAt.getTime());
 }
 
 /**

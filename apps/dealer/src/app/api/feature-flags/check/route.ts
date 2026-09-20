@@ -17,6 +17,9 @@ export async function GET(request: NextRequest) {
     }
 
     const auth = await verifyAuth(request);
+    if (auth?.supportMode) {
+      return NextResponse.json({ enabled: true, supportMode: true });
+    }
     const tenantId =
       auth && (dashboard === 'dealer' || dashboard === 'seller')
         ? billingTenantId(auth)

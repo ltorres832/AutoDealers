@@ -32,7 +32,7 @@ Mensaje del cliente: ${message}
 Genera una respuesta apropiada:`;
 
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4-turbo-preview',
+        model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -74,7 +74,7 @@ Genera una respuesta apropiada:`;
   ): Promise<string[]> {
     try {
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4-turbo-preview',
+        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',

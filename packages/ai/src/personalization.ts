@@ -62,7 +62,7 @@ Genera un mensaje personalizado que:
 Responde en formato JSON con personalizedMessage, tone, y keyPoints (array):`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -145,7 +145,7 @@ Recomienda los 3-5 vehículos más adecuados con:
 Responde en formato JSON con recommendedVehicles (array):`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -225,7 +225,7 @@ Personaliza el contenido y sugiere un descuento apropiado.
 Responde en formato JSON:`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',

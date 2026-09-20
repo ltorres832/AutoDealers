@@ -1,5 +1,6 @@
 'use client';
 
+import { useCallback, useEffect, useState } from 'react';
 import type { Lead, TradeInVehicleProfile } from '@autodealers/crm';
 import type { VehicleStockSnapshot } from '@autodealers/inventory';
 import Link from 'next/link';
@@ -244,6 +245,191 @@ export function LeadKanbanFootnote({ lead }: { lead: Lead }) {
   );
 }
 
+interface CallListItem {
+  id: string;
+  direction: 'inbound' | 'outbound';
+  scenario: string | null;
+  status: string;
+  startedAt: unknown;
+  durationSeconds: number;
+  summary: string;
+  outcome: string | null;
+  hasRecording: boolean;
+  hasTranscript: boolean;
+}
+
+interface CallDetail extends CallListItem {
+  nextSteps: string[];
+  transcript: { role: 'agent' | 'customer'; text: string }[];
+  recordingUrl: string | null;
+}
+
+const CALL_OUTCOME_LABELS: Record<string, string> = {
+  appointment_scheduled: 'Cita agendada',
+  callback_requested: 'Pidió que le devuelvan la llamada',
+  interested: 'Interesado',
+  not_interested: 'No interesado',
+  no_answer: 'No contestó',
+  voicemail: 'Buzón de voz',
+  wrong_number: 'Número equivocado',
+  do_not_call: 'No llamar',
+  escalated: 'Escalado a un humano',
+  info_provided: 'Información brindada',
+};
+
+function formatCallDuration(seconds: number): string {
+  if (!seconds || seconds <= 0) return '—';
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
+
+function CallDetailPanel({ leadId, callId }: { leadId: string; callId: string }) {
+  const [detail, setDetail] = useState<CallDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/leads/${leadId}/calls?callId=${callId}`, {
+          credentials: 'include',
+        });
+        if (!res.ok) throw new Error('No se pudo cargar el detalle de la llamada');
+        const json = await res.json();
+        if (!cancelled) setDetail(json.call);
+      } catch (e: any) {
+        if (!cancelled) setError(e?.message || 'Error');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [leadId, callId]);
+
+  if (loading) return <p className="text-xs text-gray-500 mt-2">Cargando detalle…</p>;
+  if (error) return <p className="text-xs text-red-600 mt-2">{error}</p>;
+  if (!detail) return null;
+
+  return (
+    <div className="mt-3 space-y-3 border-t border-gray-100 pt-3">
+      {detail.recordingUrl ? (
+        <div>
+          <p className="text-xs font-medium text-gray-600 mb-1">🎧 Grabación</p>
+          <audio controls preload="none" className="w-full h-10">
+            <source src={detail.recordingUrl} />
+            Tu navegador no soporta audio.
+          </audio>
+        </div>
+      ) : (
+        <p className="text-xs text-gray-500">Sin grabación disponible.</p>
+      )}
+
+      {detail.nextSteps && detail.nextSteps.length > 0 ? (
+        <div>
+          <p className="text-xs font-medium text-gray-600 mb-1">Próximos pasos</p>
+          <ul className="list-disc list-inside text-sm text-gray-800 space-y-0.5">
+            {detail.nextSteps.map((s, i) => (
+              <li key={i}>{s}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {detail.transcript && detail.transcript.length > 0 ? (
+        <div>
+          <p className="text-xs font-medium text-gray-600 mb-1">📝 Transcripción</p>
+          <div className="max-h-64 overflow-y-auto space-y-2 bg-gray-50 rounded-lg p-3 border border-gray-100">
+            {detail.transcript.map((t, i) => (
+              <div key={i} className={t.role === 'agent' ? 'text-right' : 'text-left'}>
+                <span
+                  className={`inline-block max-w-[85%] text-sm px-3 py-1.5 rounded-lg whitespace-pre-wrap ${
+                    t.role === 'agent'
+                      ? 'bg-primary-100 text-primary-900'
+                      : 'bg-white border border-gray-200 text-gray-800'
+                  }`}
+                >
+                  {t.text}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <p className="text-xs text-gray-500">Sin transcripción disponible.</p>
+      )}
+    </div>
+  );
+}
+
+export function LeadCallsSection({ leadId }: { leadId: string }) {
+  const [calls, setCalls] = useState<CallListItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/leads/${leadId}/calls`, { credentials: 'include' });
+      if (!res.ok) return;
+      const json = await res.json();
+      setCalls(Array.isArray(json.calls) ? json.calls : []);
+    } catch {
+      // silencioso: la sección simplemente no se muestra
+    } finally {
+      setLoading(false);
+    }
+  }, [leadId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  if (loading || calls.length === 0) return null;
+
+  return (
+    <SectionCard title="📞 Llamadas del agente de voz" subtitle={`${calls.length} llamada(s) registrada(s)`}>
+      <ul className="space-y-3">
+        {calls.map((c) => (
+          <li key={c.id} className="border border-gray-100 rounded-lg p-3 bg-gray-50/50">
+            <button
+              type="button"
+              onClick={() => setExpandedId(expandedId === c.id ? null : c.id)}
+              className="w-full text-left"
+            >
+              <div className="flex flex-wrap justify-between gap-2 text-xs text-gray-500 mb-1">
+                <span className="font-medium text-gray-700">
+                  {c.direction === 'inbound' ? '📥 Entrante' : '📤 Saliente'}
+                  {c.scenario ? ` · ${c.scenario.replace(/_/g, ' ')}` : ''}
+                </span>
+                <span>
+                  {formatAnyDate(c.startedAt)} · {formatCallDuration(c.durationSeconds)}
+                </span>
+              </div>
+              {c.outcome ? (
+                <span className="inline-block text-xs bg-primary-50 text-primary-800 border border-primary-200 px-2 py-0.5 rounded-full mb-1">
+                  {CALL_OUTCOME_LABELS[c.outcome] || c.outcome}
+                </span>
+              ) : null}
+              {c.summary ? (
+                <p className="text-sm text-gray-800 whitespace-pre-wrap">{c.summary}</p>
+              ) : (
+                <p className="text-sm text-gray-500 italic">Sin resumen</p>
+              )}
+              <p className="text-xs text-primary-600 mt-1">
+                {expandedId === c.id ? 'Ocultar detalle ▲' : 'Ver grabación y transcripción ▼'}
+              </p>
+            </button>
+            {expandedId === c.id ? <CallDetailPanel leadId={leadId} callId={c.id} /> : null}
+          </li>
+        ))}
+      </ul>
+    </SectionCard>
+  );
+}
+
 export function LeadFullProfile({ lead }: { lead: Lead }) {
   const snap = lead.vehicleStockSnapshot;
   const trade = lead.tradeIn;
@@ -409,6 +595,8 @@ export function LeadFullProfile({ lead }: { lead: Lead }) {
           </div>
         </SectionCard>
       ) : null}
+
+      {lead.id ? <LeadCallsSection leadId={lead.id} /> : null}
 
       {lead.interactions && lead.interactions.length > 0 ? (
         <SectionCard title="Historial de interacciones" subtitle={`${lead.interactions.length} registro(s)`}>

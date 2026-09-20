@@ -5,7 +5,9 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./client": "./src/client.ts"
+    "./client": "./src/client.ts",
+    "./vehicles": "./src/vehicles.ts",
+    "./photo-ai": "./src/photo-ai.ts"
   },
   "scripts": {
     "build": "node -e \"const {execSync}=require('child_process'); try { execSync('npx tsc --skipLibCheck --noEmitOnError false', {stdio:'inherit', cwd: process.cwd()}); } catch (e) {} process.exit(0);\"",
@@ -16,7 +18,9 @@
     "@autodealers/core": "*",
     "@autodealers/shared": "*",
     "firebase-admin": "^12.7.0",
-    "next": "16.1.6"
+    "next": "16.1.6",
+    "sharp": "^0.34.5",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "typescript": "^5.2.0"

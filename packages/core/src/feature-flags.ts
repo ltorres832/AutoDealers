@@ -9,7 +9,35 @@ function getDb() {
   return getFirestore();
 }
 
-export type DashboardType = 'admin' | 'dealer' | 'seller' | 'public';
+export type DashboardType = 'admin' | 'dealer' | 'seller' | 'public' | 'business';
+
+/** Flags de servicios automotrices: si no existen en Firestore, quedan apagados. */
+export const AUTOMOTIVE_OPT_IN_FEATURE_KEYS = [
+  'automotive_businesses_enabled',
+  'services_public_section_enabled',
+  'business_registration_enabled',
+  'business_subscriptions_enabled',
+  'business_social_enabled',
+  'business_crm_enabled',
+  'business_appointments_enabled',
+  'business_estimates_enabled',
+  'business_invoices_enabled',
+  'autodealers_payments_enabled',
+  'card_payments_enabled',
+  'klarna_enabled',
+  'affirm_enabled',
+  'business_reviews_enabled',
+  'business_products_enabled',
+  'business_inventory_enabled',
+  'my_garage_enabled',
+  'vehicle_service_recommendations_enabled',
+] as const;
+
+export type AutomotiveOptInFeatureKey = (typeof AUTOMOTIVE_OPT_IN_FEATURE_KEYS)[number];
+
+export function isAutomotiveOptInFeatureKey(featureKey: string): boolean {
+  return (AUTOMOTIVE_OPT_IN_FEATURE_KEYS as readonly string[]).includes(featureKey);
+}
 
 export interface FeatureConfig {
   id: string;
@@ -50,7 +78,7 @@ export async function getDashboardFeatures(dashboard: DashboardType): Promise<Fe
  * Obtiene todas las configuraciones de features para todos los dashboards
  */
 export async function getAllDashboardFeatures(): Promise<DashboardFeatures[]> {
-  const dashboards: DashboardType[] = ['admin', 'dealer', 'seller', 'public'];
+  const dashboards: DashboardType[] = ['admin', 'dealer', 'seller', 'public', 'business'];
   const results: DashboardFeatures[] = [];
 
   for (const dashboard of dashboards) {
@@ -77,6 +105,10 @@ export async function isFeatureEnabled(
     .get();
 
   if (snapshot.empty) {
+    // Flags de servicios automotrices: ausente = apagado (no aparecer en producción al desplegar).
+    if (isAutomotiveOptInFeatureKey(featureKey)) {
+      return false;
+    }
     // Por defecto, si no existe configuración, la feature está habilitada
     return true;
   }
@@ -223,6 +255,18 @@ export async function initializeDefaultFeatures(): Promise<void> {
     { dashboard: 'dealer', featureKey: 'sales', featureName: 'Gestión de Ventas', description: 'Gestión de ventas', category: 'Ventas', enabled: true },
     { dashboard: 'dealer', featureKey: 'appointments', featureName: 'Sistema de Citas', description: 'Sistema de citas', category: 'Citas', enabled: true },
     { dashboard: 'dealer', featureKey: 'reports', featureName: 'Reportes y Análisis', description: 'Reportes y análisis', category: 'Reportes', enabled: true },
+    { dashboard: 'dealer', featureKey: 'compensation_portal', featureName: 'Mi Compensación', description: 'Ventas, comisiones, pagos y vacaciones del vendedor', category: 'RR.HH.', enabled: true },
+
+    // Inventario competitivo (aditivo; no reemplaza inventario actual)
+    { dashboard: 'dealer', featureKey: 'vin_camera_scan', featureName: 'Escaneo VIN (cámara)', description: 'Decodificar VIN (cámara o pegado) al crear vehículo', category: 'Inventario', enabled: true },
+    { dashboard: 'dealer', featureKey: 'share_landing', featureName: 'Landing + QR para compartir', description: 'Landing + QR para compartir un vehículo', category: 'Inventario', enabled: true },
+    { dashboard: 'dealer', featureKey: 'photo_guide', featureName: 'Guía de fotos', description: 'Ángulos guiados; original siempre se conserva', category: 'Inventario', enabled: true },
+    { dashboard: 'dealer', featureKey: 'bg_remover', featureName: 'Quitar fondo (IA)', description: 'Generar versión editada sin borrar el original', category: 'Inventario', enabled: true },
+    { dashboard: 'dealer', featureKey: 'dynamic_scenes', featureName: 'Escenas dinámicas', description: 'Fondos de estudio sobre la foto editada', category: 'Inventario', enabled: true },
+    { dashboard: 'dealer', featureKey: 'dealer_site_builder', featureName: 'Constructor de sitio del dealer', description: 'Plantillas publicables sin tocar el marketplace', category: 'Inventario', enabled: true },
+    { dashboard: 'dealer', featureKey: 'daco_labels', featureName: 'Etiquetas DACO + QR', description: 'Etiqueta imprimible con QR a la ficha', category: 'Inventario', enabled: true },
+    { dashboard: 'dealer', featureKey: 'inventory_alliances', featureName: 'Alianzas de inventario', description: 'Compartir unidades con otro dealer aliado', category: 'Inventario', enabled: true },
+    { dashboard: 'dealer', featureKey: 'inventory_feed_sync', featureName: 'Sync por feed URL', description: 'Importar CSV/JSON por URL sin borrar stock local', category: 'Inventario', enabled: true },
     
     // ========== SELLER FEATURES ==========
     
@@ -255,6 +299,35 @@ export async function initializeDefaultFeatures(): Promise<void> {
     { dashboard: 'seller', featureKey: 'sales', featureName: 'Gestión de Ventas', description: 'Gestión de ventas', category: 'Ventas', enabled: true },
     { dashboard: 'seller', featureKey: 'appointments', featureName: 'Sistema de Citas', description: 'Sistema de citas', category: 'Citas', enabled: true },
     { dashboard: 'seller', featureKey: 'reports', featureName: 'Reportes y Análisis', description: 'Reportes y análisis', category: 'Reportes', enabled: true },
+    { dashboard: 'seller', featureKey: 'compensation_portal', featureName: 'Mi Compensación', description: 'Ventas, comisiones, pagos y vacaciones', category: 'RR.HH.', enabled: true },
+
+    { dashboard: 'seller', featureKey: 'vin_camera_scan', featureName: 'Escaneo VIN (cámara)', description: 'Decodificar VIN al crear vehículo', category: 'Inventario', enabled: true },
+    { dashboard: 'seller', featureKey: 'share_landing', featureName: 'Landing + QR para compartir', description: 'Landing + QR para compartir un vehículo', category: 'Inventario', enabled: true },
+    { dashboard: 'seller', featureKey: 'photo_guide', featureName: 'Guía de fotos', description: 'Ángulos guiados; original siempre se conserva', category: 'Inventario', enabled: true },
+    { dashboard: 'seller', featureKey: 'bg_remover', featureName: 'Quitar fondo (IA)', description: 'Versión editada sin borrar el original', category: 'Inventario', enabled: true },
+    { dashboard: 'seller', featureKey: 'dynamic_scenes', featureName: 'Escenas dinámicas', description: 'Fondos de estudio sobre la foto editada', category: 'Inventario', enabled: true },
+    { dashboard: 'seller', featureKey: 'daco_labels', featureName: 'Etiquetas DACO + QR', description: 'Etiqueta imprimible con QR', category: 'Inventario', enabled: true },
+
+    { dashboard: 'public', featureKey: 'automotive_businesses_enabled', featureName: 'Negocios automotrices', description: 'Directorio público de talleres y servicios', category: 'Servicios', enabled: false },
+    { dashboard: 'public', featureKey: 'services_public_section_enabled', featureName: 'Sección servicios en homepage', description: 'Bloque Servicios para tu vehículo en el home', category: 'Servicios', enabled: false },
+    { dashboard: 'public', featureKey: 'business_registration_enabled', featureName: 'Registro de negocios', description: 'Permitir auto-registro de negocios de servicios', category: 'Servicios', enabled: false },
+    { dashboard: 'public', featureKey: 'my_garage_enabled', featureName: 'Mi garage', description: 'Garage opcional del comprador (sin cuenta obligatoria)', category: 'Servicios', enabled: false },
+    { dashboard: 'public', featureKey: 'vehicle_service_recommendations_enabled', featureName: 'Sugerencias de servicios', description: 'Recomendar negocios reales según el vehículo', category: 'Servicios', enabled: false },
+    { dashboard: 'business', featureKey: 'automotive_businesses_enabled', featureName: 'Portal de negocio', description: 'Dashboard de negocios automotrices', category: 'Servicios', enabled: false },
+    { dashboard: 'business', featureKey: 'business_subscriptions_enabled', featureName: 'Membresías Business', description: 'Planes Essential / Pro / Premium', category: 'Servicios', enabled: false },
+    { dashboard: 'business', featureKey: 'business_social_enabled', featureName: 'Social del negocio', description: 'Facebook / Instagram / WhatsApp del negocio', category: 'Servicios', enabled: false },
+    { dashboard: 'business', featureKey: 'business_crm_enabled', featureName: 'CRM del negocio', description: 'Leads y pipeline del negocio de servicios', category: 'Servicios', enabled: false },
+    { dashboard: 'business', featureKey: 'business_appointments_enabled', featureName: 'Citas del negocio', description: 'Agenda de citas de servicio', category: 'Servicios', enabled: false },
+    { dashboard: 'business', featureKey: 'business_estimates_enabled', featureName: 'Estimados', description: 'Cotizaciones de servicio', category: 'Servicios', enabled: false },
+    { dashboard: 'business', featureKey: 'business_invoices_enabled', featureName: 'Facturas de servicio', description: 'Facturación al cliente del negocio', category: 'Servicios', enabled: false },
+    { dashboard: 'business', featureKey: 'autodealers_payments_enabled', featureName: 'AutoDealers Payments', description: 'Solicitud y cobros con Stripe Connect', category: 'Pagos', enabled: false },
+    { dashboard: 'business', featureKey: 'card_payments_enabled', featureName: 'Pagos con tarjeta', description: 'Cobros con tarjeta (fee 3.5% configurable)', category: 'Pagos', enabled: false },
+    { dashboard: 'business', featureKey: 'klarna_enabled', featureName: 'Klarna', description: 'BNPL Klarna en facturas (solo si el negocio tiene cobros activos)', category: 'Pagos', enabled: true },
+    { dashboard: 'business', featureKey: 'affirm_enabled', featureName: 'Affirm', description: 'BNPL Affirm en facturas (solo si el negocio tiene cobros activos)', category: 'Pagos', enabled: true },
+    { dashboard: 'business', featureKey: 'business_reviews_enabled', featureName: 'Reseñas del negocio', description: 'Reseñas públicas del negocio', category: 'Servicios', enabled: false },
+    { dashboard: 'business', featureKey: 'business_products_enabled', featureName: 'Productos del negocio', description: 'Catálogo de productos (piezas, gomas, etc.)', category: 'Servicios', enabled: false },
+    { dashboard: 'business', featureKey: 'business_inventory_enabled', featureName: 'Inventario de piezas', description: 'Inventario interno del negocio (no DMS dealer)', category: 'Servicios', enabled: false },
+    { dashboard: 'admin', featureKey: 'automotive_businesses_enabled', featureName: 'Admin negocios automotrices', description: 'CRUD de categorías, negocios y solicitudes de pago', category: 'Servicios', enabled: false },
   ];
 
   console.log(`📝 Inicializando ${defaultFeatures.length} features por defecto...`);

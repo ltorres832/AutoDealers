@@ -1,9 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import PublicBackButton from '@/components/PublicBackButton';
 import { PublicMarketingNav } from '@/components/PublicMarketingNav';
+import { SITE_INFO as DEFAULT_SITE_INFO, getSiteInfo } from '@/config/site-info';
+import {
+  WhatsAppSupportOptions,
+  buildPlatformSupportWhatsAppOptions,
+} from '@autodealers/shared/client';
 
 export default function ContactoPage() {
   const [formData, setFormData] = useState({
@@ -16,6 +21,21 @@ export default function ContactoPage() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [siteInfo, setSiteInfo] = useState(DEFAULT_SITE_INFO);
+
+  useEffect(() => {
+    let cancelled = false;
+    getSiteInfo().then((info) => {
+      if (!cancelled) setSiteInfo(info as typeof DEFAULT_SITE_INFO);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const whatsappOptions = buildPlatformSupportWhatsAppOptions(siteInfo.contact.whatsapp || '').map(
+    ({ id, label, url }) => ({ id, label, url })
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,38 +107,30 @@ export default function ContactoPage() {
                   </div>
                   <div>
                     <h3 className="font-semibold mb-1">Email</h3>
-                    <a href="mailto:contacto@autodealers.com" className="text-primary-600 hover:text-primary-700">
-                      contacto@autodealers.com
+                    <a href={`mailto:${siteInfo.contact.email}`} className="text-primary-600 hover:text-primary-700">
+                      {siteInfo.contact.email}
                     </a>
                   </div>
                 </div>
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <span className="text-2xl">📞</span>
-                  </div>
+                {whatsappOptions.length > 0 && (
                   <div>
-                    <h3 className="font-semibold mb-1">Teléfono</h3>
-                    <a href="tel:+1234567890" className="text-primary-600 hover:text-primary-700">
-                      +1 (234) 567-890
-                    </a>
+                    <WhatsAppSupportOptions
+                      options={whatsappOptions}
+                      title="Soporte por WhatsApp"
+                      variant="compact"
+                    />
+                    {siteInfo.contact.hours ? (
+                      <p className="mt-2 text-sm text-gray-500">Horario: {siteInfo.contact.hours}</p>
+                    ) : null}
                   </div>
-                </div>
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <span className="text-2xl">💬</span>
-                  </div>
-                  <div>
-                    <h3 className="font-semibold mb-1">Chat en Vivo</h3>
-                    <p className="text-gray-600">Lun-Vie: 9am - 6pm EST</p>
-                  </div>
-                </div>
+                )}
                 <div className="flex items-start gap-4">
                   <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
                     <span className="text-2xl">📍</span>
                   </div>
                   <div>
                     <h3 className="font-semibold mb-1">Oficina</h3>
-                    <p className="text-gray-600">123 Business St, Suite 100<br />City, State 12345</p>
+                    <p className="text-gray-600 whitespace-pre-line">{siteInfo.contact.address}</p>
                   </div>
                 </div>
               </div>
@@ -127,14 +139,22 @@ export default function ContactoPage() {
             <div className="bg-white rounded-xl p-6 shadow-sm">
               <h3 className="font-bold mb-3">¿Necesitas ayuda inmediata?</h3>
               <p className="text-gray-600 mb-4">
-                Nuestro equipo de soporte está disponible 24/7 para ayudarte.
+                Escríbenos por WhatsApp y te atendemos sin necesidad de llamar.
               </p>
-              <Link
-                href="/login"
-                className="inline-block bg-gradient-to-r from-primary-600 to-primary-600 text-white px-6 py-3 rounded-lg hover:shadow-lg transition-all font-semibold"
-              >
-                Acceder al Soporte
-              </Link>
+              {whatsappOptions.length > 0 ? (
+                <WhatsAppSupportOptions
+                  options={whatsappOptions}
+                  title="Elige un motivo"
+                  variant="compact"
+                />
+              ) : (
+                <Link
+                  href="/login"
+                  className="inline-block bg-gradient-to-r from-primary-600 to-primary-600 text-white px-6 py-3 rounded-lg hover:shadow-lg transition-all font-semibold"
+                >
+                  Acceder al Soporte
+                </Link>
+              )}
             </div>
           </div>
 

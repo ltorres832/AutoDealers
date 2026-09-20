@@ -242,6 +242,11 @@ export default function SocialPostsPage() {
       return;
     }
 
+    if (!postContent.imageUrl?.trim()) {
+      alert('Todas las publicaciones en Facebook e Instagram requieren una imagen. Selecciona un vehículo o sube una foto.');
+      return;
+    }
+
     if (selectedPlatforms.length === 0) {
       alert('Por favor selecciona al menos una plataforma');
       return;

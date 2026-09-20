@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth, billingTenantId } from '@/lib/auth';
 import { getSubscriptionByTenantId } from '@autodealers/billing';
 import { getMembershipById } from '@autodealers/billing';
+import { isDealerMultiDealerAccount } from '@autodealers/core';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,7 +50,12 @@ export async function GET(request: NextRequest) {
     }
 
     console.log('✅ [MEMBERSHIP API] Membresía encontrada:', membership.name);
-    return NextResponse.json({ membership });
+    const isMultiDealerAccount = await isDealerMultiDealerAccount({
+      userId: auth.userId,
+      tenantId: billTid,
+      currentMembershipFeatures: membership.features,
+    });
+    return NextResponse.json({ membership, isMultiDealerAccount });
   } catch (error: any) {
     console.error('❌ [MEMBERSHIP API] Error fetching membership:', error);
     return NextResponse.json(

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import StarRating from '@/components/StarRating';
+import { AdminTenantEntityDeleteButton } from '@/components/AdminDeleteButton';
 
 interface Promotion {
   id: string;
@@ -446,6 +447,13 @@ function PromotionProgressSection({ promotions }: { promotions: Promotion[] }) {
                     >
                       {selectedPromotion?.id === promotion.id ? 'Ocultar' : 'Ver Detalles'}
                     </button>
+                    <AdminTenantEntityDeleteButton
+                      tenantId={promotion.tenantId}
+                      collection="promotions"
+                      entityId={promotion.id}
+                      label="Eliminar"
+                      className="ml-2 text-sm"
+                    />
                   </div>
 
                   {/* Métricas Principales */}

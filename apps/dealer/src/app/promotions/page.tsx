@@ -9,8 +9,10 @@ import {
   discountRequiresValue,
   PromotionDiscountType,
 } from '@autodealers/shared/discounts';
-import { StripePaymentForm } from '@autodealers/shared';
+import { StripePaymentForm } from '@autodealers/shared/client';
 import { PaymentMethodSelector } from '@/components/PaymentMethodSelector';
+import { listAdPlacementOptions, listPromoPlacementOptions } from '@autodealers/core/ad-placements';
+import { AdPlacementExplainer } from '@autodealers/core/ad-placement-explainer';
 
 interface Promotion {
   id: string;
@@ -59,6 +61,9 @@ interface Promotion {
     facebook?: string;
     instagram?: string;
   };
+  ownerType?: 'dealer' | 'seller';
+  ownerId?: string;
+  ownerName?: string;
 }
 
 interface PaidPromotion {
@@ -87,6 +92,9 @@ export default function PromotionsPage() {
   const { promotions: realtimePromotions, stats: realtimeStats, loading: promotionsLoading } = useRealtimePromotions(user?.tenantId || '');
   
   const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [sellerPromotions, setSellerPromotions] = useState<Promotion[]>([]);
+  const [sellerOptions, setSellerOptions] = useState<Array<{ id: string; name: string }>>([]);
+  const [authorFilter, setAuthorFilter] = useState<string>('all');
   const [paidPromotions, setPaidPromotions] = useState<PaidPromotion[]>([]);
   const [assignedPromotions, setAssignedPromotions] = useState<AssignedPromotion[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -101,10 +109,9 @@ export default function PromotionsPage() {
   const loading = authLoading || promotionsLoading;
   const stats = realtimeStats;
 
-  // Sincronizar promociones en tiempo real
+  // Sincronizar promociones en tiempo real (dealer) + red de vendedores
   useEffect(() => {
     if (realtimePromotions) {
-      // Filtrar solo promociones del dealer (dealer scope, vehicle scope, o promociones regulares sin scope)
       const dealerPromotions = realtimePromotions.filter(p => 
         !p.promotionScope || 
         p.promotionScope === 'dealer' || 
@@ -117,16 +124,56 @@ export default function PromotionsPage() {
         endDate: p.endDate instanceof Date ? p.endDate.toISOString() : p.endDate,
         autoSendToLeads: (p as any).autoSendToLeads ?? false,
         autoSendToCustomers: (p as any).autoSendToCustomers ?? false,
+        ownerType: 'dealer' as const,
+        ownerName: 'Dealer',
       })));
     }
   }, [realtimePromotions]);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sid = params.get('sellerId');
+    if (sid) setAuthorFilter(sid);
+  }, []);
+
+  useEffect(() => {
     if (user?.tenantId) {
       fetchPaidPromotions();
       fetchAssignedPromotions();
+      fetchSellerNetworkPromotions();
     }
   }, [user?.tenantId]);
+
+  async function fetchSellerNetworkPromotions() {
+    try {
+      const { fetchWithAuth } = await import('@/lib/fetch-with-auth');
+      const res = await fetchWithAuth(
+        '/api/sellers/network-activity?kinds=promotions,sellers&limit=40',
+        {}
+      );
+      const data = await res.json();
+      if (!res.ok) return;
+      setSellerOptions((data.sellers || []).map((s: any) => ({ id: s.id, name: s.name })));
+      setSellerPromotions(
+        (data.promotions || []).map((p: any) => ({
+          id: p.id,
+          name: p.name || 'Promoción',
+          description: p.description || '',
+          type: p.type || 'custom',
+          status: p.status || 'active',
+          startDate: p.startDate || p.createdAt || new Date().toISOString(),
+          endDate: p.endDate,
+          autoSendToLeads: false,
+          autoSendToCustomers: false,
+          ownerType: 'seller' as const,
+          ownerId: p.ownerId,
+          ownerName: p.ownerName,
+        }))
+      );
+    } catch (e) {
+      console.warn('seller promotions network', e);
+    }
+  }
 
   async function fetchPaidPromotions() {
     try {
@@ -249,8 +296,23 @@ export default function PromotionsPage() {
     );
   }
 
-  const activePromotions = promotions.filter(p => p.status === 'active');
-  const paidActivePromotions = promotions.filter(p => p.isPaid && p.status === 'active');
+  const allPromotions = (() => {
+    const byId = new Map<string, Promotion>();
+    for (const p of promotions) byId.set(p.id, p);
+    for (const p of sellerPromotions) {
+      if (!byId.has(p.id)) byId.set(p.id, p);
+    }
+    return Array.from(byId.values());
+  })();
+
+  const filteredPromotions = allPromotions.filter((p) => {
+    if (authorFilter === 'all') return true;
+    if (authorFilter === 'dealer') return p.ownerType !== 'seller';
+    return p.ownerId === authorFilter;
+  });
+
+  const activePromotions = filteredPromotions.filter(p => p.status === 'active');
+  const paidActivePromotions = filteredPromotions.filter(p => p.isPaid && p.status === 'active');
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -258,7 +320,12 @@ export default function PromotionsPage() {
         <div>
           <h1 className="text-3xl font-bold">Promociones y Ofertas</h1>
           <p className="text-gray-600 mt-2">
-            Gestiona tus promociones y aumenta la visibilidad con promociones pagadas
+            Tuyas y de tus vendedores (monitoreo). Sin WhatsApp.
+          </p>
+          <p className="mt-2 max-w-2xl text-sm text-gray-500">
+            El banner de la ficha del vehículo es un espacio publicitario
+            visual (imagen o video). Las promociones de texto no se muestran
+            ahí; para ese slot compra un banner en «Banner en la ficha del vehículo».
           </p>
         </div>
         <div className="flex gap-2">
@@ -275,6 +342,23 @@ export default function PromotionsPage() {
             + Nueva Promoción
           </button>
         </div>
+      </div>
+
+      <div className="mb-4 flex flex-wrap gap-3 items-center">
+        <label className="text-sm font-medium text-gray-700">Autor</label>
+        <select
+          value={authorFilter}
+          onChange={(e) => setAuthorFilter(e.target.value)}
+          className="border rounded-lg px-3 py-2 text-sm"
+        >
+          <option value="all">Todos</option>
+          <option value="dealer">Dealer (mías)</option>
+          {sellerOptions.map((s) => (
+            <option key={s.id} value={s.id}>
+              Vendedor: {s.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Estadísticas */}
@@ -374,8 +458,13 @@ export default function PromotionsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {paidActivePromotions.map((promotion) => (
                 <div key={promotion.id} className="bg-white rounded-lg border-2 border-yellow-300 p-4">
-                  <div className="flex justify-between items-start mb-2">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
                     <h3 className="font-bold text-lg">{promotion.name}</h3>
+                    {promotion.ownerType === 'seller' ? (
+                      <p className="text-xs text-indigo-700">Vendedor: {promotion.ownerName}</p>
+                    ) : null}
+                  </div>
                     <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded">
                       {promotion.promotionScope === 'vehicle' ? '🚗 Vehículo' : 
                        promotion.promotionScope === 'dealer' ? '🏢 Dealer' : '👤 Vendedor'}
@@ -415,7 +504,7 @@ export default function PromotionsPage() {
 
       {/* Promociones Regulares */}
       <div className="mb-6">
-        <h2 className="text-xl font-bold mb-4">Mis Promociones</h2>
+        <h2 className="text-xl font-bold mb-4">Promociones</h2>
         {activePromotions.filter(p => !p.isPaid).length === 0 ? (
           <div className="bg-white rounded-lg shadow p-12 text-center">
             <div className="text-6xl mb-4">🎁</div>
@@ -438,7 +527,16 @@ export default function PromotionsPage() {
                 className="bg-white rounded-lg shadow hover:shadow-lg transition p-6"
               >
                 <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-lg font-bold">{promotion.name}</h3>
+                  <div>
+                    <h3 className="text-lg font-bold">{promotion.name}</h3>
+                    {promotion.ownerType === 'seller' ? (
+                      <p className="text-xs text-indigo-700 mt-1">
+                        Vendedor: {promotion.ownerName || '—'}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-gray-500 mt-1">Dealer</p>
+                    )}
+                  </div>
                   <span className="px-3 py-1 rounded text-xs bg-green-100 text-green-700">
                     Activa
                   </span>
@@ -468,7 +566,7 @@ export default function PromotionsPage() {
       </div>
 
       {/* Progreso y Estadísticas de Todas las Promociones */}
-      <PromotionProgressSection promotions={promotions} />
+      <PromotionProgressSection promotions={filteredPromotions} />
 
       {/* Historial de Pagos */}
       <PaymentHistorySection />
@@ -1183,6 +1281,8 @@ function CreatePromotionModal({
     channels: ['whatsapp'] as string[],
     images: [] as string[],
     videos: [] as string[],
+    animation: 'fade' as 'none' | 'fade' | 'slide' | 'kenburns',
+    placement: 'promotions_section' as string,
     publishOnLandingPage: false, // Nueva opción para publicar en landing page
     vehicleId: '', // ID del vehículo asociado
     vehiclePrice: '', // Precio del vehículo
@@ -1533,7 +1633,46 @@ function CreatePromotionModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Fotos (opcional)</label>
+            <label className="block text-sm font-medium mb-2">Ubicación en el sitio público</label>
+            <select
+              value={formData.placement}
+              onChange={(e) => setFormData({ ...formData, placement: e.target.value })}
+              className="w-full border rounded px-3 py-2"
+            >
+              {listPromoPlacementOptions().map((item) => {
+                const size = listAdPlacementOptions().find((row) => row.id === item.id)?.pixelSize;
+                return (
+                  <option key={item.id} value={item.id}>
+                    {item.label}{size ? ` — ${size}` : ''}
+                  </option>
+                );
+              })}
+            </select>
+            <p className="text-xs text-gray-600 mt-1">
+              {listPromoPlacementOptions().find((item) => item.id === formData.placement)?.description}
+            </p>
+            {listAdPlacementOptions().find((item) => item.id === formData.placement) ? (
+              <div className="mt-2 rounded-lg border border-primary-200 bg-primary-50 p-3">
+                <p className="text-sm font-semibold text-gray-900">
+                  Tamaño exacto:{' '}
+                  {listAdPlacementOptions().find((item) => item.id === formData.placement)?.pixelSize}
+                </p>
+                <p className="text-xs text-gray-600">
+                  Proporción{' '}
+                  {listAdPlacementOptions().find((item) => item.id === formData.placement)?.aspectRatio}
+                </p>
+              </div>
+            ) : null}
+            <div className="mt-3">
+              <AdPlacementExplainer placement={formData.placement} />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Fotos del slideshow (opcional)</label>
+            <p className="text-xs text-gray-600 mb-2">
+              Varias fotos rotan dentro de la misma promoción. Elige también un estilo de movimiento.
+            </p>
             <input
               type="file"
               accept="image/jpeg,image/jpg,image/png,image/webp"
@@ -1572,6 +1711,24 @@ function CreatePromotionModal({
                 ))}
               </div>
             )}
+            <div className="mt-3">
+              <label className="block text-sm font-medium mb-2">Animación</label>
+              <select
+                value={formData.animation}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    animation: e.target.value as typeof formData.animation,
+                  })
+                }
+                className="w-full border rounded px-3 py-2"
+              >
+                <option value="fade">Fundido (fade)</option>
+                <option value="slide">Deslizamiento</option>
+                <option value="kenburns">Ken Burns (zoom suave)</option>
+                <option value="none">Sin movimiento</option>
+              </select>
+            </div>
           </div>
 
           <div>

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/presentation/providers/inventory_provider.dart';
 import '../../../core/presentation/providers/auth_provider.dart';
 import '../../../core/domain/models/vehicle.dart';
+import '../../../core/utils/vehicle_share.dart';
 
 class VehiclesListPage extends StatefulWidget {
   const VehiclesListPage({super.key});
@@ -84,7 +85,36 @@ class _VehiclesListPageState extends State<VehiclesListPage> {
                         subtitle: Text(
                           '${vehicle.currency} ${vehicle.price.toStringAsFixed(2)} • ${vehicle.status.name}',
                         ),
-                        trailing: Icon(_getStatusIcon(vehicle.status)),
+                        trailing: PopupMenuButton<String>(
+                          onSelected: (value) {
+                            if (value == 'share') {
+                              final tenantId = vehicle.tenantId.isNotEmpty
+                                  ? vehicle.tenantId
+                                  : (context.read<AuthProvider>().user?.tenantId ??
+                                      '');
+                              shareVehicleLink(
+                                context,
+                                tenantId: tenantId,
+                                vehicleId: vehicle.id,
+                                label:
+                                    '${vehicle.year} ${vehicle.make} ${vehicle.model}',
+                              );
+                            } else if (value == 'open') {
+                              inventoryProvider.selectVehicle(vehicle);
+                              context.push('/vehicles/${vehicle.id}');
+                            }
+                          },
+                          itemBuilder: (context) => const [
+                            PopupMenuItem(
+                              value: 'open',
+                              child: Text('Ver detalle'),
+                            ),
+                            PopupMenuItem(
+                              value: 'share',
+                              child: Text('Compartir'),
+                            ),
+                          ],
+                        ),
                         onTap: () {
                           inventoryProvider.selectVehicle(vehicle);
                           context.push('/vehicles/${vehicle.id}');
@@ -127,16 +157,6 @@ class _VehiclesListPageState extends State<VehiclesListPage> {
     );
   }
 
-  IconData _getStatusIcon(VehicleStatus status) {
-    switch (status) {
-      case VehicleStatus.available:
-        return Icons.check_circle;
-      case VehicleStatus.reserved:
-        return Icons.schedule;
-      case VehicleStatus.sold:
-        return Icons.done;
-    }
-  }
 }
 
 

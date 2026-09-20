@@ -17,12 +17,38 @@ service firebase.storage {
               request.auth.token.tenantId == tenantId);
     }
     
-    // Vehicle photos
+    function isVehicleImage() {
+      return request.resource.contentType.matches('image/.*') &&
+             request.resource.size < 10 * 1024 * 1024;
+    }
+
+    function isAllowedVideo() {
+      return request.resource.contentType.matches('video/(mp4|webm|quicktime)') &&
+             request.resource.size < 100 * 1024 * 1024;
+    }
+
+    // Vehicle photos and videos
     match /tenants/{tenantId}/vehicles/{vehicleId}/{allPaths=**} {
       allow read: if true; // Público para webs
-      allow write: if isOwner(tenantId) && 
-                      request.resource.size < 10 * 1024 * 1024 && // 10MB
-                      request.resource.contentType.matches('image/.*');
+      allow write: if isOwner(tenantId) && (isVehicleImage() || isAllowedVideo());
+    }
+
+    // Promo / campaign / ad media
+    match /tenants/{tenantId}/videos/{allPaths=**} {
+      allow read: if true;
+      allow write: if isOwner(tenantId) && isAllowedVideo();
+    }
+
+    match /tenants/{tenantId}/images/{allPaths=**} {
+      allow read: if true;
+      allow write: if isOwner(tenantId) && isVehicleImage();
+    }
+
+    match /tenants/{tenantId}/{folder}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isOwner(tenantId) &&
+                      folder.matches('promotions|campaigns|ads|sponsored_content') &&
+                      (isVehicleImage() || isAllowedVideo());
     }
     
     // User avatars

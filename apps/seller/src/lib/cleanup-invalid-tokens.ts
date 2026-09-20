@@ -19,11 +19,19 @@ export function cleanupInvalidTokens(): void {
       const tokenValue = decodeURIComponent(authTokenCookie.split('=')[1] || '');
       
       // Solo limpiar si es un token personalizado de otra app (muy corto)
-      if (tokenValue && tokenValue.length < 200) {
+      // No tocar sesiones de soporte (admin/empleado ayudando al vendedor)
+      if (tokenValue && (tokenValue.startsWith('sup1.') || tokenValue.length < 200)) {
         try {
-          const decoded = atob(tokenValue);
+          const raw = tokenValue.startsWith('sup1.')
+            ? tokenValue.slice(5).replace(/-/g, '+').replace(/_/g, '/')
+            : tokenValue;
+          const decoded = atob(raw);
           const sessionData = JSON.parse(decoded);
-          
+
+          if (sessionData.support === true) {
+            return;
+          }
+
           // Solo limpiar si es de otra app (no seller)
           if (sessionData.role && sessionData.role !== 'seller') {
             console.warn('⚠️ [CLEANUP] Token de otra app detectado:', sessionData.role);

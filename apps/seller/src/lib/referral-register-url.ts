@@ -1,6 +1,5 @@
 import type { NextRequest } from 'next/server';
-
-const DEFAULT_PUBLIC_WEB = 'https://autodealers-7f62e.web.app';
+import { resolvePublicWebUrl } from '@autodealers/shared/platform-urls';
 
 /** URL del registro público (public-web), no del panel seller. */
 export function getPublicRegisterBaseUrl(request: NextRequest): string {
@@ -9,7 +8,7 @@ export function getPublicRegisterBaseUrl(request: NextRequest): string {
 
   const origin = request.nextUrl.origin.replace(/^https?:\/\/seller\./, 'https://');
   if (/localhost|127\.0\.0\.1|0\.0\.0\.0/i.test(origin)) {
-    return DEFAULT_PUBLIC_WEB;
+    return resolvePublicWebUrl();
   }
   return origin;
 }

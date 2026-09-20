@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { SalesConfigAccessPanel } from './SalesConfigAccessPanel';
+import { SalesAdsPanel } from './SalesAdsPanel';
 import {
   useRealtimeSalesDashboard,
   type SalesRealtimeSlice,
@@ -11,7 +12,7 @@ import {
 
 type Role = 'dealer' | 'seller' | 'business';
 type Relation = 'current' | 'former';
-type Tab = 'membresias' | 'pagos' | 'visitas' | 'citas' | 'reportes';
+type Tab = 'membresias' | 'anuncios' | 'pagos' | 'visitas' | 'citas' | 'reportes';
 
 function roleLabel(role: string) {
   if (role === 'dealer') return 'dealer';
@@ -146,6 +147,11 @@ function SalesDashboardInner() {
   const [linkMembershipId, setLinkMembershipId] = useState('');
   const [linkPlansError, setLinkPlansError] = useState('');
   const [linkPlansLoading, setLinkPlansLoading] = useState(false);
+  const [linkExisting, setLinkExisting] = useState({
+    email: '',
+    role: 'dealer' as Role,
+    companyName: '',
+  });
   const [visitForm, setVisitForm] = useState({
     contactName: '',
     contactPhone: '',
@@ -336,6 +342,24 @@ function SalesDashboardInner() {
     if (searchParams.get('connect') === 'return' || searchParams.get('paid') === '1') {
       load();
     }
+
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'anuncios' || tabParam === 'membresias' || tabParam === 'pagos' || tabParam === 'visitas' || tabParam === 'citas' || tabParam === 'reportes') {
+      setTab(tabParam);
+    }
+
+    const adPaid = searchParams.get('ad_paid');
+    if (adPaid === '1') {
+      setTab('anuncios');
+      setMessage('Pago de anuncio recibido (o en proceso). La orden y el inventario se mantienen; la comisión se genera al confirmar el pago.');
+      load();
+    } else if (adPaid === '0') {
+      // Cancel / Back from Stripe Checkout: NEVER delete inventory or order.
+      setTab('anuncios');
+      setMessage(
+        'Checkout cancelado o cerrado. El anuncio sigue asignado con pago pendiente. Puedes reabrir o regenerar el link en la pestaña Anuncios.'
+      );
+    }
   }, [searchParams, load]);
 
   const createdAccount = useMemo(() => data?.accounts[0], [data]);
@@ -405,6 +429,45 @@ function SalesDashboardInner() {
         categorySlug: '',
         visitNotes: '',
         visitedAt: '',
+      });
+      if (json.accountId) {
+        setLinkAccountId(json.accountId);
+        setLinkMembershipId('');
+      }
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function linkExistingAccount(e: React.FormEvent) {
+    e.preventDefault();
+    if (!linkExisting.email.trim()) {
+      setError('Indica el correo de la cuenta ya registrada.');
+      return;
+    }
+    setBusy(true);
+    setError('');
+    setMessage('');
+    try {
+      const res = await fetch('/api/sales/accounts/link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(linkExisting),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Error');
+      setMessage(
+        json.message ||
+          `Cuenta vinculada: ${json.email}. Ya puedes generar el link de membresía y crear anuncios.`
+      );
+      setLinkExisting({
+        email: '',
+        role: linkExisting.role,
+        companyName: '',
       });
       if (json.accountId) {
         setLinkAccountId(json.accountId);
@@ -523,6 +586,27 @@ function SalesDashboardInner() {
     }
   }
 
+  async function updateAppointmentStatus(appointmentId: string, status: 'completed' | 'cancelled') {
+    setBusy(true);
+    setError('');
+    try {
+      const res = await fetch('/api/sales/appointments/status', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ appointmentId, status }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Error');
+      setMessage(status === 'completed' ? 'Cita marcada como completada.' : 'Cita cancelada.');
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function acceptRules(e: React.FormEvent) {
     e.preventDefault();
     if (!acceptedRules) {
@@ -602,6 +686,7 @@ function SalesDashboardInner() {
 
   const tabLabel: Record<Tab, string> = {
     membresias: 'Membresías',
+    anuncios: 'Anuncios',
     pagos: 'Pagos',
     visitas: 'Visitas',
     citas: 'Citas',
@@ -672,11 +757,6 @@ function SalesDashboardInner() {
               </button>
             </div>
           )}
-          <p className="text-xs text-slate-500 mt-2">
-            Las comisiones de membresía se crean cuando el cliente paga (primera factura / Checkout).
-            El 50% inicial queda en espera 14 días; el otro 50% a los 6 meses. Durante trial sin pago
-            aún no se genera comisión.
-          </p>
           {realtimeReady ? (
             <p className="text-[11px] text-slate-400 mt-1">Cuentas y comisiones en tiempo real.</p>
           ) : null}
@@ -797,12 +877,46 @@ function SalesDashboardInner() {
               </button>
             </form>
 
+            <form onSubmit={linkExistingAccount} className="bg-white rounded-xl border p-4 space-y-3">
+              <h2 className="font-semibold">Vincular cuenta ya registrada</h2>
+              <p className="text-xs text-slate-500">
+                El cliente ya tiene cuenta (dealer, vendedor o negocio). No se crea un duplicado ni se
+                cambia su contraseña. La visita se registra aparte si aplica.
+              </p>
+              <select
+                value={linkExisting.role}
+                onChange={(e) => setLinkExisting({ ...linkExisting, role: e.target.value as Role })}
+                className="w-full border rounded-lg px-3 py-2"
+              >
+                <option value="dealer">Dealer</option>
+                <option value="seller">Vendedor</option>
+                <option value="business">Negocio / taller</option>
+              </select>
+              <input
+                required
+                type="email"
+                placeholder="Email de la cuenta existente"
+                value={linkExisting.email}
+                onChange={(e) => setLinkExisting({ ...linkExisting, email: e.target.value })}
+                className="w-full border rounded-lg px-3 py-2"
+              />
+              <input
+                placeholder="Nombre de la compañía (si hay varias)"
+                value={linkExisting.companyName}
+                onChange={(e) => setLinkExisting({ ...linkExisting, companyName: e.target.value })}
+                className="w-full border rounded-lg px-3 py-2"
+              />
+              <button disabled={busy} className="bg-slate-900 text-white px-4 py-2 rounded-lg text-sm disabled:opacity-60">
+                Vincular cuenta
+              </button>
+            </form>
+
             <form onSubmit={createLink} className="bg-white rounded-xl border p-4 space-y-3">
               <h2 className="font-semibold">Link de pago de membresía</h2>
               {data.accounts.length === 0 ? (
                 <p className="text-sm text-slate-600">
-                  Primero crea la cuenta del cliente en &quot;Registrar membresía / crear cuenta&quot;.
-                  Después podrás generar el link de pago aquí.
+                  Primero crea o vincula la cuenta del cliente. Después podrás generar el link de pago
+                  aquí.
                 </p>
               ) : (
                 <>
@@ -866,7 +980,7 @@ function SalesDashboardInner() {
             </form>
 
             <div className="md:col-span-2 bg-white rounded-xl border p-4 overflow-x-auto">
-              <h2 className="font-semibold mb-3">Membresías / cuentas creadas</h2>
+              <h2 className="font-semibold mb-3">Membresías / cuentas</h2>
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="text-left text-slate-500">
@@ -893,6 +1007,20 @@ function SalesDashboardInner() {
               </table>
             </div>
           </div>
+        )}
+
+        {tab === 'anuncios' && (
+          <SalesAdsPanel
+            accounts={(data.accounts || []).map((item) => ({
+              id: item.id,
+              role: item.role,
+              name: item.name,
+              companyName: item.companyName,
+              email: item.email,
+              tenantId: item.tenantId,
+            }))}
+            onDone={() => load()}
+          />
         )}
 
         {tab === 'pagos' && (
@@ -1196,13 +1324,15 @@ function SalesDashboardInner() {
                     <th className="py-2">Con quién</th>
                     <th>Fecha</th>
                     <th>Tipo</th>
+                    <th>Estado</th>
                     <th>Notas</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.appointments.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="py-3 text-slate-500">
+                      <td colSpan={6} className="py-3 text-slate-500">
                         Aún no hay citas.
                       </td>
                     </tr>
@@ -1222,7 +1352,36 @@ function SalesDashboardInner() {
                           {item.kind === 'setup' ? 'Configuración' : 'Orientación'}
                           <p className="text-xs text-slate-400">{whoLabel(item.requestedBy)}</p>
                         </td>
+                        <td>
+                          {item.status === 'completed'
+                            ? 'Completada'
+                            : item.status === 'cancelled'
+                              ? 'Cancelada'
+                              : 'Programada'}
+                        </td>
                         <td>{item.notes}</td>
+                        <td className="space-x-2 whitespace-nowrap">
+                          {item.status === 'scheduled' ? (
+                            <>
+                              <button
+                                type="button"
+                                className="text-green-700 underline text-xs"
+                                disabled={busy}
+                                onClick={() => void updateAppointmentStatus(item.id, 'completed')}
+                              >
+                                Completar
+                              </button>
+                              <button
+                                type="button"
+                                className="text-red-700 underline text-xs"
+                                disabled={busy}
+                                onClick={() => void updateAppointmentStatus(item.id, 'cancelled')}
+                              >
+                                Cancelar
+                              </button>
+                            </>
+                          ) : null}
+                        </td>
                       </tr>
                     ))
                   )}

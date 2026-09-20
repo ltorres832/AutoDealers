@@ -5,6 +5,8 @@ import {
   getStripeSecretKey,
   getStripeWebhookSecret,
   getStripeAdvertiserWebhookSecret,
+  isValidStripeSecretKey,
+  stripeSecretKeyConfigError,
 } from './credentials';
 
 /**
@@ -14,8 +16,8 @@ import {
 export async function getStripeInstance(): Promise<Stripe> {
   const secretKey = await getStripeSecretKey();
   
-  if (!secretKey) {
-    throw new Error('Stripe Secret Key no está configurada. Configúrala en Admin → Configuración → General → Stripe');
+  if (!secretKey || !isValidStripeSecretKey(secretKey)) {
+    throw new Error(stripeSecretKeyConfigError());
   }
 
   return new Stripe(secretKey, {
@@ -60,8 +62,8 @@ export async function getStripeService() {
   const { StripeService } = await import('@autodealers/billing');
   const secretKey = await getStripeSecretKey();
   
-  if (!secretKey) {
-    throw new Error('Stripe Secret Key no está configurada. Configúrala en Admin → Configuración → General → Stripe');
+  if (!secretKey || !isValidStripeSecretKey(secretKey)) {
+    throw new Error(stripeSecretKeyConfigError());
   }
 
   return new StripeService(secretKey);

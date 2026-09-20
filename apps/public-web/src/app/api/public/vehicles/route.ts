@@ -6,6 +6,11 @@ import {
   isTenantEligibleForPublicCatalog,
   isVehicleVisibleOnPublicListing,
 } from '@/lib/public-catalog-visibility';
+import {
+  flagsForFeaturedPromotion,
+  getActiveFeaturedByTarget,
+  sortFeaturedFirst,
+} from '@/lib/public-featured-promotions';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0; // Disable cache for real-time updates
@@ -24,7 +29,7 @@ export async function GET(request: NextRequest) {
     // Incluir tenants sin campo status (antes solo status===active devolvía 0)
     const tenantsSnapshot = await db.collection('tenants').get();
     const tenantDocs = tenantsSnapshot.docs.filter((d) =>
-      isTenantEligibleForPublicCatalog(d.data() as Record<string, unknown>)
+      isTenantEligibleForPublicCatalog(d.data() as Record<string, unknown>, d.id)
     );
 
     console.log(`🔍 Tenants elegibles para catálogo: ${tenantDocs.length} (de ${tenantsSnapshot.size} docs)`);
@@ -32,6 +37,13 @@ export async function GET(request: NextRequest) {
     // Buscar vehículos en paralelo para todos los tenants (más rápido)
     const vehiclePromises = tenantDocs.map(async (tenantDoc: any) => {
       const tenantId = tenantDoc.id;
+      const tenantData = tenantDoc.data() as Record<string, unknown>;
+      const tenantHasActiveMembership = Boolean(
+        tenantData.membershipId ||
+          tenantData.subscriptionId ||
+          tenantData.adminMembershipAccess === 'granted' ||
+          tenantData.adminMembershipAccess === 'active'
+      );
 
       try {
         // Agregar timeout individual de 5 segundos por tenant
@@ -55,7 +67,7 @@ export async function GET(request: NextRequest) {
         const vehicles = await Promise.race([vehiclesPromise, timeoutPromise]) as any[];
 
         const publishedVehicles = vehicles.filter((v: any) =>
-          isVehicleVisibleOnPublicListing(v)
+          isVehicleVisibleOnPublicListing({ ...v, tenantId, tenantHasActiveMembership })
         );
 
         return publishedVehicles.map((v: Record<string, unknown>) => ({
@@ -84,18 +96,16 @@ export async function GET(request: NextRequest) {
     const allVehicles = (allVehiclesArrays || []).flat();
     console.log(`✅ Total de vehículos encontrados: ${allVehicles.length}`);
 
+    const featuredByTarget = await getActiveFeaturedByTarget('vehicle');
     const normalizedVehicles = normalizeVehiclesArray(
-      allVehicles.map((v: any) => ({ ...v } as Record<string, unknown>))
+      allVehicles.map((v: any) => ({
+        ...v,
+        ...flagsForFeaturedPromotion(featuredByTarget.get(`vehicle:${v.id}`)),
+      } as Record<string, unknown>))
     );
 
-    // Ordenar por fecha de creación (más recientes primero) y limitar
-    const sortedVehicles = normalizedVehicles
-      .sort((a: any, b: any) => {
-        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return dateB - dateA;
-      })
-      .slice(0, limit);
+    // Boost y destacados primero, luego recientes
+    const sortedVehicles = sortFeaturedFirst(normalizedVehicles).slice(0, limit);
 
     console.log(`\n🎯 TOTAL: ${sortedVehicles.length} vehículos publicados encontrados\n`);
 

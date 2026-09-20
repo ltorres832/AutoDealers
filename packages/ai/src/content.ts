@@ -47,7 +47,7 @@ Genera:
 3. Sugerencia de mejor horario para publicar (opcional)`;
 
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4-turbo-preview',
+        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
@@ -84,7 +84,7 @@ Genera:
   ): Promise<string> {
     try {
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4-turbo-preview',
+        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
@@ -112,7 +112,7 @@ Genera:
   ): Promise<string[]> {
     try {
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4-turbo-preview',
+        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',

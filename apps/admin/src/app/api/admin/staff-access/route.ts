@@ -5,7 +5,7 @@ import {
   createStaffAccessGrant,
   getAdminUser,
   hasPermanentStaffConfigAccess,
-  listSalesEmployeeAccounts,
+  listAllDealerAndSellerAccountsForStaffAccess,
   listSalesEmployees,
   listStaffAccessGrants,
   listStaffAccessRequests,
@@ -40,14 +40,14 @@ export async function GET(request: NextRequest) {
     let grants: Awaited<ReturnType<typeof listStaffAccessGrants>> = [];
     let requests: Awaited<ReturnType<typeof listStaffAccessRequests>> = [];
     let employees: Awaited<ReturnType<typeof listSalesEmployees>> = [];
-    let accounts: Awaited<ReturnType<typeof listSalesEmployeeAccounts>> = [];
+    let accounts: Awaited<ReturnType<typeof listAllDealerAndSellerAccountsForStaffAccess>> = [];
 
     try {
       [grants, requests, employees, accounts] = await Promise.all([
         listStaffAccessGrants(100),
         listStaffAccessRequests(undefined, 100),
         listSalesEmployees(),
-        listSalesEmployeeAccounts(),
+        listAllDealerAndSellerAccountsForStaffAccess(),
       ]);
     } catch (e) {
       console.error('[admin/staff-access GET] lists', e);
@@ -71,13 +71,14 @@ export async function GET(request: NextRequest) {
       })),
       accounts: accounts.map((a) => ({
         id: a.id,
-        employeeId: a.employeeId,
+        employeeId: '',
         tenantId: a.tenantId,
         userId: a.userId,
         name: a.name,
         companyName: a.companyName,
         email: a.email,
         role: a.role,
+        status: a.status,
       })),
       canManage: true,
     });

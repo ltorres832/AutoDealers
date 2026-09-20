@@ -3,14 +3,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRealtimeSalesAdmin } from '@/hooks/useRealtimeSalesAdmin';
+import { fetchWithAuth } from '@/lib/fetch-with-auth';
 
-type Tab = 'empleados' | 'membresias' | 'comisiones' | 'citas' | 'visitas';
+type Tab = 'empleados' | 'membresias' | 'anuncios' | 'comisiones' | 'citas' | 'visitas';
 
 interface Overview {
   employees: Array<{
     id: string;
     name: string;
     email: string;
+    phone?: string;
     status: string;
     portalUrl?: string;
     stats?: { totalAccounts: number; pendingPayout: number; totalPaid: number };
@@ -26,6 +28,16 @@ interface Overview {
     name: string;
     companyName?: string;
   }>;
+  portalAccounts?: Array<{
+    id: string;
+    tenantId: string;
+    userId: string;
+    name: string;
+    companyName?: string;
+    email: string;
+    role: string;
+    status?: string;
+  }>;
   commissions: Array<{
     id: string;
     employeeId: string;
@@ -35,6 +47,21 @@ interface Overview {
     tenantId?: string;
     eligibleAt: string | null;
     payoutError?: string;
+    adKind?: string;
+    source?: string;
+    salesAdOrderId?: string;
+  }>;
+  adOrders?: Array<{
+    id: string;
+    employeeId?: string;
+    label?: string;
+    productKind?: string;
+    payMode?: string;
+    status?: string;
+    price?: number;
+    clientName?: string;
+    commissionCreated?: boolean;
+    createdAt?: string | null;
   }>;
   appointments: Array<{
     id: string;
@@ -43,6 +70,7 @@ interface Overview {
     scheduledAt: string | null;
     requestedBy: string;
     notes: string;
+    status?: string;
     contactName?: string;
     contactPhone?: string | null;
     companyName?: string | null;
@@ -86,6 +114,7 @@ export default function EmpleadosVentasPage() {
   const tabLabel: Record<Tab, string> = {
     empleados: 'Empleados',
     membresias: 'Membresías',
+    anuncios: 'Anuncios',
     comisiones: 'Comisiones',
     citas: 'Citas',
     visitas: 'Visitas',
@@ -126,12 +155,20 @@ export default function EmpleadosVentasPage() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState<{
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    status: string;
+    password: string;
+  } | null>(null);
 
   const load = useCallback(async () => {
     const [listRes, overviewRes, accessRes] = await Promise.all([
-      fetch('/api/admin/empleados-ventas'),
-      fetch('/api/admin/empleados-ventas/overview'),
-      fetch('/api/admin/staff-access'),
+      fetchWithAuth('/api/admin/empleados-ventas'),
+      fetchWithAuth('/api/admin/empleados-ventas/overview'),
+      fetchWithAuth('/api/admin/staff-access'),
     ]);
     const list = await listRes.json();
     const overview = await overviewRes.json();
@@ -168,7 +205,7 @@ export default function EmpleadosVentasPage() {
     setError('');
     setMessage('');
     try {
-      const res = await fetch('/api/admin/empleados-ventas', {
+      const res = await fetchWithAuth('/api/admin/empleados-ventas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
@@ -194,7 +231,7 @@ export default function EmpleadosVentasPage() {
     setError('');
     setMessage('');
     try {
-      const res = await fetch(`/api/admin/empleados-ventas/commissions/${id}/pay`, {
+      const res = await fetchWithAuth(`/api/admin/empleados-ventas/commissions/${id}/pay`, {
         method: 'POST',
       });
       const json = await res.json();
@@ -209,31 +246,104 @@ export default function EmpleadosVentasPage() {
   }
 
   async function toggleStatus(id: string, status: string) {
-    await fetch(`/api/admin/empleados-ventas/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: status === 'active' ? 'inactive' : 'active' }),
-    });
-    await load();
+    setBusy(true);
+    setError('');
+    setMessage('');
+    try {
+      const res = await fetchWithAuth(`/api/admin/empleados-ventas/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: status === 'active' ? 'inactive' : 'active' }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'No se pudo cambiar el estado');
+      setMessage(status === 'active' ? 'Empleado desactivado.' : 'Empleado activado.');
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error');
+    } finally {
+      setBusy(false);
+    }
   }
 
-    async function createAppointment(e: React.FormEvent) {
+  async function saveEmployee(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editing) return;
+    setBusy(true);
+    setError('');
+    setMessage('');
+    try {
+      const body: Record<string, string> = {
+        name: editing.name,
+        email: editing.email,
+        phone: editing.phone,
+        status: editing.status,
+      };
+      if (editing.password.trim()) body.password = editing.password.trim();
+      const res = await fetchWithAuth(`/api/admin/empleados-ventas/${editing.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'No se pudo guardar');
+      setMessage(editing.password.trim() ? 'Empleado actualizado y contraseña restablecida.' : 'Empleado actualizado.');
+      setEditing(null);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function updateAppointmentStatus(appointmentId: string, status: 'completed' | 'cancelled') {
+    setBusy(true);
+    setError('');
+    setMessage('');
+    try {
+      const res = await fetchWithAuth('/api/admin/empleados-ventas/appointments/status', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appointmentId, status }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Error');
+      setMessage(status === 'completed' ? 'Cita marcada como completada.' : 'Cita cancelada.');
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function appointmentStatusLabel(status?: string) {
+    if (status === 'completed') return 'Completada';
+    if (status === 'cancelled') return 'Cancelada';
+    return 'Programada';
+  }
+
+  async function createAppointment(e: React.FormEvent) {
     e.preventDefault();
     if (appt.grantAccess && !appt.accountId) {
-      setError('Para otorgar acceso debes vincular una cuenta (membresía) en la cita');
+      setError('Para otorgar acceso debes seleccionar un dealer o vendedor');
       return;
     }
     setBusy(true);
     setError('');
     try {
-      const account = data?.accounts.find((item) => item.id === appt.accountId);
+      const account =
+        data?.portalAccounts?.find((item) => item.id === appt.accountId) ||
+        data?.accounts.find((item) => item.id === appt.accountId);
       const visit = data?.visits.find((item) => item.id === appt.visitId);
-      const res = await fetch('/api/admin/empleados-ventas/appointments', {
+      const res = await fetchWithAuth('/api/admin/empleados-ventas/appointments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...appt,
           tenantId: account?.tenantId || visit?.tenantId || '',
+          clientUserId: account?.userId || '',
           grantAccess: appt.grantAccess,
           grantAccessDurationMinutes: appt.grantAccessDurationMinutes,
         }),
@@ -290,7 +400,7 @@ export default function EmpleadosVentasPage() {
       )}
 
       <div className="flex gap-2 flex-wrap">
-        {(['empleados', 'membresias', 'comisiones', 'citas', 'visitas'] as const).map((key) => (
+        {(['empleados', 'membresias', 'anuncios', 'comisiones', 'citas', 'visitas'] as const).map((key) => (
           <button
             key={key}
             onClick={() => setTab(key)}
@@ -342,6 +452,7 @@ export default function EmpleadosVentasPage() {
                 <tr className="text-left text-gray-500">
                   <th className="py-2">Nombre</th>
                   <th>Email</th>
+                  <th>Estado</th>
                   <th>Pendiente</th>
                   <th>Stripe</th>
                   <th></th>
@@ -352,10 +463,32 @@ export default function EmpleadosVentasPage() {
                   <tr key={item.id} className="border-t">
                     <td className="py-2">{item.name}</td>
                     <td>{item.email}</td>
+                    <td>{item.status === 'active' ? 'Activo' : 'Inactivo'}</td>
                     <td>{money(item.stats?.pendingPayout || 0)}</td>
                     <td>{item.stripeConnectPayoutsEnabled ? 'Listo' : 'Pendiente'}</td>
-                    <td>
-                      <button className="text-blue-700 underline" onClick={() => toggleStatus(item.id, item.status)}>
+                    <td className="space-x-3 whitespace-nowrap">
+                      <button
+                        type="button"
+                        className="text-blue-700 underline"
+                        onClick={() =>
+                          setEditing({
+                            id: item.id,
+                            name: item.name,
+                            email: item.email,
+                            phone: item.phone || '',
+                            status: item.status === 'inactive' ? 'inactive' : 'active',
+                            password: '',
+                          })
+                        }
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        className="text-blue-700 underline disabled:opacity-50"
+                        onClick={() => toggleStatus(item.id, item.status)}
+                      >
                         {item.status === 'active' ? 'Desactivar' : 'Activar'}
                       </button>
                     </td>
@@ -398,6 +531,50 @@ export default function EmpleadosVentasPage() {
         </div>
       )}
 
+      {tab === 'anuncios' && (
+        <div className="bg-white rounded-xl border p-4 space-y-3">
+          <p className="text-sm text-slate-600">
+            Solo aparecen anuncios creados desde el portal de ventas. Las compras self-serve del cliente
+            no generan comisión ni aparecen aquí.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="text-left text-gray-500">
+                  <th className="py-2">Producto</th>
+                  <th>Cliente</th>
+                  <th>Empleado</th>
+                  <th>Pago</th>
+                  <th>Estado</th>
+                  <th>Monto</th>
+                  <th>Comisión</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(data?.adOrders || []).map((item) => (
+                  <tr key={item.id} className="border-t">
+                    <td className="py-2">{item.label || item.productKind}</td>
+                    <td>{item.clientName || '—'}</td>
+                    <td>{employeeName(String(item.employeeId || ''))}</td>
+                    <td>{item.payMode || '—'}</td>
+                    <td>{item.status || '—'}</td>
+                    <td>{money(Number(item.price || 0))}</td>
+                    <td>{item.commissionCreated ? 'Sí' : 'Pendiente'}</td>
+                  </tr>
+                ))}
+                {(data?.adOrders || []).length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="py-4 text-slate-500">
+                      Sin órdenes de anuncios desde Ventas.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {tab === 'comisiones' && (
         <div className="bg-white rounded-xl border p-4 overflow-x-auto">
           <table className="min-w-full text-sm">
@@ -415,7 +592,7 @@ export default function EmpleadosVentasPage() {
               {(data?.commissions || []).map((item) => (
                 <tr key={item.id} className="border-t">
                   <td className="py-2">{employeeName(item.employeeId)}</td>
-                  <td>{item.type}</td>
+                  <td>{item.type === 'ad' ? `anuncio${item.adKind ? ` (${item.adKind})` : ''}` : item.type}</td>
                   <td>{money(item.amount)}</td>
                   <td>
                     {item.status}
@@ -464,16 +641,19 @@ export default function EmpleadosVentasPage() {
 
             <div className="rounded-lg border-2 border-amber-400 bg-amber-50 p-3 space-y-2">
               <p className="text-sm font-bold text-amber-950">2. Cuenta a la que das acceso</p>
+              <p className="text-xs text-amber-900">
+                Dealers y vendedores con membresía activa de pago (
+                {(data?.portalAccounts || []).length} cuentas)
+              </p>
               <select
                 required={appt.grantAccess}
                 value={appt.accountId}
                 onChange={(e) => {
                   const accountId = e.target.value;
-                  const account = data?.accounts.find((item) => item.id === accountId);
+                  const account = (data?.portalAccounts || []).find((item) => item.id === accountId);
                   setAppt({
                     ...appt,
                     accountId,
-                    employeeId: account?.employeeId || appt.employeeId,
                     contactName: account?.name || appt.contactName,
                     contactEmail: account?.email || appt.contactEmail,
                     companyName: account?.companyName || appt.companyName,
@@ -482,22 +662,22 @@ export default function EmpleadosVentasPage() {
                 }}
                 className="w-full border-2 border-amber-500 rounded-lg px-3 py-2 text-sm bg-white"
               >
-                <option value="">Seleccionar cuenta / membresía…</option>
-                {(data?.accounts || [])
-                  .filter((item) => !appt.employeeId || item.employeeId === appt.employeeId)
-                  .map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {(item.companyName || item.name) +
-                        ` (${item.role}) · ${item.email} · ${item.tenantId.slice(0, 8)}…`}
-                    </option>
-                  ))}
+                <option value="">
+                  {(data?.portalAccounts || []).length === 0
+                    ? 'No hay cuentas con membresía activa de pago'
+                    : 'Seleccionar dealer o vendedor…'}
+                </option>
+                {(data?.portalAccounts || []).map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {(item.companyName || item.name) +
+                      ` (${item.role}) · ${item.email || 'sin email'}`}
+                  </option>
+                ))}
               </select>
-              {(data?.accounts || []).filter(
-                (item) => !appt.employeeId || item.employeeId === appt.employeeId
-              ).length === 0 ? (
+              {(data?.portalAccounts || []).length === 0 ? (
                 <p className="text-xs text-red-700">
-                  Este empleado no tiene cuentas aún. Crea la membresía desde el portal /sales o
-                  elige otro empleado.
+                  No hay dealers ni vendedores con membresía activa de pago (suscripción active o
+                  trialing).
                 </p>
               ) : (
                 <p className="text-xs text-amber-900">
@@ -681,7 +861,7 @@ export default function EmpleadosVentasPage() {
                           }
                           setBusy(true);
                           try {
-                            const res = await fetch(`/api/admin/staff-access/${r.id}`, {
+                            const res = await fetchWithAuth(`/api/admin/staff-access/${r.id}`, {
                               method: 'PATCH',
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({
@@ -715,7 +895,7 @@ export default function EmpleadosVentasPage() {
                         onClick={async () => {
                           setBusy(true);
                           try {
-                            await fetch(`/api/admin/staff-access/${r.id}`, {
+                            await fetchWithAuth(`/api/admin/staff-access/${r.id}`, {
                               method: 'PATCH',
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({ action: 'deny' }),
@@ -742,7 +922,7 @@ export default function EmpleadosVentasPage() {
               <p className="text-gray-500">Aún no hay citas.</p>
             ) : (
               (data?.appointments || []).map((item) => (
-                <div key={item.id} className="border-b pb-2">
+                <div key={item.id} className="border-b pb-2 space-y-1">
                   <p className="font-medium">
                     {item.contactName || 'Sin nombre'} · {prospectLabel(item.prospectRole, item.prospectRelation)}
                   </p>
@@ -754,8 +934,30 @@ export default function EmpleadosVentasPage() {
                   </p>
                   <p className="text-xs text-gray-400">
                     {item.requestedBy === 'admin' ? 'Admin' : item.requestedBy === 'employee' ? 'Empleado' : 'Dueño'}
+                    {' · '}
+                    Estado: {appointmentStatusLabel(item.status)}
                   </p>
-                  <p>{item.notes}</p>
+                  {item.notes ? <p>{item.notes}</p> : null}
+                  {(item.status || 'scheduled') === 'scheduled' ? (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <button
+                        type="button"
+                        disabled={busy}
+                        className="text-sm bg-green-700 text-white px-3 py-1 rounded-lg disabled:opacity-50"
+                        onClick={() => void updateAppointmentStatus(item.id, 'completed')}
+                      >
+                        Completar
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        className="text-sm text-red-700 underline disabled:opacity-50"
+                        onClick={() => void updateAppointmentStatus(item.id, 'cancelled')}
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               ))
             )}
@@ -785,6 +987,84 @@ export default function EmpleadosVentasPage() {
           )}
         </div>
       )}
+      {editing ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <form
+            onSubmit={saveEmployee}
+            className="w-full max-w-md bg-white rounded-xl border p-4 space-y-3 shadow-lg"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="font-semibold text-lg">Editar empleado</h2>
+              <button
+                type="button"
+                className="text-sm text-gray-500 underline"
+                onClick={() => setEditing(null)}
+              >
+                Cerrar
+              </button>
+            </div>
+            <input
+              required
+              placeholder="Nombre"
+              value={editing.name}
+              onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+              className="w-full border rounded-lg px-3 py-2"
+            />
+            <input
+              required
+              type="email"
+              placeholder="Email"
+              value={editing.email}
+              onChange={(e) => setEditing({ ...editing, email: e.target.value })}
+              className="w-full border rounded-lg px-3 py-2"
+            />
+            <input
+              placeholder="Teléfono"
+              value={editing.phone}
+              onChange={(e) => setEditing({ ...editing, phone: e.target.value })}
+              className="w-full border rounded-lg px-3 py-2"
+            />
+            <label className="block text-sm text-gray-600">
+              Estado
+              <select
+                value={editing.status}
+                onChange={(e) => setEditing({ ...editing, status: e.target.value })}
+                className="mt-1 w-full border rounded-lg px-3 py-2"
+              >
+                <option value="active">Activo</option>
+                <option value="inactive">Inactivo</option>
+              </select>
+            </label>
+            <input
+              type="password"
+              placeholder="Nueva contraseña (opcional)"
+              value={editing.password}
+              onChange={(e) => setEditing({ ...editing, password: e.target.value })}
+              className="w-full border rounded-lg px-3 py-2"
+              autoComplete="new-password"
+            />
+            <p className="text-xs text-gray-500">
+              Deja la contraseña vacía para no cambiarla. Si la llenas, se restablece al guardar.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-lg text-sm border"
+                onClick={() => setEditing(null)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={busy}
+                className="bg-slate-900 text-white px-4 py-2 rounded-lg text-sm disabled:opacity-50"
+              >
+                Guardar
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
     </div>
   );
 }

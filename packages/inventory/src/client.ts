@@ -4,4 +4,5 @@
 export * from './types';
 export * from './vehicle-types';
 export * from './listing-status';
+export * from './inventory-compete-constants';
 

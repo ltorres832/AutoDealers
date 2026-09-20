@@ -27,6 +27,7 @@ const nextConfig = {
     '@google-cloud/firestore',
     '@google-cloud/storage',
     'stripe',
+    'sharp',
   ],
   images: {
     unoptimized: true,
@@ -40,6 +41,7 @@ const nextConfig = {
     '@autodealers/billing',
     '@autodealers/inventory',
     '@autodealers/reports',
+    '@autodealers/voice',
   ],
   webpack: (config, { isServer, webpack }) => {
     const sharedSrc = path.join(__dirname, '../../packages/shared/src');
@@ -58,6 +60,10 @@ const nextConfig = {
         __dirname,
         '../../packages/core/src/user-auth-sync.ts'
       ),
+      '@autodealers/core/ad-placement-explainer': path.join(
+        __dirname,
+        '../../packages/core/src/ad-placement-explainer.tsx'
+      ),
       '@autodealers/shared/client': path.join(sharedSrc, 'client.ts'),
       '@autodealers/shared/firebase-server': path.join(sharedSrc, 'firebase-server.ts'),
       '@autodealers/shared/platform-branding-client': path.join(
@@ -73,6 +79,11 @@ const nextConfig = {
         'components/TrustGalleryEditor.tsx'
       ),
       '@autodealers/shared/promo-video-urls': path.join(sharedSrc, 'promo-video-urls.ts'),
+      '@autodealers/shared/website-hero-media': path.join(sharedSrc, 'website-hero-media.ts'),
+      '@autodealers/shared/components/WebsiteHeroMediaEditor': path.join(
+        sharedSrc,
+        'components/WebsiteHeroMediaEditor.tsx'
+      ),
       '@autodealers/shared/public-trust-gallery': path.join(sharedSrc, 'public-trust-gallery.ts'),
       '@autodealers/shared/settings-profile': path.join(sharedSrc, 'settings-profile.ts'),
       '@autodealers/shared/firebase-storage-upload': path.join(

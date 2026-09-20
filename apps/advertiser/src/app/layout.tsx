@@ -3,6 +3,7 @@ import '../styles/globals.css';
 import '../../../../packages/shared/src/styles/brand-surface.css';
 import ServerStatus from '../components/ServerStatus';
 import { PlatformBrandingHead } from '@/components/PlatformBrandingHead';
+import { PlatformVisitTracker } from '@autodealers/shared/platform-visit-tracker';
 
 const platformBrandIcon = '/brand/ad-platform-logo.png';
 
@@ -35,6 +36,7 @@ export default function RootLayout({
     <html lang="es">
       <body className="brand-top-accent min-h-[100dvh] overflow-x-hidden antialiased">
         <PlatformBrandingHead />
+        <PlatformVisitTracker app="advertiser" />
         <ServerStatus />
         {children}
       </body>

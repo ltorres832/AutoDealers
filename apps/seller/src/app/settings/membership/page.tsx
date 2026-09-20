@@ -1,12 +1,11 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRealtimeMemberships } from '@/hooks/useRealtimeMemberships';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
-import { DealerManagedMembershipPanel } from '@/components/DealerManagedMembershipPanel';
 import { MembershipOnboardingNotice } from '@autodealers/shared/client';
-import { MembershipBenefitsDisplay } from '@autodealers/billing/client';
+import { MembershipBenefitsDisplay, UsageMonthWidget } from '@autodealers/billing/client';
 
 interface Membership {
   id: string;
@@ -36,6 +35,7 @@ export default function MembershipPage() {
   const [user, setUser] = useState<any>(null);
   const [userLoading, setUserLoading] = useState(true);
   const [tenantId, setTenantId] = useState<string | undefined>(undefined);
+  const [userId, setUserId] = useState<string | undefined>(undefined);
   const [currentMembership, setCurrentMembership] = useState<Membership | null>(null);
   const [changing, setChanging] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -43,7 +43,7 @@ export default function MembershipPage() {
 
   // Hooks de tiempo real
   const { memberships: availableMemberships, loading: membershipsLoading, emptyReason: membershipsEmptyReason } = useRealtimeMemberships('seller');
-  const { subscription, loading: subscriptionLoading } = useRealtimeSubscription(tenantId);
+  const { subscription, loading: subscriptionLoading } = useRealtimeSubscription(tenantId, userId);
 
   // Obtener tenantId del usuario
   useEffect(() => {
@@ -56,6 +56,7 @@ export default function MembershipPage() {
           const data = await response.json();
           setUser(data.user);
           setTenantId(data.user?.tenantId);
+          setUserId(data.user?.id || data.user?.userId);
         }
       } catch (error) {
         console.error('Error obteniendo usuario:', error);
@@ -68,13 +69,14 @@ export default function MembershipPage() {
 
   // Obtener membresía actual basada en la suscripción
   useEffect(() => {
-    if (subscription?.membershipId && availableMemberships.length > 0) {
-      const membership = availableMemberships.find(m => m.id === subscription.membershipId);
+    const membershipIdToUse = subscription?.membershipId || user?.membershipId;
+    if (membershipIdToUse && availableMemberships.length > 0) {
+      const membership = availableMemberships.find(m => m.id === membershipIdToUse);
       setCurrentMembership(membership || null);
     } else {
       setCurrentMembership(null);
     }
-  }, [subscription, availableMemberships]);
+  }, [subscription, availableMemberships, user?.membershipId]);
 
   const loading = membershipsLoading || subscriptionLoading;
 
@@ -218,20 +220,6 @@ export default function MembershipPage() {
     );
   }
 
-  if (user?.dealerId) {
-    return (
-      <Suspense
-        fallback={
-          <div className="flex justify-center p-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
-          </div>
-        }
-      >
-        <DealerManagedMembershipPanel tenantId={tenantId} dealerId={user.dealerId} />
-      </Suspense>
-    );
-  }
-
   if (loading) {
     return (
       <div className="flex justify-center p-8">
@@ -245,6 +233,11 @@ export default function MembershipPage() {
       <MembershipOnboardingNotice
         accountLabel="cuenta"
         createdByAdmin={user?.createdByAdmin === true}
+        hasActivePlan={
+          Boolean(user?.membershipId) ||
+          (Boolean(subscription) &&
+            ['active', 'trialing', 'past_due'].includes(String(subscription?.status || '')))
+        }
       />
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Membresía</h1>
@@ -309,7 +302,7 @@ export default function MembershipPage() {
       <div className="mb-8">
         <h2 className="text-2xl font-bold text-gray-900 mb-4">Membresía Actual</h2>
         
-        {currentMembership && subscription ? (
+        {currentMembership ? (
           <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
             <div className="flex justify-between items-start mb-4">
               <div>
@@ -322,12 +315,18 @@ export default function MembershipPage() {
                   {currentMembership.billingCycle === 'monthly' ? '/mes' : '/año'}
                 </p>
               </div>
-              <span className={`px-4 py-2 rounded-full text-sm font-medium ${getStatusColor(subscription.status)}`}>
-                {getStatusLabel(subscription.status)}
-              </span>
+              {subscription ? (
+                <span className={`px-4 py-2 rounded-full text-sm font-medium ${getStatusColor(subscription.status)}`}>
+                  {getStatusLabel(subscription.status)}
+                </span>
+              ) : (
+                <span className="px-4 py-2 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                  Activa
+                </span>
+              )}
             </div>
 
-            {subscription.statusReason && (
+            {subscription?.statusReason && (
               <div className="mb-4 p-3 bg-primary-50 border border-primary-200 rounded-lg">
                 <p className="text-sm text-primary-800">
                   <strong>Motivo del estado:</strong> {subscription.statusReason}
@@ -335,7 +334,7 @@ export default function MembershipPage() {
               </div>
             )}
 
-            {subscription.daysPastDue && subscription.daysPastDue > 0 && (
+            {subscription?.daysPastDue && subscription.daysPastDue > 0 && (
               <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <p className="text-sm text-yellow-800">
                   <strong>Atención:</strong> Tu pago está {subscription.daysPastDue} días atrasado
@@ -343,6 +342,8 @@ export default function MembershipPage() {
               </div>
             )}
 
+            {subscription ? (
+            <>
             <div className="grid grid-cols-2 gap-4 mt-4">
               <div>
                 <p className="text-sm text-gray-600">Período Actual</p>
@@ -411,6 +412,8 @@ export default function MembershipPage() {
                 </p>
               </div>
             )}
+            </>
+            ) : null}
 
             <div className="mt-6 pt-6 border-t">
               <MembershipBenefitsDisplay
@@ -440,6 +443,11 @@ export default function MembershipPage() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Uso del mes */}
+      <div className="mb-8">
+        <UsageMonthWidget upgradeHref="/settings/membership" />
       </div>
 
       {/* Cambiar Membresía */}

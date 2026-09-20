@@ -59,6 +59,13 @@ export async function POST(request: NextRequest) {
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
+    if (auth.tenantId) {
+      const { retryRegistrationSocialAnnounceWhenReady } = await import('@autodealers/core');
+      void retryRegistrationSocialAnnounceWhenReady(auth.tenantId, auth.userId).catch((err) =>
+        console.warn('[seller photo] social announce retry:', err)
+      );
+    }
+
     return NextResponse.json({ photoUrl });
   } catch (error: any) {
     console.error('Error uploading photo:', error);

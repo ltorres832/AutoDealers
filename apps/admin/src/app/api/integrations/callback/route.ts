@@ -1,7 +1,12 @@
 ﻿export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { decodeSocialOAuthState, getFirestore, PLATFORM_SOCIAL_TENANT_ID } from '@autodealers/core';
+import {
+  decodeSocialOAuthState,
+  getFirestore,
+  getMetaCredentials,
+  PLATFORM_SOCIAL_TENANT_ID,
+} from '@autodealers/core';
 import * as admin from 'firebase-admin';
 import { PLATFORM_META_OAUTH_PENDING_DOC } from '@/lib/platform-meta-oauth';
 import { getOAuthRedirectOrigin, buildOAuthRedirectUrl } from '@/lib/oauth-redirect-origin';
@@ -88,15 +93,7 @@ export async function GET(request: NextRequest) {
       return integrationsRedirect(request, PLATFORM_SOCIAL_TENANT_ID, 'error=invalid_state');
     }
 
-    const credentialsDoc = await db.collection('system_settings').doc('credentials').get();
-    let clientId: string | undefined;
-    let clientSecret: string | undefined;
-
-    if (credentialsDoc.exists) {
-      const credentialsData = credentialsDoc.data();
-      clientId = credentialsData?.metaAppId;
-      clientSecret = credentialsData?.metaAppSecret;
-    }
+    const { appId: clientId, appSecret: clientSecret } = await getMetaCredentials();
 
     if (!clientId || !clientSecret) {
       return integrationsRedirect(request, tenantId, 'error=meta_app_not_configured');

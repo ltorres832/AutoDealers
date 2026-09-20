@@ -1,7 +1,15 @@
 // Sistema de anunciantes (empresas externas)
 
 import { getFirestore, getAuth } from '@autodealers/shared';
+import { PLATFORM_NAME } from '@autodealers/shared/platform-sender';
 import { sendOutboundEmail } from './messaging-outbound';
+import { normalizeLoginEmail } from './user-auth-sync';
+import {
+  ensureAuthAccount,
+  findPlatformProfile,
+  PlatformProfileExistsError,
+  storeAppPasswordForProfile,
+} from './platform-registration';
 
 // Lazy initialization - solo se inicializa cuando se necesita
 function getDb() {
@@ -11,6 +19,8 @@ import * as admin from 'firebase-admin';
 
 const db = getFirestore();
 const auth = getAuth();
+
+export type AdvertiserRegistrationSource = 'self' | 'admin';
 
 export interface Advertiser {
   id: string;
@@ -25,9 +35,146 @@ export interface Advertiser {
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
   defaultPaymentMethod?: string;
+  registrationSource?: AdvertiserRegistrationSource;
+  createdBy?: string;
+  createdByName?: string;
+  assignedAdminId?: string;
+  assignedAdminName?: string;
+  assignedAt?: Date;
+  assignedBy?: string;
   createdAt: Date;
   updatedAt: Date;
   lastLogin?: Date;
+}
+
+export interface AdvertiserAccountMeta {
+  registrationSource: AdvertiserRegistrationSource;
+  createdBy?: string;
+  createdByName?: string;
+  assignedAdminId?: string;
+  assignedAdminName?: string;
+  assignedBy?: string;
+}
+
+export async function resolvePlatformAdminName(adminId?: string): Promise<string | undefined> {
+  if (!adminId?.trim()) return undefined;
+  const userDoc = await getDb().collection('users').doc(adminId).get();
+  if (userDoc.exists) {
+    const data = userDoc.data();
+    return (data?.name as string) || (data?.email as string) || undefined;
+  }
+  const adminDoc = await getDb().collection('admin_users').doc(adminId).get();
+  if (adminDoc.exists) {
+    const data = adminDoc.data();
+    return (data?.name as string) || (data?.email as string) || undefined;
+  }
+  return undefined;
+}
+
+export async function notifyAdvertiserAccountCreated(params: {
+  advertiserId: string;
+  companyName: string;
+  contactName: string;
+  email: string;
+  registrationSource: AdvertiserRegistrationSource;
+  createdByName?: string;
+  assignedAdminId?: string;
+  assignedAdminName?: string;
+}): Promise<void> {
+  const { notifyPlatformAdmins, notifyUser } = await import('./notifications');
+  const { PLATFORM_ADMIN_TENANT_ID } = await import('./platform-social');
+
+  const originLabel =
+    params.registrationSource === 'self'
+      ? 'Auto-registro'
+      : `Admin${params.createdByName ? `: ${params.createdByName}` : ''}`;
+
+  const assigneeSuffix = params.assignedAdminName
+    ? ` · Asignado a ${params.assignedAdminName}`
+    : '';
+
+  await notifyPlatformAdmins({
+    type: 'system_alert',
+    title:
+      params.registrationSource === 'self'
+        ? 'Nuevo anunciante registrado'
+        : 'Nuevo anunciante creado',
+    message: `${params.companyName} (${params.contactName}, ${params.email}) — ${originLabel}${assigneeSuffix}.`,
+    audience: 'platform',
+    metadata: {
+      advertiserId: params.advertiserId,
+      route: `/admin/advertisers/${params.advertiserId}`,
+      registrationSource: params.registrationSource,
+      assignedAdminId: params.assignedAdminId || '',
+    },
+  });
+
+  if (params.assignedAdminId) {
+    await notifyUser(PLATFORM_ADMIN_TENANT_ID, params.assignedAdminId, {
+      type: 'system_alert',
+      title: 'Anunciante asignado a ti',
+      message: `Se te asignó la cuenta de ${params.companyName} (${params.email}).`,
+      metadata: {
+        advertiserId: params.advertiserId,
+        route: `/admin/advertisers/${params.advertiserId}`,
+      },
+    });
+  }
+}
+
+export async function assignAdvertiserToAdmin(
+  advertiserId: string,
+  assignedAdminId: string | null,
+  assignedBy: string
+): Promise<Advertiser | null> {
+  const ref = getDb().collection('advertisers').doc(advertiserId);
+  const snap = await ref.get();
+  if (!snap.exists) return null;
+
+  let assignedAdminName: string | undefined;
+  if (assignedAdminId) {
+    assignedAdminName = await resolvePlatformAdminName(assignedAdminId);
+    if (!assignedAdminName) {
+      throw new Error('El administrador asignado no existe');
+    }
+  }
+
+  const patch: Record<string, unknown> = {
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    assignedBy,
+  };
+
+  if (assignedAdminId) {
+    patch.assignedAdminId = assignedAdminId;
+    patch.assignedAdminName = assignedAdminName;
+    patch.assignedAt = admin.firestore.FieldValue.serverTimestamp();
+  } else {
+    patch.assignedAdminId = admin.firestore.FieldValue.delete();
+    patch.assignedAdminName = admin.firestore.FieldValue.delete();
+    patch.assignedAt = admin.firestore.FieldValue.delete();
+  }
+
+  await ref.update(patch);
+
+  const data = (await ref.get()).data();
+  const companyName = String(data?.companyName || '');
+  const email = String(data?.email || '');
+
+  if (assignedAdminId && assignedAdminName) {
+    const { notifyUser } = await import('./notifications');
+    const { PLATFORM_ADMIN_TENANT_ID } = await import('./platform-social');
+    await notifyUser(PLATFORM_ADMIN_TENANT_ID, assignedAdminId, {
+      type: 'system_alert',
+      title: 'Anunciante asignado a ti',
+      message: `Se te asignó la cuenta de ${companyName} (${email}).`,
+      metadata: {
+        advertiserId,
+        route: `/admin/advertisers/${advertiserId}`,
+      },
+    });
+  }
+
+  return getAdvertiserById(advertiserId);
 }
 
 export interface SponsoredContent {
@@ -36,10 +183,12 @@ export interface SponsoredContent {
   advertiserName: string;
   campaignName?: string;
   type: 'banner' | 'promotion' | 'sponsor';
-  placement: 'hero' | 'sidebar' | 'sponsors_section' | 'between_content';
+  placement: 'hero' | 'sidebar' | 'sponsors_section' | 'between_content' | 'vehicle_page';
   title: string;
   description: string;
   imageUrl: string;
+  images?: string[];
+  animation?: 'none' | 'fade' | 'slide' | 'kenburns';
   videoUrl?: string;
   linkUrl: string;
   linkType:
@@ -89,46 +238,94 @@ export interface SponsoredContent {
  * Crea un nuevo anunciante
  */
 export async function createAdvertiser(
-  advertiserData: Omit<Advertiser, 'id' | 'createdAt' | 'updatedAt'>
+  advertiserData: Omit<
+    Advertiser,
+    'id' | 'createdAt' | 'updatedAt' | 'assignedAt' | 'lastLogin'
+  >,
+  meta?: AdvertiserAccountMeta
 ): Promise<Advertiser> {
-  // Crear usuario en Firebase Auth
-  const password = Math.random().toString(36).slice(-12) + 'A1!'; // Generar password temporal
-  const userRecord = await auth.createUser({
-    email: advertiserData.email,
+  const normalizedEmail = normalizeLoginEmail(advertiserData.email);
+  const existing = await findPlatformProfile(normalizedEmail, 'advertiser');
+  if (existing) {
+    throw new PlatformProfileExistsError('advertiser');
+  }
+
+  const password = Math.random().toString(36).slice(-12) + 'A1!';
+  const { authUserId, created } = await ensureAuthAccount({
+    email: normalizedEmail,
     password,
     displayName: advertiserData.contactName,
   });
 
-  // Establecer custom claims
-  await auth.setCustomUserClaims(userRecord.uid, {
-    role: 'advertiser',
-  });
+  if (created) {
+    await auth.setCustomUserClaims(authUserId, {
+      role: 'advertiser',
+    });
+  }
 
-  // Crear documento en Firestore
-  const advertiserRef = getDb().collection('advertisers').doc(userRecord.uid);
+  const advertiserRef = created
+    ? getDb().collection('advertisers').doc(authUserId)
+    : getDb().collection('advertisers').doc();
   
+  const assignedAdminName = meta?.assignedAdminId
+    ? meta.assignedAdminName || (await resolvePlatformAdminName(meta.assignedAdminId))
+    : undefined;
+
   await advertiserRef.set({
     ...advertiserData,
+    email: normalizedEmail,
+    authUserId,
     status: advertiserData.status || 'pending',
+    registrationSource: meta?.registrationSource || 'admin',
+    ...(meta?.createdBy ? { createdBy: meta.createdBy } : {}),
+    ...(meta?.createdByName ? { createdByName: meta.createdByName } : {}),
+    ...(meta?.assignedAdminId
+      ? {
+          assignedAdminId: meta.assignedAdminId,
+          assignedAdminName,
+          assignedAt: admin.firestore.FieldValue.serverTimestamp(),
+          ...(meta.assignedBy ? { assignedBy: meta.assignedBy } : {}),
+        }
+      : {}),
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   } as any);
 
+  await storeAppPasswordForProfile({
+    appKey: 'advertiser',
+    email: normalizedEmail,
+    profileId: advertiserRef.id,
+    authUserId,
+    password,
+    source: 'admin',
+  });
+
+  void notifyAdvertiserAccountCreated({
+    advertiserId: advertiserRef.id,
+    companyName: advertiserData.companyName,
+    contactName: advertiserData.contactName,
+    email: advertiserData.email,
+    registrationSource: meta?.registrationSource || 'admin',
+    createdByName: meta?.createdByName,
+    assignedAdminId: meta?.assignedAdminId,
+    assignedAdminName,
+  }).catch((err) => console.warn('notifyAdvertiserAccountCreated failed:', err));
+
   const loginUrl =
     process.env.NEXT_PUBLIC_ADVERTISER_URL?.trim() ||
     process.env.NEXT_PUBLIC_APP_URL?.trim() ||
-    'https://advertiser.autodealers.com';
+    'https://advertiser.autodealers-online.com';
 
   try {
     await sendOutboundEmail(
       advertiserData.email,
-      'Bienvenido a AutoDealers — credenciales de acceso',
+      `Bienvenido a ${PLATFORM_NAME} — credenciales de acceso`,
       `<p>Hola ${advertiserData.contactName},</p>
 <p>Tu cuenta de anunciante para <strong>${advertiserData.companyName}</strong> ha sido creada.</p>
 <p><strong>Email:</strong> ${advertiserData.email}<br/>
 <strong>Contraseña temporal:</strong> ${password}</p>
 <p>Inicia sesión en <a href="${loginUrl}/login">${loginUrl}/login</a> y cambia tu contraseña lo antes posible.</p>
-<p>Equipo AutoDealers</p>`,
+<p>Equipo ${PLATFORM_NAME}</p>`,
       'platform'
     );
   } catch (emailError) {
@@ -188,9 +385,20 @@ export async function createSponsoredContent(
   }
 
   const contentRef = getDb().collection('sponsored_content').doc();
-  
+
+  const startDate =
+    contentData.startDate instanceof Date
+      ? admin.firestore.Timestamp.fromDate(contentData.startDate)
+      : contentData.startDate;
+  const endDate =
+    contentData.endDate instanceof Date
+      ? admin.firestore.Timestamp.fromDate(contentData.endDate)
+      : contentData.endDate;
+
   await contentRef.set({
     ...contentData,
+    startDate,
+    endDate,
     impressions: 0,
     clicks: 0,
     conversions: 0,

@@ -6,6 +6,7 @@ import {
   PublishVehicleToSocialModal,
   type PublishSocialVehicle,
 } from '@autodealers/shared/client';
+import { AdminDeleteButton } from '@/components/AdminDeleteButton';
 
 interface Vehicle {
   id: string;
@@ -26,7 +27,7 @@ export default function AdminAllVehiclesPage() {
   const [loading, setLoading] = useState(true);
   const [fixingStock, setFixingStock] = useState(false);
   const [fixResult, setFixResult] = useState<{ success: boolean; message: string } | null>(null);
-  const [showDebug, setShowDebug] = useState(true);
+  const [showDebug, setShowDebug] = useState(false);
   const [debugInfo, setDebugInfo] = useState<{
     status: string;
     vehiclesCount: number;
@@ -224,7 +225,19 @@ export default function AdminAllVehiclesPage() {
         </div>
       )}
 
-      {/* Panel de Debug Visible */}
+      {debugInfo.status === 'error' && debugInfo.error ? (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          <p className="font-semibold">No se pudieron cargar los vehículos</p>
+          <p className="mt-1">{debugInfo.error}</p>
+          {debugInfo.responseStatus === 401 ? (
+            <a href="/login" className="mt-3 inline-block rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700">
+              Iniciar sesión de nuevo
+            </a>
+          ) : null}
+        </div>
+      ) : null}
+
+      {process.env.NODE_ENV !== 'production' && (
       <div className="mb-4 bg-gray-100 border border-gray-300 rounded-lg p-4">
         <div className="flex justify-between items-center mb-2">
           <h3 className="font-bold text-gray-800">🔍 Información de Debug</h3>
@@ -360,6 +373,7 @@ export default function AdminAllVehiclesPage() {
           </div>
         )}
       </div>
+      )}
 
       {/* Filtros */}
       <div className="bg-white rounded-lg shadow p-4 mb-6">
@@ -492,6 +506,7 @@ export default function AdminAllVehiclesPage() {
                             price: vehicle.price,
                             status: vehicle.status,
                             photos: vehicle.photos,
+                            videos: vehicle.videos,
                           })
                         }
                         className="text-left text-primary-700 hover:text-primary-900 text-sm font-medium"
@@ -499,6 +514,18 @@ export default function AdminAllVehiclesPage() {
                         📱 Publicar en redes
                       </button>
                     ) : null}
+                    <AdminDeleteButton
+                      deleteUrl={`/api/admin/vehicles/${vehicle.tenantId}/${vehicle.id}`}
+                      label="Eliminar"
+                      confirmMessage={`¿Eliminar permanentemente ${vehicle.year} ${vehicle.make} ${vehicle.model}?`}
+                      onDeleted={() => {
+                        setVehicles((prev) =>
+                          prev.filter((v) => !(v.id === vehicle.id && v.tenantId === vehicle.tenantId))
+                        );
+                        void fetchVehicles();
+                      }}
+                      className="text-left text-sm text-red-700 hover:underline"
+                    />
                   </div>
                 </td>
               </tr>

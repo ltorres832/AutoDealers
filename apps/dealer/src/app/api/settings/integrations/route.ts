@@ -2,8 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import {
   encodeSocialOAuthState,
+  getMetaCredentials,
+  getTikTokCredentials,
+  getYouTubeCredentials,
   isPlatformWhatsAppConfigured,
   provisionTenantWhatsAppFromPlatform,
+  buildTikTokOAuthDialogUrl,
+  buildYouTubeOAuthDialogUrl,
+  isTikTokYouTubePublishEnabled,
 } from '@autodealers/core';
 import { buildMetaOAuthDialogUrl } from '@autodealers/core/meta-oauth-scopes';
 import {
@@ -62,7 +68,8 @@ export async function GET(request: NextRequest) {
       .get();
 
     const whatsappPlatformConfigured = await isPlatformWhatsAppConfigured();
-    let integrations = integrationsSnapshot.docs.map((doc) => {
+    let integrations = integrationsSnapshot.docs
+      .map((doc) => {
       const data = doc.data();
       const creds = data.credentials as Record<string, unknown> | undefined;
       const rawHealth = creds?.metaTokenHealth as MetaTokenHealth | undefined;
@@ -88,13 +95,23 @@ export async function GET(request: NextRequest) {
           ? {
               appId: creds.appId || undefined,
               hasAppSecret: !!creds.appSecret,
-              pageName: typeof creds.pageName === 'string' ? creds.pageName : undefined,
+              pageName:
+                (typeof creds.pageName === 'string' && creds.pageName) ||
+                (typeof creds.displayName === 'string' && creds.displayName) ||
+                (typeof creds.channelTitle === 'string' && creds.channelTitle) ||
+                undefined,
             }
           : undefined,
         createdAt: data.createdAt,
         updatedAt: data.updatedAt,
       };
-    });
+    })
+      .filter((i) => {
+        if (i.type === 'tiktok' || i.type === 'youtube') {
+          return isTikTokYouTubePublishEnabled();
+        }
+        return true;
+      });
 
     const hasActiveWhatsApp = integrations.some(
       (i) => i.type === 'whatsapp' && i.status === 'active'
@@ -156,9 +173,7 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-      const credentialsDoc = await db.collection('system_settings').doc('credentials').get();
-      const appId = credentialsDoc.data()?.metaAppId as string | undefined;
-      const appSecret = credentialsDoc.data()?.metaAppSecret as string | undefined;
+      const { appId, appSecret } = await getMetaCredentials();
       if (!appId || !appSecret) {
         return NextResponse.json(
           { error: 'Credenciales de la app Meta no configuradas en admin' },
@@ -309,19 +324,13 @@ export async function POST(request: NextRequest) {
 
       if (type === 'facebook' || type === 'instagram' || type === 'meta') {
         try {
-          // Obtener credenciales globales desde system_settings.credentials (donde el admin las guarda)
-          const credentialsDoc = await db.collection('system_settings').doc('credentials').get();
-          
-          let appId: string | undefined;
-          let appSecret: string | undefined;
+          // Credenciales globales de Meta: entorno / Secret Manager y, como
+          // fallback heredado, system_settings.credentials
+          const metaCreds = await getMetaCredentials();
+          let appId: string | undefined = metaCreds.appId;
+          let appSecret: string | undefined = metaCreds.appSecret;
 
-          if (credentialsDoc.exists) {
-            const credentialsData = credentialsDoc.data();
-            appId = credentialsData?.metaAppId;
-            appSecret = credentialsData?.metaAppSecret;
-          }
-
-          // Si no hay credenciales en system_settings, intentar obtener del tenant (compatibilidad hacia atrás)
+          // Si no hay credenciales globales, intentar obtener del tenant (compatibilidad hacia atrás)
           if (!appId || !appSecret) {
             const integrationSnapshot = await db
               .collection('tenants')
@@ -374,6 +383,74 @@ export async function POST(request: NextRequest) {
             details: dbError.message || 'Error desconocido al consultar la base de datos.'
           }, { status: 500 });
         }
+      }
+
+      if (type === 'tiktok') {
+        if (!isTikTokYouTubePublishEnabled()) {
+          return NextResponse.json(
+            { error: 'Función no disponible', message: 'TikTok estará disponible cuando esté completo.' },
+            { status: 404 }
+          );
+        }
+        const { clientKey, clientSecret } = await getTikTokCredentials();
+        if (!clientKey || !clientSecret) {
+          return NextResponse.json(
+            {
+              error: 'Credenciales no configuradas',
+              message:
+                'TikTok no está configurado. El admin debe añadir Client Key y Client Secret en Ajustes → General (o TIKTOK_CLIENT_KEY / TIKTOK_CLIENT_SECRET).',
+            },
+            { status: 400 }
+          );
+        }
+        const { getIntegrationsOAuthCallbackUrl } = await import('@/lib/app-origin');
+        const redirectUri = getIntegrationsOAuthCallbackUrl(request);
+        const statePayload = encodeSocialOAuthState({
+          type: 'tiktok',
+          tenantId: auth.tenantId,
+          leadOwnerUserId: auth.userId,
+        });
+        return NextResponse.json({
+          authUrl: buildTikTokOAuthDialogUrl({
+            clientKey,
+            redirectUri,
+            state: statePayload,
+          }),
+        });
+      }
+
+      if (type === 'youtube') {
+        if (!isTikTokYouTubePublishEnabled()) {
+          return NextResponse.json(
+            { error: 'Función no disponible', message: 'YouTube estará disponible cuando esté completo.' },
+            { status: 404 }
+          );
+        }
+        const { clientId, clientSecret } = await getYouTubeCredentials();
+        if (!clientId || !clientSecret) {
+          return NextResponse.json(
+            {
+              error: 'Credenciales no configuradas',
+              message:
+                'YouTube no está configurado. El admin debe añadir Client ID y Client Secret de Google en Ajustes → General (o YOUTUBE_CLIENT_ID / YOUTUBE_CLIENT_SECRET).',
+            },
+            { status: 400 }
+          );
+        }
+        const { getIntegrationsOAuthCallbackUrl } = await import('@/lib/app-origin');
+        const redirectUri = getIntegrationsOAuthCallbackUrl(request);
+        const statePayload = encodeSocialOAuthState({
+          type: 'youtube',
+          tenantId: auth.tenantId,
+          leadOwnerUserId: auth.userId,
+        });
+        return NextResponse.json({
+          authUrl: buildYouTubeOAuthDialogUrl({
+            clientId,
+            redirectUri,
+            state: statePayload,
+          }),
+        });
       }
 
       return NextResponse.json({ error: 'Invalid integration type' }, { status: 400 });

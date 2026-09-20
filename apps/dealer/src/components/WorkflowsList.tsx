@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Workflow } from '@autodealers/crm';
+import type { Workflow } from '@autodealers/crm';
 import { fetchWithAuth } from '@/lib/fetch-with-auth';
 import { useRealtimeWorkflows } from '@/hooks/useRealtimeWorkflows';
 

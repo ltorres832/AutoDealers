@@ -25,6 +25,20 @@ messaging.onBackgroundMessage((payload) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const route = event.notification?.data?.route || '/';
-  event.waitUntil(clients.openWindow(route));
+  const data = event.notification?.data || {};
+  const rawRoute = data.route || data.url || data.href || data.link || data.actionUrl || '/';
+  const route = /^https?:\/\//i.test(rawRoute)
+    ? rawRoute
+    : new URL(String(rawRoute).startsWith('/') ? rawRoute : `/${rawRoute}`, self.location.origin).href;
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client) {
+          client.navigate(route);
+          return client.focus();
+        }
+      }
+      return clients.openWindow(route);
+    })
+  );
 });

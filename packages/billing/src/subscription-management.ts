@@ -123,6 +123,34 @@ export async function getSubscriptionById(subscriptionId: string): Promise<Subsc
   } as Subscription;
 }
 
+function pickPreferredSubscription(subscriptions: Subscription[]): Subscription | null {
+  if (subscriptions.length === 0) return null;
+
+  const activeSubscriptions = subscriptions.filter(
+    (s) => s.status === 'active' || s.status === 'trialing'
+  );
+  const active =
+    activeSubscriptions.find(
+      (s) =>
+        s.customMembershipAssignmentId?.trim?.() ||
+        s.billingSource === 'admin_grant'
+    ) || activeSubscriptions[0];
+  return active || subscriptions[0];
+}
+
+/**
+ * Suscripción activa de un usuario (vendedores self-service no comparten tenant de facturación con el dealer).
+ */
+export async function getSubscriptionByUserId(userId: string): Promise<Subscription | null> {
+  const uid = userId.trim();
+  if (!uid) return null;
+
+  const snapshot = await getDb().collection('subscriptions').where('userId', '==', uid).get();
+  const subscriptions = mapSubscriptionDocs(snapshot.docs);
+  subscriptions.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+  return pickPreferredSubscription(subscriptions);
+}
+
 /**
  * Obtiene la suscripción activa de un tenant
  */
@@ -139,51 +167,20 @@ export async function getSubscriptionByTenantId(tenantId: string): Promise<Subsc
     })),
   });
   
-  // Retornar la más reciente o activa
   if (subscriptions.length === 0) {
     console.log('⚠️ [getSubscriptionByTenantId] No se encontraron suscripciones para tenantId:', tenantId);
-    
-    // Debug: buscar todas las suscripciones para ver qué hay
-    try {
-      const allSubs = await getAllSubscriptions();
-      console.log('🔍 [getSubscriptionByTenantId] Debug - Total de suscripciones en Firestore:', allSubs.length);
-      allSubs.slice(0, 10).forEach((sub, i) => {
-        console.log(`  ${i + 1}. ID: ${sub.id}, tenantId: ${sub.tenantId}, status: ${sub.status}, membershipId: ${sub.membershipId}`);
-      });
-    } catch (debugError: any) {
-      console.error('❌ [getSubscriptionByTenantId] Error en debug:', debugError);
-    }
-    
     return null;
   }
-  
-  // Priorizar suscripciones que realmente dan acceso. Custom/admin-grant ganan sobre datos viejos.
-  const activeSubscriptions = subscriptions.filter(
-    (s) => s.status === 'active' || s.status === 'trialing'
-  );
-  const active =
-    activeSubscriptions.find(
-      (s) =>
-        s.customMembershipAssignmentId?.trim?.() ||
-        s.billingSource === 'admin_grant'
-    ) || activeSubscriptions[0];
-  if (active) {
+
+  const preferred = pickPreferredSubscription(subscriptions);
+  if (preferred) {
     console.log('✅ [getSubscriptionByTenantId] Encontrada suscripción con acceso:', {
-      id: active.id,
-      status: active.status,
-      membershipId: active.membershipId,
+      id: preferred.id,
+      status: preferred.status,
+      membershipId: preferred.membershipId,
     });
-    return active;
   }
-  
-  // Si no hay activa, retornar la más reciente
-  const latest = subscriptions[0];
-  console.log('✅ [getSubscriptionByTenantId] Retornando suscripción más reciente:', {
-    id: latest.id,
-    status: latest.status,
-    membershipId: latest.membershipId,
-  });
-  return latest;
+  return preferred;
 }
 
 /**

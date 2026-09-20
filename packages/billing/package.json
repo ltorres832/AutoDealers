@@ -12,11 +12,18 @@
     "./membership-network": "./src/membership-network.ts",
     "./membership-visibility": "./src/membership-visibility.ts",
     "./membership-coerce": "./src/membership-coerce.ts",
+    "./membership-promo-pricing": "./src/membership-promo-pricing.ts",
     "./membership-display": {
       "types": "./src/membership-display.ts",
       "import": "./src/membership-display.ts",
       "require": "./src/membership-display.ts",
       "default": "./src/membership-display.ts"
+    },
+    "./membership-feature-catalog": {
+      "types": "./src/membership-feature-catalog.ts",
+      "import": "./src/membership-feature-catalog.ts",
+      "require": "./src/membership-feature-catalog.ts",
+      "default": "./src/membership-feature-catalog.ts"
     },
     "./dynamic-feature-catalog": {
       "types": "./src/dynamic-feature-catalog.ts",
@@ -25,6 +32,10 @@
       "default": "./src/dynamic-feature-catalog.ts"
     },
     "./client": "./src/client.ts",
+    "./payment-history": "./src/payment-history.ts",
+    "./usage-metering": "./src/usage-metering.ts",
+    "./usage-pricing-defaults": "./src/usage-pricing-defaults.ts",
+    "./usage-overage-billing": "./src/usage-overage-billing.ts",
     "./components/MembershipBenefitsDisplay": "./src/components/MembershipBenefitsDisplay.tsx"
   },
   "scripts": {

@@ -2,11 +2,22 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getFirestore, isValidStripeWebhookSecret } from '@autodealers/core';
+import {
+  completeStripeAdminSetup,
+  getFirestore,
+  isValidStripeWebhookSecret,
+  resolveStripeCredentialInput,
+  resolveStripeMode,
+  validateStripeCredentialsPair,
+} from '@autodealers/core';
 import * as admin from 'firebase-admin';
-import { StripeService } from '@autodealers/billing';
+import { resolveAdminUrl } from '@autodealers/shared/platform-urls';
 
 const db = getFirestore();
+
+function resolveAdminWebhookUrl(): string {
+  return `${resolveAdminUrl()}/api/webhooks/stripe`;
+}
 
 interface CredentialsConfig {
   stripeSecretKey?: string;
@@ -18,6 +29,10 @@ interface CredentialsConfig {
   metaAppId?: string;
   metaAppSecret?: string;
   metaVerifyToken?: string;
+  tiktokClientKey?: string;
+  tiktokClientSecret?: string;
+  youtubeClientId?: string;
+  youtubeClientSecret?: string;
   whatsappAccessToken?: string;
   whatsappPhoneNumberId?: string;
   whatsappWebhookVerifyToken?: string;
@@ -177,10 +192,56 @@ export async function PUT(request: NextRequest) {
       // Si no hay updates, retornar éxito sin hacer nada (las credenciales se mantienen)
       if (Object.keys(updates).length === 0) {
         console.log('⚠️ No hay campos para actualizar (todos están enmascarados o vacíos)');
-        return NextResponse.json({ 
-          success: true, 
-          message: 'No hay cambios para guardar. Las credenciales existentes se mantienen sin cambios.' 
+        return NextResponse.json({
+          success: true,
+          message: 'No hay cambios para guardar. Las credenciales existentes se mantienen sin cambios.',
+          noChanges: true,
         });
+      }
+
+      const stripeKeysChanging =
+        'stripeSecretKey' in updates || 'stripePublishableKey' in updates;
+
+      if (stripeKeysChanging) {
+        const skIncoming = updates.stripeSecretKey as string | undefined;
+        const pkIncoming = updates.stripePublishableKey as string | undefined;
+        const skIsNew =
+          typeof skIncoming === 'string' &&
+          skIncoming.length > 0 &&
+          !skIncoming.startsWith('••••');
+        const pkIsNew =
+          typeof pkIncoming === 'string' &&
+          pkIncoming.length > 0 &&
+          !pkIncoming.startsWith('••••');
+
+        if (skIsNew !== pkIsNew) {
+          return NextResponse.json(
+            {
+              error:
+                'Debes pegar Secret Key y Publishable Key completas. Si un campo muestra ••••, no se actualiza y se conserva la clave anterior.',
+            },
+            { status: 400 }
+          );
+        }
+
+        const effectiveSk = resolveStripeCredentialInput(
+          updates.stripeSecretKey,
+          currentCredentials.stripeSecretKey
+        );
+        const effectivePk = resolveStripeCredentialInput(
+          updates.stripePublishableKey,
+          currentCredentials.stripePublishableKey
+        );
+        const validation = await validateStripeCredentialsPair(effectiveSk, effectivePk);
+        if (!validation.valid) {
+          return NextResponse.json(
+            {
+              error: validation.error || 'Credenciales Stripe inválidas',
+              stripeValidation: validation,
+            },
+            { status: 400 }
+          );
+        }
       }
     } catch (processError: any) {
       console.error('❌ Error al procesar updates:', processError);
@@ -192,12 +253,30 @@ export async function PUT(request: NextRequest) {
 
     // Guardar en Firestore
     try {
-      await db.collection('system_settings').doc('credentials').set({
+      const stripeModeChanged =
+        typeof updates.stripeSecretKey === 'string' &&
+        typeof currentCredentials.stripeSecretKey === 'string' &&
+        resolveStripeMode(currentCredentials.stripeSecretKey) !==
+          resolveStripeMode(updates.stripeSecretKey);
+
+      const payload: Record<string, unknown> = {
         ...currentCredentials,
         ...updates,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedBy: auth.userId,
-      }, { merge: true });
+      };
+
+      if (stripeModeChanged) {
+        payload.stripeWebhookSecret = admin.firestore.FieldValue.delete();
+      }
+
+      if (updates.stripeSecretKey || updates.stripePublishableKey) {
+        payload.stripeMode = resolveStripeMode(
+          (updates.stripeSecretKey as string) || currentCredentials.stripeSecretKey
+        );
+      }
+
+      await db.collection('system_settings').doc('credentials').set(payload, { merge: true });
       console.log('✅ Credenciales guardadas en Firestore');
     } catch (firestoreError: any) {
       console.error('❌ Error al guardar en Firestore:', firestoreError);
@@ -238,7 +317,34 @@ export async function PUT(request: NextRequest) {
     }
 
     console.log('✅ PUT /api/admin/settings/credentials - Completado exitosamente');
-    return NextResponse.json({ success: true, message: 'Credenciales guardadas y sincronizadas' });
+
+    let stripeSetup = null;
+    const stripeKeysChanged =
+      'stripeSecretKey' in updates || 'stripePublishableKey' in updates;
+    if (stripeKeysChanged) {
+      try {
+        stripeSetup = await completeStripeAdminSetup(resolveAdminWebhookUrl(), auth.userId);
+        console.log('✅ Stripe auto-setup:', stripeSetup.message);
+      } catch (setupError: unknown) {
+        const message =
+          setupError instanceof Error ? setupError.message : 'Error al configurar Stripe';
+        console.error('❌ Stripe auto-setup falló:', message);
+        return NextResponse.json(
+          {
+            success: true,
+            message: 'Credenciales guardadas, pero la configuración automática de Stripe falló',
+            stripeSetupError: message,
+          },
+          { status: 207 }
+        );
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: stripeSetup?.message || 'Credenciales guardadas y sincronizadas',
+      stripeSetup,
+    });
   } catch (error: any) {
     console.error('❌ Error updating credentials:', error);
     console.error('❌ Error stack:', error.stack);

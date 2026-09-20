@@ -33,7 +33,7 @@ export async function createTenant(
   };
 
   // Solo agregar companyName si es dealer y tiene valor
-  if (type === 'dealer' && companyName) {
+  if ((type === 'dealer' || type === 'automotive_business') && companyName) {
     tenantData.companyName = companyName;
   }
 

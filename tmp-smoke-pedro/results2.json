@@ -1,0 +1,32 @@
+[
+  {
+    "id": "inventory",
+    "ok": true,
+    "detail": "url=https://seller.autodealers-online.com/inventory"
+  },
+  {
+    "id": "vin_required",
+    "ok": true,
+    "detail": "vinVisible=true label=VIN (Quick VIN) *"
+  },
+  {
+    "id": "share_modal",
+    "ok": true,
+    "detail": "visible=true"
+  },
+  {
+    "id": "photo_guide",
+    "ok": false,
+    "detail": "url=https://seller.autodealers-online.com/inventory heading=false"
+  },
+  {
+    "id": "daco",
+    "ok": true,
+    "detail": "popup=about:blank"
+  },
+  {
+    "id": "dealer_skipped",
+    "ok": true,
+    "detail": "seller account — Mi sitio/Alianzas/Feeds/avatar dealer N/A"
+  }
+]

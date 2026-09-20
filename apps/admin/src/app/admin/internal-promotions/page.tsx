@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { listPromoPlacementOptions } from '@autodealers/core/ad-placements';
+import { resolveAdCreativePreviewSrc } from '@autodealers/core/ad-creative';
 
 interface Promotion {
   id: string;
@@ -146,13 +148,17 @@ export default function InternalPromotionsPage() {
               key={promotion.id}
               className="bg-white rounded-lg shadow-lg overflow-hidden"
             >
-              {promotion.imageUrl && (
+              {resolveAdCreativePreviewSrc(promotion).kind !== 'none' && (
                 <div className="relative h-48 bg-gray-200">
+                  {resolveAdCreativePreviewSrc(promotion).kind === 'video' ? (
+                    <video src={resolveAdCreativePreviewSrc(promotion).src} className="h-full w-full object-cover" muted playsInline controls />
+                  ) : (
                   <img
-                    src={promotion.imageUrl}
+                    src={resolveAdCreativePreviewSrc(promotion).src}
                     alt={promotion.name}
                     className="w-full h-full object-cover"
                   />
+                  )}
                   <div className="absolute top-2 right-2">
                     <span className="px-3 py-1 bg-green-600 text-white rounded-full text-xs font-bold">
                       INTERNA
@@ -279,9 +285,11 @@ function CreatePromotionModal({
     isPaid: false,
     price: 0,
     duration: 30,
-    placement: 'promotions_section' as 'hero' | 'sidebar' | 'sponsors_section' | 'between_content' | 'promotions_section',
+    placement: 'promotions_section' as 'hero' | 'sidebar' | 'sponsors_section' | 'between_content' | 'promotions_section' | 'vehicle_page',
     priority: 100,
     imageUrl: '',
+    extraImages: '',
+    animation: 'fade' as 'none' | 'fade' | 'slide' | 'kenburns',
   });
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -331,6 +339,14 @@ function CreatePromotionModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
+          images: [
+            formData.imageUrl,
+            ...formData.extraImages
+              .split('\n')
+              .map((url) => url.trim())
+              .filter(Boolean),
+          ].filter(Boolean),
+          animation: formData.animation,
           isInternal: true,
           createdByAdmin: true,
           applicableToAll: true,
@@ -482,6 +498,25 @@ function CreatePromotionModal({
               disabled={uploading}
             />
             {uploading && <p className="text-sm text-gray-500 mt-2">Subiendo imagen...</p>}
+            <label className="block text-sm font-medium mb-2 mt-4">Más fotos del slideshow (una URL por línea)</label>
+            <textarea
+              value={formData.extraImages}
+              onChange={(e) => setFormData({ ...formData, extraImages: e.target.value })}
+              className="w-full border rounded px-3 py-2"
+              rows={3}
+              placeholder="https://..."
+            />
+            <label className="block text-sm font-medium mb-2 mt-4">Animación</label>
+            <select
+              value={formData.animation}
+              onChange={(e) => setFormData({ ...formData, animation: e.target.value as typeof formData.animation })}
+              className="w-full border rounded px-3 py-2"
+            >
+              <option value="fade">Fundido (fade)</option>
+              <option value="slide">Deslizamiento</option>
+              <option value="kenburns">Ken Burns (zoom suave)</option>
+              <option value="none">Sin movimiento</option>
+            </select>
           </div>
 
           {/* Ubicación y Configuración */}
@@ -496,11 +531,11 @@ function CreatePromotionModal({
                   className="w-full border rounded px-3 py-2"
                   required
                 >
-                  <option value="promotions_section">Sección de Promociones</option>
-                  <option value="hero">Hero Banner</option>
-                  <option value="sidebar">Sidebar</option>
-                  <option value="sponsors_section">Sección Patrocinadores</option>
-                  <option value="between_content">Entre Contenido</option>
+                  {listPromoPlacementOptions().map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.label}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>

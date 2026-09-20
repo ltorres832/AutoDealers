@@ -30,8 +30,8 @@ exports.createTenantWithSubdomain = (0, https_1.onCall)(async (request) => {
             membershipId: membershipId || '',
             status: 'active',
             branding: {
-                primaryColor: '#2563EB',
-                secondaryColor: '#1E40AF',
+                primaryColor: '#E10600',
+                secondaryColor: '#0A0A0A',
             },
             settings: {},
             createdAt: new Date(),

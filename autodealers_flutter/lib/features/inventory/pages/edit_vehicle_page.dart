@@ -8,6 +8,7 @@ import '../../../core/presentation/providers/inventory_provider.dart';
 import '../../../core/presentation/providers/auth_provider.dart';
 import '../../../core/data/services/storage_service.dart';
 import '../../../core/domain/models/vehicle.dart';
+import '../widgets/vin_decode_field.dart';
 import '../../dealer/widgets/dealer_drawer.dart';
 import '../../seller/widgets/seller_drawer.dart';
 
@@ -28,6 +29,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
   final _priceController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _mileageController = TextEditingController();
+  final _vinController = TextEditingController();
 
   VehicleCondition _condition = VehicleCondition.used;
   VehicleStatus _status = VehicleStatus.available;
@@ -66,6 +68,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
       _priceController.text = vehicle.price.toString();
       _descriptionController.text = vehicle.description;
       _mileageController.text = vehicle.mileage?.toString() ?? '';
+      _vinController.text = vehicle.vin ?? vehicle.specifications.vin ?? '';
       _condition = vehicle.condition;
       _status = vehicle.status;
       _existingPhotos = List.from(vehicle.photos);
@@ -80,6 +83,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
     _priceController.dispose();
     _descriptionController.dispose();
     _mileageController.dispose();
+    _vinController.dispose();
     super.dispose();
   }
 
@@ -141,6 +145,9 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
       'status': _status.name,
       'description': _descriptionController.text.trim(),
       'photos': allPhotos,
+      'vin': _vinController.text.trim().isNotEmpty
+          ? _vinController.text.trim()
+          : null,
       'specifications': {
         ..._vehicle!.specifications.toJson(),
         'make': _makeController.text.trim(),
@@ -148,6 +155,9 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
         'year': int.parse(_yearController.text.trim()),
         'mileage': _mileageController.text.trim().isNotEmpty
             ? int.parse(_mileageController.text.trim())
+            : null,
+        'vin': _vinController.text.trim().isNotEmpty
+            ? _vinController.text.trim()
             : null,
       },
     };
@@ -390,6 +400,23 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
                   border: OutlineInputBorder(),
                 ),
                 keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 16),
+              VinDecodeField(
+                controller: _vinController,
+                onDecoded: (result) {
+                  setState(() {
+                    if (result.make != null && result.make!.isNotEmpty) {
+                      _makeController.text = result.make!;
+                    }
+                    if (result.model != null && result.model!.isNotEmpty) {
+                      _modelController.text = result.model!;
+                    }
+                    if (result.year != null) {
+                      _yearController.text = result.year.toString();
+                    }
+                  });
+                },
               ),
               const SizedBox(height: 16),
               TextFormField(

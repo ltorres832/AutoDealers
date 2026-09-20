@@ -66,6 +66,10 @@ export async function GET(request: NextRequest) {
           },
       dealerRating: userData.dealerRating || 0,
       dealerRatingCount: userData.dealerRatingCount || 0,
+      photo:
+        safeTrim(userData.photo) ||
+        safeTrim(userData.profilePhoto) ||
+        (dealerManagedSeller ? '' : safeTrim(tenantData.logo) || safeTrim(tenantData.photo)),
     };
 
     return NextResponse.json({ profile });

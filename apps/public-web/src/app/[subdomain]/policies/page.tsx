@@ -1,17 +1,21 @@
-'use client';
-
-import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import PublicBackButton from '@/components/PublicBackButton';
+import {
+  getPublicPoliciesForSubdomain,
+} from '@/lib/public-policies';
 
-type PolicyType = 'privacy' | 'terms' | 'cookies' | 'returns' | 'warranty';
+export const dynamic = 'force-dynamic';
 
-interface Policy {
-  type: PolicyType;
-  title: string;
-  enabled: boolean;
-}
+type PolicyType =
+  | 'privacy'
+  | 'terms'
+  | 'cookies'
+  | 'returns'
+  | 'warranty'
+  | 'shipping'
+  | 'data_protection'
+  | 'disclaimer'
+  | 'custom';
 
 const POLICY_INFO: Record<PolicyType, { label: string; description: string; icon: string }> = {
   privacy: {
@@ -39,81 +43,58 @@ const POLICY_INFO: Record<PolicyType, { label: string; description: string; icon
     description: 'Información sobre garantías y coberturas ofrecidas',
     icon: '🛡️',
   },
+  shipping: {
+    label: 'Política de Envíos',
+    description: 'Información sobre entregas, coordinación y documentación',
+    icon: '🚚',
+  },
+  data_protection: {
+    label: 'Protección de Datos',
+    description: 'Cómo protegemos y procesamos la información personal',
+    icon: '🔐',
+  },
+  disclaimer: {
+    label: 'Disclosures',
+    description: 'Divulgaciones, advertencias y aclaraciones legales',
+    icon: '⚠️',
+  },
+  custom: {
+    label: 'Política Personalizada',
+    description: 'Política adicional publicada por la plataforma',
+    icon: '📄',
+  },
 };
 
-export default function PoliciesPage() {
-  const params = useParams();
-  const subdomain = params.subdomain as string;
-  const [policies, setPolicies] = useState<Record<PolicyType, Policy>>({} as any);
-  const [tenant, setTenant] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+type PageProps = {
+  params: Promise<{ subdomain: string }>;
+};
 
-  useEffect(() => {
-    fetchData();
-  }, [subdomain]);
-
-  async function fetchData() {
-    setLoading(true);
-    try {
-      const [tenantRes, policiesRes] = await Promise.all([
-        fetch(`/api/tenant/${subdomain}`),
-        fetch(`/api/tenant/${subdomain}`),
-      ]);
-
-      if (tenantRes.ok) {
-        const tenantData = await tenantRes.json();
-        setTenant(tenantData.tenant);
-        
-        // Extraer políticas del tenant
-        const tenantPolicies = tenantData.tenant?.policies || {};
-        setPolicies(tenantPolicies);
-      }
-    } catch (error) {
-      console.error('Error:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-      </div>
-    );
-  }
-
-  const primaryColor = tenant?.branding?.primaryColor || '#E10600';
-  const enabledPolicies = (Object.keys(POLICY_INFO) as PolicyType[]).filter(
-    (type) => policies[type]?.enabled
-  );
+export default async function PoliciesPage({ params }: PageProps) {
+  const { subdomain } = await params;
+  const { tenant, allPolicies } = await getPublicPoliciesForSubdomain(subdomain, 'es');
+  const enabledPolicies = allPolicies.filter((policy) => policy.enabled);
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header
-        className="bg-white shadow"
-        style={{
-          backgroundColor: primaryColor,
-        }}
-      >
+      <header className="border-b border-gray-200 bg-white shadow-sm">
         <div className="container mx-auto px-4 py-6">
           <div className="flex justify-between items-center">
             <div>
               <Link href={`/${subdomain}`}>
-                <h1 className="text-3xl font-bold text-white">{tenant?.name || 'Concesionario'}</h1>
+                <h1 className="text-3xl font-bold text-gray-900">{tenant?.name || 'Concesionario'}</h1>
               </Link>
-              <p className="text-white/80 mt-1">Tu concesionario de confianza</p>
+              <p className="text-gray-600 mt-1">Tu catálogo de confianza</p>
             </div>
             <div className="flex flex-wrap items-center gap-2 justify-end">
               <PublicBackButton
-                className="bg-white/20 text-white px-6 py-3 rounded-lg font-medium hover:bg-white/30"
+                className="rounded-lg border border-gray-300 bg-white px-6 py-3 font-medium text-gray-700 hover:bg-gray-50"
               >
                 Volver
               </PublicBackButton>
               <Link
                 href={`/${subdomain}`}
-                className="text-sm text-white/90 hover:text-white underline underline-offset-2 hidden sm:inline"
+                className="text-sm text-primary-600 hover:text-primary-700 underline underline-offset-2 hidden sm:inline"
               >
                 Inicio
               </Link>
@@ -153,20 +134,20 @@ export default function PoliciesPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {enabledPolicies.map((type) => {
-                const info = POLICY_INFO[type];
-                const policy = policies[type];
+              {enabledPolicies.map((policy) => {
+                const type = policy.type as PolicyType;
+                const info = POLICY_INFO[type] || POLICY_INFO.custom;
                 return (
                   <Link
-                    key={type}
-                    href={`/${subdomain}/policies/${type}`}
+                    key={policy.id || policy.slug || `${policy.type}-${policy.title}`}
+                    href={`/${subdomain}/policies/${encodeURIComponent(policy.slug || policy.id || policy.type)}`}
                     className="bg-white rounded-lg shadow border border-gray-200 p-6 hover:shadow-lg transition hover:border-primary-500"
                   >
                     <div className="flex items-start gap-4">
                       <span className="text-4xl">{info.icon}</span>
                       <div className="flex-1">
                         <h2 className="text-xl font-bold text-gray-900 mb-2">
-                          {policy?.title || info.label}
+                          {policy.title || info.label}
                         </h2>
                         <p className="text-gray-600 text-sm">{info.description}</p>
                         <span className="inline-block mt-4 text-primary-600 font-medium text-sm">
@@ -206,15 +187,15 @@ export default function PoliciesPage() {
             <div>
               <h4 className="font-semibold mb-4">Políticas</h4>
               <div className="space-y-2 text-sm">
-                {enabledPolicies.map((type) => {
-                  const info = POLICY_INFO[type];
+                {enabledPolicies.map((policy) => {
+                  const info = POLICY_INFO[policy.type as PolicyType] || POLICY_INFO.custom;
                   return (
                     <Link
-                      key={type}
-                      href={`/${subdomain}/policies/${type}`}
+                      key={policy.id || policy.slug || `${policy.type}-${policy.title}`}
+                      href={`/${subdomain}/policies/${encodeURIComponent(policy.slug || policy.id || policy.type)}`}
                       className="text-gray-400 hover:text-white block"
                     >
-                      {info.label}
+                      {policy.title || info.label}
                     </Link>
                   );
                 })}

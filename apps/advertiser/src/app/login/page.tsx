@@ -3,9 +3,7 @@
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { ForgotPasswordPanel } from '@/components/ForgotPasswordPanel';
-import { getFirebaseClient } from '@/lib/firebase-client';
 
 function AdvertiserLoginForm() {
   const router = useRouter();
@@ -23,25 +21,13 @@ function AdvertiserLoginForm() {
     setError('');
 
     try {
-      const firebase = getFirebaseClient();
-      if (!firebase?.app) {
-        setError(
-          'Firebase no está configurado en esta app. Revisa las variables NEXT_PUBLIC_FIREBASE_* en App Hosting.'
-        );
-        return;
-      }
-
-      const userCred = await signInWithEmailAndPassword(
-        getAuth(firebase.app),
-        formData.email.trim(),
-        formData.password
-      );
-      const idToken = await userCred.user.getIdToken();
-
       const response = await fetch('/api/advertiser/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken }),
+        body: JSON.stringify({
+          email: formData.email.trim(),
+          password: formData.password,
+        }),
       });
 
       // Verificar Content-Type antes de parsear
@@ -151,7 +137,14 @@ function AdvertiserLoginForm() {
         <ForgotPasswordPanel />
 
         <div className="mt-6 text-center">
-          <Link href="/register" className="text-primary-600 hover:text-primary-700 text-sm">
+          <Link
+            href={
+              searchParams.get('next')
+                ? `/register?next=${encodeURIComponent(searchParams.get('next') || '')}`
+                : '/register'
+            }
+            className="text-primary-600 hover:text-primary-700 text-sm"
+          >
             ¿No tienes cuenta? Regístrate aquí
           </Link>
         </div>

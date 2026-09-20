@@ -38,6 +38,13 @@ const UPDATABLE_MEMBERSHIP_FIELDS = new Set([
   'billingCycle',
   'isActive',
   'stripePriceId',
+  'stripeProductId',
+  'launchPrice',
+  'launchEndsAt',
+  'launchStripePriceId',
+  'introPrice',
+  'introMonths',
+  'introStripePriceId',
 ]);
 
 export async function GET(
@@ -187,6 +194,138 @@ export async function PUT(
 
     finalUpdateData.updatedAt = admin.firestore.FieldValue.serverTimestamp();
     finalUpdateData.syncVersion = admin.firestore.FieldValue.increment(1);
+
+    // Sincronizar Prices de Stripe si cambió precio regular / launch / intro
+    try {
+      const { getStripeInstance } = await import('@autodealers/core');
+      const { createMembershipStripePrice } = await import('@autodealers/billing');
+      const stripe = await getStripeInstance();
+      const name = String(finalUpdateData.name ?? existingMembership.name ?? 'Plan');
+      const type = (
+        nextType === 'seller' ? 'seller' : nextType === 'business' ? 'business' : 'dealer'
+      ) as 'dealer' | 'seller' | 'business';
+      const currency = nextCurrency;
+      const billingCycle = (nextCycle === 'yearly' ? 'yearly' : 'monthly') as 'monthly' | 'yearly';
+      const productId = String(
+        finalUpdateData.stripeProductId ?? existingMembership.stripeProductId ?? ''
+      ).trim();
+
+      const prevPrice = coerceMembershipNumber(existingMembership.price ?? 0);
+      const missingRegularPrice = !String(existingMembership.stripePriceId || '').trim();
+      if (nextPrice > 0 && (nextPrice !== prevPrice || missingRegularPrice)) {
+        const created = await createMembershipStripePrice({
+          stripe: stripe as any,
+          name,
+          type,
+          price: nextPrice,
+          currency,
+          billingCycle,
+          membershipId,
+          kind: 'regular',
+          existingProductId: productId || undefined,
+        });
+        finalUpdateData.stripePriceId = created.stripePriceId;
+        finalUpdateData.stripeProductId = created.stripeProductId;
+      }
+
+      const nextLaunchPrice =
+        finalUpdateData.launchPrice !== undefined
+          ? coerceMembershipNumber(finalUpdateData.launchPrice)
+          : coerceMembershipNumber(existingMembership.launchPrice ?? 0);
+      const prevLaunch = coerceMembershipNumber(existingMembership.launchPrice ?? 0);
+      const launchEndsAtRaw =
+        finalUpdateData.launchEndsAt !== undefined
+          ? finalUpdateData.launchEndsAt
+          : existingMembership.launchEndsAt;
+      if (nextLaunchPrice > 0 && launchEndsAtRaw) {
+        if (
+          nextLaunchPrice !== prevLaunch ||
+          !String(existingMembership.launchStripePriceId || '').trim() ||
+          finalUpdateData.launchEndsAt !== undefined
+        ) {
+          const created = await createMembershipStripePrice({
+            stripe: stripe as any,
+            name: `${name} Launch`,
+            type,
+            price: nextLaunchPrice,
+            currency,
+            billingCycle,
+            membershipId,
+            kind: 'launch',
+            existingProductId:
+              String(finalUpdateData.stripeProductId ?? productId ?? '').trim() || undefined,
+          });
+          finalUpdateData.launchStripePriceId = created.stripePriceId;
+          if (!finalUpdateData.stripeProductId) {
+            finalUpdateData.stripeProductId = created.stripeProductId;
+          }
+        }
+      } else if (finalUpdateData.launchPrice === 0 || finalUpdateData.launchPrice === null) {
+        finalUpdateData.launchStripePriceId = '';
+        finalUpdateData.launchEndsAt = null;
+      }
+
+      const nextIntroPrice =
+        finalUpdateData.introPrice !== undefined
+          ? coerceMembershipNumber(finalUpdateData.introPrice)
+          : coerceMembershipNumber(existingMembership.introPrice ?? 0);
+      const nextIntroMonths =
+        finalUpdateData.introMonths !== undefined
+          ? Math.floor(Number(finalUpdateData.introMonths) || 0)
+          : Math.floor(Number(existingMembership.introMonths) || 0);
+      const prevIntro = coerceMembershipNumber(existingMembership.introPrice ?? 0);
+      const prevMonths = Math.floor(Number(existingMembership.introMonths) || 0);
+      if (nextIntroPrice > 0 && nextIntroMonths >= 1) {
+        if (
+          nextIntroPrice !== prevIntro ||
+          nextIntroMonths !== prevMonths ||
+          !String(existingMembership.introStripePriceId || '').trim()
+        ) {
+          const created = await createMembershipStripePrice({
+            stripe: stripe as any,
+            name: `${name} Intro`,
+            type,
+            price: nextIntroPrice,
+            currency,
+            billingCycle,
+            membershipId,
+            kind: 'intro',
+            existingProductId:
+              String(finalUpdateData.stripeProductId ?? productId ?? '').trim() || undefined,
+          });
+          finalUpdateData.introStripePriceId = created.stripePriceId;
+          if (!finalUpdateData.stripeProductId) {
+            finalUpdateData.stripeProductId = created.stripeProductId;
+          }
+        }
+      } else if (
+        finalUpdateData.introPrice === 0 ||
+        finalUpdateData.introPrice === null ||
+        finalUpdateData.introMonths === 0
+      ) {
+        finalUpdateData.introStripePriceId = '';
+      }
+
+      // Normalizar launchEndsAt a Timestamp si viene ISO string
+      if (typeof finalUpdateData.launchEndsAt === 'string' && finalUpdateData.launchEndsAt) {
+        const d = new Date(finalUpdateData.launchEndsAt);
+        if (!Number.isNaN(d.getTime())) {
+          finalUpdateData.launchEndsAt = admin.firestore.Timestamp.fromDate(d);
+        }
+      }
+    } catch (stripeSyncErr) {
+      const message =
+        stripeSyncErr instanceof Error ? stripeSyncErr.message : 'Error sincronizando Stripe';
+      console.error('Stripe price sync:', stripeSyncErr);
+      return NextResponse.json(
+        {
+          error:
+            'No se pudo sincronizar el Price en Stripe. El plan no se actualizó para evitar un checkout roto.',
+          details: message,
+        },
+        { status: 502 }
+      );
+    }
 
     console.log('💾 Updating membership with cleaned data:', JSON.stringify(finalUpdateData, null, 2));
 

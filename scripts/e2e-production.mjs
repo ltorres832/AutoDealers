@@ -9,17 +9,14 @@
 const FIREBASE_API_KEY =
   process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'AIzaSyC68yc67kmfrNEgxz8zGzmCCjsOUT7u4y0';
 
+import { PLATFORM_URLS } from './platform-domains.mjs';
+
 const APPS = {
-  public: process.env.SMOKE_PUBLIC_WEB_URL ||
-    'https://public-web-app--autodealers-7f62e.us-central1.hosted.app',
-  admin: process.env.SMOKE_ADMIN_URL ||
-    'https://admin-app--autodealers-7f62e.us-central1.hosted.app',
-  dealer: process.env.SMOKE_DEALER_URL ||
-    'https://dealer-app--autodealers-7f62e.us-central1.hosted.app',
-  seller: process.env.SMOKE_SELLER_URL ||
-    'https://seller-app--autodealers-7f62e.us-central1.hosted.app',
-  advertiser: process.env.SMOKE_ADVERTISER_URL ||
-    'https://advertiser-app--autodealers-7f62e.us-central1.hosted.app',
+  public: process.env.SMOKE_PUBLIC_WEB_URL || PLATFORM_URLS.public,
+  admin: process.env.SMOKE_ADMIN_URL || PLATFORM_URLS.admin,
+  dealer: process.env.SMOKE_DEALER_URL || PLATFORM_URLS.dealer,
+  seller: process.env.SMOKE_SELLER_URL || PLATFORM_URLS.seller,
+  advertiser: process.env.SMOKE_ADVERTISER_URL || PLATFORM_URLS.advertiser,
 };
 
 const TEST_USERS = {

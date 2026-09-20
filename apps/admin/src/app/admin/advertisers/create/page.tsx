@@ -1,7 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { fetchWithAuth } from '@/lib/fetch-with-auth';
+
+interface AdminOption {
+  id: string;
+  name: string;
+  email: string;
+}
 
 export default function CreateAdvertiserPage() {
   const [formData, setFormData] = useState({
@@ -12,10 +19,27 @@ export default function CreateAdvertiserPage() {
     website: '',
     industry: 'other',
     plan: 'starter',
+    assignedAdminId: '',
   });
+  const [admins, setAdmins] = useState<AdminOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [createdId, setCreatedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadAdmins() {
+      try {
+        const res = await fetchWithAuth('/api/admin/advertisers/admins');
+        if (res.ok) {
+          const data = await res.json();
+          setAdmins(data.admins || []);
+        }
+      } catch {
+        // El formulario sigue usable sin la lista de admins
+      }
+    }
+    void loadAdmins();
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -23,7 +47,7 @@ export default function CreateAdvertiserPage() {
     setCreatedId(null);
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/advertisers/create', {
+      const res = await fetchWithAuth('/api/admin/advertisers/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -34,11 +58,24 @@ export default function CreateAdvertiserPage() {
       } else {
         setError(data.error || 'Error al crear anunciante');
       }
-    } catch (err: any) {
-      setError(err.message || 'Error al crear anunciante');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error al crear anunciante');
     } finally {
       setLoading(false);
     }
+  }
+
+  function resetForm() {
+    setFormData({
+      companyName: '',
+      contactName: '',
+      email: '',
+      phone: '',
+      website: '',
+      industry: 'other',
+      plan: 'starter',
+      assignedAdminId: '',
+    });
   }
 
   return (
@@ -57,7 +94,10 @@ export default function CreateAdvertiserPage() {
       )}
       {createdId && (
         <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg mb-4">
-          Anunciante creado. ID: <span className="font-semibold">{createdId}</span>
+          Anunciante creado.{' '}
+          <Link href={`/admin/advertisers/${createdId}`} className="font-semibold underline">
+            Ver detalle
+          </Link>
         </div>
       )}
 
@@ -147,6 +187,21 @@ export default function CreateAdvertiserPage() {
               <option value="premium">Premium</option>
             </select>
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Asignar responsable</label>
+            <select
+              value={formData.assignedAdminId}
+              onChange={(e) => setFormData({ ...formData, assignedAdminId: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2"
+            >
+              <option value="">Sin asignar</option>
+              {admins.map((admin) => (
+                <option key={admin.id} value={admin.id}>
+                  {admin.name} ({admin.email})
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div className="flex gap-4 pt-4">
@@ -159,17 +214,7 @@ export default function CreateAdvertiserPage() {
           </button>
           <button
             type="button"
-            onClick={() =>
-              setFormData({
-                companyName: '',
-                contactName: '',
-                email: '',
-                phone: '',
-                website: '',
-                industry: 'other',
-                plan: 'starter',
-              })
-            }
+            onClick={resetForm}
             className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium"
           >
             Limpiar
@@ -179,5 +224,3 @@ export default function CreateAdvertiserPage() {
     </div>
   );
 }
-
-

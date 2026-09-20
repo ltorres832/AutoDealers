@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const role = searchParams.get('role');
     const status = searchParams.get('status');
+    const includeCancelled = searchParams.get('includeCancelled') === 'true';
     const search = searchParams.get('search');
 
     // Una sola igualdad en Firestore: combinar role+status requería índice compuesto y fallaba en silencio.
@@ -78,6 +79,10 @@ export async function GET(request: NextRequest) {
 
     if (status) {
       users = users.filter((user: { status?: string }) => (user.status ?? 'active') === status);
+    } else if (!includeCancelled) {
+      users = users.filter(
+        (user: { status?: string }) => (user.status ?? 'active') !== 'cancelled'
+      );
     }
 
     // Filtrar por búsqueda
@@ -118,6 +123,7 @@ export async function POST(request: NextRequest) {
       dealerId: bodyDealerId,
       phone,
       whatsapp,
+      notificationAudience: rawNotificationAudience,
     } = body as {
       email?: string;
       password?: string;
@@ -128,7 +134,14 @@ export async function POST(request: NextRequest) {
       dealerId?: string;
       phone?: string;
       whatsapp?: string;
+      notificationAudience?: string;
     };
+
+    const notificationAudience = (['all', 'public', 'platform'] as const).includes(
+      rawNotificationAudience as 'all' | 'public' | 'platform'
+    )
+      ? (rawNotificationAudience as 'all' | 'public' | 'platform')
+      : 'all';
 
     const email = (rawEmail || '').trim().toLowerCase();
     const passwordConfirmStr = typeof passwordConfirm === 'string' ? passwordConfirm : '';
@@ -238,6 +251,9 @@ export async function POST(request: NextRequest) {
       if (phoneNorm) {
         patch.phone = phoneNorm;
         if (wa) patch.whatsapp = wa;
+      }
+      if (role === 'admin') {
+        patch.notificationAudience = notificationAudience;
       }
       if (role !== 'admin') {
         patch.platformTermsAcceptedAt = admin.firestore.FieldValue.serverTimestamp();

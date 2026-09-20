@@ -67,7 +67,7 @@ Analiza:
 Responde en formato JSON:`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -145,7 +145,7 @@ Identifica oportunidades de mercado:
 Responde en formato JSON con opportunities (array):`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -209,7 +209,7 @@ Identifica tendencias en:
 Responde en formato JSON con trends (array):`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',

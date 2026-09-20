@@ -90,12 +90,41 @@ export default function EditMembershipPage() {
     emailSignatureBasic: false,
     emailSignatureAdvanced: false,
     emailAliases: false,
-    customerDocumentRequestsEnabled: false,
+    customerDocumentRequestsEnabled: true,
     maxCustomerDocumentRequestsPerMonth: undefined,
     multiDealerEnabled: false,
     maxDealers: undefined as number | null | undefined,
     requiresAdminApproval: false,
     multipleDealers: false,
+    // Agente de Voz IA
+    voiceAIEnabled: false,
+    voiceInboundEnabled: false,
+    voiceOutboundEnabled: false,
+    voiceServiceCallsEnabled: false,
+    voiceCampaignsEnabled: false,
+    maxVoiceMinutesPerMonth: undefined as number | null | undefined,
+    maxVoiceOutboundCallsPerMonth: undefined as number | null | undefined,
+    maxVoiceInboundCallsPerMonth: undefined as number | null | undefined,
+    // Límites de uso medibles
+    maxMessagesPerMonth: undefined as number | null | undefined,
+    maxAiResponsesPerMonth: undefined as number | null | undefined,
+    maxEmailsPerMonth: undefined as number | null | undefined,
+    overageBillingEnabled: false,
+    compensationPortalEnabled: true,
+    dmsServiceEnabled: true,
+    dmsPartsEnabled: true,
+    dmsFinanceEnabled: true,
+    dmsHrEnabled: true,
+    publicApiEnabled: false,
+    vin_camera_scan: true,
+    share_landing: true,
+    photo_guide: true,
+    bg_remover: true,
+    dynamic_scenes: true,
+    dealer_site_builder: true,
+    daco_labels: true,
+    inventory_alliances: true,
+    inventory_feed_sync: true,
   });
 
   useEffect(() => {
@@ -266,9 +295,43 @@ export default function EditMembershipPage() {
           billingCycle: membership.billingCycle,
           isActive: membership.isActive,
           stripePriceId: membership.stripePriceId,
-          features: prepareAdminMembershipFeaturesForSave(
-            features as unknown as Record<string, unknown>
-          ),
+          launchPrice:
+            membership.launchPrice === '' || membership.launchPrice == null
+              ? null
+              : coerceMembershipNumber(membership.launchPrice),
+          launchEndsAt: membership.launchEndsAt || null,
+          introPrice:
+            membership.introPrice === '' || membership.introPrice == null
+              ? null
+              : coerceMembershipNumber(membership.introPrice),
+          introMonths:
+            membership.introMonths === '' || membership.introMonths == null
+              ? 0
+              : Math.floor(Number(membership.introMonths) || 0),
+          features: prepareAdminMembershipFeaturesForSave({
+            ...(features as unknown as Record<string, unknown>),
+            ...(membership.type === 'business'
+              ? {
+                  customDomain: false,
+                  vin_camera_scan: false,
+                  share_landing: false,
+                  photo_guide: false,
+                  bg_remover: false,
+                  dynamic_scenes: false,
+                  daco_labels: false,
+                  dealer_site_builder: false,
+                  inventory_alliances: false,
+                  inventory_feed_sync: false,
+                }
+              : {}),
+            ...(membership.type === 'seller'
+              ? {
+                  dealer_site_builder: false,
+                  inventory_alliances: false,
+                  inventory_feed_sync: false,
+                }
+              : {}),
+          }),
         }),
       });
 
@@ -299,7 +362,32 @@ export default function EditMembershipPage() {
   }
 
   function updateFeature(key: keyof MembershipFeatures, value: boolean | number | string | undefined) {
-    setFeatures({ ...features, [key]: value });
+    setFeatures((prev) => {
+      const next = { ...prev, [key]: value };
+      if (key === 'corporateEmailEnabled' && !value) {
+        delete next.maxCorporateEmails;
+        next.emailSignatureBasic = false;
+        next.emailSignatureAdvanced = false;
+        next.emailAliases = false;
+      }
+      if (key === 'customerDocumentRequestsEnabled' && !value) {
+        delete next.maxCustomerDocumentRequestsPerMonth;
+      }
+      if (key === 'multiDealerEnabled' && !value) {
+        delete next.maxDealers;
+        next.requiresAdminApproval = false;
+      }
+      if (key === 'voiceAIEnabled' && !value) {
+        next.voiceInboundEnabled = false;
+        next.voiceOutboundEnabled = false;
+        next.voiceServiceCallsEnabled = false;
+        next.voiceCampaignsEnabled = false;
+        delete next.maxVoiceMinutesPerMonth;
+        delete next.maxVoiceOutboundCallsPerMonth;
+        delete next.maxVoiceInboundCallsPerMonth;
+      }
+      return next;
+    });
   }
 
   if (loading) {
@@ -381,15 +469,117 @@ export default function EditMembershipPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Precio</label>
+            <label className="block text-sm font-medium mb-2">Precio regular</label>
             <input
               type="number"
               value={membership.price}
               onChange={(e) => setMembership({ ...membership, price: parseFloat(e.target.value) })}
               className="w-full border rounded px-3 py-2"
             />
+            <p className="text-xs text-gray-500 mt-1">Precio permanente del plan (post-lanzamiento / post-intro).</p>
           </div>
         </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-amber-200 p-6 mb-6">
+        <h2 className="text-xl font-bold mb-2">Precio de lanzamiento (oferta por fecha)</h2>
+        <p className="text-sm text-gray-600 mb-4">
+          Hasta la fecha indicada, <strong>todos</strong> ven y pagan este precio. Al vencer, el catálogo
+          vuelve solo al precio regular. Es oferta de calendario (no por suscriptor). Se sincroniza con
+          Stripe al guardar.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Precio lanzamiento</label>
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              value={membership.launchPrice ?? ''}
+              onChange={(e) =>
+                setMembership({
+                  ...membership,
+                  launchPrice: e.target.value === '' ? '' : parseFloat(e.target.value),
+                })
+              }
+              placeholder="Vacío = sin lanzamiento"
+              className="w-full border rounded px-3 py-2"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Válido hasta</label>
+            <input
+              type="datetime-local"
+              value={
+                membership.launchEndsAt
+                  ? new Date(membership.launchEndsAt).toISOString().slice(0, 16)
+                  : ''
+              }
+              onChange={(e) =>
+                setMembership({
+                  ...membership,
+                  launchEndsAt: e.target.value ? new Date(e.target.value).toISOString() : null,
+                })
+              }
+              className="w-full border rounded px-3 py-2"
+            />
+          </div>
+        </div>
+        {membership.launchStripePriceId ? (
+          <p className="text-xs text-green-700 mt-2">Stripe launch: {membership.launchStripePriceId}</p>
+        ) : null}
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-emerald-200 p-6 mb-6">
+        <h2 className="text-xl font-bold mb-2">Precio intro por N cobros (descuento por suscriptor)</h2>
+        <p className="text-sm text-gray-600 mb-2">
+          Cada quien que se suscriba paga un precio más bajo durante los primeros N cobros (meses si el
+          plan es mensual). Después Stripe pasa solo al precio regular. No depende de una fecha del
+          calendario: el descuento arranca cuando esa persona se suscribe.
+        </p>
+        <p className="text-sm bg-emerald-50 border border-emerald-100 rounded px-3 py-2 text-emerald-950 mb-4">
+          Ejemplo: regular $49, intro $19 × 3 meses → cobra $19 los primeros 3 meses, luego $49 solo.
+          Déjalo vacío si no quieres esta promo (usa solo lanzamiento si la oferta es por fecha).
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Precio intro (lo que paga al inicio)</label>
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              value={membership.introPrice ?? ''}
+              onChange={(e) =>
+                setMembership({
+                  ...membership,
+                  introPrice: e.target.value === '' ? '' : parseFloat(e.target.value),
+                })
+              }
+              placeholder="Vacío = sin intro"
+              className="w-full border rounded px-3 py-2"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Cuántos cobros al precio intro</label>
+            <input
+              type="number"
+              min={0}
+              max={36}
+              value={membership.introMonths ?? ''}
+              onChange={(e) =>
+                setMembership({
+                  ...membership,
+                  introMonths: e.target.value === '' ? '' : parseInt(e.target.value, 10),
+                })
+              }
+              placeholder="Ej: 1 = primer mes"
+              className="w-full border rounded px-3 py-2"
+            />
+          </div>
+        </div>
+        {membership.introStripePriceId ? (
+          <p className="text-xs text-green-700 mt-2">Stripe intro: {membership.introStripePriceId}</p>
+        ) : null}
       </div>
 
       {/* Límites Numéricos */}
@@ -512,6 +702,47 @@ export default function EditMembershipPage() {
               Expediente CRM: cada solicitud cuenta al crear un requerimiento vía API. Vacío = ilimitado.
             </p>
           </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Máx. Mensajes/Mes</label>
+            <input
+              type="number"
+              min={0}
+              value={features.maxMessagesPerMonth ?? ''}
+              onChange={(e) => updateFeature('maxMessagesPerMonth', e.target.value ? parseInt(e.target.value, 10) : undefined)}
+              placeholder="Ilimitado"
+              className="w-full border rounded px-3 py-2"
+            />
+            <p className="text-xs text-gray-500 mt-1">WhatsApp, FB, IG y SMS salientes. Vacío = ilimitado.</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Máx. Respuestas IA/Mes</label>
+            <input
+              type="number"
+              min={0}
+              value={features.maxAiResponsesPerMonth ?? ''}
+              onChange={(e) => updateFeature('maxAiResponsesPerMonth', e.target.value ? parseInt(e.target.value, 10) : undefined)}
+              placeholder="Ilimitado"
+              className="w-full border rounded px-3 py-2"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Máx. Emails/Mes</label>
+            <input
+              type="number"
+              min={0}
+              value={features.maxEmailsPerMonth ?? ''}
+              onChange={(e) => updateFeature('maxEmailsPerMonth', e.target.value ? parseInt(e.target.value, 10) : undefined)}
+              placeholder="Ilimitado"
+              className="w-full border rounded px-3 py-2"
+            />
+          </div>
+        </div>
+        <div className="mt-4 border-t pt-4">
+          <FeatureToggle
+            label="Facturación automática de excesos (overage) — permite seguir usando el servicio y factura el exceso automáticamente"
+            value={features.overageBillingEnabled === true}
+            onChange={(v) => updateFeature('overageBillingEnabled', v)}
+          />
         </div>
       </div>
 
@@ -531,11 +762,13 @@ export default function EditMembershipPage() {
               value={features.customSubdomain}
               onChange={(v) => updateFeature('customSubdomain', v)}
             />
-            <FeatureToggle
-              label="Dominio Propio (ej: midealer.com)"
-              value={features.customDomain}
-              onChange={(v) => updateFeature('customDomain', v)}
-            />
+            {membership?.type !== 'business' ? (
+              <FeatureToggle
+                label="Dominio Propio (ej: midealer.com)"
+                value={features.customDomain}
+                onChange={(v) => updateFeature('customDomain', v)}
+              />
+            ) : null}
             <FeatureToggle
               label="White Label (Sin branding AutoDealersOnline)"
               value={features.whiteLabel}
@@ -574,6 +807,119 @@ export default function EditMembershipPage() {
               onChange={(v) => updateFeature('aiLeadClassification', v)}
             />
           </div>
+        </div>
+
+        {/* Agente de Voz IA */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-xl font-bold mb-4">🎙️ Agente de Voz IA</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Llamadas con voz humana en español (entrantes y salientes), grabadas y transcritas al CRM.
+            El sistema valida estos flags en tiempo real al iniciar cada llamada.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <FeatureToggle
+              label="Agente de Voz IA habilitado"
+              value={features.voiceAIEnabled === true}
+              onChange={(v) => updateFeature('voiceAIEnabled', v)}
+              comingSoon
+            />
+            {features.voiceAIEnabled && (
+              <>
+                <FeatureToggle
+                  label="Llamadas entrantes atendidas por IA"
+                  value={features.voiceInboundEnabled === true}
+                  onChange={(v) => updateFeature('voiceInboundEnabled', v)}
+                  comingSoon
+                />
+                <FeatureToggle
+                  label="Llamadas salientes automáticas (seguimientos)"
+                  value={features.voiceOutboundEnabled === true}
+                  onChange={(v) => updateFeature('voiceOutboundEnabled', v)}
+                  comingSoon
+                />
+                <FeatureToggle
+                  label="Citas de servicio/mantenimiento por voz"
+                  value={features.voiceServiceCallsEnabled === true}
+                  onChange={(v) => updateFeature('voiceServiceCallsEnabled', v)}
+                  comingSoon
+                />
+                <FeatureToggle
+                  label="Campañas de llamadas (reactivación, cumpleaños)"
+                  value={features.voiceCampaignsEnabled === true}
+                  onChange={(v) => updateFeature('voiceCampaignsEnabled', v)}
+                />
+              </>
+            )}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6 border-t pt-4">
+            <FeatureToggle
+              label="Portal Mi Compensación"
+              value={features.compensationPortalEnabled !== false}
+              onChange={(v) => updateFeature('compensationPortalEnabled', v)}
+            />
+            <FeatureToggle
+              label="DMS Servicio / Taller"
+              value={features.dmsServiceEnabled !== false}
+              onChange={(v) => updateFeature('dmsServiceEnabled', v)}
+            />
+            <FeatureToggle
+              label="DMS Piezas"
+              value={features.dmsPartsEnabled !== false}
+              onChange={(v) => updateFeature('dmsPartsEnabled', v)}
+            />
+            <FeatureToggle
+              label="DMS Finanzas dealer"
+              value={features.dmsFinanceEnabled !== false}
+              onChange={(v) => updateFeature('dmsFinanceEnabled', v)}
+            />
+            <FeatureToggle
+              label="DMS RR.HH. extendido"
+              value={features.dmsHrEnabled !== false}
+              onChange={(v) => updateFeature('dmsHrEnabled', v)}
+            />
+            <FeatureToggle
+              label="API pública / apps"
+              value={features.publicApiEnabled === true}
+              onChange={(v) => updateFeature('publicApiEnabled', v)}
+            />
+          </div>
+          {features.voiceAIEnabled && (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4 border-t pt-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Minutos de voz / mes</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={features.maxVoiceMinutesPerMonth ?? ''}
+                  onChange={(e) => updateFeature('maxVoiceMinutesPerMonth', e.target.value ? parseInt(e.target.value, 10) : undefined)}
+                  placeholder="Ilimitado"
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Llamadas salientes / mes</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={features.maxVoiceOutboundCallsPerMonth ?? ''}
+                  onChange={(e) => updateFeature('maxVoiceOutboundCallsPerMonth', e.target.value ? parseInt(e.target.value, 10) : undefined)}
+                  placeholder="Ilimitado"
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Llamadas entrantes / mes</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={features.maxVoiceInboundCallsPerMonth ?? ''}
+                  onChange={(e) => updateFeature('maxVoiceInboundCallsPerMonth', e.target.value ? parseInt(e.target.value, 10) : undefined)}
+                  placeholder="Ilimitado"
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Redes Sociales */}
@@ -717,13 +1063,13 @@ export default function EditMembershipPage() {
             />
             <FeatureToggle
               label="Solicitar documentos al cliente (expediente / portal)"
-              value={features.customerDocumentRequestsEnabled === true}
+              value={features.customerDocumentRequestsEnabled !== false}
               onChange={(v) => updateFeature('customerDocumentRequestsEnabled', v)}
             />
           </div>
         </div>
 
-        {membership?.type === 'dealer' && (
+        {membership?.type === 'dealer' || membership?.type === 'seller' ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h2 className="text-xl font-bold mb-4">Módulo F&amp;I</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -732,14 +1078,16 @@ export default function EditMembershipPage() {
                 value={features.fiModule === true}
                 onChange={(v) => updateFeature('fiModule', v)}
               />
-              <FeatureToggle
-                label="Varios gerentes F&I"
-                value={features.fiMultipleManagers === true}
-                onChange={(v) => updateFeature('fiMultipleManagers', v)}
-              />
+              {membership?.type === 'dealer' ? (
+                <FeatureToggle
+                  label="Varios gerentes F&I"
+                  value={features.fiMultipleManagers === true}
+                  onChange={(v) => updateFeature('fiMultipleManagers', v)}
+                />
+              ) : null}
             </div>
           </div>
-        )}
+        ) : null}
 
         {membership?.type === 'dealer' && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -896,6 +1244,68 @@ export default function EditMembershipPage() {
             />
           </div>
         </div>
+
+        {(membership?.type === 'dealer' || membership?.type === 'seller') && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 className="text-xl font-bold mb-2">📦 Inventario competitivo</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Funciones aditivas de inventario (VIN, fotos, compartir, DACO
+              {membership?.type === 'dealer' ? ', sitio, alianzas y feeds' : ''}). Activas por
+              defecto; desmarca para apagarlas en este plan.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <FeatureToggle
+                label="Escaneo VIN con cámara / decodificación"
+                value={features.vin_camera_scan !== false}
+                onChange={(v) => updateFeature('vin_camera_scan', v)}
+              />
+              <FeatureToggle
+                label="Landing y QR para compartir vehículo"
+                value={features.share_landing !== false}
+                onChange={(v) => updateFeature('share_landing', v)}
+              />
+              <FeatureToggle
+                label="Guía de fotos por ángulos"
+                value={features.photo_guide !== false}
+                onChange={(v) => updateFeature('photo_guide', v)}
+              />
+              <FeatureToggle
+                label="Quitar fondo de fotos (IA)"
+                value={features.bg_remover !== false}
+                onChange={(v) => updateFeature('bg_remover', v)}
+              />
+              <FeatureToggle
+                label="Escenas dinámicas (fondos de estudio)"
+                value={features.dynamic_scenes !== false}
+                onChange={(v) => updateFeature('dynamic_scenes', v)}
+              />
+              <FeatureToggle
+                label="Etiquetas DACO imprimibles con QR"
+                value={features.daco_labels !== false}
+                onChange={(v) => updateFeature('daco_labels', v)}
+              />
+              {membership?.type === 'dealer' && (
+                <>
+                  <FeatureToggle
+                    label="Constructor de sitio web del dealer"
+                    value={features.dealer_site_builder !== false}
+                    onChange={(v) => updateFeature('dealer_site_builder', v)}
+                  />
+                  <FeatureToggle
+                    label="Alianzas de inventario entre dealers"
+                    value={features.inventory_alliances !== false}
+                    onChange={(v) => updateFeature('inventory_alliances', v)}
+                  />
+                  <FeatureToggle
+                    label="Sincronización de inventario por feed URL"
+                    value={features.inventory_feed_sync !== false}
+                    onChange={(v) => updateFeature('inventory_feed_sync', v)}
+                  />
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Soporte */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -1084,10 +1494,12 @@ function FeatureToggle({
   label,
   value,
   onChange,
+  comingSoon = false,
 }: {
   label: string;
   value: boolean;
   onChange: (value: boolean) => void;
+  comingSoon?: boolean;
 }) {
   return (
     <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
@@ -1098,6 +1510,11 @@ function FeatureToggle({
         className="w-5 h-5 text-primary-600 rounded"
       />
       <span className="text-sm font-medium">{label}</span>
+      {comingSoon ? (
+        <span className="inline-flex shrink-0 items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-900">
+          Próximamente
+        </span>
+      ) : null}
     </label>
   );
 }

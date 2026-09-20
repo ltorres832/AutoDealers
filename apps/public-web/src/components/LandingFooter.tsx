@@ -117,6 +117,9 @@ export default function LandingFooter({
                 { name: 'Concesionarios', href: '/dealers?tab=concesionarios' },
                 { name: 'Vendedores', href: '/dealers?tab=vendedores' },
                 { name: 'Vende tu Auto', href: '/registro' },
+                { name: 'Servicios', href: '/servicios' },
+                { name: 'Mi garage', href: '/mi-garage' },
+                { name: 'Crear cuenta (opcional)', href: '/mi-garage/crear-cuenta' },
                 { name: 'Financiamiento', href: '/#financiamiento' },
                 { name: 'Publicidad', href: '/advertise' },
               ].map((link) => (

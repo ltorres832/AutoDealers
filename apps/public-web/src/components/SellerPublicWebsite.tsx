@@ -10,6 +10,8 @@ import { getFirstPhoto, handleImageError } from '@/lib/vehicle-image';
 import { getPublicVehicleConditionLabel } from '@/lib/vehicle-condition-label';
 import { pingCatalogVehicleClick } from '@/lib/catalog-vehicle-click';
 import { buildPublicVehicleDetailHref, vehicleCatalogTenantId } from '@/lib/public-vehicle-detail-href';
+import { buildTelHref, buildWhatsAppHref } from '@/lib/contact-links';
+import VehicleImageFrame from '@/components/VehicleImageFrame';
 import { PublicTrustGallery } from '@autodealers/shared/components/PublicTrustGallery';
 import type { PublicTrustGalleryItem } from '@autodealers/shared/public-trust-gallery';
 import {
@@ -22,6 +24,7 @@ import {
 } from '@/lib/website-settings-normalize';
 import { resolveBusinessHours } from '@/lib/resolve-business-hours';
 import ContactCardHeroHeader from '@/components/ContactCardHeroHeader';
+import PublicHeroCta from '@/components/PublicHeroCta';
 export interface SellerPublicWebsiteSeller {
   id: string;
   name: string;
@@ -81,6 +84,9 @@ export interface SellerPublicWebsiteSettings {
     title?: string;
     subtitle?: string;
     ctaText?: string;
+    mediaMode?: 'gradient' | 'image' | 'video';
+    backgroundImage?: string;
+    backgroundVideoUrl?: string;
   };
   sections?: {
     about?: { enabled?: boolean; title?: string; content?: string };
@@ -264,16 +270,11 @@ export default function SellerPublicWebsite({
   const profileDescription = (profile.description && profile.description.trim()) || '';
   const bio = profileDescription || profileBio;
 
-  const whatsappDigits = String(seller.whatsapp || seller.phone || '').replace(/[^0-9]/g, '');
-
   const buildWaUrl = useCallback(
-    (text?: string) => {
-      if (!whatsappDigits) return null;
-      const base = `https://wa.me/${whatsappDigits}`;
-      return text ? `${base}?text=${encodeURIComponent(text)}` : base;
-    },
-    [whatsappDigits]
+    (text?: string) => buildWhatsAppHref(seller.whatsapp || seller.phone, text),
+    [seller.whatsapp, seller.phone]
   );
+  const whatsappUrl = buildWaUrl();
 
   const scrollToSection = useCallback((id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
@@ -300,7 +301,7 @@ export default function SellerPublicWebsite({
             ) : null}
           </div>
           <div className="flex gap-3 flex-wrap">
-            {whatsappDigits ? (
+            {whatsappUrl ? (
               <a
                 href={buildWaUrl('Hola, estoy interesado en tus vehículos') || '#'}
                 target="_blank"
@@ -323,29 +324,22 @@ export default function SellerPublicWebsite({
         </div>
       </header>
 
-      <section
-        className="text-white py-16 sm:py-20 px-4 sm:px-6"
-        style={{
-          background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
-        }}
-      >
-        <div className="text-center w-full max-w-4xl mx-auto">
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 break-words leading-tight">
-            {repairHeroTitle(hero.title)}
-          </h2>
-          <p className="text-lg sm:text-xl mb-8 text-white/90 break-words">
-            {repairHeroSubtitle(hero.subtitle)}
-          </p>
+      <PublicHeroCta
+        title={repairHeroTitle(hero.title)}
+        subtitle={repairHeroSubtitle(hero.subtitle)}
+        heroMedia={hero}
+        gradientCss={`linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`}
+        cta={
           <button
             type="button"
             onClick={() => scrollToSection('inventory')}
             className="bg-white px-8 py-3 rounded-lg font-medium hover:bg-gray-100 text-lg"
             style={{ color: primaryColor }}
           >
-            {hero.ctaText}
+            {hero.ctaText || DEFAULT_HERO_CTA}
           </button>
-        </div>
-      </section>
+        }
+      />
 
       {aboutEnabled && aboutContent ? (
         <section id="about" className="bg-white py-16 px-4 sm:px-6">
@@ -382,7 +376,7 @@ export default function SellerPublicWebsite({
               <p className="text-gray-600">Este vendedor no tiene vehículos publicados aún.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {vehicles.map((v) => {
                 const conditionLabel = getPublicVehicleConditionLabel(v);
                 const showSold =
@@ -410,14 +404,13 @@ export default function SellerPublicWebsite({
                         })
                       }
                     >
-                      <div className="h-48 bg-white border-b border-gray-100 flex items-center justify-center overflow-hidden relative">
+                      <div className="h-40 sm:h-44 bg-slate-100 border-b border-gray-100 flex items-center justify-center overflow-hidden relative">
                         {photo ? (
-                          <img
+                          <VehicleImageFrame
                             src={photo}
                             alt={`${v.year} ${v.make} ${v.model}`}
-                            className={`w-full h-full object-contain object-center ${showSold ? 'opacity-70' : ''}`}
-                            loading="lazy"
-                            referrerPolicy="no-referrer"
+                            className="h-full w-full"
+                            imageClassName={showSold ? 'opacity-70' : ''}
                             onError={handleImageError}
                           />
                         ) : (
@@ -425,32 +418,32 @@ export default function SellerPublicWebsite({
                         )}
                         {showSold ? (
                           <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <span className="text-2xl font-black text-white border-4 border-white px-3 py-1 rotate-[-6deg] drop-shadow-lg">
+                            <span className="text-xl font-black text-white border-4 border-white px-3 py-1 rotate-[-6deg] drop-shadow-lg">
                               VENDIDO
                             </span>
                           </span>
                         ) : null}
                       </div>
-                      <div className="p-6 flex-1">
-                        <h3 className="font-bold text-xl mb-2 group-hover:underline" style={{ color: primaryColor }}>
+                      <div className="p-3 flex-1">
+                        <h3 className="font-bold text-base mb-1.5 group-hover:underline" style={{ color: primaryColor }}>
                           {v.year} {v.make} {v.model}
                         </h3>
-                        <p className="text-2xl font-bold mb-4" style={{ color: primaryColor }}>
+                        <p className="text-xl font-bold mb-2" style={{ color: primaryColor }}>
                           {v.currency} {v.price.toLocaleString()}
                         </p>
-                        <p className="text-sm text-gray-600 mb-2">
+                        <p className="text-xs text-gray-600 mb-1.5">
                           Millaje: {(v.mileage ?? 0).toLocaleString()}{' '}
                           {(v.mileage ?? 0) === 1 ? 'milla' : 'millas'}
                         </p>
                         {conditionLabel ? (
-                          <p className="text-sm text-gray-600 mb-4">{conditionLabel}</p>
+                          <p className="text-xs text-gray-600 mb-2">{conditionLabel}</p>
                         ) : null}
                       </div>
                     </Link>
-                    <div className="px-6 pb-6">
+                    <div className="px-3 pb-3">
                       <Link
                         href={detailHref}
-                        className="block w-full text-center text-white px-4 py-2 rounded font-medium hover:opacity-90"
+                        className="block w-full text-center text-white px-3 py-1.5 rounded font-medium text-xs hover:opacity-90"
                         style={{ backgroundColor: primaryColor }}
                       >
                         Ver Detalles
@@ -494,7 +487,7 @@ export default function SellerPublicWebsite({
                       <div>
                         <p className="text-sm text-gray-600">Teléfono</p>
                         <a
-                          href={`tel:${contactPhone.replace(/\s/g, '')}`}
+                          href={buildTelHref(contactPhone) || '#'}
                           className="hover:underline"
                           style={{ color: primaryColor }}
                         >

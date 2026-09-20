@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { AdminTenantEntityDeleteButton } from '@/components/AdminDeleteButton';
+import { resolveAdCreativePreviewSrc } from '@autodealers/core/ad-creative';
 
 interface Banner {
   id: string;
@@ -305,13 +307,17 @@ function BannerCard({
   return (
     <>
       <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-        {banner.imageUrl && (
+        {resolveAdCreativePreviewSrc(banner).kind !== 'none' && (
           <div className="relative h-48 bg-gray-200">
+            {resolveAdCreativePreviewSrc(banner).kind === 'video' ? (
+              <video src={resolveAdCreativePreviewSrc(banner).src} className="h-full w-full object-cover" muted playsInline controls />
+            ) : (
             <img
-              src={banner.imageUrl}
+              src={resolveAdCreativePreviewSrc(banner).src}
               alt={banner.title}
               className="w-full h-full object-cover"
             />
+            )}
             <div className="absolute top-2 right-2">
               <span className={`px-3 py-1 rounded-full text-xs font-bold ${
                 banner.status === 'active' ? 'bg-green-500 text-white' :
@@ -376,6 +382,18 @@ function BannerCard({
               </button>
             </div>
           )}
+          {!readOnly ? (
+            <div className="mt-3">
+              <AdminTenantEntityDeleteButton
+                tenantId={banner.tenantId}
+                collection="banners"
+                entityId={banner.id}
+                label="Eliminar banner"
+                onDeleted={() => window.location.reload()}
+                className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
+              />
+            </div>
+          ) : null}
         </div>
       </div>
 

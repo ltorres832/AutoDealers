@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const type = searchParams.get('type') as 'dealer' | 'seller' | null;
+    const type = searchParams.get('type') as 'dealer' | 'seller' | 'business' | null;
     const activeOnly = searchParams.get('activeOnly') === 'true';
     const selfServiceOnly = searchParams.get('selfServiceOnly') === 'true';
 
@@ -63,7 +63,20 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, type, price, currency, billingCycle, features, isActive, createStripeProduct } = body;
+    const {
+      name,
+      type,
+      price,
+      currency,
+      billingCycle,
+      features,
+      isActive,
+      createStripeProduct,
+      launchPrice,
+      launchEndsAt,
+      introPrice,
+      introMonths,
+    } = body;
 
     const priceDup = await assertUniqueMembershipPrice({
       db,
@@ -84,33 +97,71 @@ export async function POST(request: NextRequest) {
     }
 
     let stripePriceId = body.stripePriceId || '';
+    let stripeProductId = body.stripeProductId || '';
+    let launchStripePriceId = '';
+    let introStripePriceId = '';
 
-    if (createStripeProduct && price > 0) {
+    const shouldCreateStripe = createStripeProduct !== false && Number(price) > 0;
+    if (shouldCreateStripe) {
       try {
         const { getStripeInstance } = await import('@autodealers/core');
+        const { createMembershipStripePrice } = await import('@autodealers/billing');
         const stripe = await getStripeInstance();
 
-        const product = await stripe.products.create({
-          name: `${name} - ${type === 'dealer' ? 'Dealer' : 'Vendedor'}`,
-          description: `Plan de membresía ${name} para ${type === 'dealer' ? 'dealers' : 'vendedores'}`,
-          metadata: {
-            type: type,
-            managedBy: 'autodealers',
-          },
+        const regular = await createMembershipStripePrice({
+          stripe: stripe as any,
+          name,
+          type,
+          price: Number(price),
+          currency,
+          billingCycle,
+          kind: 'regular',
         });
+        stripePriceId = regular.stripePriceId;
+        stripeProductId = regular.stripeProductId;
 
-        const stripePrice = await stripe.prices.create({
-          product: product.id,
-          unit_amount: Math.round(price * 100),
-          currency: currency.toLowerCase(),
-          recurring: {
-            interval: billingCycle === 'monthly' ? 'month' : 'year',
-          },
-        });
+        const launchAmt = Number(launchPrice) || 0;
+        if (launchAmt > 0 && launchEndsAt) {
+          const launch = await createMembershipStripePrice({
+            stripe: stripe as any,
+            name: `${name} Launch`,
+            type,
+            price: launchAmt,
+            currency,
+            billingCycle,
+            kind: 'launch',
+            existingProductId: stripeProductId,
+          });
+          launchStripePriceId = launch.stripePriceId;
+        }
 
-        stripePriceId = stripePrice.id;
+        const introAmt = Number(introPrice) || 0;
+        const introN = Math.floor(Number(introMonths) || 0);
+        if (introAmt > 0 && introN >= 1) {
+          const intro = await createMembershipStripePrice({
+            stripe: stripe as any,
+            name: `${name} Intro`,
+            type,
+            price: introAmt,
+            currency,
+            billingCycle,
+            kind: 'intro',
+            existingProductId: stripeProductId,
+          });
+          introStripePriceId = intro.stripePriceId;
+        }
       } catch (stripeError) {
+        const message =
+          stripeError instanceof Error ? stripeError.message : 'Error creando precio en Stripe';
         console.error('Error creando producto en Stripe:', stripeError);
+        return NextResponse.json(
+          {
+            error:
+              'No se pudo crear el Price en Stripe. El plan no se guardó para evitar un checkout roto.',
+            details: message,
+          },
+          { status: 502 }
+        );
       }
     }
 
@@ -133,14 +184,31 @@ export async function POST(request: NextRequest) {
       billingCycle,
       features: validatedFeatures as any,
       stripePriceId: stripePriceId,
+      stripeProductId: stripeProductId || undefined,
       isActive: isActive !== undefined ? isActive : true,
+      ...(launchStripePriceId
+        ? {
+            launchPrice: Number(launchPrice),
+            launchEndsAt: launchEndsAt ? new Date(launchEndsAt) : undefined,
+            launchStripePriceId,
+          }
+        : {}),
+      ...(introStripePriceId
+        ? {
+            introPrice: Number(introPrice),
+            introMonths: Math.floor(Number(introMonths) || 0),
+            introStripePriceId,
+          }
+        : {}),
     });
 
     return NextResponse.json(
       {
         membership,
-        stripeCreated: !!stripePriceId && createStripeProduct,
+        stripeCreated: !!stripePriceId && shouldCreateStripe,
         stripePriceId: stripePriceId,
+        launchStripePriceId: launchStripePriceId || undefined,
+        introStripePriceId: introStripePriceId || undefined,
       },
       { status: 201 }
     );

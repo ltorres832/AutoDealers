@@ -13,6 +13,7 @@ import { PolicyAcceptanceModal } from '@/components/PolicyAcceptanceModal';
 import { NotificationAlertsBootstrap } from '@autodealers/shared/client';
 import { BillingAccessGuard } from '@/components/BillingAccessGuard';
 import { MustChangePasswordGate } from '@/components/MustChangePasswordGate';
+import { SupportModeBanner } from '@/components/SupportModeBanner';
 import { isDealerPortalRole, isSellerRole } from '@/lib/dealer-portal-roles';
 import { useRouter } from 'next/navigation';
 
@@ -21,39 +22,106 @@ const publicRoutes = ['/login'];
 
 const sellerNavigationItems = [
   { name: 'Página pública (fotos y videos)', href: '/settings/seller-public-page', icon: '📸', featureKey: null },
+  { name: 'Políticas legales', href: '/policies', icon: '📜', featureKey: null },
 ];
 
-// Navigation items con feature flags
+// Navigation items — todo visible. Si el plan no incluye el módulo → badge Plan → membresía.
 const navigationItems = [
   { name: 'Dashboard', href: '/dashboard', icon: '📊', featureKey: null },
-  { name: '📸 Fotos página pública', href: '/settings/trust-gallery', icon: '📸', featureKey: null },
+  { name: 'Inventario', href: '/inventory', icon: '🚗', featureKey: null },
   { name: 'Leads', href: '/leads', icon: '📞', featureKey: null },
   { name: 'Interés catálogo web', href: '/catalog-interest', icon: '👁️', featureKey: null },
-  { name: 'Pipeline Kanban', href: '/leads/kanban', icon: '📋', featureKey: 'crm_kanban' },
+  {
+    name: 'Autos en venta (clientes)',
+    href: '/sell-to-dealer',
+    icon: '💵',
+    featureKey: null,
+  },
+  {
+    name: 'Pipeline Kanban',
+    href: '/leads/kanban',
+    icon: '📋',
+    featureKey: 'crm_kanban',
+  },
   { name: 'CRM — Reglas de leads', href: '/settings/crm-lead-routing', icon: '🎯', featureKey: null },
   { name: 'Tareas', href: '/tasks', icon: '✅', featureKey: 'crm_tasks' },
-  { name: 'Workflows', href: '/workflows', icon: '⚙️', featureKey: 'crm_workflows' },
-  { name: 'Inventario', href: '/inventory', icon: '🚗', featureKey: null },
+  {
+    name: 'Workflows',
+    href: '/workflows',
+    icon: '⚙️',
+    featureKey: 'crm_workflows',
+  },
   { name: 'Mensajes', href: '/messages', icon: '💬', featureKey: null },
   { name: 'Chat Interno', href: '/internal-chat', icon: '💬', featureKey: null },
-  { name: 'Chat Público', href: '/public-chat', icon: '💬', featureKey: null },
-  { name: 'Anuncios', href: '/announcements', icon: '📢', featureKey: null },
-  { name: 'Citas', href: '/appointments', icon: '📅', featureKey: null },
-  { name: 'Campañas', href: '/campaigns', icon: '📢', featureKey: null },
-  { name: 'Publicaciones Sociales', href: '/social-posts', icon: '📱', featureKey: null },
+  {
+    name: 'Chat Público',
+    href: '/public-chat',
+    icon: '💬',
+    featureKey: 'public_chat',
+  },
+  {
+    name: 'Citas',
+    href: '/appointments',
+    icon: '📅',
+    featureKey: 'appointments',
+  },
+  {
+    name: 'Campañas',
+    href: '/campaigns',
+    icon: '📢',
+    featureKey: 'campaigns',
+  },
+  {
+    name: 'Publicaciones Sociales',
+    href: '/social-posts',
+    icon: '📱',
+    featureKey: 'social_posts',
+  },
   { name: 'Promociones', href: '/promotions', icon: '🎁', featureKey: null },
   { name: 'Banners Premium', href: '/banners', icon: '🎨', featureKey: null },
-  { name: 'Referidos', href: '/referrals', icon: '🎁', featureKey: null },
+  { name: 'Documentos', href: '/documents', icon: '📄', featureKey: null },
+  {
+    name: 'Casos de Cliente',
+    href: '/customer-files',
+    icon: '📁',
+    featureKey: 'customer_files',
+  },
+  { name: 'F&I', href: '/fi', icon: '💰', featureKey: 'fi_module' },
+  {
+    name: 'Métricas F&I',
+    href: '/fi/metrics',
+    icon: '📊',
+    featureKey: 'fi_metrics',
+  },
+  {
+    name: 'Workflows F&I',
+    href: '/fi/workflows',
+    icon: '⚙️',
+    featureKey: 'fi_workflows',
+  },
+  { name: 'Deal desk', href: '/deals', icon: '📝', featureKey: null },
+  { name: 'Taller / Servicio', href: '/service', icon: '🔧', featureKey: null },
+  { name: 'Estimados', href: '/estimates', icon: '🧾', featureKey: null },
+  { name: 'Facturas', href: '/invoices', icon: '💵', featureKey: null },
+  { name: 'Piezas', href: '/parts', icon: '🔩', featureKey: null },
+  { name: 'Finanzas', href: '/finance', icon: '📒', featureKey: null },
+  { name: 'RR.HH.', href: '/hr', icon: '👤', featureKey: null },
+  { name: 'Vendedores', href: '/sellers', icon: '👥', featureKey: null },
+  { name: 'Usuarios', href: '/users', icon: '👤', featureKey: null },
   { name: 'Reseñas', href: '/reviews', icon: '⭐', featureKey: null },
-  { name: 'Casos de Cliente', href: '/customer-files', icon: '📁', featureKey: null },
-  { name: 'F&I', href: '/fi', icon: '💰', featureKey: null },
-  { name: 'Métricas F&I', href: '/fi/metrics', icon: '📊', featureKey: 'fi_metrics' },
-  { name: 'Workflows F&I', href: '/fi/workflows', icon: '⚙️', featureKey: 'fi_workflows' },
-  { name: 'Estadísticas de Ventas', href: '/sales-statistics', icon: '📊', featureKey: null },
-  { name: 'Reportes', href: '/reports', icon: '📈', featureKey: 'crm_reports' },
-  { name: 'Usuarios', href: '/users', icon: '👥', featureKey: null },
+  { name: 'Referidos', href: '/referrals', icon: '🎁', featureKey: null },
+  { name: 'Estadísticas de Ventas', href: '/sales-statistics', icon: '📈', featureKey: null },
+  {
+    name: 'Reportes',
+    href: '/reports',
+    icon: '📊',
+    featureKey: 'crm_reports',
+  },
+  { name: 'Fotos página pública', href: '/settings/trust-gallery', icon: '📸', featureKey: null },
+  { name: 'Anuncios', href: '/announcements', icon: '📢', featureKey: null },
   { name: 'Mis concesionarios', href: '/dealers', icon: '🏢', featureKey: null },
-  { name: 'Configuración', href: '/settings', icon: '⚙️', featureKey: null },
+  { name: 'Políticas legales', href: '/policies', icon: '📜', featureKey: null },
+  // Configuración está fija al pie del sidebar
 ];
 
 export default function DealerLayoutWrapper({
@@ -268,40 +336,30 @@ export default function DealerLayoutWrapper({
 
   useEffect(() => {
     void import('@/lib/fetch-interceptor');
-    // No ejecutar en rutas públicas
     if (publicRoutes.includes(pathname || '')) {
       return;
     }
-    
+
     checkMaintenanceMode();
-    
-    // Verificar mantenimiento cada 5 minutos (reducido de 30 segundos para menos actividad)
     const maintenanceInterval = setInterval(checkMaintenanceMode, 5 * 60 * 1000);
-    
-    // Configurar listener de Firebase Auth para renovar token cuando cambia el estado
-    let unsubscribe: (() => void) | null = null;
-    
-    // Listener de Firebase Auth para detectar cambios en el estado de autenticación
+
     let authUnsubscribe: (() => void) | null = null;
-    
+
     if (typeof window !== 'undefined' && pathname && !publicRoutes.includes(pathname)) {
       import('@/lib/firebase-client').then(({ auth }) => {
         if (auth) {
           const { onAuthStateChanged } = require('firebase/auth');
           authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser: any) => {
             if (firebaseUser) {
-              // Si no hay usuario en el estado, intentar obtenerlo
               if (!user) {
                 await fetchUser();
               }
-              // Renovar token cuando el usuario está autenticado (solo si no estamos en ruta pública)
-              if (pathname && !publicRoutes.includes(pathname)) {
-                try {
-                  const { ensureFreshToken } = await import('@/lib/token-refresh');
-                  await ensureFreshToken();
-                } catch (error) {
-                  // Silenciar errores de renovación automática
-                }
+              // Solo sincronizar cookie sin forzar renovación (evita race → /login)
+              try {
+                const { ensureFreshToken } = await import('@/lib/token-refresh');
+                await ensureFreshToken();
+              } catch {
+                // silenciar
               }
             } else {
               setUser(null);
@@ -311,28 +369,24 @@ export default function DealerLayoutWrapper({
       });
     }
 
-    // Solo hacer fetch si no es una ruta pública
     let timer: NodeJS.Timeout | null = null;
     if (pathname && !publicRoutes.includes(pathname)) {
-      // Solo hacer un intento después de un delay para evitar múltiples llamadas
       timer = setTimeout(() => {
         fetchUser();
-      }, 500); // Reducido a 500ms, solo un intento
+      }, 500);
     }
 
-    // Configurar renovación automática del token cada 50 minutos
-    // Los tokens de Firebase expiran después de 1 hora
-    // Solo renovar si hay un usuario autenticado
+    // Renovar cada 50 min (tokens Firebase ~1h). No renovar en cada cambio de ruta.
     const tokenRefreshInterval = setInterval(async () => {
-      if (user && pathname && !publicRoutes.includes(pathname)) {
+      if (pathname && !publicRoutes.includes(pathname)) {
         try {
-          const { ensureFreshToken } = await import('@/lib/token-refresh');
-          await ensureFreshToken();
-        } catch (error) {
-          // Silenciar errores de renovación automática
+          const { refreshAuthToken } = await import('@/lib/token-refresh');
+          await refreshAuthToken();
+        } catch {
+          // silenciar
         }
       }
-    }, 50 * 60 * 1000); // 50 minutos
+    }, 50 * 60 * 1000);
 
     return () => {
       clearInterval(maintenanceInterval);
@@ -340,8 +394,9 @@ export default function DealerLayoutWrapper({
       if (timer) clearTimeout(timer);
       if (authUnsubscribe) authUnsubscribe();
     };
+    // Solo pathname: incluir `user` re-disparaba refresh en cada setUser → cookie race
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname, user]);
+  }, [pathname]);
 
   useEffect(() => {
     if (!user?.role || !pathname || publicRoutes.includes(pathname)) return;
@@ -411,7 +466,7 @@ export default function DealerLayoutWrapper({
     'div',
     null,
     React.createElement(NotificationAlertsBootstrap),
-    showPolicyModal && user && user.id && React.createElement(PolicyAcceptanceModal, {
+    showPolicyModal && user && user.id && !user.supportMode && React.createElement(PolicyAcceptanceModal, {
       userId: user.id,
       role: policyRole,
       tenantId: user.tenantId,
@@ -478,7 +533,15 @@ export default function DealerLayoutWrapper({
             })
           ),
 
-          React.createElement('div', { className: 'shrink-0 border-t border-gray-200 px-4 py-3' },
+          React.createElement('div', { className: 'shrink-0 border-t border-gray-200 px-4 py-3 space-y-2' },
+            user?.role !== 'seller' && !sidebarCollapsed && React.createElement(Link, {
+              href: '/settings/membership',
+              onClick: () => setMobileNavOpen(false),
+              className: 'flex items-center gap-2 rounded-lg bg-gradient-to-r from-primary-600 to-primary-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:from-primary-700 hover:to-primary-800',
+            },
+              React.createElement('span', null, '💎'),
+              React.createElement('span', null, 'Planes y membresía')
+            ),
             React.createElement(Link, {
               href: settingsHref,
               onClick: () => setMobileNavOpen(false),
@@ -544,12 +607,20 @@ export default function DealerLayoutWrapper({
           )
         ),
         React.createElement('main', { className: 'custom-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto' },
+          user?.supportMode
+            ? React.createElement(SupportModeBanner, {
+                targetName: user?.name,
+                targetEmail: user?.email,
+                adminEmail: user?.supportAdminEmail,
+              })
+            : null,
           React.createElement('div', { className: 'mx-auto max-w-7xl px-3 py-6 sm:px-6 lg:px-8' },
             React.createElement(MustChangePasswordGate, { user },
               React.createElement(BillingAccessGuard, {
                 tenantId: user?.tenantId,
                 membershipId: user?.membershipId,
                 userReady: Boolean(user?.id),
+                supportMode: user?.supportMode === true,
               }, children)
             )
           )

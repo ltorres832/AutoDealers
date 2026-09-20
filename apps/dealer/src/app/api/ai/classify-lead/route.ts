@@ -5,6 +5,10 @@ import { getLeadById, updateLead } from '@autodealers/crm';
 
 export async function POST(request: NextRequest) {
   try {
+    const { validateMembershipFeature } = await import('@/lib/membership-middleware');
+    const membershipBlock = await validateMembershipFeature(request, 'classifyLead');
+    if (membershipBlock) return membershipBlock;
+
     const auth = await verifyAuth(request);
     if (!auth || !auth.tenantId) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });

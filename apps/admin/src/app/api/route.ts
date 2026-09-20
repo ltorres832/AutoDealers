@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   try {
     return NextResponse.json({
-      service: 'AutoDealers Admin Panel API',
+      service: 'AutoDealersOnline Admin Panel API',
       version: '1.0.0',
       status: 'healthy',
       timestamp: new Date().toISOString(),

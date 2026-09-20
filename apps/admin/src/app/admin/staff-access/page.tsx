@@ -39,13 +39,13 @@ interface EmployeeOption {
 
 interface AccountOption {
   id: string;
-  employeeId: string;
   tenantId: string;
   userId: string;
   name: string;
   companyName?: string;
   email: string;
   role: string;
+  status?: string;
 }
 
 function fmt(iso?: string) {
@@ -62,6 +62,12 @@ function toLocalInputValue(d: Date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+function accountLabel(a: AccountOption) {
+  const title = a.companyName || a.name;
+  const status = a.status && a.status !== 'active' ? ` · ${a.status}` : '';
+  return `${title} (${a.role}) · ${a.email || 'sin email'}${status}`;
+}
+
 export default function StaffAccessPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -71,14 +77,27 @@ export default function StaffAccessPage() {
   const [accounts, setAccounts] = useState<AccountOption[]>([]);
   const [salesEmployeeId, setSalesEmployeeId] = useState('');
   const [accountId, setAccountId] = useState('');
+  const [accountQuery, setAccountQuery] = useState('');
   const [startsAt, setStartsAt] = useState(toLocalInputValue(new Date()));
   const [durationMinutes, setDurationMinutes] = useState(120);
   const [reason, setReason] = useState('Configuración de cuenta específica');
   const [saving, setSaving] = useState(false);
 
-  const employeeAccounts = useMemo(
-    () => accounts.filter((a) => a.employeeId === salesEmployeeId),
-    [accounts, salesEmployeeId]
+  const filteredAccounts = useMemo(() => {
+    const q = accountQuery.trim().toLowerCase();
+    if (!q) return accounts;
+    return accounts.filter((a) => {
+      const hay = [a.companyName, a.name, a.email, a.role, a.tenantId, a.userId, a.status]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return hay.includes(q);
+    });
+  }, [accounts, accountQuery]);
+
+  const selectedAccount = useMemo(
+    () => accounts.find((a) => a.id === accountId) || null,
+    [accounts, accountId]
   );
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
@@ -87,20 +106,13 @@ export default function StaffAccessPage() {
       setError('');
     }
     try {
-      const [accessRes, overviewRes] = await Promise.all([
-        fetchWithAuth('/api/admin/staff-access'),
-        fetchWithAuth('/api/admin/empleados-ventas/overview'),
-      ]);
+      const accessRes = await fetchWithAuth('/api/admin/staff-access');
       const data = await accessRes.json();
       if (!accessRes.ok) throw new Error(data.error || 'Error cargando');
       setGrants(data.grants || []);
       setRequests(data.requests || []);
       setEmployees((data.employees || []).filter((e: EmployeeOption) => e.status === 'active'));
       setAccounts(data.accounts || []);
-      if ((!data.accounts || data.accounts.length === 0) && overviewRes.ok) {
-        const ov = await overviewRes.json();
-        setAccounts(ov.accounts || []);
-      }
       if (opts?.silent) setError('');
     } catch (e: unknown) {
       if (!opts?.silent) setError(e instanceof Error ? e.message : 'Error');
@@ -117,7 +129,6 @@ export default function StaffAccessPage() {
     void load();
   }, [load]);
 
-  // True realtime: Firestore onSnapshot → refresh silencioso (mismo patrón que empleados-ventas)
   useRealtimeSalesAdmin(silentReload);
 
   useEffect(() => {
@@ -130,9 +141,8 @@ export default function StaffAccessPage() {
 
   async function grantAccess(e: React.FormEvent) {
     e.preventDefault();
-    const account = employeeAccounts.find((a) => a.id === accountId);
-    if (!salesEmployeeId || !account) {
-      alert('Selecciona empleado y cuenta específica');
+    if (!salesEmployeeId || !selectedAccount) {
+      alert('Selecciona empleado y cuenta (dealer o vendedor)');
       return;
     }
     setSaving(true);
@@ -145,15 +155,17 @@ export default function StaffAccessPage() {
           startsAt: new Date(startsAt).toISOString(),
           durationMinutes,
           reason,
-          targetTenantId: account.tenantId,
-          targetUserId: account.userId,
-          targetAccountId: account.id,
-          targetAccountLabel: account.companyName || account.name,
+          targetTenantId: selectedAccount.tenantId,
+          targetUserId: selectedAccount.userId,
+          targetAccountId: selectedAccount.id,
+          targetAccountLabel: selectedAccount.companyName || selectedAccount.name,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'No se pudo otorgar');
-      alert(`Acceso a «${account.companyName || account.name}» hasta ${fmt(data.grant?.expiresAt)}`);
+      alert(
+        `Acceso a «${selectedAccount.companyName || selectedAccount.name}» hasta ${fmt(data.grant?.expiresAt)}`
+      );
       await load();
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : 'Error');
@@ -191,7 +203,8 @@ export default function StaffAccessPage() {
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Acceso temporal por cuenta</h1>
         <p className="text-sm text-gray-600 mt-2">
-          Cada permiso es a <strong>una cuenta</strong>. El empleado solo entra a esa. También en{' '}
+          Cada permiso es a <strong>una cuenta</strong> (solo dealers/vendedores con membresía
+          activa de pago). El empleado solo entra a esa. También en{' '}
           <Link href="/admin/empleados-ventas" className="text-primary-700 underline">
             Empleados de ventas → Citas
           </Link>
@@ -204,16 +217,14 @@ export default function StaffAccessPage() {
       <form onSubmit={grantAccess} className="bg-white rounded-lg shadow p-5 space-y-4">
         <h2 className="font-semibold text-lg">Otorgar acceso a una cuenta</h2>
         <p className="text-xs text-gray-600">
-          Elige empleado y luego la <strong>cuenta específica</strong> en el selector de abajo.
+          Elige empleado y luego un <strong>dealer o vendedor con membresía activa de pago</strong>{' '}
+          ({accounts.length} cuentas).
         </p>
         <label className="text-sm block font-medium">
           Empleado
           <select
             value={salesEmployeeId}
-            onChange={(e) => {
-              setSalesEmployeeId(e.target.value);
-              setAccountId('');
-            }}
+            onChange={(e) => setSalesEmployeeId(e.target.value)}
             className="mt-1 w-full border-2 border-amber-400 rounded-lg px-3 py-2"
             required
           >
@@ -225,29 +236,52 @@ export default function StaffAccessPage() {
             ))}
           </select>
         </label>
-        <label className="text-sm block font-medium">
-          Cuenta a la que das acceso
-          <select
-            value={accountId}
-            onChange={(e) => setAccountId(e.target.value)}
-            className="mt-1 w-full border-2 border-amber-500 rounded-lg px-3 py-2 bg-amber-50"
-            required
-            disabled={!salesEmployeeId}
-          >
-            <option value="">
-              {salesEmployeeId
-                ? employeeAccounts.length
-                  ? 'Seleccionar cuenta…'
-                  : 'Este empleado no tiene cuentas'
-                : 'Primero elige empleado'}
-            </option>
-            {employeeAccounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.companyName || a.name} ({a.role}) · {a.email}
+        <div className="rounded-lg border-2 border-amber-500 bg-amber-50 p-3 space-y-2">
+          <label className="text-sm block font-medium text-amber-950">
+            Buscar cuenta (dealer / vendedor)
+            <input
+              type="search"
+              value={accountQuery}
+              onChange={(e) => setAccountQuery(e.target.value)}
+              placeholder="Nombre, email, rol, empresa…"
+              className="mt-1 w-full border rounded-lg px-3 py-2 bg-white"
+            />
+          </label>
+          <label className="text-sm block font-medium text-amber-950">
+            Cuenta a la que das acceso
+            <select
+              value={accountId}
+              onChange={(e) => setAccountId(e.target.value)}
+              className="mt-1 w-full border-2 border-amber-500 rounded-lg px-3 py-2 bg-white"
+              required
+              size={Math.min(12, Math.max(6, filteredAccounts.length + 1))}
+            >
+              <option value="">
+                {filteredAccounts.length
+                  ? `Seleccionar cuenta… (${filteredAccounts.length})`
+                  : accounts.length === 0
+                    ? 'No hay cuentas con membresía activa de pago'
+                    : 'Sin resultados para esta búsqueda'}
               </option>
-            ))}
-          </select>
-        </label>
+              {filteredAccounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {accountLabel(a)}
+                </option>
+              ))}
+            </select>
+          </label>
+          {accounts.length === 0 ? (
+            <p className="text-xs text-red-700">
+              No hay dealers ni vendedores con membresía activa de pago. Solo aparecen cuentas con
+              suscripción <strong>active</strong> o <strong>trialing</strong>.
+            </p>
+          ) : (
+            <p className="text-xs text-amber-900">
+              Solo dealers y vendedores con membresía activa de pago. No depende de membresías
+              vendidas por el empleado.
+            </p>
+          )}
+        </div>
         <div className="grid sm:grid-cols-2 gap-4">
           <label className="text-sm block">
             Inicio

@@ -117,6 +117,30 @@ if (typeof window !== 'undefined') {
       }
     }
 
+    if (response.status === 403 || response.status === 402) {
+      try {
+        const payload = (await response.clone().json()) as {
+          upgradeRequired?: boolean;
+          reason?: string;
+          error?: string;
+        };
+        if (payload.upgradeRequired) {
+          window.dispatchEvent(
+            new CustomEvent('seller-membership-required', {
+              detail: {
+                reason:
+                  payload.reason ||
+                  payload.error ||
+                  'Esta función no está incluida en tu plan. Selecciona o activa tu membresía.',
+              },
+            })
+          );
+        }
+      } catch {
+        // ignore non-JSON bodies
+      }
+    }
+
     return response;
   };
 }

@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { MembershipBenefitsDisplay } from '@autodealers/billing/client';
 import { coerceMembershipNumber } from '@/lib/membership-number-utils';
+import { resolveMembershipPricing } from '@autodealers/billing/membership-promo-pricing';
 
 function formatMembershipPrice(price: unknown): string {
   const n = coerceMembershipNumber(price);
@@ -12,12 +13,19 @@ function formatMembershipPrice(price: unknown): string {
 interface Membership {
   id: string;
   name: string;
-  type: 'dealer' | 'seller';
+  type: 'dealer' | 'seller' | 'business';
   price: number;
   currency: string;
   billingCycle: 'monthly' | 'yearly';
   features: Record<string, unknown>;
   isActive: boolean;
+  launchPrice?: number;
+  launchEndsAt?: string | Date;
+  launchStripePriceId?: string;
+  introPrice?: number;
+  introMonths?: number;
+  introStripePriceId?: string;
+  stripePriceId?: string;
 }
 
 interface MembershipCardProps {
@@ -40,6 +48,8 @@ export default function MembershipCard({ membership, isPopular = false }: Member
     );
   }
 
+  const pricing = resolveMembershipPricing(membership);
+
   return (
     <div
       className={`bg-white rounded-lg shadow-lg p-6 border-2 transition-all hover:shadow-xl ${
@@ -59,19 +69,32 @@ export default function MembershipCard({ membership, isPopular = false }: Member
       <div className="mb-4">
         <h3 className="text-2xl font-bold text-gray-900">{membership.name}</h3>
         <p className="text-sm text-gray-600 capitalize mt-1">
-          {membership.type === 'dealer' ? 'Para Concesionarios' : 'Para Vendedores'}
+          {membership.type === 'dealer'
+            ? 'Para Concesionarios'
+            : membership.type === 'business'
+              ? 'Para talleres, gomeras y servicios automotrices'
+              : 'Para Vendedores'}
         </p>
       </div>
 
       <div className="mb-6">
-        <div className="flex items-baseline">
+        <div className="flex items-baseline flex-wrap gap-2">
           <span className="text-4xl font-bold text-gray-900">
-            ${formatMembershipPrice(membership.price)}
+            ${formatMembershipPrice(pricing.displayPrice)}
           </span>
-          <span className="text-lg text-gray-600 ml-2">
+          <span className="text-lg text-gray-600">
             /{membership.billingCycle === 'monthly' ? 'mes' : 'año'}
           </span>
+          {(pricing.launchActive || pricing.introConfigured) &&
+          pricing.regularPrice > pricing.displayPrice ? (
+            <span className="text-base text-gray-400 line-through">
+              ${formatMembershipPrice(pricing.regularPrice)}
+            </span>
+          ) : null}
         </div>
+        {pricing.badge ? (
+          <p className="text-xs font-semibold text-amber-700 mt-2">{pricing.badge}</p>
+        ) : null}
         {membership.billingCycle === 'yearly' && (
           <p className="text-xs text-green-600 mt-1">💰 Ahorra 2 meses al pagar anualmente</p>
         )}

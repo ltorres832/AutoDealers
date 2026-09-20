@@ -91,6 +91,11 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  - variable: NEXT_PUBLIC_BUSINESS_URL
+    value: https://business.autodealers-online.com
+    availability:
+      - BUILD
+      - RUNTIME
   - variable: ADMIN_APP_URL
     value: https://admin.autodealers-online.com
     availability:

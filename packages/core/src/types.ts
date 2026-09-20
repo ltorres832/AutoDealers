@@ -1,8 +1,17 @@
 // Tipos base del sistema
 
-export type UserRole = 'admin' | 'master_dealer' | 'dealer' | 'seller' | 'advertiser' | 'manager' | 'dealer_admin';
+export type UserRole =
+  | 'admin'
+  | 'master_dealer'
+  | 'dealer'
+  | 'seller'
+  | 'advertiser'
+  | 'manager'
+  | 'dealer_admin'
+  | 'automotive_business'
+  | 'customer';
 
-export type TenantType = 'dealer' | 'seller';
+export type TenantType = 'dealer' | 'seller' | 'automotive_business';
 
 export type UserStatus = 'active' | 'suspended' | 'cancelled';
 
@@ -14,7 +23,7 @@ export interface User {
   tenantId?: string;
   dealerId?: string;
   membershipId: string;
-  membershipType: TenantType;
+  membershipType: TenantType | 'business' | 'customer';
   status: UserStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -63,6 +72,17 @@ export interface Tenant {
   settings: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;
+  ownerId?: string;
+  slug?: string;
+  categorySlug?: string;
+  published?: boolean;
+  verified?: boolean;
+  municipality?: string;
+  city?: string;
+  address?: string;
+  mobileService?: boolean;
+  moduleKey?: string;
+  description?: string;
   // Emails corporativos (para dealers)
   corporateEmailsUsed?: number; // Cantidad de emails corporativos usados
   corporateEmailDomain?: string; // Dominio base (ej: autocity.autoplataforma.com)

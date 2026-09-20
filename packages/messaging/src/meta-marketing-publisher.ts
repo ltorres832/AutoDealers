@@ -4,6 +4,7 @@
  */
 
 import { getFirestore } from '@autodealers/shared';
+import { PLATFORM_APEX, resolvePublicWebUrl } from '@autodealers/shared/platform-urls';
 
 const GRAPH_VERSION = 'v18.0';
 const GRAPH_RETRIES = 3;
@@ -161,17 +162,14 @@ export class MetaMarketingPublisherService {
 
     const subdomain = t?.subdomain != null ? String(t.subdomain).trim().toLowerCase() : '';
     if (subdomain) {
-      const domain = (process.env.NEXT_PUBLIC_PLATFORM_DOMAIN || 'autodealers.com').replace(
+      const domain = (process.env.NEXT_PUBLIC_PLATFORM_DOMAIN || PLATFORM_APEX).replace(
         /^\./,
         ''
       );
       return `https://${subdomain}.${domain}`;
     }
 
-    const base = (
-      process.env.NEXT_PUBLIC_PUBLIC_WEB_URL || 'https://autodealers-7f62e.web.app'
-    ).replace(/\/$/, '');
-    return base;
+    return resolvePublicWebUrl();
   }
 
   private async uploadAdImageHash(

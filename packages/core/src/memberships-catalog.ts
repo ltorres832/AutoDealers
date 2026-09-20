@@ -10,7 +10,7 @@ import type {
   QuerySnapshot,
 } from 'firebase-admin/firestore';
 
-export type MembershipCatalogType = 'dealer' | 'seller';
+export type MembershipCatalogType = 'dealer' | 'seller' | 'business';
 
 export interface MembershipCatalogItem {
   id: string;

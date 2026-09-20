@@ -29,6 +29,10 @@ export function isVisibleOnSellerPublicCatalog(vehicle: Record<string, unknown>)
 export type SellerPublicCatalogFilterOptions = {
   /** Si el tenant tiene sellerInfo.id = este vendedor, incluir vehículos sin sellerId asignado. */
   tenantPrimarySellerId?: string;
+  /** Vendedor dealer-managed con sync activo: incluir todo el inventario del dealer. */
+  syncDealerInventory?: boolean;
+  /** Tenant del dealer cuyo inventario completo se sincroniza. */
+  dealerTenantId?: string;
 };
 
 export function filterVehiclesForSellerPublicCatalog(
@@ -38,6 +42,16 @@ export function filterVehiclesForSellerPublicCatalog(
 ): Record<string, unknown>[] {
   const listable = allVehicles.filter(isVisibleOnSellerPublicCatalog);
   const mine = listable.filter((v) => vehicleBelongsToSeller(v, sellerId));
+
+  // Sync activo: catálogo del vendedor = sus vehículos + todo el inventario del dealer
+  if (options?.syncDealerInventory && options.dealerTenantId) {
+    const mineIds = new Set(mine.map((v) => v.id));
+    const dealerInventory = listable.filter(
+      (v) => v.tenantId === options.dealerTenantId && !mineIds.has(v.id)
+    );
+    return [...mine, ...dealerInventory];
+  }
+
   if (mine.length > 0) return mine;
 
   const primary = options?.tenantPrimarySellerId?.trim();

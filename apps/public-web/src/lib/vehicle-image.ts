@@ -16,6 +16,30 @@ export function getVehiclePhotos(vehicle: { photos?: string[]; images?: string[]
   return photos;
 }
 
+export type VehicleGalleryItem = { type: 'photo' | 'video'; url: string };
+
+export function getVehicleVideos(vehicle: { videos?: unknown }): string[] {
+  if (!Array.isArray(vehicle.videos)) return [];
+  return vehicle.videos.filter(
+    (url): url is string =>
+      typeof url === 'string' &&
+      url.trim() !== '' &&
+      url !== 'undefined' &&
+      !String(url).includes('undefined')
+  );
+}
+
+export function getVehicleGalleryItems(vehicle: {
+  photos?: string[];
+  images?: string[];
+  videos?: unknown;
+}): VehicleGalleryItem[] {
+  return [
+    ...getVehiclePhotos(vehicle).map((url) => ({ type: 'photo' as const, url })),
+    ...getVehicleVideos(vehicle).map((url) => ({ type: 'video' as const, url })),
+  ];
+}
+
 /**
  * Obtiene la primera foto válida de un vehículo
  */

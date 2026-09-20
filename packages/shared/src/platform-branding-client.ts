@@ -1,3 +1,5 @@
+import { PLATFORM_NAME } from '@autodealers/shared/platform-sender';
+
 /**
  * Marca global de plataforma (Firestore `admin_settings/branding`).
  * Usado en cliente (favicon, logos) y en rutas API que leen el mismo documento.
@@ -44,7 +46,7 @@ export function parsePlatformBrandingFirestoreData(
   const companyName =
     typeof data?.companyName === 'string' && data.companyName.trim()
       ? data.companyName.trim()
-      : 'AutoDealers';
+      : PLATFORM_NAME;
   const adminName =
     typeof data?.adminName === 'string' && data.adminName.trim()
       ? data.adminName.trim()

@@ -69,12 +69,22 @@ env:
     availability:
       - RUNTIME
   - variable: NEXT_PUBLIC_ADVERTISER_URL
-    value: https://ads.autodealers-online.com
+    value: https://advertiser.autodealers-online.com
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_APP_URL
-    value: https://ads.autodealers-online.com
+    value: https://advertiser.autodealers-online.com
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_PUBLIC_WEB_URL
+    value: https://www.autodealers-online.com
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_PLATFORM_DOMAIN
+    value: autodealers-online.com
     availability:
       - BUILD
       - RUNTIME
@@ -84,5 +94,9 @@ env:
       - RUNTIME
   - variable: STRIPE_WEBHOOK_SECRET
     secret: STRIPE_WEBHOOK_SECRET
+    availability:
+      - RUNTIME
+  - variable: CRON_SECRET
+    secret: CRON_SECRET
     availability:
       - RUNTIME

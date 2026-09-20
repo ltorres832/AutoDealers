@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import {
   playNotificationSound,
+  resolveNotificationRoute,
   showBrowserNotification,
 } from './notification-alerts';
 
@@ -47,8 +48,7 @@ export function useNotificationAlerts(
 
     for (const n of unseenNew) {
       playNotificationSound();
-      const route =
-        typeof n.metadata?.route === 'string' ? n.metadata.route : undefined;
+      const route = resolveNotificationRoute(n.metadata);
       showBrowserNotification({
         title: n.title,
         body: n.message,

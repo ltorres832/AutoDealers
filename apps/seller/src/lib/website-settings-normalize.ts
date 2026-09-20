@@ -1,4 +1,5 @@
 import { deepMerge } from '@/lib/deep-merge';
+import { applyWebsiteHeroMediaToHero } from '@autodealers/shared/website-hero-media';
 
 export const DEFAULT_HERO_TITLE = 'Encuentra el vehículo perfecto para ti';
 export const DEFAULT_HERO_SUBTITLE = 'Tenemos la mejor selección de vehículos';
@@ -64,6 +65,7 @@ export function normalizeWebsiteSettingsFromFirestore(
     if (typeof hero.ctaText !== 'string' || !hero.ctaText.trim()) {
       hero.ctaText = DEFAULT_HERO_CTA;
     }
+    applyWebsiteHeroMediaToHero(hero);
   }
   const chat = merged.chat;
   if (isPlainObject(chat) && typeof chat.welcomeMessage !== 'string') {

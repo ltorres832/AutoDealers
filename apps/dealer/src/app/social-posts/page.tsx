@@ -39,6 +39,9 @@ interface ScheduledPost {
   scheduledFor: string;
   status: 'scheduled' | 'published' | 'failed' | 'cancelled';
   aiGenerated: boolean;
+  ownerName?: string;
+  ownerId?: string;
+  ownerType?: 'dealer' | 'seller';
 }
 
 interface AdCampaign {
@@ -150,11 +153,43 @@ export default function SocialPostsPage() {
 
   async function fetchScheduledPosts() {
     try {
-      const response = await fetch('/api/social/schedule');
-      if (response.ok) {
-        const data = await response.json();
-        setScheduledPosts(data.posts || []);
+      const [ownRes, netRes] = await Promise.all([
+        fetch('/api/social/schedule'),
+        fetch('/api/sellers/network-activity?kinds=social,sellers'),
+      ]);
+      const ownData = ownRes.ok ? await ownRes.json() : { posts: [] };
+      const netData = netRes.ok ? await netRes.json() : { social: [], sellers: [] };
+      const params = new URLSearchParams(window.location.search);
+      const sellerId = params.get('sellerId');
+
+      const own = (ownData.posts || []).map((p: ScheduledPost) => ({
+        ...p,
+        ownerName: 'Dealer',
+        ownerType: 'dealer' as const,
+      }));
+      const sellerPosts = (netData.social || []).map((p: any) => ({
+        id: p.id,
+        content: p.content || { text: '', hashtags: [] },
+        platforms: (p.platforms || []).filter((x: string) => x !== 'whatsapp'),
+        scheduledFor: p.scheduledFor,
+        status: p.status,
+        aiGenerated: false,
+        ownerName: p.ownerName,
+        ownerId: p.ownerId,
+        ownerType: 'seller' as const,
+      }));
+
+      let merged = [...own];
+      const ids = new Set(own.map((p: ScheduledPost) => p.id));
+      for (const p of sellerPosts) {
+        if (!ids.has(p.id)) merged.push(p);
       }
+      if (sellerId) {
+        merged = merged.filter(
+          (p: any) => p.ownerType === 'seller' && p.ownerId === sellerId
+        );
+      }
+      setScheduledPosts(merged);
     } catch (error) {
       console.error('Error fetching scheduled posts:', error);
     }
@@ -700,6 +735,9 @@ export default function SocialPostsPage() {
                       <div className="flex-1">
                         <p className="text-sm text-gray-500 mb-2">
                           Programado para: {new Date(post.scheduledFor).toLocaleString('es-MX')}
+                          {post.ownerType === 'seller' ? (
+                            <span className="ml-2 text-indigo-700">· Vendedor: {post.ownerName}</span>
+                          ) : null}
                         </p>
                         <p className="text-gray-900 mb-2">{post.content.text.substring(0, 150)}...</p>
                         <div className="flex gap-2 flex-wrap">

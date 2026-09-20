@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getFirestore } from '@autodealers/shared/firebase-server';
 import { getUserById } from '@autodealers/core';
+import { isDemoPromoAccount } from '@/lib/public-catalog-visibility';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +20,7 @@ export async function GET(
 
     const user = await getUserById(userId);
 
-    if (!user) {
+    if (!user || isDemoPromoAccount(user as Record<string, unknown>, user.id || userId)) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }

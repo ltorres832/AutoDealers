@@ -118,7 +118,7 @@ export const sendEmailTemplate = onCall(async (request) => {
       to,
       content,
       metadata: {
-        subject: subject || 'Mensaje de AutoDealers',
+        subject: subject || 'Mensaje de AutoDealersOnline',
       },
     });
 

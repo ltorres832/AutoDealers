@@ -2,7 +2,7 @@ import { getVehicles } from '@autodealers/inventory';
 import { getFirestore } from '@autodealers/shared';
 import type { AuthUser } from '@/lib/auth';
 
-export type { SellerVehicleRow } from '@/lib/seller-vehicles-utils';
+export type { SellerVehicleRow, SellerInventorySyncOptions } from '@/lib/seller-vehicles-utils';
 export {
   vehicleBelongsToSeller,
   filterVehiclesOwnedBySeller,
@@ -12,22 +12,68 @@ export {
   slimVehicleForPreview,
 } from '@/lib/seller-vehicles-utils';
 
-import type { SellerVehicleRow } from '@/lib/seller-vehicles-utils';
+import type { SellerVehicleRow, SellerInventorySyncOptions } from '@/lib/seller-vehicles-utils';
 import { vehicleBelongsToSeller } from '@/lib/seller-vehicles-utils';
+
+/** True si el vendedor es dealer-managed (cuenta dada por el dealer, no independiente). */
+export function isDealerManagedSellerAuth(auth: AuthUser): boolean {
+  if (auth.billingMode === 'self_service') return false;
+  if (auth.billingMode === 'dealer_managed') return true;
+  return Boolean(auth.dealerId?.trim());
+}
+
+/**
+ * Preferencias de sincronización de inventario del vendedor.
+ * Solo vendedores dealer-managed pueden sincronizar el inventario del dealer.
+ */
+export async function getSellerInventorySyncOptions(
+  auth: AuthUser
+): Promise<SellerInventorySyncOptions> {
+  if (!auth.dealerId || !isDealerManagedSellerAuth(auth)) {
+    return { syncDealerInventory: false };
+  }
+  try {
+    const db = getFirestore();
+    const userDoc = await db.collection('users').doc(auth.userId).get();
+    const syncDealerInventory = userDoc.data()?.syncDealerInventory === true;
+    return { syncDealerInventory, dealerTenantId: auth.dealerId };
+  } catch (error) {
+    console.warn('getSellerInventorySyncOptions: error leyendo user doc:', error);
+    return { syncDealerInventory: false, dealerTenantId: auth.dealerId };
+  }
+}
 
 export async function findSellerVehicleById(
   auth: AuthUser,
-  vehicleId: string
-): Promise<{ vehicle: SellerVehicleRow; tenantId: string } | null> {
+  vehicleId: string,
+  options?: {
+    /** Permitir vehículos del inventario del dealer (sync activo): venta sí, edición no. */
+    allowDealerInventory?: boolean;
+  }
+): Promise<{ vehicle: SellerVehicleRow; tenantId: string; fromDealerInventory: boolean } | null> {
   const all = await loadVehiclesForSellerWorkspace(auth);
   const vehicle = all.find((v) => v.id === vehicleId);
-  if (!vehicle || !vehicleBelongsToSeller(vehicle, auth.userId)) {
-    return null;
+  if (!vehicle) return null;
+
+  const owned = vehicleBelongsToSeller(vehicle, auth.userId);
+  let fromDealerInventory = false;
+
+  if (!owned) {
+    if (!options?.allowDealerInventory) return null;
+    const sync = await getSellerInventorySyncOptions(auth);
+    const isDealerVehicle =
+      sync.syncDealerInventory &&
+      sync.dealerTenantId &&
+      vehicle.tenantId === sync.dealerTenantId;
+    if (!isDealerVehicle) return null;
+    fromDealerInventory = true;
   }
+
   const tenantId =
     (typeof vehicle.tenantId === 'string' && vehicle.tenantId.trim()) ||
-    auth.tenantId;
-  return { vehicle, tenantId };
+    auth.tenantId ||
+    '';
+  return { vehicle, tenantId, fromDealerInventory };
 }
 
 /** Misma amplitud que GET /api/vehicles del panel vendedor (tenant + dealer asociados). */

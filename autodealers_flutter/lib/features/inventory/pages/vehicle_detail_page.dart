@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/presentation/providers/inventory_provider.dart';
+import '../../../core/presentation/providers/auth_provider.dart';
 import '../../../core/domain/models/vehicle.dart';
+import '../../../core/utils/vehicle_share.dart';
 import '../../dealer/widgets/dealer_drawer.dart';
 import '../../seller/widgets/seller_drawer.dart';
 
@@ -20,9 +22,21 @@ class VehicleDetailPage extends StatelessWidget {
     return '/vehicles/$vehicleId/edit';
   }
 
+  static String _photosPath(BuildContext context, String vehicleId) {
+    final path = GoRouterState.of(context).uri.path;
+    if (path.startsWith('/dealer/')) {
+      return '/dealer/inventory/$vehicleId/photos';
+    }
+    if (path.startsWith('/seller/')) {
+      return '/seller/inventory/$vehicleId/photos';
+    }
+    return '/vehicles/$vehicleId/photos';
+  }
+
   @override
   Widget build(BuildContext context) {
     final inventoryProvider = context.watch<InventoryProvider>();
+    final authProvider = context.watch<AuthProvider>();
     final vehicle = inventoryProvider.vehicles.firstWhere(
       (v) => v.id == vehicleId,
       orElse: () => inventoryProvider.selectedVehicle!,
@@ -33,12 +47,30 @@ class VehicleDetailPage extends StatelessWidget {
         : path.startsWith('/seller/')
             ? const SellerDrawer()
             : null;
+    final tenantId = vehicle.tenantId.isNotEmpty
+        ? vehicle.tenantId
+        : (authProvider.user?.tenantId ?? '');
 
     return Scaffold(
       drawer: drawer,
       appBar: AppBar(
         title: Text('${vehicle.year} ${vehicle.make} ${vehicle.model}'),
         actions: [
+          IconButton(
+            tooltip: 'Compartir',
+            icon: const Icon(Icons.share),
+            onPressed: () => shareVehicleLink(
+              context,
+              tenantId: tenantId,
+              vehicleId: vehicle.id,
+              label: '${vehicle.year} ${vehicle.make} ${vehicle.model}',
+            ),
+          ),
+          IconButton(
+            tooltip: 'Guía de fotos',
+            icon: const Icon(Icons.photo_camera_back),
+            onPressed: () => context.push(_photosPath(context, vehicle.id)),
+          ),
           IconButton(
             icon: const Icon(Icons.edit),
             onPressed: () => context.push(_editPath(context, vehicle.id)),
@@ -96,6 +128,12 @@ class VehicleDetailPage extends StatelessWidget {
                         backgroundColor: _getStatusColor(vehicle.status),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    onPressed: () => context.push(_photosPath(context, vehicle.id)),
+                    icon: const Icon(Icons.photo_library),
+                    label: const Text('Guía de fotos'),
                   ),
                   const SizedBox(height: 16),
                   // Información básica
@@ -249,6 +287,17 @@ class VehicleDetailPage extends StatelessWidget {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: () => shareVehicleLink(
+                      context,
+                      tenantId: tenantId,
+                      vehicleId: vehicle.id,
+                      label: '${vehicle.year} ${vehicle.make} ${vehicle.model}',
+                    ),
+                    icon: const Icon(Icons.share),
+                    label: const Text('Compartir'),
+                  ),
                 ],
               ),
             ),
@@ -296,5 +345,3 @@ class _InfoRow extends StatelessWidget {
     );
   }
 }
-
-

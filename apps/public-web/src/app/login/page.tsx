@@ -5,22 +5,11 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { FirebaseError } from 'firebase/app';
-import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { signInWithCustomToken, signOut } from 'firebase/auth';
 import { auth, firebaseConfig } from '@/lib/firebase-config';
 import { ForgotPasswordPanel } from '@/components/ForgotPasswordPanel';
+import { PublicMarketingNav } from '@/components/PublicMarketingNav';
 import { isPlatformApexHost, PLATFORM_APP_URLS } from '@/lib/public-production-hosts';
-
-const PROJECT_ID = 'autodealers-7f62e';
-const APP_HOSTING_REGION = 'us-central1';
-
-/** Defaults para Firebase App Hosting (`firebase.json` → apphosting.backendId). */
-function defaultAppHostingDashboard(
-  backendId: 'admin-app' | 'dealer-app' | 'seller-app' | 'advertiser-app',
-  path: string
-): string {
-  const p = path.startsWith('/') ? path : `/${path}`;
-  return `https://${backendId}--${PROJECT_ID}.${APP_HOSTING_REGION}.hosted.app${p}`;
-}
 
 /**
  * Mapea el rol del documento `users` en Firestore al panel Next.js (una UI por app).
@@ -28,12 +17,14 @@ function defaultAppHostingDashboard(
  */
 function normalizePortalRole(
   role: string | undefined
-): 'admin' | 'dealer' | 'seller' | 'advertiser' | null {
+): 'admin' | 'dealer' | 'seller' | 'advertiser' | 'business' | 'customer' | null {
   const r = (role || '').trim().toLowerCase();
   if (r === 'admin') return 'admin';
   if (['dealer', 'master_dealer', 'dealer_admin', 'manager'].includes(r)) return 'dealer';
   if (r === 'seller') return 'seller';
   if (r === 'advertiser') return 'advertiser';
+  if (r === 'automotive_business') return 'business';
+  if (r === 'customer') return 'customer';
   return null;
 }
 
@@ -106,14 +97,29 @@ function LoginPageContent() {
   function redirectByRole(role: string) {
     if (typeof window === 'undefined') return;
 
-    if (redirectTo) {
+    const portal = normalizePortalRole(role);
+    if (portal === 'customer') {
+      const garageToken = window.localStorage.getItem('garageToken') || '';
+      const q = garageToken ? `?token=${encodeURIComponent(garageToken)}` : '';
+      fetch(`/api/public/garage${q}`, { credentials: 'include' })
+        .then((res) => res.json())
+        .then((json) => {
+          if (json?.garage?.accessToken) {
+            window.localStorage.setItem('garageToken', json.garage.accessToken);
+          }
+        })
+        .catch(() => undefined)
+        .finally(() => router.push('/mi-garage'));
+      return;
+    }
+
+    if (redirectTo && redirectTo.startsWith('/') && !redirectTo.startsWith('//')) {
       router.push(redirectTo);
       return;
     }
 
-    const portal = normalizePortalRole(role);
     if (!portal) {
-      setError('Rol de usuario no reconocido o sin panel (admin, dealer, seller, advertiser).');
+      setError('Rol de usuario no reconocido o sin panel (admin, dealer, seller, advertiser, negocio).');
       setLoading(false);
       return;
     }
@@ -148,6 +154,10 @@ function LoginPageContent() {
           targetUrl =
             process.env.NEXT_PUBLIC_ADVERTISER_URL || `${PLATFORM_APP_URLS.advertiser}/dashboard`;
           break;
+        case 'business':
+          targetUrl =
+            process.env.NEXT_PUBLIC_BUSINESS_URL || `${PLATFORM_APP_URLS.business}/dashboard`;
+          break;
       }
     } else if (isLocalhost) {
       switch (portal) {
@@ -163,6 +173,9 @@ function LoginPageContent() {
         case 'advertiser':
           targetUrl = process.env.NEXT_PUBLIC_ADVERTISER_URL || 'http://localhost:3004/dashboard';
           break;
+        case 'business':
+          targetUrl = process.env.NEXT_PUBLIC_BUSINESS_URL || 'http://localhost:3005/dashboard';
+          break;
       }
     } else {
       switch (portal) {
@@ -170,14 +183,18 @@ function LoginPageContent() {
           targetUrl = process.env.NEXT_PUBLIC_ADMIN_URL || `${protocol}//admin.${hostname}/dashboard`;
           break;
         case 'dealer':
-          targetUrl = process.env.NEXT_PUBLIC_DEALER_URL || `${protocol}//dealers.${hostname.replace(/^www\./, '')}/dashboard`;
+          targetUrl = process.env.NEXT_PUBLIC_DEALER_URL || `${protocol}//dealer.${hostname.replace(/^www\./, '')}/dashboard`;
           break;
         case 'seller':
-          targetUrl = process.env.NEXT_PUBLIC_SELLER_URL || `${protocol}//sellers.${hostname.replace(/^www\./, '')}/dashboard`;
+          targetUrl = process.env.NEXT_PUBLIC_SELLER_URL || `${protocol}//seller.${hostname.replace(/^www\./, '')}/dashboard`;
           break;
         case 'advertiser':
           targetUrl =
-            process.env.NEXT_PUBLIC_ADVERTISER_URL || `${protocol}//ads.${hostname.replace(/^www\./, '')}/dashboard`;
+            process.env.NEXT_PUBLIC_ADVERTISER_URL || `${protocol}//advertiser.${hostname.replace(/^www\./, '')}/dashboard`;
+          break;
+        case 'business':
+          targetUrl =
+            process.env.NEXT_PUBLIC_BUSINESS_URL || `${protocol}//business.${hostname.replace(/^www\./, '')}/dashboard`;
           break;
       }
     }
@@ -200,6 +217,8 @@ function LoginPageContent() {
     const loginData = await loginResponse.json().catch(() => ({})) as {
       error?: string;
       message?: string;
+      customToken?: string;
+      user?: { role?: string };
     };
 
     const contentType = loginResponse.headers.get('content-type');
@@ -215,6 +234,17 @@ function LoginPageContent() {
       setError(msg);
       setLoading(false);
       return false;
+    }
+
+    if (loginData.customToken && auth) {
+      const cred = await signInWithCustomToken(auth, loginData.customToken);
+      const token = await cred.user.getIdToken(true);
+      const tokenResponse = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      });
+      return handleLoginResponse(tokenResponse, () => signOut(auth));
     }
 
     const role = loginData.user?.role;
@@ -251,16 +281,12 @@ function LoginPageContent() {
       }
 
       try {
-        const cred = await signInWithEmailAndPassword(auth, email, password);
-        const token = await cred.user.getIdToken();
-
         const loginResponse = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token }),
+          body: JSON.stringify({ email, password, serverAuthFallback: true }),
         });
-
-        await handleLoginResponse(loginResponse, () => signOut(auth));
+        await handleLoginResponse(loginResponse);
       } catch (error) {
         if (
           error instanceof FirebaseError &&
@@ -305,7 +331,9 @@ function LoginPageContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center py-12 px-4">
+    <div className="min-h-screen bg-gray-100">
+      <PublicMarketingNav showDefaultLinks backHref="/" />
+      <div className="flex items-center justify-center py-12 px-4">
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
@@ -343,7 +371,7 @@ function LoginPageContent() {
           {showDomainHelp && (
             <div className="bg-amber-50 border border-amber-200 text-amber-950 rounded-lg px-4 py-3 text-sm">
               Si accedes desde un enlace o dominio nuevo, puede que tu cuenta aún no esté habilitada
-              en este sitio. Contacta al soporte de AutoDealers para que revisen el acceso.
+              en este sitio. Contacta al soporte de AutoDealersOnline para que revisen el acceso.
             </div>
           )}
 
@@ -401,9 +429,35 @@ function LoginPageContent() {
               >
                 {landingConfig?.login?.registerSellerText || 'Regístrate como Vendedor'}
               </Link>
+              <span className="text-gray-400 hidden sm:inline">|</span>
+              <Link
+                href="/registro/negocio"
+                className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+              >
+                Regístrate como negocio de servicios
+              </Link>
+            </div>
+            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left">
+              <p className="text-sm font-semibold text-gray-800 mb-1">¿Eres cliente?</p>
+              <p className="text-sm text-gray-600 mb-2">
+                Mi garage guarda tu vehículo y sugerencias de negocios registrados. Sin cuenta
+                obligatoria. Esto no es el registro de dealer, vendedor o negocio.
+              </p>
+              <div className="flex flex-wrap gap-x-3 gap-y-1">
+                <Link href="/mi-garage" className="text-sm text-primary-600 hover:text-primary-700 font-medium">
+                  Ir a Mi garage
+                </Link>
+                <Link
+                  href="/mi-garage/crear-cuenta"
+                  className="text-sm text-gray-600 hover:text-primary-700 font-medium"
+                >
+                  Crear cuenta (opcional)
+                </Link>
+              </div>
             </div>
           </div>
         </form>
+      </div>
       </div>
     </div>
   );

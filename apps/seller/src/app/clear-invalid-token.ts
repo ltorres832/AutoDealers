@@ -10,14 +10,16 @@ if (typeof window !== 'undefined') {
     if (authTokenCookie) {
       const tokenValue = decodeURIComponent(authTokenCookie.split('=')[1] || '');
       
-      // Si el token es muy corto (< 200 caracteres), es de otra app
-      if (tokenValue && tokenValue.length < 200) {
+      // Si el token es muy corto (< 200 caracteres), puede ser de otra app
+      // No tocar sesiones de soporte (sup1.… o support:true)
+      if (tokenValue && tokenValue.length < 200 && !tokenValue.startsWith('sup1.')) {
         try {
           const decoded = atob(tokenValue);
           const sessionData = JSON.parse(decoded);
-          
-          // Si es de advertiser u otra app, limpiarlo inmediatamente
-          if (sessionData.role && sessionData.role !== 'seller') {
+
+          if (sessionData.support === true) {
+            // Sesión de soporte válida — no limpiar
+          } else if (sessionData.role && sessionData.role !== 'seller') {
             document.cookie = 'authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
             document.cookie = 'authToken=; path=/seller; expires=Thu, 01 Jan 1970 00:00:00 GMT';
             document.cookie = 'authToken=; path=/advertiser; expires=Thu, 01 Jan 1970 00:00:00 GMT';

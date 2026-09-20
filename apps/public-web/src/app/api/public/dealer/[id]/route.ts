@@ -9,6 +9,10 @@ import { normalizeVehiclesArray } from '@/lib/vehicle-photos-normalize';
 import { isVehicleVisibleOnPublicListing } from '@/lib/public-catalog-visibility';
 import { normalizePublicTrustGalleryPhotos, normalizePublicTrustGalleryItems } from '@autodealers/shared/public-trust-gallery';
 import { resolvePublicProfileText } from '@autodealers/shared/settings-profile';
+import {
+  flagsForFeaturedPromotion,
+  getActiveFeaturedByTarget,
+} from '@/lib/public-featured-promotions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -161,8 +165,16 @@ export async function GET(
 
     console.log(`✅ Returning ${sellers.length} sellers with vehicle counts`);
 
+    const [featuredVehicles, featuredDealers] = await Promise.all([
+      getActiveFeaturedByTarget('vehicle'),
+      getActiveFeaturedByTarget('dealer'),
+    ]);
+    const dealerFeaturedFlags = flagsForFeaturedPromotion(featuredDealers.get(`dealer:${dealerId}`));
     const vehiclesNormalized = normalizeVehiclesArray(
-      vehicles.map((v) => ({ ...v } as Record<string, unknown>))
+      vehicles.map((v) => ({
+        ...v,
+        ...flagsForFeaturedPromotion(featuredVehicles.get(`vehicle:${v.id}`)),
+      } as Record<string, unknown>))
     );
 
     const { rating: dealerRating, count: dealerRatingCount } =
@@ -203,6 +215,7 @@ export async function GET(
         publicTrustGalleryItems: normalizePublicTrustGalleryItems(
           dealerData.publicTrustGalleryPhotos
         ),
+        ...dealerFeaturedFlags,
       },
       vehicles: vehiclesNormalized,
       sellers,

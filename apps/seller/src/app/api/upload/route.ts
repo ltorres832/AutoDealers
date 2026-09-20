@@ -118,6 +118,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (isVideo && !['video/mp4', 'video/webm', 'video/quicktime'].includes(file.type)) {
+      return NextResponse.json(
+        { error: 'Formato de video no permitido. Usa MP4 o WebM.' },
+        { status: 400 }
+      );
+    }
+
+    if (isVideo && type === 'vehicle') {
+      const { canExecuteFeature } = await import('@autodealers/core');
+      const check = await canExecuteFeature(auth.tenantId, 'uploadVideo');
+      if (!check.allowed) {
+        return NextResponse.json(
+          {
+            error: check.reason || 'La subida de videos no está incluida en tu plan',
+            reason: check.reason || 'Activa o selecciona una membresía que incluya videos de vehículos.',
+            upgradeRequired: true,
+          },
+          { status: 403 }
+        );
+      }
+    }
+
     if (type === 'vehicle') {
       const vehicleId = formData.get('vehicleId') as string;
       
@@ -219,6 +241,25 @@ export async function POST(request: NextRequest) {
         userId: auth.userId,
         type: 'seller_public_trust_gallery',
       });
+    } else if (type === 'lead_photo') {
+      if (!file.type.startsWith('image/')) {
+        return NextResponse.json({ error: 'Solo se permiten imágenes' }, { status: 400 });
+      }
+      const { getStorage } = await import('@autodealers/core');
+      const storage = getStorage();
+      const bucket = storage.bucket();
+      const timestamp = Date.now();
+      const sanitizedFilename = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const filePath = `tenants/${auth.tenantId}/lead-photos/${timestamp}_${sanitizedFilename}`;
+      const fileRef = bucket.file(filePath);
+      await fileRef.save(buffer, {
+        metadata: {
+          contentType: file.type,
+          metadata: { tenantId: auth.tenantId, type: 'lead_photo' },
+        },
+      });
+      await fileRef.makePublic();
+      url = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
     } else if (type === 'seller_public_promo') {
       if (auth.role !== 'seller') {
         return NextResponse.json({ error: 'Solo vendedores pueden usar este tipo de subida' }, { status: 403 });
@@ -237,6 +278,26 @@ export async function POST(request: NextRequest) {
         tenantId: auth.tenantId,
         userId: auth.userId,
         type: 'seller_public_promo',
+      });
+    } else if (type === 'website_hero_image' || type === 'website_hero_video') {
+      const wantVideo = type === 'website_hero_video';
+      if (wantVideo && !isVideo) {
+        return NextResponse.json({ error: 'Solo se permiten archivos de video' }, { status: 400 });
+      }
+      if (!wantVideo && !isImage) {
+        return NextResponse.json({ error: 'Solo se permiten imágenes' }, { status: 400 });
+      }
+      const { getStorage } = await import('@autodealers/core');
+      const { uploadBufferToAccessibleUrl } = await import('@autodealers/shared/firebase-storage-upload');
+      const storage = getStorage();
+      const bucket = storage.bucket();
+      const timestamp = Date.now();
+      const sanitizedFilename = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const filePath = `tenants/${auth.tenantId}/website-hero/${auth.userId}/${timestamp}_${sanitizedFilename}`;
+      url = await uploadBufferToAccessibleUrl(bucket, filePath, buffer, file.type, {
+        tenantId: auth.tenantId,
+        userId: auth.userId,
+        type,
       });
     } else {
       return NextResponse.json({ error: 'Invalid type' }, { status: 400 });

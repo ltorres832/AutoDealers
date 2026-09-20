@@ -28,7 +28,9 @@ export async function GET(request: NextRequest) {
     for (const tenantDoc of tenantsSnapshot.docs) {
       try {
         const tenantWorkflows = await getWorkflows(tenantDoc.id, enabledOnly);
-        allWorkflows.push(...tenantWorkflows);
+        allWorkflows.push(
+          ...tenantWorkflows.map((w) => ({ ...w, tenantId: tenantDoc.id }))
+        );
       } catch (error) {
         console.error(`Error fetching workflows for tenant ${tenantDoc.id}:`, error);
       }

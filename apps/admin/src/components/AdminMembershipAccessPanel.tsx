@@ -90,7 +90,9 @@ export function AdminMembershipAccessPanel({
     const type = role === 'dealer' ? 'dealer' : 'seller';
     void (async () => {
       try {
-        const res = await fetchWithAuth(`/api/admin/memberships?type=${type}&activeOnly=true`);
+        const res = await fetchWithAuth(
+          `/api/admin/memberships?type=${type}&activeOnly=true&selfServiceOnly=true`
+        );
         const data = await res.json().catch(() => ({}));
         const list = Array.isArray(data.memberships) ? data.memberships : [];
         setPlanOptions(

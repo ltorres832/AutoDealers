@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
     const params: any = {
       limit,
-      expand: ['data.customer', 'data.items.data.price.product'],
+      expand: ['data.customer', 'data.items.data.price'],
     };
 
     if (status) {

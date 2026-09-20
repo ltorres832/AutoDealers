@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { getFirebaseClient } from '../lib/firebase-client';
 import { collectionGroup, query, where, orderBy, limit as limitQuery, onSnapshot } from 'firebase/firestore';
+import { isDemoPromoAccount, tenantIdFromResourcePath } from '@/lib/demo-account';
 
 interface Banner {
   id: string;
@@ -55,8 +56,14 @@ export function useRealtimeBanners() {
             return null;
           }
 
+          const tenantId = data.tenantId || tenantIdFromResourcePath(doc.ref?.path);
+          if (isDemoPromoAccount({ ...data, tenantId }, tenantId || doc.id)) {
+            return null;
+          }
+
           return {
             id: doc.id,
+            tenantId,
             ...data,
             expiresAt: expiresAt?.toISOString(),
             createdAt: data.createdAt?.toDate()?.toISOString(),

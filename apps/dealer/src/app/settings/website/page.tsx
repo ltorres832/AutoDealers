@@ -4,13 +4,20 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { PromoVideosEditor } from '@autodealers/shared/components/PromoVideosEditor';
 import { normalizePromoVideoUrls, heroPromoVideoFields } from '@autodealers/shared/promo-video-urls';
+import { WebsiteHeroMediaEditor } from '@autodealers/shared/components/WebsiteHeroMediaEditor';
+import {
+  normalizeWebsiteHeroMedia,
+  type WebsiteHeroMediaMode,
+} from '@autodealers/shared/website-hero-media';
 
 interface WebsiteSettings {
   hero: {
     title: string;
     subtitle: string;
     ctaText: string;
+    mediaMode?: WebsiteHeroMediaMode;
     backgroundImage?: string;
+    backgroundVideoUrl?: string;
     /** YouTube, Vimeo o URL HTTPS a .mp4/.webm — se muestra antes del inventario en la web pública */
     promoVideoUrl?: string;
     promoVideoUrls?: string[];
@@ -93,6 +100,7 @@ export default function WebsiteSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [mediaUploading, setMediaUploading] = useState(false);
   const [branding, setBranding] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [sellerInfo, setSellerInfo] = useState<any>(null);
@@ -119,12 +127,14 @@ export default function WebsiteSettingsPage() {
         if (data.settings) {
           const hero = data.settings.hero || {};
           const promoUrls = normalizePromoVideoUrls(hero.promoVideoUrls, hero.promoVideoUrl);
+          const media = normalizeWebsiteHeroMedia(hero);
           setSettings((prev) => ({
             ...prev,
             ...data.settings,
             hero: {
               ...prev.hero,
               ...hero,
+              ...media,
               promoVideoUrls: promoUrls,
               promoVideoUrl: promoUrls[0] || '',
             },
@@ -203,6 +213,31 @@ export default function WebsiteSettingsPage() {
       return typeof data.url === 'string' ? data.url : null;
     } catch {
       return null;
+    }
+  }
+
+  async function uploadWebsiteHeroFile(
+    file: File,
+    type: 'website_hero_image' | 'website_hero_video'
+  ): Promise<string | null> {
+    setMediaUploading(true);
+    try {
+      const { fetchWithAuth } = await import('@/lib/fetch-with-auth');
+      const form = new FormData();
+      form.append('file', file);
+      form.append('type', type);
+      const res = await fetchWithAuth('/api/upload', { method: 'POST', body: form });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.error || 'Error al subir el archivo');
+        return null;
+      }
+      return typeof data.url === 'string' ? data.url : null;
+    } catch {
+      alert('Error al subir el archivo');
+      return null;
+    } finally {
+      setMediaUploading(false);
     }
   }
 
@@ -410,6 +445,29 @@ export default function WebsiteSettingsPage() {
                 <p className="text-xs text-gray-500 mt-1">
                   El botón llevará a los visitantes directamente al inventario
                 </p>
+              </div>
+
+              <div className="border-t pt-4 mt-4">
+                <WebsiteHeroMediaEditor
+                  mediaMode={settings.hero.mediaMode || 'gradient'}
+                  backgroundImage={settings.hero.backgroundImage}
+                  backgroundVideoUrl={settings.hero.backgroundVideoUrl}
+                  uploading={mediaUploading}
+                  disabled={saving}
+                  onChange={(next) =>
+                    setSettings({
+                      ...settings,
+                      hero: {
+                        ...settings.hero,
+                        mediaMode: next.mediaMode,
+                        backgroundImage: next.backgroundImage,
+                        backgroundVideoUrl: next.backgroundVideoUrl,
+                      },
+                    })
+                  }
+                  onUploadImage={(file) => uploadWebsiteHeroFile(file, 'website_hero_image')}
+                  onUploadVideo={(file) => uploadWebsiteHeroFile(file, 'website_hero_video')}
+                />
               </div>
 
               <div className="border-t pt-4 mt-4">

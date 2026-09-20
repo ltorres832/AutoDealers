@@ -5,6 +5,9 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import BackButton from '@/components/BackButton';
 import { AdminMembershipAccessPanel } from '@/components/AdminMembershipAccessPanel';
+import { AdminDeleteButton, AdminTenantEntityDeleteButton } from '@/components/AdminDeleteButton';
+import { AdminSupportEnterButton } from '@/components/AdminSupportEnterButton';
+import { GrantCourtesyDaysForm } from '@/components/GrantCourtesyDaysForm';
 
 interface TenantDetails {
   id: string;
@@ -180,17 +183,45 @@ export default function TenantDetailPage() {
               </p>
             )}
           </div>
-          <span
-            className={`px-3 py-1 rounded text-sm font-medium ${
-              tenant.status === 'active'
-                ? 'bg-green-100 text-green-700'
-                : 'bg-red-100 text-red-700'
-            }`}
-          >
-            {tenant.status}
-          </span>
+          <div className="flex flex-col items-end gap-2">
+            <span
+              className={`px-3 py-1 rounded text-sm font-medium ${
+                tenant.status === 'active'
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-red-100 text-red-700'
+              }`}
+            >
+              {tenant.status}
+            </span>
+            <AdminSupportEnterButton
+              tenantId={tenant.id}
+              userId={tenant.ownerId}
+              label="Entrar al panel (soporte)"
+            />
+            <AdminDeleteButton
+              deleteUrl={`/api/admin/tenants/${tenant.id}`}
+              label="Eliminar tenant"
+              requireTypedConfirm={tenant.name}
+              confirmMessage="Se eliminarán los vehículos del tenant. Esta acción es irreversible."
+              className="text-sm px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700"
+            />
+          </div>
         </div>
       </div>
+
+      {(tenant.type === 'dealer' || tenant.type === 'seller') ? (
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <h2 className="text-xl font-bold mb-2">Días de cortesía</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Extiende ahora el acceso de este {tenant.type === 'dealer' ? 'dealer' : 'vendedor'} (Firestore + Stripe si aplica).
+          </p>
+          <GrantCourtesyDaysForm
+            initialTenantId={tenant.id}
+            initialTenantName={tenant.name}
+            onSuccess={fetchTenantDetails}
+          />
+        </div>
+      ) : null}
 
       {tenant.ownerId && (ownerRole === 'seller' || ownerRole === 'dealer') ? (
         <div className="mb-6">
@@ -308,12 +339,22 @@ export default function TenantDetailPage() {
                   <td className="px-6 py-4">{user.email}</td>
                   <td className="px-6 py-4 capitalize">{user.role}</td>
                   <td className="px-6 py-4">
-                    <Link
-                      href={`/admin/users?search=${encodeURIComponent(user.email || '')}`}
-                      className="text-primary-600 hover:text-primary-700 text-sm"
-                    >
-                      Abrir en usuarios
-                    </Link>
+                    <div className="flex flex-col gap-1">
+                      <Link
+                        href={`/admin/users?search=${encodeURIComponent(user.email || '')}`}
+                        className="text-primary-600 hover:text-primary-700 text-sm"
+                      >
+                        Abrir en usuarios
+                      </Link>
+                      {user.role !== 'admin' ? (
+                        <AdminDeleteButton
+                          deleteUrl={`/api/admin/users/${user.id}`}
+                          label="Eliminar"
+                          onDeleted={fetchTenantDetails}
+                          className="text-xs text-red-700 hover:underline"
+                        />
+                      ) : null}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -354,12 +395,20 @@ export default function TenantDetailPage() {
                   </td>
                   <td className="px-6 py-4 capitalize">{vehicle.status}</td>
                   <td className="px-6 py-4">
-                    <Link
-                      href={`/admin/vehicles/${tenant.id}/${vehicle.id}/edit`}
-                      className="text-primary-600 hover:text-primary-700 text-sm font-medium"
-                    >
-                      Editar
-                    </Link>
+                    <div className="flex flex-col gap-1">
+                      <Link
+                        href={`/admin/vehicles/${tenant.id}/${vehicle.id}/edit`}
+                        className="text-primary-600 hover:text-primary-700 text-sm font-medium"
+                      >
+                        Editar
+                      </Link>
+                      <AdminDeleteButton
+                        deleteUrl={`/api/admin/vehicles/${tenant.id}/${vehicle.id}`}
+                        label="Eliminar"
+                        onDeleted={fetchTenantDetails}
+                        className="text-xs text-red-700 hover:underline"
+                      />
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -401,12 +450,16 @@ export default function TenantDetailPage() {
                   <td className="px-6 py-4 capitalize">{lead.source}</td>
                   <td className="px-6 py-4 capitalize">{lead.status}</td>
                   <td className="px-6 py-4">
-                    <Link
-                      href={`/admin/tenants/${tenant.id}`}
-                      className="text-primary-600 hover:text-primary-700 text-sm"
-                    >
-                      Ver
-                    </Link>
+                    <div className="flex flex-col gap-1">
+                      <AdminTenantEntityDeleteButton
+                        tenantId={tenant.id}
+                        collection="leads"
+                        entityId={lead.id}
+                        label="Eliminar"
+                        onDeleted={fetchTenantDetails}
+                        className="text-xs text-red-700 hover:underline"
+                      />
+                    </div>
                   </td>
                 </tr>
               ))}

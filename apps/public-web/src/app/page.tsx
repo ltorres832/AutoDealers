@@ -13,6 +13,8 @@ import AdvancedFilters from '../components/AdvancedFilters';
 import FeaturedVehicles from '../components/FeaturedVehicles';
 import FinanceCalculator from '../components/FinanceCalculator';
 import FeaturedDealers from '../components/FeaturedDealers';
+import ServicesDirectorySection from '../components/ServicesDirectorySection';
+import { MiGarageDiscoverCta } from '../components/MiGarageDiscoverCta';
 import VehicleCategories from '../components/VehicleCategories';
 import EvGaragePromo from '../components/EvGaragePromo';
 import ReviewsSection from '../components/ReviewsSection';
@@ -743,7 +745,7 @@ export default function LandingPage() {
                 taglineClassName="text-xs text-gray-500 font-normal"
               />
             </div>
-            <div className="hidden lg:flex items-center gap-8">
+            <div className="hidden lg:flex items-center gap-6">
               <a href="#vehicles" className="text-gray-700 hover:text-primary-600 transition font-medium text-sm tracking-wide">Vehículos</a>
               <a href="#promotions" className="text-gray-700 hover:text-primary-600 transition font-medium text-sm flex items-center gap-2">
                 Promociones
@@ -755,6 +757,9 @@ export default function LandingPage() {
               </a>
               <Link href="/dealers" className="text-gray-700 hover:text-primary-600 transition font-medium text-sm">Concesionarios</Link>
               <Link href="/dealers?tab=vendedores" className="text-gray-700 hover:text-primary-600 transition font-medium text-sm">Vendedores</Link>
+              <Link href="/vin" className="text-gray-700 hover:text-primary-600 transition font-medium text-sm">Buscar VIN</Link>
+              <a href="#servicios" className="text-gray-700 hover:text-primary-600 transition font-medium text-sm">Servicios</a>
+              <Link href="/mi-garage" className="text-gray-700 hover:text-primary-600 transition font-medium text-sm">Mi garage</Link>
               <a href="#contact" className="text-gray-700 hover:text-primary-600 transition font-medium text-sm">Contacto</a>
               <Link
                 href="/login"
@@ -804,6 +809,9 @@ export default function LandingPage() {
                 </a>
                 <Link href="/dealers" onClick={closeMobileMenu} className="rounded-lg px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-primary-600 font-medium text-sm">Concesionarios</Link>
                 <Link href="/dealers?tab=vendedores" onClick={closeMobileMenu} className="rounded-lg px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-primary-600 font-medium text-sm">Vendedores</Link>
+                <Link href="/vin" onClick={closeMobileMenu} className="rounded-lg px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-primary-600 font-medium text-sm">Buscar por VIN</Link>
+                <a href="#servicios" onClick={closeMobileMenu} className="rounded-lg px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-primary-600 font-medium text-sm">Servicios</a>
+                <Link href="/mi-garage" onClick={closeMobileMenu} className="rounded-lg px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-primary-600 font-medium text-sm">Mi garage</Link>
                 <a href="#contact" onClick={closeMobileMenu} className="rounded-lg px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-primary-600 font-medium text-sm">Contacto</a>
                 <Link
                   href="/login"
@@ -826,7 +834,7 @@ export default function LandingPage() {
       </div>
 
       {/* Hero Section Ultra Profesional con Imagen de Fondo */}
-      <section className="relative pt-12 pb-24 min-h-[85vh] flex items-center overflow-hidden">
+      <section className="relative pt-12 pb-32 min-h-[85vh] flex items-center overflow-visible">
         {/* Background con gradiente profesional */}
         <div className="absolute inset-0 bg-gradient-to-br from-brand-black via-brand-black-deep to-brand-black"></div>
         <div className="absolute inset-0 bg-gradient-to-tr from-primary-600/40 via-transparent to-primary-600/20 pointer-events-none"></div>
@@ -1511,6 +1519,10 @@ export default function LandingPage() {
           )}
         </div>
       </section>
+
+      <ServicesDirectorySection />
+
+      <MiGarageDiscoverCta />
 
       <ReviewsSection />
 

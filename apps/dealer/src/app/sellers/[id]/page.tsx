@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import SellerLimitsPanel from '@/components/SellerLimitsPanel';
+import { SellerDmsAccessPanel } from '@/components/SellerDmsAccessPanel';
 
 interface Seller {
   id: string;
@@ -16,6 +18,8 @@ interface Seller {
   tenantId?: string;
   dealerId?: string;
   publicPromoVideoUrl?: string;
+  departmentTemplate?: string | null;
+  modulePermissions?: Record<string, string>;
 }
 
 interface Vehicle {
@@ -47,11 +51,17 @@ interface SellerDetails {
     totalPromotions: number;
     activePromotions: number;
     pastPromotions: number;
+    totalSocialPosts?: number;
+    scheduledSocialPosts?: number;
+    publishedSocialPosts?: number;
   };
   leads: any[];
   sales: any[];
   appointments: any[];
   vehicles: Vehicle[];
+  campaigns?: any[];
+  promotions?: any[];
+  socialPosts?: any[];
 }
 
 export default function SellerDetailPage() {
@@ -251,6 +261,14 @@ export default function SellerDetailPage() {
         </div>
       </div>
 
+      <SellerLimitsPanel sellerId={sellerId} />
+
+      <SellerDmsAccessPanel
+        sellerId={sellerId}
+        initialTemplate={seller.departmentTemplate}
+        initialModules={seller.modulePermissions}
+      />
+
       {/* Leads Recientes */}
       <div className="bg-white rounded-lg shadow p-6 mb-6">
         <h3 className="text-xl font-bold mb-4">Leads Recientes</h3>
@@ -335,7 +353,7 @@ export default function SellerDetailPage() {
       </div>
 
       {/* Citas Próximas */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
         <h3 className="text-xl font-bold mb-4">Citas Próximas</h3>
         {sellerDetails.appointments.length > 0 ? (
           <div className="space-y-2">
@@ -344,18 +362,92 @@ export default function SellerDetailPage() {
                 <p className="font-medium">
                   {new Date(apt.scheduledAt).toLocaleDateString()} {new Date(apt.scheduledAt).toLocaleTimeString()}
                 </p>
-                <p className="text-sm text-gray-600">
-                  {apt.customerName || 'Sin cliente'} • {apt.status || 'programada'}
+                <p className="text-sm text-gray-600">{apt.status || 'programada'}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-500">No hay citas próximas</p>
+        )}
+      </div>
+
+      {/* Campañas */}
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-xl font-bold">
+            Campañas ({stats.totalCampaigns})
+          </h3>
+          <Link href={`/campaigns?sellerId=${sellerId}`} className="text-sm text-primary-600">
+            Ver en Campañas →
+          </Link>
+        </div>
+        {(sellerDetails.campaigns?.length || 0) > 0 ? (
+          <div className="space-y-2">
+            {sellerDetails.campaigns!.map((c) => (
+              <div key={c.id} className="border-b pb-2 flex justify-between gap-2">
+                <div>
+                  <p className="font-medium">{c.name}</p>
+                  <p className="text-xs text-gray-500">
+                    {(c.platforms || []).join(', ') || '—'} · {c.status}
+                  </p>
+                </div>
+                <span className="text-xs text-gray-400">{c.activeCampaigns}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-500">Sin campañas</p>
+        )}
+      </div>
+
+      {/* Promociones */}
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-xl font-bold">Promociones ({stats.totalPromotions})</h3>
+          <Link href={`/promotions?sellerId=${sellerId}`} className="text-sm text-primary-600">
+            Ver en Promociones →
+          </Link>
+        </div>
+        {(sellerDetails.promotions?.length || 0) > 0 ? (
+          <div className="space-y-2">
+            {sellerDetails.promotions!.map((p) => (
+              <div key={p.id} className="border-b pb-2">
+                <p className="font-medium">{p.name || 'Promoción'}</p>
+                <p className="text-xs text-gray-500">{p.status}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-500">Sin promociones</p>
+        )}
+      </div>
+
+      {/* Redes */}
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-xl font-bold">
+            Redes ({stats.totalSocialPosts || 0})
+          </h3>
+          <Link href={`/social-posts?sellerId=${sellerId}`} className="text-sm text-primary-600">
+            Ver publicaciones →
+          </Link>
+        </div>
+        {(sellerDetails.socialPosts?.length || 0) > 0 ? (
+          <div className="space-y-2">
+            {sellerDetails.socialPosts!.map((p) => (
+              <div key={p.id} className="border-b pb-2">
+                <p className="font-medium text-sm line-clamp-2">{p.content?.text || 'Post'}</p>
+                <p className="text-xs text-gray-500">
+                  {(p.platforms || []).join(', ')} · {p.status}
                 </p>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-gray-500">No hay citas programadas</p>
+          <p className="text-gray-500">Sin publicaciones en redes</p>
         )}
       </div>
 
-      {/* Modal de Edición */}
       {showEditModal && (
         <EditSellerModal
           seller={seller}

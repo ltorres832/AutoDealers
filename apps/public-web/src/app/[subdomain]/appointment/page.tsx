@@ -74,22 +74,39 @@ export default function AppointmentPage() {
     fetchSellers();
   }, [subdomain]);
 
+  useEffect(() => {
+    if (!formData.sellerId && sellers.length === 1) {
+      setFormData((prev) => ({ ...prev, sellerId: sellers[0].id }));
+    }
+  }, [sellers, formData.sellerId]);
+
   const searchParamsKey = searchParams.toString();
 
   useEffect(() => {
     const v = searchParams.get('vehicle') || searchParams.get('vehicleId') || '';
     const intent =
       searchParams.get('intent') === 'test_drive_request' ? 'test_drive_request' : 'appointment';
+    const name = searchParams.get('name') || '';
+    const phone = searchParams.get('phone') || '';
+    const email = searchParams.get('email') || '';
+    const notes = searchParams.get('notes') || '';
+    const typeParam = searchParams.get('type') || '';
     setFormData((prev) => ({
       ...prev,
       vehicleId: v || prev.vehicleId,
       schedulingIntent: intent,
       type:
-        intent === 'test_drive_request'
-          ? 'test_drive'
-          : prev.type === 'test_drive'
-            ? 'consultation'
-            : prev.type,
+        typeParam === 'consultation' || typeParam === 'test_drive' || typeParam === 'delivery'
+          ? typeParam
+          : intent === 'test_drive_request'
+            ? 'test_drive'
+            : prev.type === 'test_drive'
+              ? 'consultation'
+              : prev.type,
+      name: name || prev.name,
+      phone: phone || prev.phone,
+      email: email || prev.email,
+      notes: notes || prev.notes,
     }));
   }, [searchParamsKey]);
 
@@ -115,7 +132,11 @@ export default function AppointmentPage() {
     try {
       const response = await fetch(`/api/sellers/${subdomain}`);
       const data = await response.json();
-      setSellers(data.sellers || []);
+      const list = Array.isArray(data.sellers) ? data.sellers : [];
+      setSellers(list);
+      if (list.length === 1) {
+        setFormData((prev) => ({ ...prev, sellerId: prev.sellerId || list[0].id }));
+      }
     } catch (error) {
       console.error('Error fetching sellers:', error);
     }
@@ -143,11 +164,14 @@ export default function AppointmentPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 20000);
 
     try {
       const response = await fetch('/api/appointments/public', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           subdomain,
           name: formData.name,
@@ -161,6 +185,7 @@ export default function AppointmentPage() {
           notes: formData.notes,
           intent: formData.schedulingIntent,
           driverLicense: formData.driverLicense.trim() || undefined,
+          sellToDealerToken: searchParams.get('sellToDealerToken') || undefined,
         }),
       });
 
@@ -175,13 +200,19 @@ export default function AppointmentPage() {
         });
         setSubmitted(true);
       } else {
-        const error = await response.json();
+        const error = await response.json().catch(() => ({}));
         alert(`Error al solicitar cita: ${error.error || 'Error desconocido'}`);
       }
     } catch (error) {
       console.error('Error:', error);
-      alert('Error al solicitar cita');
+      const aborted = error instanceof DOMException && error.name === 'AbortError';
+      alert(
+        aborted
+          ? 'La solicitud tardó demasiado. Verifica tu conexión e intenta de nuevo.'
+          : 'Error al solicitar cita'
+      );
     } finally {
+      window.clearTimeout(timeout);
       setLoading(false);
     }
   }
@@ -263,8 +294,8 @@ export default function AppointmentPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
-      <div className="container mx-auto px-4 max-w-4xl">
+    <div className="min-h-screen bg-gray-50 py-6 sm:py-12">
+      <div className="container mx-auto max-w-4xl px-3 sm:px-4">
         <div className="mb-6">
           <div className="mb-4 flex flex-wrap items-center gap-3">
             <PublicBackButton
@@ -277,7 +308,7 @@ export default function AppointmentPage() {
               Inicio
             </Link>
           </div>
-          <h1 className="text-3xl font-bold mb-2">
+          <h1 className="mb-2 text-2xl font-bold leading-tight sm:text-3xl">
             {formData.schedulingIntent === 'test_drive_request'
               ? 'Solicitar prueba de manejo'
               : 'Agendar cita'}
@@ -287,9 +318,9 @@ export default function AppointmentPage() {
           </p>
         </div>
 
-        <div className="bg-white rounded-lg shadow-lg p-8">
+        <div className="rounded-xl bg-white p-4 shadow-lg sm:p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="flex flex-wrap gap-2 rounded-lg border border-gray-200 p-2 bg-gray-50">
+            <div className="grid grid-cols-1 gap-2 rounded-lg border border-gray-200 bg-gray-50 p-2 min-[420px]:grid-cols-2">
               <button
                 type="button"
                 onClick={() =>
@@ -299,7 +330,7 @@ export default function AppointmentPage() {
                     type: p.type === 'test_drive' && p.schedulingIntent === 'test_drive_request' ? 'consultation' : p.type,
                   }))
                 }
-                className={`flex-1 min-w-[140px] rounded-md px-4 py-2 text-sm font-medium transition ${
+                className={`rounded-md px-3 py-2 text-sm font-medium transition sm:px-4 ${
                   formData.schedulingIntent === 'appointment'
                     ? 'bg-primary-600 text-white shadow'
                     : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-100'
@@ -316,7 +347,7 @@ export default function AppointmentPage() {
                     type: 'test_drive',
                   }))
                 }
-                className={`flex-1 min-w-[140px] rounded-md px-4 py-2 text-sm font-medium transition ${
+                className={`rounded-md px-3 py-2 text-sm font-medium transition sm:px-4 ${
                   formData.schedulingIntent === 'test_drive_request'
                     ? 'bg-primary-600 text-white shadow'
                     : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-100'
@@ -378,22 +409,22 @@ export default function AppointmentPage() {
                           : 'border-gray-200 hover:border-primary-300'
                       }`}
                     >
-                      <div className="flex items-center gap-4">
+                    <div className="flex min-w-0 items-center gap-3 sm:gap-4">
                         {seller.photo ? (
                           <img
                             src={seller.photo}
                             alt={seller.name}
-                            className="w-16 h-16 rounded-full object-cover"
+                            className="h-14 w-14 shrink-0 rounded-full object-cover sm:h-16 sm:w-16"
                           />
                         ) : (
-                          <div className="w-16 h-16 rounded-full bg-gray-300 flex items-center justify-center text-2xl">
+                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gray-300 text-2xl sm:h-16 sm:w-16">
                             {seller.name.charAt(0).toUpperCase()}
                           </div>
                         )}
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-gray-900">{seller.name}</h3>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="break-words font-semibold text-gray-900">{seller.name}</h3>
                           {seller.bio && (
-                            <p className="text-sm text-gray-600 mt-1">{seller.bio}</p>
+                            <p className="mt-1 line-clamp-2 break-words text-sm text-gray-600">{seller.bio}</p>
                           )}
                         </div>
                         {formData.sellerId === seller.id && (
@@ -551,7 +582,6 @@ export default function AppointmentPage() {
               type="submit"
               disabled={
                 loading ||
-                !formData.sellerId ||
                 (formData.schedulingIntent === 'appointment' &&
                   (!formData.preferredDate || !formData.preferredTime)) ||
                 (formData.schedulingIntent === 'test_drive_request' &&

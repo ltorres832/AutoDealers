@@ -3,6 +3,60 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { listQuickListings, purgeExpiredQuickListings } from '@autodealers/core';
 
+function csvValue(value: unknown): string {
+  if (value == null) return '';
+  const text = String(value);
+  if (/[",\r\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
+}
+
+function toIso(value: Date | null): string {
+  return value ? value.toISOString() : '';
+}
+
+function buildQuickListingsCsv(items: Awaited<ReturnType<typeof listQuickListings>>): string {
+  const headers = [
+    'ID',
+    'Estado',
+    'Nombre',
+    'Telefono',
+    'Email',
+    'Ciudad',
+    'Vehiculo',
+    'Ano',
+    'Marca',
+    'Modelo',
+    'Millaje',
+    'Precio',
+    'Moneda',
+    'Vistas',
+    'Creado',
+    'Vence',
+  ];
+  const rows = items.map((it) => [
+    it.id,
+    it.status,
+    it.contactName,
+    it.contactPhone,
+    it.contactEmail || '',
+    it.city || '',
+    `${it.year} ${it.make} ${it.model}`,
+    it.year,
+    it.make,
+    it.model,
+    it.mileage ?? '',
+    it.price,
+    it.currency,
+    it.views,
+    toIso(it.createdAt),
+    toIso(it.expiresAt),
+  ]);
+
+  return [headers, ...rows].map((row) => row.map(csvValue).join(',')).join('\r\n');
+}
+
 export async function GET(request: NextRequest) {
   try {
     const auth = await verifyAuth(request);
@@ -12,7 +66,22 @@ export async function GET(request: NextRequest) {
 
     const url = new URL(request.url);
     const includeAll = url.searchParams.get('includeAll') === '1';
-    const items = await listQuickListings({ limit: 100, includeAll });
+    const format = url.searchParams.get('format');
+    const limit = format === 'csv' ? 1000 : 100;
+    const items = await listQuickListings({ limit, includeAll });
+
+    if (format === 'csv') {
+      const csv = buildQuickListingsCsv(items);
+      const today = new Date().toISOString().slice(0, 10);
+      return new NextResponse(csv, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': `attachment; filename="anuncios-particulares-${today}.csv"`,
+          'Cache-Control': 'no-store',
+        },
+      });
+    }
 
     return NextResponse.json({
       items: items.map((it) => ({

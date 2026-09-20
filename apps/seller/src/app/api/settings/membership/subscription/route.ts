@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getSubscriptionByTenantId } from '@autodealers/billing';
+import { getSubscriptionByUserId } from '@autodealers/billing';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const subscription = await getSubscriptionByTenantId(auth.tenantId);
+    const subscription = await getSubscriptionByUserId(auth.userId);
     
     if (!subscription) {
       return NextResponse.json({ subscription: null });

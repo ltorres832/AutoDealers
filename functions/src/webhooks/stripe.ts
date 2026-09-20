@@ -257,7 +257,7 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
             <p>Por favor, actualice su método de pago para continuar usando nuestros servicios.</p>
           `,
           metadata: {
-            subject: 'Pago Fallido - AutoDealers',
+            subject: 'Pago Fallido - AutoDealersOnline',
           },
         });
       }
@@ -433,6 +433,19 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
           status: 'active',
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
+
+        try {
+          const { ensureVoiceProvisionedForTenant } = await import('@autodealers/voice');
+          const voiceResult = await ensureVoiceProvisionedForTenant(metadata.tenantId, {
+            source: 'stripe_checkout_registration',
+            updatedBy: metadata.userId,
+          });
+          if (!voiceResult.ok && !voiceResult.skipped) {
+            console.warn('[stripe] Voice provision:', voiceResult.reason);
+          }
+        } catch (voiceErr) {
+          console.warn('[stripe] Voice provision skipped:', voiceErr);
+        }
       }
     } catch (error) {
       console.error('Error procesando checkout de registro:', error);

@@ -3,18 +3,18 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import {
-  getStripeInstance,
+  getFirestore,
   getStripeWebhookSecret,
   isValidStripeWebhookSecret,
+  resolveStripeCredentialInput,
+  validateStripeCredentialsPair,
 } from '@autodealers/core';
+import { resolveAdminUrl } from '@autodealers/shared/platform-urls';
+
+const db = getFirestore();
 
 function resolveAdminWebhookUrl(): string {
-  const base =
-    process.env.ADMIN_APP_URL?.trim() ||
-    process.env.NEXT_PUBLIC_ADMIN_URL?.trim() ||
-    process.env.NEXTAUTH_URL?.trim() ||
-    'https://admin-app--autodealers-7f62e.us-central1.hosted.app';
-  return `${base.replace(/\/$/, '')}/api/webhooks/stripe`;
+  return `${resolveAdminUrl()}/api/webhooks/stripe`;
 }
 
 export async function POST(request: NextRequest) {
@@ -24,37 +24,50 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const body = await request.json().catch(() => ({}));
+    const credentialsDoc = await db.collection('system_settings').doc('credentials').get();
+    const stored = credentialsDoc.data() || {};
+
+    const effectiveSk = resolveStripeCredentialInput(body.stripeSecretKey, stored.stripeSecretKey);
+    const effectivePk = resolveStripeCredentialInput(
+      body.stripePublishableKey,
+      stored.stripePublishableKey
+    );
+
     const webhookSecret = await getStripeWebhookSecret();
     const webhookSecretConfigured = isValidStripeWebhookSecret(webhookSecret);
 
-    try {
-      const stripe = await getStripeInstance();
-      const account = await stripe.accounts.retrieve();
-
-      return NextResponse.json({
-        success: true,
-        message: 'Conexión con Stripe exitosa',
-        accountId: account.id,
-        webhookEndpoint: resolveAdminWebhookUrl(),
-        webhookSecretConfigured,
-        webhookSecretHint: webhookSecretConfigured
-          ? 'Signing secret válido (whsec_...)'
-          : 'Configura whsec_... en Admin → Configuración → Stripe (no uses la URL del endpoint como secreto)',
-      });
-    } catch (stripeError: unknown) {
-      const message =
-        stripeError instanceof Error ? stripeError.message : 'Error al conectar con Stripe';
-      console.error('Stripe error:', stripeError);
+    const validation = await validateStripeCredentialsPair(effectiveSk, effectivePk);
+    if (!validation.valid) {
       return NextResponse.json(
         {
           success: false,
-          error: message,
+          error: validation.error || 'Credenciales Stripe inválidas',
+          hint:
+            !effectiveSk || !effectivePk
+              ? 'Debes pegar sk_... y pk_... completos (mismo modo TEST o LIVE). Si un campo muestra ••••, escribe la clave entera de nuevo.'
+              : undefined,
           webhookEndpoint: resolveAdminWebhookUrl(),
           webhookSecretConfigured,
         },
         { status: 400 }
       );
     }
+
+    return NextResponse.json({
+      success: true,
+      message: `Conexión con Stripe exitosa (modo ${validation.mode?.toUpperCase()})`,
+      mode: validation.mode,
+      accountId: validation.accountId,
+      accountName: validation.accountName,
+      chargesEnabled: validation.chargesEnabled,
+      connectTransfersEnabled: validation.connectTransfersEnabled,
+      webhookEndpoint: resolveAdminWebhookUrl(),
+      webhookSecretConfigured,
+      webhookSecretHint: webhookSecretConfigured
+        ? 'Webhook secret ya configurado'
+        : 'Al guardar las claves, el webhook se configurará automáticamente',
+    });
   } catch (error) {
     console.error('Error testing Stripe connection:', error);
     return NextResponse.json(

@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { createAdvertiser } from '@autodealers/core';
+import { createAdvertiser, resolvePlatformAdminName } from '@autodealers/core';
 
-/**
- * Crea un anunciante desde el panel admin.
- * Genera un usuario en Firebase Auth con password aleatoria.
- */
 export async function POST(request: NextRequest) {
   try {
     const auth = await verifyAuth(request);
@@ -22,31 +18,50 @@ export async function POST(request: NextRequest) {
       website = '',
       industry = 'other',
       plan = 'starter',
+      assignedAdminId = '',
     } = body;
 
     if (!email || !companyName || !contactName) {
       return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 });
     }
 
-    const advertiser = await createAdvertiser({
-      email,
-      companyName,
-      contactName,
-      phone,
-      website,
-      industry,
-      status: 'pending',
-      plan,
-    } as any);
+    const createdByName =
+      (await resolvePlatformAdminName(auth.userId)) || auth.email || 'Admin';
+
+    let assignedAdminName: string | undefined;
+    const normalizedAssignee = String(assignedAdminId || '').trim();
+    if (normalizedAssignee) {
+      assignedAdminName = await resolvePlatformAdminName(normalizedAssignee);
+      if (!assignedAdminName) {
+        return NextResponse.json({ error: 'Administrador asignado no encontrado' }, { status: 404 });
+      }
+    }
+
+    const advertiser = await createAdvertiser(
+      {
+        email,
+        companyName,
+        contactName,
+        phone,
+        website,
+        industry,
+        status: 'active',
+        plan,
+      } as Parameters<typeof createAdvertiser>[0],
+      {
+        registrationSource: 'admin',
+        createdBy: auth.userId,
+        createdByName,
+        assignedAdminId: normalizedAssignee || undefined,
+        assignedAdminName,
+        assignedBy: auth.userId,
+      }
+    );
 
     return NextResponse.json({ success: true, advertiser });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error creating advertiser:', error);
-    return NextResponse.json(
-      { error: error.message || 'Error al crear anunciante' },
-      { status: 500 }
-    );
+    const message = error instanceof Error ? error.message : 'Error al crear anunciante';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-
-

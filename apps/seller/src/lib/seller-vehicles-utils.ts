@@ -11,6 +11,14 @@ export type SellerVehicleRow = Record<string, unknown> & {
   publishedOnPublicPage?: boolean;
 };
 
+/** Opciones de sincronización de inventario del dealer (vendedores dealer-managed). */
+export type SellerInventorySyncOptions = {
+  /** El vendedor activó "sincronizar todo el inventario del dealer". */
+  syncDealerInventory?: boolean;
+  /** Tenant del dealer cuya totalidad de inventario se sincroniza. */
+  dealerTenantId?: string;
+};
+
 function isExcludedStatus(vehicle: SellerVehicleRow): boolean {
   const st = String(vehicle.status ?? '')
     .toLowerCase()
@@ -19,6 +27,19 @@ function isExcludedStatus(vehicle: SellerVehicleRow): boolean {
   if (vehicle.deleted === true) return true;
   if (st === 'sold' || st === 'deleted') return true;
   return false;
+}
+
+function isHidden(vehicle: SellerVehicleRow): boolean {
+  return (
+    String(vehicle.status ?? '')
+      .toLowerCase()
+      .trim() === 'hidden'
+  );
+}
+
+/** True si la fila vive en el tenant del dealer (documento controlado por el dealer). */
+function isDealerRow(vehicle: SellerVehicleRow, dealerTenantId?: string): boolean {
+  return Boolean(dealerTenantId && vehicle.tenantId === dealerTenantId);
 }
 
 export function vehicleBelongsToSeller(vehicle: SellerVehicleRow, sellerId: string): boolean {
@@ -46,23 +67,59 @@ export function isPublishedOnPublicPage(_vehicle: SellerVehicleRow): boolean {
 
 /**
  * Inventario que el vendedor ve en su panel (excluye vendidos / inactivos).
+ * Con sync activo incluye además todo el inventario listable del dealer.
+ * Los vehículos que viven en el tenant del dealer y están ocultos NO se muestran
+ * (el vendedor no controla ese documento).
  */
 export function filterSellerWorkspaceInventory(
   vehicles: SellerVehicleRow[],
-  sellerId: string
+  sellerId: string,
+  options?: SellerInventorySyncOptions
 ): SellerVehicleRow[] {
-  const owned = filterVehiclesOwnedBySeller(vehicles, sellerId);
-  return owned.filter((v) => !isExcludedStatus(v));
+  const dealerTenantId = options?.dealerTenantId;
+  const owned = filterVehiclesOwnedBySeller(vehicles, sellerId).filter((v) => {
+    if (isExcludedStatus(v)) return false;
+    // Oculto por el dealer en el tenant del dealer → no visible para el vendedor
+    if (isDealerRow(v, dealerTenantId) && isHidden(v)) return false;
+    return true;
+  });
+
+  if (!options?.syncDealerInventory || !dealerTenantId) return owned;
+
+  const ownedIds = new Set(owned.map((v) => v.id));
+  const dealerInventory = vehicles.filter(
+    (v) =>
+      isDealerRow(v, dealerTenantId) &&
+      !ownedIds.has(v.id) &&
+      !isExcludedStatus(v) &&
+      !isHidden(v)
+  );
+  return [...owned, ...dealerInventory];
 }
 
 /** Vehículos que deben aparecer en /seller/[id] y catálogo público del vendedor. */
 export function filterSellerPublicCatalogVehicles(
   vehicles: SellerVehicleRow[],
   sellerId: string,
-  options?: { tenantPrimarySellerId?: string }
+  options?: { tenantPrimarySellerId?: string } & SellerInventorySyncOptions
 ): SellerVehicleRow[] {
-  const listable = vehicles.filter((v) => !isExcludedStatus(v));
+  const dealerTenantId = options?.dealerTenantId;
+  const listable = vehicles.filter((v) => {
+    if (isExcludedStatus(v)) return false;
+    if (isDealerRow(v, dealerTenantId) && isHidden(v)) return false;
+    return true;
+  });
   const mine = listable.filter((v) => vehicleBelongsToSeller(v, sellerId));
+
+  // Sync activo: el catálogo del vendedor incluye todo el inventario del dealer
+  if (options?.syncDealerInventory && dealerTenantId) {
+    const mineIds = new Set(mine.map((v) => v.id));
+    const dealerInventory = listable.filter(
+      (v) => isDealerRow(v, dealerTenantId) && !mineIds.has(v.id)
+    );
+    return [...mine, ...dealerInventory];
+  }
+
   if (mine.length > 0) return mine;
 
   const primary = options?.tenantPrimarySellerId?.trim();

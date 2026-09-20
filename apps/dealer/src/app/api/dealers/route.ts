@@ -13,16 +13,68 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Obtener el dealer actual para verificar si tiene múltiples dealers asociados
     const currentUserDoc = await db.collection('users').doc(auth.userId).get();
     const currentUserData = currentUserDoc.data();
 
-    // Si el usuario tiene dealers asociados, obtenerlos
+    const networkId =
+      typeof currentUserData?.dealerNetworkId === 'string'
+        ? currentUserData.dealerNetworkId
+        : undefined;
     const associatedDealers = currentUserData?.associatedDealers || [];
 
-    const dealers: { id: string; name: string }[] = [];
+    const dealers: {
+      id: string;
+      name: string;
+      status?: string;
+      networkStatus?: string;
+      role?: string;
+      pending?: boolean;
+    }[] = [];
 
-    // Agregar el dealer actual
+    if (networkId) {
+      const networkDoc = await db.collection('dealer_networks').doc(networkId).get();
+      const network = networkDoc.data();
+      const roster = Array.isArray(network?.dealers) ? network.dealers : [];
+
+      for (const item of roster) {
+        const tenantId = typeof item.tenantId === 'string' ? item.tenantId : '';
+        if (!tenantId) {
+          dealers.push({
+            id: `pending:${String(item.name || item.displayName || 'dealer')}`,
+            name: String(item.displayName || item.name || 'Dealer pendiente'),
+            status: 'pending',
+            networkStatus: String(item.status || 'pending_tenant_link'),
+            role: String(item.role || 'member'),
+            pending: true,
+          });
+          continue;
+        }
+
+        const tenantDoc = await db.collection('tenants').doc(tenantId).get();
+        const tenantData = tenantDoc.data();
+        dealers.push({
+          id: tenantId,
+          name: String(item.displayName || tenantData?.name || tenantData?.companyName || 'Dealer'),
+          status: tenantData?.status || 'active',
+          networkStatus: String(item.status || 'active'),
+          role: String(item.role || 'member'),
+          pending: false,
+        });
+      }
+
+      return NextResponse.json({
+        dealers,
+        network: networkDoc.exists
+          ? {
+              id: networkDoc.id,
+              maxDealers: network?.maxDealers ?? null,
+              status: network?.status || 'active',
+              dealerNames: network?.dealerNames || [],
+            }
+          : null,
+      });
+    }
+
     const currentTenantDoc = await db.collection('tenants').doc(auth.tenantId).get();
     if (currentTenantDoc.exists) {
       const tenantData = currentTenantDoc.data();

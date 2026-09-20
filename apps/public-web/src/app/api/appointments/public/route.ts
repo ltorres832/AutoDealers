@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomBytes } from 'crypto';
-import { getTenantBySubdomain, canPerformAction } from '@autodealers/core';
+import { getFirestore, getTenantBySubdomain, canPerformAction } from '@autodealers/core';
 import {
   createLead,
   createAppointment,
   ensurePublicAppointmentTrackingDoc,
   addInteraction,
+  linkSellToDealerAppointment,
 } from '@autodealers/crm';
 import { getVehicleById, buildVehicleStockSnapshot } from '@autodealers/inventory';
 
@@ -13,6 +14,52 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 type PublicScheduleIntent = 'appointment' | 'test_drive_request';
+
+async function resolveActiveTenant(identifier: string): Promise<{ id: string; status?: string } | null> {
+  const value = identifier.trim();
+  if (!value) return null;
+
+  const bySubdomain = await getTenantBySubdomain(value);
+  if (bySubdomain && (bySubdomain as { status?: string }).status === 'active') {
+    return bySubdomain as { id: string; status?: string };
+  }
+
+  const doc = await getFirestore().collection('tenants').doc(value).get();
+  if (!doc.exists) return null;
+  const data = doc.data() || {};
+  if (data.status !== 'active') return null;
+  return { id: doc.id, status: data.status };
+}
+
+async function resolveDefaultSellerId(tenantId: string): Promise<string> {
+  const db = getFirestore();
+  const tenantSnap = await db.collection('tenants').doc(tenantId).get();
+  const tenantData = tenantSnap.data() || {};
+  const sellerInfo = tenantData.sellerInfo as Record<string, unknown> | undefined;
+  const sellerInfoId = typeof sellerInfo?.id === 'string' ? sellerInfo.id.trim() : '';
+  if (sellerInfoId) return sellerInfoId;
+
+  const tenantOwnerId = typeof tenantData.ownerId === 'string' ? tenantData.ownerId.trim() : '';
+  if (tenantData.type === 'seller' && tenantOwnerId) return tenantOwnerId;
+
+  const directSellerSnap = await db
+    .collection('users')
+    .where('tenantId', '==', tenantId)
+    .where('role', '==', 'seller')
+    .limit(1)
+    .get();
+  if (!directSellerSnap.empty) return directSellerSnap.docs[0].id;
+
+  const dealerSellerSnap = await db
+    .collection('users')
+    .where('dealerId', '==', tenantId)
+    .where('role', '==', 'seller')
+    .limit(1)
+    .get();
+  if (!dealerSellerSnap.empty) return dealerSellerSnap.docs[0].id;
+
+  return tenantOwnerId;
+}
 
 /**
  * Solicitud pública: crea lead (inventario + token). Cita en calendario si aplica.
@@ -33,12 +80,13 @@ export async function POST(request: NextRequest) {
       notes,
       intent: intentRaw,
       driverLicense: driverLicenseRaw,
+      sellToDealerToken: sellToDealerTokenRaw,
     } = body;
 
     const intent: PublicScheduleIntent =
       intentRaw === 'test_drive_request' ? 'test_drive_request' : 'appointment';
 
-    if (!subdomain || !name || !phone || !sellerId) {
+    if (!subdomain || !name || !phone) {
       return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 });
     }
 
@@ -62,12 +110,30 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const tenant = await getTenantBySubdomain(String(subdomain));
-    if (!tenant || (tenant as { status?: string }).status !== 'active') {
+    const tenant = await resolveActiveTenant(String(subdomain));
+    if (!tenant) {
       return NextResponse.json({ error: 'Concesionario no encontrado' }, { status: 404 });
     }
 
-    const tenantId = (tenant as { id: string }).id;
+    const tenantId = tenant.id;
+    const cleanSellerId = String(sellerId || '').trim() || (await resolveDefaultSellerId(tenantId));
+    if (!cleanSellerId) {
+      return NextResponse.json(
+        { error: 'No hay asesor disponible para recibir esta solicitud.' },
+        { status: 400 }
+      );
+    }
+
+    const sellerDoc = await getFirestore().collection('users').doc(cleanSellerId).get();
+    const sellerData = sellerDoc.data() || {};
+    const sellerBelongsToTenant =
+      sellerDoc.exists &&
+      (sellerData.tenantId === tenantId ||
+        sellerData.dealerId === tenantId ||
+        (Array.isArray(sellerData.associatedDealers) && sellerData.associatedDealers.includes(tenantId)));
+    if (!sellerBelongsToTenant) {
+      return NextResponse.json({ error: 'Vendedor no disponible para este concesionario' }, { status: 400 });
+    }
 
     const quota = await canPerformAction(tenantId, 'addLead');
     if (!quota.allowed) {
@@ -126,6 +192,15 @@ export async function POST(request: NextRequest) {
     const userNotes = notes != null && String(notes).trim() ? String(notes).trim() : '';
     const leadNotes = [userNotes, extraLines.join('\n')].filter(Boolean).join('\n\n').trim();
 
+    const tags = ['vendedor_propio', 'cita_publica'];
+    const sellToDealerToken =
+      sellToDealerTokenRaw != null && String(sellToDealerTokenRaw).trim()
+        ? String(sellToDealerTokenRaw).trim()
+        : '';
+    if (sellToDealerToken) {
+      tags.push('sell_to_dealer_closing');
+    }
+
     const lead = await createLead(
       tenantId,
       'web',
@@ -137,15 +212,15 @@ export async function POST(request: NextRequest) {
       },
       leadNotes || intentLabel,
       {
-        assignedTo: String(sellerId).trim(),
-        createdBy: String(sellerId).trim(),
+        assignedTo: cleanSellerId,
+        createdBy: cleanSellerId,
         sellerOwned: true,
         vehicleId: vid,
         vehicleStockNumber,
         vehicleStockSnapshot,
         publicTrackingToken: trackingToken,
         vehicleInterest,
-        tags: ['vendedor_propio', 'cita_publica'],
+        tags,
       }
     );
 
@@ -159,34 +234,43 @@ export async function POST(request: NextRequest) {
       if (Number.isNaN(scheduledAt.getTime())) {
         return NextResponse.json({ error: 'Fecha u hora no válidas' }, { status: 400 });
       }
-      appointment = await createAppointment({
-        tenantId,
-        leadId: lead.id,
-        assignedTo: String(sellerId).trim(),
-        vehicleIds: vid ? [vid] : [],
-        type: apptType,
-        scheduledAt,
-        duration: 60,
-        status: 'scheduled',
-      });
+      try {
+        appointment = await createAppointment({
+          tenantId,
+          leadId: lead.id,
+          assignedTo: cleanSellerId,
+          vehicleIds: vid ? [vid] : [],
+          type: apptType,
+          scheduledAt,
+          duration: 60,
+          status: 'scheduled',
+        });
+      } catch (appointmentError) {
+        if (intent === 'appointment') {
+          throw appointmentError;
+        }
+        console.warn('public test drive appointment creation skipped:', appointmentError);
+      }
     }
 
-    await ensurePublicAppointmentTrackingDoc(trackingToken, {
+    void ensurePublicAppointmentTrackingDoc(trackingToken, {
       tenantId,
       leadId: lead.id,
       subdomain: String(subdomain),
-    });
+    }).catch((e) => console.warn('public appointment tracking skipped:', e));
 
-    try {
-      await addInteraction(tenantId, lead.id, {
+    void addInteraction(tenantId, lead.id, {
         type: appointment ? 'appointment' : 'note',
         content: appointment
           ? `${intentLabel}. Cita (${apptType}) el ${new Date(appointment.scheduledAt).toLocaleString('es-ES')}.`
           : `${intentLabel}. Sin cita en calendario; el equipo contactará al cliente.`,
         userId: 'system',
-      });
-    } catch (e) {
-      console.warn('addInteraction public appointment skipped:', e);
+      }).catch((e) => console.warn('addInteraction public appointment skipped:', e));
+
+    if (sellToDealerToken && appointment?.id) {
+      void linkSellToDealerAppointment(sellToDealerToken, appointment.id).catch((e) =>
+        console.warn('linkSellToDealerAppointment skipped:', e)
+      );
     }
 
     return NextResponse.json({

@@ -3,9 +3,11 @@
 import { useEffect, useState } from 'react';
 import {
   buildMembershipDisplayLines,
+  parseMembershipFeatureLine,
   type DynamicFeatureCatalogEntry,
   type MembershipPlanKind,
 } from '../membership-display';
+import { ComingSoonBadge } from './ComingSoonBadge';
 
 export interface MembershipBenefitsDisplayProps {
   features: Record<string, unknown> | undefined;
@@ -33,6 +35,10 @@ export function MembershipBenefitsDisplay({
   useEffect(() => {
     if (dynamicCatalog?.length) {
       setCatalog(dynamicCatalog);
+      return;
+    }
+    if (!catalogUrl) {
+      setCatalog([]);
       return;
     }
     let cancelled = false;
@@ -83,12 +89,22 @@ export function MembershipBenefitsDisplay({
             className={`space-y-1 ${maxFeatureHeight ? 'overflow-y-auto pr-1' : ''}`}
             style={maxFeatureHeight ? { maxHeight: maxFeatureHeight } : undefined}
           >
-            {featureLines.map((line, i) => (
-              <li key={`feat-${i}`} className="text-sm text-gray-700 leading-snug">
-                <span className="text-green-600 mr-1">✓</span>
-                {line.replace(/^[\p{Extended_Pictographic}\uFE0F\u200D]+\s*/u, '')}
-              </li>
-            ))}
+            {featureLines.map((line, i) => {
+              const { text, comingSoon } = parseMembershipFeatureLine(line);
+              const clean = text.replace(/^[\p{Extended_Pictographic}\uFE0F\u200D]+\s*/u, '');
+              return (
+                <li key={`feat-${i}`} className="text-sm text-gray-700 leading-snug">
+                  <span className="text-green-600 mr-1">✓</span>
+                  {clean}
+                  {comingSoon ? (
+                    <>
+                      {' '}
+                      <ComingSoonBadge />
+                    </>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

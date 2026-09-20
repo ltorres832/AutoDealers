@@ -27,6 +27,7 @@ export {
 } from './components/PublishVehicleToSocialModal';
 export {
   playNotificationSound,
+  resolveNotificationRoute,
   showBrowserNotification,
   requestBrowserNotificationPermission,
   NOTIFICATION_SOUND_DATA_URI,
@@ -35,6 +36,19 @@ export { useNotificationAlerts, type AlertableNotification } from './notificatio
 export { registerWebPushToken, unregisterWebPushToken } from './notifications/register-web-push';
 export { NotificationAlertsBootstrap } from './notifications/NotificationAlertsBootstrap';
 export { NotificationSettingsForm, type NotificationPrefsPayload } from './components/NotificationSettingsForm';
+export { PlatformSupportPanel } from './components/PlatformSupportPanel';
+export { WhatsAppSupportLink } from './components/WhatsAppSupportLink';
+export { WhatsAppSupportOptions, type WhatsAppSupportOption } from './components/WhatsAppSupportOptions';
+export {
+  PLATFORM_SUPPORT_WHATSAPP_OPTIONS,
+  PLATFORM_SUPPORT_WHATSAPP_MESSAGE,
+  buildPlatformSupportWhatsAppOptions,
+} from './platform-support-whatsapp';
+export { WhatsAppInboxPanel } from './components/WhatsAppInboxPanel';
+export type {
+  WhatsAppInboxConversation,
+  WhatsAppInboxMessage,
+} from './components/WhatsAppInboxPanel';
 export { BillingAccessBanner } from './components/BillingAccessBanner';
 export { MembershipOnboardingBanner } from './components/MembershipOnboardingBanner';
 export { MembershipOnboardingNotice } from './components/MembershipOnboardingNotice';

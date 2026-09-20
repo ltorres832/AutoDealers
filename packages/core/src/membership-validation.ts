@@ -1,20 +1,96 @@
 // Validación automática de membresías y features
 
+import { getFirestore } from './firebase';
 import { getTenantById } from './tenants';
 import { getSubUsers } from './sub-users';
 
+function getDb() {
+  return getFirestore();
+}
+
 /**
- * Obtiene la membresía activa de un tenant
+ * Resuelve el ID del plan activo de un tenant (tenant, suscripción o usuario).
+ */
+export async function resolveTenantMembershipId(tenantId: string): Promise<string | null> {
+  const tid = tenantId?.trim();
+  if (!tid) return null;
+
+  const tenant = await getTenantById(tid);
+  const tenantMembershipId =
+    typeof tenant?.membershipId === 'string' ? tenant.membershipId.trim() : '';
+  if (tenantMembershipId) return tenantMembershipId;
+
+  try {
+    const { getSubscriptionByTenantId } = await import('@autodealers/billing');
+    const sub = await getSubscriptionByTenantId(tid);
+    const subMembershipId =
+      typeof sub?.membershipId === 'string' ? sub.membershipId.trim() : '';
+    if (subMembershipId && (sub?.status === 'active' || sub?.status === 'trialing')) {
+      return subMembershipId;
+    }
+  } catch {
+    /* non-critical */
+  }
+
+  const tenantExtra = tenant as { ownerId?: string } | null;
+  const ownerId =
+    typeof tenantExtra?.ownerId === 'string' ? tenantExtra.ownerId.trim() : '';
+  if (ownerId) {
+    const ownerDoc = await getDb().collection('users').doc(ownerId).get();
+    const ownerMembershipId =
+      typeof ownerDoc.data()?.membershipId === 'string'
+        ? ownerDoc.data()!.membershipId.trim()
+        : '';
+    if (ownerMembershipId) return ownerMembershipId;
+  }
+
+  const usersSnap = await getDb()
+    .collection('users')
+    .where('tenantId', '==', tid)
+    .limit(10)
+    .get();
+  for (const userDoc of usersSnap.docs) {
+    const userMembershipId =
+      typeof userDoc.data()?.membershipId === 'string'
+        ? userDoc.data()!.membershipId.trim()
+        : '';
+    if (userMembershipId) return userMembershipId;
+  }
+
+  return null;
+}
+
+/**
+ * Features del plan en vivo (siempre lee `memberships/{id}`; sin caché de 1h).
+ */
+export async function getTenantMembershipFeatures(
+  tenantId: string
+): Promise<Record<string, unknown> | null> {
+  const membership = await getTenantMembership(tenantId);
+  if (membership?.features) {
+    return membership.features as unknown as Record<string, unknown>;
+  }
+
+  const tenant = await getTenantById(tenantId);
+  const cached = (tenant as { featuresCache?: Record<string, unknown> } | null)?.featuresCache;
+  if (cached && typeof cached === 'object') {
+    return cached;
+  }
+
+  return null;
+}
+
+/**
+ * Obtiene la membresía activa de un tenant (lectura fresca desde Firestore).
  */
 export async function getTenantMembership(tenantId: string) {
-  const tenant = await getTenantById(tenantId);
-  if (!tenant || !tenant.membershipId) {
+  const membershipId = await resolveTenantMembershipId(tenantId);
+  if (!membershipId) {
     return null;
   }
 
-  // Import dinámico para evitar dependencia circular
   const { getMembershipById } = await import('@autodealers/billing');
-  return await getMembershipById(tenant.membershipId);
+  return await getMembershipById(membershipId);
 }
 
 /**

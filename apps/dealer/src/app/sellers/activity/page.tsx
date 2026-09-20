@@ -14,11 +14,16 @@ interface SellerActivity {
     totalRevenue: number;
     totalAppointments: number;
     totalCampaigns: number;
+    totalPromotions?: number;
+    totalSocialPosts?: number;
+    scheduledSocialPosts?: number;
   };
   recentLeads: any[];
   recentSales: any[];
   recentAppointments: any[];
   recentCampaigns: any[];
+  recentPromotions?: any[];
+  recentSocialPosts?: any[];
 }
 
 export default function SellersActivityPage() {
@@ -172,7 +177,7 @@ export default function SellersActivityPage() {
             </div>
 
             {/* Estadísticas */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
               <div>
                 <p className="text-sm text-gray-600">Leads</p>
                 <p className="text-2xl font-bold">{activity.stats.totalLeads}</p>
@@ -193,6 +198,11 @@ export default function SellersActivityPage() {
               <div>
                 <p className="text-sm text-gray-600">Campañas</p>
                 <p className="text-2xl font-bold">{activity.stats.totalCampaigns}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Redes</p>
+                <p className="text-2xl font-bold">{activity.stats.totalSocialPosts || 0}</p>
+                <p className="text-xs text-gray-500">{activity.stats.scheduledSocialPosts || 0} programados</p>
               </div>
             </div>
 
@@ -271,7 +281,7 @@ export default function SellersActivityPage() {
                       <div>
                         <p className="font-medium">{apt.vehicle?.name || 'Cita'}</p>
                         <p className="text-sm text-gray-600">
-                          {new Date(apt.date).toLocaleDateString()} {apt.time}
+                          {new Date(apt.date || apt.scheduledAt).toLocaleDateString()} {apt.time}
                         </p>
                       </div>
                       <span className={`px-2 py-1 rounded text-xs ${
@@ -281,6 +291,72 @@ export default function SellersActivityPage() {
                       }`}>
                         {apt.status}
                       </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Campañas */}
+            {(activity.recentCampaigns?.length || 0) > 0 && (
+              <div className="mb-4">
+                <h3 className="font-semibold mb-2">Campañas</h3>
+                <div className="space-y-2">
+                  {activity.recentCampaigns.slice(0, 5).map((c: any) => (
+                    <div key={c.id} className="flex justify-between items-center p-3 bg-slate-50 rounded">
+                      <div>
+                        <p className="font-medium">{c.name || 'Campaña'}</p>
+                        <p className="text-xs text-gray-500">
+                          {(c.platforms || []).join(', ') || '—'} · {c.status}
+                        </p>
+                      </div>
+                      <Link href={`/campaigns?sellerId=${activity.sellerId}`} className="text-xs text-primary-600">
+                        Ver
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Promociones */}
+            {(activity.recentPromotions?.length || 0) > 0 && (
+              <div className="mb-4">
+                <h3 className="font-semibold mb-2">Promociones</h3>
+                <div className="space-y-2">
+                  {activity.recentPromotions!.slice(0, 5).map((p: any) => (
+                    <div key={p.id} className="flex justify-between items-center p-3 bg-amber-50 rounded">
+                      <div>
+                        <p className="font-medium">{p.name || 'Promoción'}</p>
+                        <p className="text-xs text-gray-500">{p.status}</p>
+                      </div>
+                      <Link href={`/promotions?sellerId=${activity.sellerId}`} className="text-xs text-primary-600">
+                        Ver
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Redes */}
+            {(activity.recentSocialPosts?.length || 0) > 0 && (
+              <div className="mb-4">
+                <h3 className="font-semibold mb-2">Publicaciones en redes</h3>
+                <div className="space-y-2">
+                  {activity.recentSocialPosts!.slice(0, 5).map((p: any) => (
+                    <div key={p.id} className="flex justify-between items-center p-3 bg-indigo-50 rounded">
+                      <div>
+                        <p className="font-medium text-sm line-clamp-2">
+                          {p.content?.text || 'Publicación'}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {(p.platforms || []).join(', ')} · {p.status}
+                        </p>
+                      </div>
+                      <Link href={`/social-posts?sellerId=${activity.sellerId}`} className="text-xs text-primary-600">
+                        Ver
+                      </Link>
                     </div>
                   ))}
                 </div>

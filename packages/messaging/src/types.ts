@@ -5,7 +5,8 @@ export type MessageChannel =
   | 'facebook'
   | 'instagram'
   | 'email'
-  | 'sms';
+  | 'sms'
+  | 'phone';
 
 export type MessageDirection = 'inbound' | 'outbound';
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getFirestore } from '@autodealers/shared';
+import { getFirestore, activationSchedulePatch } from '@autodealers/core';
 import * as admin from 'firebase-admin';
 
 const db = getFirestore();
@@ -16,10 +16,16 @@ export async function POST(
     }
 
     const { id } = await params;
+    const ref = db.collection('sponsored_content').doc(id);
+    const snap = await ref.get();
+    if (!snap.exists) {
+      return NextResponse.json({ error: 'Anuncio no encontrado' }, { status: 404 });
+    }
 
-    await db.collection('sponsored_content').doc(id).update({
+    await ref.update({
       status: 'active',
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      ...activationSchedulePatch((snap.data() || {}) as Record<string, unknown>),
     });
 
     return NextResponse.json({ success: true });

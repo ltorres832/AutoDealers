@@ -3,12 +3,33 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import BackButton from '@/components/BackButton';
+import { tenantHostSuffix } from '@autodealers/shared/platform-urls';
+import { WebsiteHeroMediaEditor } from '@autodealers/shared/components/WebsiteHeroMediaEditor';
+import {
+  normalizeWebsiteHeroMedia,
+  type WebsiteHeroMediaMode,
+} from '@autodealers/shared/website-hero-media';
+
+const DEFAULT_HERO_TITLE = 'Encuentra el vehículo perfecto para ti';
+const DEFAULT_HERO_SUBTITLE = 'Tenemos la mejor selección de vehículos';
+const DEFAULT_HERO_CTA = 'Ver Inventario';
+
+type HeroForm = {
+  title: string;
+  subtitle: string;
+  ctaText: string;
+  mediaMode: WebsiteHeroMediaMode;
+  backgroundImage?: string;
+  backgroundVideoUrl?: string;
+};
 
 export default function EditTenantPage() {
   const params = useParams();
   const router = useRouter();
+  const tenantId = String(params.id || '');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [mediaUploading, setMediaUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
@@ -31,6 +52,12 @@ export default function EditTenantPage() {
       logo: '',
       favicon: '',
     },
+    hero: {
+      title: DEFAULT_HERO_TITLE,
+      subtitle: DEFAULT_HERO_SUBTITLE,
+      ctaText: DEFAULT_HERO_CTA,
+      mediaMode: 'gradient' as WebsiteHeroMediaMode,
+    } satisfies HeroForm,
     settingsJson: '{}',
   });
 
@@ -49,6 +76,11 @@ export default function EditTenantPage() {
         return;
       }
       const t = data.tenant;
+      const wsHero =
+        t.websiteSettings?.hero && typeof t.websiteSettings.hero === 'object'
+          ? t.websiteSettings.hero
+          : {};
+      const media = normalizeWebsiteHeroMedia(wsHero);
       setFormData({
         name: t.name || '',
         type: t.type === 'seller' ? 'seller' : 'dealer',
@@ -69,12 +101,59 @@ export default function EditTenantPage() {
           logo: (t.branding?.logo || t.branding?.logoUrl || '') as string,
           favicon: (t.branding?.favicon || t.branding?.faviconUrl || '') as string,
         },
-        settingsJson: JSON.stringify(t.settings && typeof t.settings === 'object' ? t.settings : {}, null, 2),
+        hero: {
+          title:
+            typeof wsHero.title === 'string' && wsHero.title.trim()
+              ? wsHero.title.trim()
+              : DEFAULT_HERO_TITLE,
+          subtitle:
+            typeof wsHero.subtitle === 'string' && wsHero.subtitle.trim()
+              ? wsHero.subtitle.trim()
+              : DEFAULT_HERO_SUBTITLE,
+          ctaText:
+            typeof wsHero.ctaText === 'string' && wsHero.ctaText.trim()
+              ? wsHero.ctaText.trim()
+              : DEFAULT_HERO_CTA,
+          mediaMode: media.mediaMode,
+          backgroundImage: media.backgroundImage,
+          backgroundVideoUrl: media.backgroundVideoUrl,
+        },
+        settingsJson: JSON.stringify(
+          t.settings && typeof t.settings === 'object' ? t.settings : {},
+          null,
+          2
+        ),
       });
     } catch (e) {
       setError('Error de red al cargar el tenant');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function uploadWebsiteHeroFile(
+    file: File,
+    type: 'website_hero_image' | 'website_hero_video'
+  ): Promise<string | null> {
+    setMediaUploading(true);
+    try {
+      const { fetchWithAuth } = await import('@/lib/fetch-with-auth');
+      const form = new FormData();
+      form.append('file', file);
+      form.append('type', type);
+      form.append('tenantId', tenantId);
+      const res = await fetchWithAuth('/api/upload', { method: 'POST', body: form });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(typeof data.error === 'string' ? data.error : 'Error al subir el archivo');
+        return null;
+      }
+      return typeof data.url === 'string' ? data.url : null;
+    } catch {
+      setError('Error de red al subir el archivo');
+      return null;
+    } finally {
+      setMediaUploading(false);
     }
   }
 
@@ -107,6 +186,15 @@ export default function EditTenantPage() {
       branding.faviconUrl = formData.branding.favicon.trim();
     }
 
+    const heroPayload: Record<string, unknown> = {
+      title: formData.hero.title.trim() || DEFAULT_HERO_TITLE,
+      subtitle: formData.hero.subtitle.trim() || DEFAULT_HERO_SUBTITLE,
+      ctaText: formData.hero.ctaText.trim() || DEFAULT_HERO_CTA,
+      mediaMode: formData.hero.mediaMode || 'gradient',
+      backgroundImage: formData.hero.backgroundImage?.trim() || '',
+      backgroundVideoUrl: formData.hero.backgroundVideoUrl?.trim() || '',
+    };
+
     const body: Record<string, unknown> = {
       name: formData.name.trim(),
       companyName: formData.type === 'dealer' ? formData.companyName.trim() || null : null,
@@ -122,6 +210,9 @@ export default function EditTenantPage() {
       approvedByAdmin: formData.approvedByAdmin,
       branding,
       settings,
+      websiteSettings: {
+        hero: heroPayload,
+      },
     };
 
     try {
@@ -159,7 +250,8 @@ export default function EditTenantPage() {
       <h1 className="text-3xl font-bold mb-2">Editar tenant</h1>
       <p className="text-sm text-gray-600 mb-6">
         Tipo de tenant: <strong className="capitalize">{formData.type}</strong> (no se puede cambiar aquí). Puedes
-        corregir el <strong>ownerId</strong> (UID Firebase del titular) y el contacto público web.
+        corregir el <strong>ownerId</strong> (UID Firebase del titular), el contacto público web y el fondo del
+        hero de su página pública.
       </p>
 
       {error && (
@@ -202,7 +294,7 @@ export default function EditTenantPage() {
                 className="flex-1 border rounded-l px-3 py-2"
                 placeholder="mi-dealer"
               />
-              <span className="border border-l-0 rounded-r px-3 py-2 bg-gray-50 text-sm">.autodealers.com</span>
+              <span className="border border-l-0 rounded-r px-3 py-2 bg-gray-50 text-sm">{tenantHostSuffix()}</span>
             </div>
           </div>
 
@@ -372,6 +464,79 @@ export default function EditTenantPage() {
           </div>
         </div>
 
+        <div className="border-t pt-4">
+          <h2 className="text-lg font-semibold mb-1">Hero de la página pública</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Aplica al catálogo/mini-sitio de este{' '}
+            {formData.type === 'dealer' ? 'dealer' : 'vendedor'}: gradiente por defecto, foto o video
+            (subida o link).
+          </p>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Título</label>
+              <input
+                type="text"
+                value={formData.hero.title}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    hero: { ...formData.hero, title: e.target.value },
+                  })
+                }
+                className="w-full border rounded px-3 py-2"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Subtítulo</label>
+              <input
+                type="text"
+                value={formData.hero.subtitle}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    hero: { ...formData.hero, subtitle: e.target.value },
+                  })
+                }
+                className="w-full border rounded px-3 py-2"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Texto del botón CTA</label>
+              <input
+                type="text"
+                value={formData.hero.ctaText}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    hero: { ...formData.hero, ctaText: e.target.value },
+                  })
+                }
+                className="w-full border rounded px-3 py-2"
+              />
+            </div>
+            <WebsiteHeroMediaEditor
+              mediaMode={formData.hero.mediaMode || 'gradient'}
+              backgroundImage={formData.hero.backgroundImage}
+              backgroundVideoUrl={formData.hero.backgroundVideoUrl}
+              uploading={mediaUploading}
+              disabled={saving}
+              onChange={(next) =>
+                setFormData({
+                  ...formData,
+                  hero: {
+                    ...formData.hero,
+                    mediaMode: next.mediaMode,
+                    backgroundImage: next.backgroundImage,
+                    backgroundVideoUrl: next.backgroundVideoUrl,
+                  },
+                })
+              }
+              onUploadImage={(file) => uploadWebsiteHeroFile(file, 'website_hero_image')}
+              onUploadVideo={(file) => uploadWebsiteHeroFile(file, 'website_hero_video')}
+            />
+          </div>
+        </div>
+
         <div>
           <label className="block text-sm font-medium mb-2">Settings (JSON avanzado)</label>
           <textarea
@@ -379,7 +544,9 @@ export default function EditTenantPage() {
             onChange={(e) => setFormData({ ...formData, settingsJson: e.target.value })}
             className="w-full border rounded px-3 py-2 font-mono text-xs min-h-[120px]"
           />
-          <p className="text-xs text-gray-500 mt-1">Objeto JSON. Cuidado: valores inválidos pueden afectar el panel del cliente.</p>
+          <p className="text-xs text-gray-500 mt-1">
+            Objeto JSON. Cuidado: valores inválidos pueden afectar el panel del cliente.
+          </p>
         </div>
 
         <div className="flex gap-2 justify-end pt-4 border-t">

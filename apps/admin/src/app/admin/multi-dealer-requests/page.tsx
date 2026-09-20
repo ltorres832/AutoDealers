@@ -8,8 +8,9 @@ interface MultiDealerRequest {
   email: string;
   name: string;
   phone: string;
-  membershipId: string;
+  membershipId?: string;
   membershipName?: string;
+  isLead?: boolean;
   // Información de la empresa
   companyName: string;
   companyAddress: string;
@@ -23,9 +24,10 @@ interface MultiDealerRequest {
   numberOfLocations?: number;
   yearsInBusiness?: number;
   currentInventory?: number;
-  expectedDealers: number;
+  expectedDealers?: number;
+  numberOfSellers?: number;
   // Información adicional
-  reasonForMultiDealer: string;
+  reasonForMultiDealer?: string;
   additionalInfo?: string;
   // Estado
   status: 'pending' | 'approved' | 'rejected' | 'expired';
@@ -109,7 +111,7 @@ export default function MultiDealerRequestsPage() {
       const data = await response.json();
 
       if (response.ok) {
-        alert('Solicitud aprobada exitosamente. El usuario tendrá acceso por 48 horas.');
+        alert(data.message || 'Solicitud aprobada exitosamente.');
         setShowApproveModal(false);
         setSelectedRequest(null);
         fetchRequests();
@@ -190,7 +192,7 @@ export default function MultiDealerRequestsPage() {
     <div className="p-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Solicitudes Multi Dealer</h1>
-        <p className="text-gray-600">Aprueba o rechaza solicitudes de acceso Multi Dealer (válido por 48 horas)</p>
+        <p className="text-gray-600">Solicitudes de información Multi Dealer. Al aprobar se crea la cuenta y se envía un correo para crear la contraseña.</p>
       </div>
 
       {/* Filtros */}
@@ -290,10 +292,10 @@ export default function MultiDealerRequestsPage() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{request.membershipName || request.membershipId}</div>
+                    <div className="text-sm text-gray-900">{request.membershipName || request.membershipId || 'Por asignar'}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{request.expectedDealers}</div>
+                    <div className="text-sm text-gray-900">{request.expectedDealers ?? '—'}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
@@ -335,7 +337,7 @@ export default function MultiDealerRequestsPage() {
                           onClick={() => {
                             setSelectedRequest(request);
                             // Mostrar detalles en modal
-                            alert(`Detalles:\n\nRazón: ${request.reasonForMultiDealer}\n\nInformación adicional: ${request.additionalInfo || 'N/A'}`);
+                            alert(`Detalles:\n\nConcesionarios: ${request.expectedDealers ?? '—'}\nVendedores: ${request.numberOfSellers ?? '—'}\n\nMensaje: ${request.reasonForMultiDealer || 'N/A'}\n\nInformación adicional: ${request.additionalInfo || 'N/A'}`);
                           }}
                           className="text-primary-600 hover:text-primary-900"
                         >
@@ -362,8 +364,9 @@ export default function MultiDealerRequestsPage() {
             <div className="mb-4 space-y-2">
               <p><strong>Solicitante:</strong> {selectedRequest.name} ({selectedRequest.email})</p>
               <p><strong>Empresa:</strong> {selectedRequest.companyName}</p>
-              <p><strong>Membresía:</strong> {selectedRequest.membershipName || selectedRequest.membershipId}</p>
-              <p><strong>Dealers esperados:</strong> {selectedRequest.expectedDealers}</p>
+              <p><strong>Membresía:</strong> {selectedRequest.membershipName || selectedRequest.membershipId || 'Por asignar'}</p>
+              <p><strong>Concesionarios:</strong> {selectedRequest.expectedDealers ?? '—'}</p>
+              <p><strong>Vendedores:</strong> {selectedRequest.numberOfSellers ?? '—'}</p>
               <div className="mt-4">
                 <p><strong>Razón:</strong></p>
                 <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded">{selectedRequest.reasonForMultiDealer}</p>
@@ -378,8 +381,7 @@ export default function MultiDealerRequestsPage() {
 
             <div className="mb-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
               <p className="text-yellow-800 text-sm">
-                ⚠️ <strong>Importante:</strong> Al aprobar esta solicitud, el usuario tendrá acceso a las membresías Multi Dealer por <strong>48 horas</strong>. 
-                Después de ese tiempo, deberá solicitar acceso nuevamente.
+                ⚠️ <strong>Importante:</strong> Al aprobar, se creará la cuenta Multi Dealer del solicitante y se le enviará un correo con un enlace para <strong>crear su contraseña</strong> e ingresar al portal dealer.
               </p>
             </div>
 
@@ -407,7 +409,7 @@ export default function MultiDealerRequestsPage() {
                 onClick={confirmApprove}
                 className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
               >
-                Aprobar (48 horas de acceso)
+                Aprobar y crear cuenta
               </button>
             </div>
           </div>

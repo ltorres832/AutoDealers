@@ -68,7 +68,7 @@ Proporciona recomendaciones para mejorar el ROI.
 Responde en formato JSON con recommendations (array):`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -151,7 +151,7 @@ Proporciona recomendaciones para optimizar el costo por lead.
 Responde en formato JSON con recommendations (array):`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -232,7 +232,7 @@ Sugiere:
 Responde en formato JSON:`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -305,7 +305,7 @@ Predice:
 Responde en formato JSON:`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',

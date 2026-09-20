@@ -38,7 +38,10 @@ export async function GET(request: NextRequest) {
         tenantId: user.tenantId,
         membershipId: user.membershipId,
         status: user.status,
-        mustChangePassword: user.mustChangePassword === true,
+        mustChangePassword: auth.supportMode ? false : user.mustChangePassword === true,
+        supportMode: auth.supportMode === true,
+        supportSessionId: auth.supportSessionId || null,
+        supportAdminEmail: auth.supportAdminEmail || null,
       },
     });
   } catch (error) {

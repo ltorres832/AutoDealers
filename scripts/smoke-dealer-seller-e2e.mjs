@@ -10,12 +10,10 @@ const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'autodealers-7f62e';
 const API_KEY =
   process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'AIzaSyDlPCtTMCZy4WXvhhyPOI9fac0LjN1jo44';
 
-const DEALER_ORIGIN =
-  process.env.SMOKE_DEALER_URL ||
-  'https://dealer-app--autodealers-7f62e.us-central1.hosted.app';
-const SELLER_ORIGIN =
-  process.env.SMOKE_SELLER_URL ||
-  'https://seller-app--autodealers-7f62e.us-central1.hosted.app';
+import { PLATFORM_URLS } from './platform-domains.mjs';
+
+const DEALER_ORIGIN = process.env.SMOKE_DEALER_URL || PLATFORM_URLS.dealer;
+const SELLER_ORIGIN = process.env.SMOKE_SELLER_URL || PLATFORM_URLS.seller;
 
 const RUN_ID = Date.now().toString(36);
 const DEALER_EMAIL = `smoke-dealer-${RUN_ID}@autodealers.test`;

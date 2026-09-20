@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { getFirestore } from '@autodealers/shared';
-import { getStripeInstance } from '@autodealers/core';
+import { getStripeInstance, activationSchedulePatch } from '@autodealers/core';
 import * as admin from 'firebase-admin';
 
 const db = getFirestore();
@@ -68,6 +68,7 @@ export async function POST(
       status: 'active',
       paidAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      ...activationSchedulePatch(adData as Record<string, unknown>),
     });
 
     return NextResponse.json({

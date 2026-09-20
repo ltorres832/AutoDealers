@@ -12,7 +12,7 @@ function getSessionSecret(): string {
     '';
   const trimmed = secret.trim();
   if (!trimmed) {
-    throw new Error('Falta secreto de sesión de empleado de ventas');
+    throw new Error('Falta secreto de sesión del portal de ventas');
   }
   return trimmed;
 }

@@ -7,6 +7,12 @@ service cloud.firestore {
       allow read: if true;
       allow write: if false;
     }
+
+    // Seguimiento público sell-to-dealer (cliente vende auto al dealer; NO trade-in)
+    match /sellToDealerTracking/{token} {
+      allow read: if true;
+      allow write: if false;
+    }
     
     // Helper functions
     function isAuthenticated() {
@@ -125,6 +131,17 @@ service cloud.firestore {
       allow delete: if isAdmin() || isDealer(tenantId) || isManagerOrAdmin(tenantId) ||
                        (isSeller(tenantId) && isSellerAssignedLead()) ||
                        isIndependentSellerTenant(tenantId);
+    }
+
+    // Sell-to-dealer: cliente vende su auto (sin compra). Solo staff del tenant + Admin SDK.
+    match /tenants/{tenantId}/sell_to_dealer_requests/{requestId} {
+      allow read: if isOwner(tenantId) || isSeller(tenantId);
+      allow create, update, delete: if false;
+
+      match /messages/{messageId} {
+        allow read: if isOwner(tenantId) || isSeller(tenantId);
+        allow create, update, delete: if false;
+      }
     }
 
     // Señales de interés en vehículos (clics catálogo público; sin PII). Escritura solo vía Admin SDK.
@@ -539,6 +556,11 @@ service cloud.firestore {
     }
 
     match /sales_employee_payment_links/{docId} {
+      allow read: if isAdmin() || ownsSalesEmployeeDoc();
+      allow write: if false;
+    }
+
+    match /sales_employee_ad_orders/{docId} {
       allow read: if isAdmin() || ownsSalesEmployeeDoc();
       allow write: if false;
     }

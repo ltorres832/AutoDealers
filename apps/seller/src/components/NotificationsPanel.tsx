@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRealtimeNotifications } from '@/hooks/useRealtimeNotifications';
+import { resolveNotificationRoute } from '@autodealers/shared/client';
 
 export default function NotificationsPanel() {
   const [user, setUser] = useState<any>(null);
@@ -49,6 +50,17 @@ export default function NotificationsPanel() {
       }
     } catch (error) {
       console.error('Error marking all as read:', error);
+    }
+  }
+
+  async function openNotification(notification: any) {
+    if (!notification.read) {
+      await markAsRead(notification.id);
+    }
+    const route = resolveNotificationRoute(notification.metadata || notification.data);
+    setIsOpen(false);
+    if (route) {
+      window.location.href = route;
     }
   }
 
@@ -112,7 +124,7 @@ export default function NotificationsPanel() {
                       className={`p-4 hover:bg-gray-50 cursor-pointer ${
                         !notification.read ? 'bg-primary-50' : ''
                       }`}
-                      onClick={() => !notification.read && markAsRead(notification.id)}
+                      onClick={() => void openNotification(notification)}
                     >
                       <div className="flex items-start gap-3">
                         <span className="text-2xl">{getNotificationIcon(notification.type)}</span>

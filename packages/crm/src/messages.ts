@@ -187,3 +187,44 @@ export async function updateMessageStatus(
     } as any);
 }
 
+/** Marca mensajes entrantes de un lead/canal como leídos (bandeja WhatsApp). */
+export async function markLeadChannelMessagesRead(
+  tenantId: string,
+  leadId: string,
+  channel: Message['channel']
+): Promise<number> {
+  const db = getDb();
+  const snapshot = await db
+    .collection('tenants')
+    .doc(tenantId)
+    .collection('messages')
+    .where('leadId', '==', leadId)
+    .where('channel', '==', channel)
+    .where('direction', '==', 'inbound')
+    .get();
+
+  if (snapshot.empty) return 0;
+
+  const batch = db.batch();
+  let count = 0;
+
+  for (const doc of snapshot.docs) {
+    const data = doc.data();
+    const alreadyRead =
+      data.isRead === true || data.metadata?.isRead === true;
+    if (alreadyRead) continue;
+    batch.update(doc.ref, {
+      isRead: true,
+      'metadata.isRead': true,
+      readAt: getFirestoreFieldValue().serverTimestamp(),
+    });
+    count++;
+  }
+
+  if (count > 0) {
+    await batch.commit();
+  }
+
+  return count;
+}
+

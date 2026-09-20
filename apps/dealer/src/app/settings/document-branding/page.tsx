@@ -376,7 +376,7 @@ export default function DocumentBrandingPage() {
                     value={config.platformName || ''}
                     onChange={(e) => updateConfig({ platformName: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-md"
-                    placeholder="AutoDealers"
+                    placeholder="AutoDealersOnline"
                   />
                 </div>
 
@@ -448,7 +448,7 @@ function DocumentPreview({ config }: { config: DocumentTypeConfig }) {
   }
 
   if (config.showPlatformName) {
-    names.push({ type: 'platform', label: 'AutoDealers' });
+    names.push({ type: 'platform', label: 'AutoDealersOnline' });
   }
   if (config.showDealerName) {
     names.push({ type: 'dealer', label: 'Mi Concesionario' });

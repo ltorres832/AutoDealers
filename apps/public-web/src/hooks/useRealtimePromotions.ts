@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { getFirebaseClient } from '../lib/firebase-client';
 import { collectionGroup, query, where, orderBy, limit as limitQuery, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import { isDemoPromoAccount, isKnownDemoId } from '@/lib/demo-account';
 
 interface Promotion {
   id: string;
@@ -71,6 +72,9 @@ export function useRealtimePromotions(limit: number = 12) {
         // Obtener información del tenant
         const tenantPath = doc.ref.path.split('/');
         const tenantId = tenantPath[1];
+        if (isKnownDemoId(tenantId) || isDemoPromoAccount(data as Record<string, unknown>, tenantId)) {
+          continue;
+        }
         let tenantName = 'Concesionario';
 
         // Usar Firebase Client SDK en lugar de Firebase Admin
@@ -79,6 +83,9 @@ export function useRealtimePromotions(limit: number = 12) {
           const tenantSnap = await getDoc(tenantRef);
           if (tenantSnap.exists()) {
             const tenantData = tenantSnap.data() as any;
+            if (isDemoPromoAccount(tenantData as Record<string, unknown>, tenantId)) {
+              continue;
+            }
             tenantName = tenantData?.name || tenantName;
           }
         } catch (error) {

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Workflow } from '@autodealers/crm';
 import { useRealtimeWorkflows } from '@/hooks/useRealtimeWorkflows';
+import { AdminDeleteButton } from '@/components/AdminDeleteButton';
 
 interface WorkflowsListProps {
   tenantId?: string; // Opcional para admin
@@ -177,6 +178,21 @@ export default function WorkflowsList({ tenantId }: WorkflowsListProps) {
                   <button className="px-3 py-1 text-sm bg-primary-100 text-primary-700 rounded hover:bg-primary-200">
                     Editar
                   </button>
+                  {(workflow as Workflow & { tenantId?: string }).tenantId || tenantId ? (
+                    <AdminDeleteButton
+                      deleteUrl={`/api/admin/workflows/${workflow.id}?tenantId=${encodeURIComponent(((workflow as Workflow & { tenantId?: string }).tenantId || tenantId)!)}`}
+                      label="Eliminar"
+                      onDeleted={() => {
+                        if (!tenantId) {
+                          fetch('/api/admin/workflows', { credentials: 'include' })
+                            .then((res) => res.json())
+                            .then((data) => setAllWorkflows(data.workflows || []))
+                            .catch(() => undefined);
+                        }
+                      }}
+                      className="px-3 py-1 text-sm rounded bg-red-100 text-red-700 hover:bg-red-200"
+                    />
+                  ) : null}
                 </div>
               </div>
             </div>

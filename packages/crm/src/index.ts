@@ -23,15 +23,26 @@ export {
 } from './public-appointment-tracking';
 export * from './sales';
 export { getTenantSales } from './sales';
+export * from './deals';
+export * from './compensation';
+export * from './bulk-import-leads';
+export * from './repair-orders';
+export * from './shop-estimates';
+export * from './dealer-finance';
+export * from './gl-export';
+export * from './payroll-hiring';
+export * from './hr-employees';
 export * from './post-sale';
 export * from './internal-messages';
 export * from './public-chat';
+export * from './sell-to-dealer';
 export * from './reviews';
 export * from './review-invites';
 // NO usar export * para customer-files - usar exportación explícita más abajo
 // export * from './customer-files';
 export * from './pre-qualification';
 export * from './finance-insurance';
+export * from './fi-email-reply-webhook';
 export {
   fiStatusToExpeditionStage,
   syncLinkedCustomerFileExpedition,

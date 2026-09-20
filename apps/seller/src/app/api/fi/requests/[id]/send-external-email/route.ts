@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { requireTenantFeature } from '@/lib/membership-middleware';
-import { getFirestore } from '@autodealers/core';
+import { getEmailCredentials, getFirestore, notifyFIDocumentEvent } from '@autodealers/core';
 import {
   generateAndStoreFIDocument,
   fiTemplateFilename,
@@ -199,7 +199,6 @@ export async function POST(
       });
     }
 
-    const { getEmailCredentials } = await import('@autodealers/core/src/credentials');
     const emailCreds = await getEmailCredentials();
     if (!emailCreds?.apiKey) {
       return NextResponse.json(
@@ -280,6 +279,16 @@ export async function POST(
         sentByName: userName,
         sentAt: admin.firestore.FieldValue.serverTimestamp(),
       });
+
+    await notifyFIDocumentEvent(user.tenantId, {
+      title: 'Email F&I enviado a tercero',
+      message: `${senderName} envió "${subject}" a ${to}${attachPdf ? ' con PDF adjunto' : ''}.`,
+      sellerId: user.userId,
+      excludeUserIds: [user.userId],
+      requestId: id,
+      clientId: fiRequest.clientId,
+      route: `/fi/requests/${id}`,
+    });
 
     return NextResponse.json({
       success: true,

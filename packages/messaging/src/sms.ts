@@ -1,6 +1,7 @@
 // Servicio de SMS (Twilio)
 
 import { MessagePayload, MessageResponse } from './types';
+import { normalizePlatformMessageText } from '@autodealers/shared/platform-sender';
 
 export class SMSService {
   private accountSid: string;
@@ -19,7 +20,7 @@ export class SMSService {
   async sendSMS(payload: MessagePayload): Promise<MessageResponse> {
     try {
       const auth = btoa(`${this.accountSid}:${this.authToken}`);
-      
+      const body = normalizePlatformMessageText(payload.content);
       const response = await fetch(
         `https://api.twilio.com/2010-04-01/Accounts/${this.accountSid}/Messages.json`,
         {
@@ -31,7 +32,7 @@ export class SMSService {
           body: new URLSearchParams({
             From: this.phoneNumber,
             To: payload.to,
-            Body: payload.content,
+            Body: body,
           }),
         }
       );

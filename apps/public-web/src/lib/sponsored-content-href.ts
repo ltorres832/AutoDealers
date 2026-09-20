@@ -1,3 +1,4 @@
+import { resolvePublicWebUrl } from '@autodealers/shared/platform-urls';
 import type { SponsoredLinkType } from '@/lib/sponsored-ad-link';
 
 /** Origen del marketplace público (evita `/` que reescribe a la web del vendedor por defecto). */
@@ -7,13 +8,13 @@ export function getPublicMarketplaceOrigin(): string {
   }
   return (
     process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') ||
-    'https://autodealers-7f62e.web.app'
+    resolvePublicWebUrl()
   );
 }
 
 /**
  * URL final del clic en contenido patrocinado.
- * La raíz `/` en autodealers-7f62e.web.app muestra la web del vendedor configurado (no el marketplace).
+ * La raíz `/` en www.autodealers-online.com muestra la web del vendedor configurado (no el marketplace).
  */
 export function resolveSponsoredContentHref(
   linkType?: SponsoredLinkType,

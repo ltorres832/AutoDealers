@@ -9,6 +9,7 @@ const ROOT_FILES = ['index.js', 'package.json', 'package-lock.json'];
 const CRON_LIB_FILES = [
   'lib/referrals/confirmation-cron.js',
   'lib/affiliates/payout-cron.js',
+  'lib/sales-employees/payout-cron.js',
   'lib/billing/process-overdue-cron.js',
   'lib/advertiser/process-ad-queue-cron.js',
   'lib/scheduler/platform-tasks-cron.js',
@@ -36,6 +37,7 @@ const MIN_WEBHOOK_BYTES = 500_000;
 const DEPLOYED_FUNCTION_NAMES = [
   'affiliatePayoutsWeekly',
   'confirmReferralRewardsDaily',
+  'salesEmployeePayoutsDaily',
   'facebookWebhookGet',
   'facebookWebhookPost',
   'instagramWebhookGet',
@@ -48,6 +50,8 @@ const DEPLOYED_FUNCTION_NAMES = [
   'twilioVoiceRecording',
   'twilioVoiceStatus',
   'twilioVoiceTwiml',
+  'twilioVoiceVoicemailComplete',
+  'twilioVoiceVoicemailMenu',
   'whatsappWebhookGet',
   'whatsappWebhookPost',
 ];
@@ -55,6 +59,7 @@ const DEPLOYED_FUNCTION_NAMES = [
 const INDEX_EXPORTS = [
   'affiliatePayoutsWeekly',
   'confirmReferralRewardsDaily',
+  'salesEmployeePayoutsDaily',
   'facebookWebhookGet',
   'facebookWebhookPost',
   'instagramWebhookGet',
@@ -67,6 +72,8 @@ const INDEX_EXPORTS = [
   'twilioVoiceRecording',
   'twilioVoiceStatus',
   'twilioVoiceTwiml',
+  'twilioVoiceVoicemailComplete',
+  'twilioVoiceVoicemailMenu',
   'whatsappWebhookGet',
   'whatsappWebhookPost',
 ];

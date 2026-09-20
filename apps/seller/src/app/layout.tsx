@@ -4,6 +4,7 @@ import './globals.css';
 import '../../../../packages/shared/src/styles/brand-surface.css';
 import SellerLayoutWrapper from './layout-wrapper';
 import { PlatformBrandingHead } from '@/components/PlatformBrandingHead';
+import { PlatformVisitTracker } from '@autodealers/shared/platform-visit-tracker';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -17,7 +18,7 @@ export const viewport: Viewport = {
 const platformBrandIcon = '/brand/ad-platform-logo.png';
 
 export const metadata: Metadata = {
-  title: 'AutoDealers - Dashboard Vendedor',
+  title: 'AutoDealersOnline - Dashboard Vendedor',
   description: 'Dashboard para vendedores',
   icons: {
     icon: [
@@ -52,10 +53,13 @@ export default function RootLayout({
                       localStorage.removeItem('authToken');
                       return;
                     }
-                    if (tokenValue && tokenValue.length < 200) {
+                    if (tokenValue && tokenValue.length < 200 && !tokenValue.startsWith('sup1.')) {
                       try {
                         const decoded = atob(tokenValue);
                         const sessionData = JSON.parse(decoded);
+                        if (sessionData.support === true) {
+                          return;
+                        }
                         if (sessionData.role && sessionData.role !== 'seller') {
                           document.cookie = 'authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
                           document.cookie = 'authToken=; path=/seller; expires=Thu, 01 Jan 1970 00:00:00 GMT';
@@ -81,6 +85,7 @@ export default function RootLayout({
       </head>
       <body className={`${inter.className} brand-top-accent min-h-[100dvh] overflow-x-hidden antialiased`}>
         <PlatformBrandingHead />
+        <PlatformVisitTracker app="seller" />
         <SellerLayoutWrapper>{children}</SellerLayoutWrapper>
       </body>
     </html>

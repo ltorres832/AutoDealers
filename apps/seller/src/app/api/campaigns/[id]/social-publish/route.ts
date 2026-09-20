@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { getFirestore } from '@autodealers/core';
+import { resolvePublicWebUrl } from '@autodealers/shared/platform-urls';
 import * as admin from 'firebase-admin';
 import { SocialPublisherService, type PublishResult, MetaMarketingPublisherService } from '@autodealers/messaging';
 import {
@@ -81,9 +82,7 @@ export async function POST(
         String(d.name ?? '')
       );
       const adsPub = new MetaMarketingPublisherService();
-      const publicWebBase = (
-        process.env.NEXT_PUBLIC_PUBLIC_WEB_URL || 'https://autodealers-7f62e.web.app'
-      ).replace(/\/$/, '');
+      const publicWebBase = resolvePublicWebUrl();
       const landingUrl =
         campaignContentLink(d.content) ||
         (auth.userId ? `${publicWebBase}/seller/${auth.userId}` : '') ||

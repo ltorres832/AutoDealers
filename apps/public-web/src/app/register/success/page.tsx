@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { trackMetaEventOnce } from '@/lib/meta-pixel';
 
 // SUPRIMIR COMPLETAMENTE TODOS LOS ERRORES DE FIREBASE EN ESTA PÁGINA
 if (typeof window !== 'undefined') {
@@ -67,6 +68,10 @@ function SuccessContent() {
           setTrialing(Boolean(data.trialing));
           setTrialEndsAt(data.trialEndsAt ?? null);
           setLoading(false);
+          trackMetaEventOnce(`reg_${sessionId}`, 'CompleteRegistration', {
+            content_name: 'membership',
+            status: data.trialing ? 'trialing' : 'paid',
+          });
           return;
         } else {
           attempts++;

@@ -46,7 +46,7 @@ Identifica leads que:
 Responde en formato JSON con escalatedLeads (array):`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -139,7 +139,7 @@ Recomienda el vendedor más adecuado basado en:
 Responde en formato JSON con recommendedSellerId, reasoning, y matchScore (0-100):`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -230,7 +230,7 @@ Programa 2-4 seguimientos estratégicos con:
 Responde en formato JSON con followups (array):`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -302,7 +302,7 @@ Analiza:
 Responde en formato JSON:`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',

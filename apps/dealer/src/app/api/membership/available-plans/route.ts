@@ -1,8 +1,12 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { getSelfServiceActiveMemberships } from '@autodealers/billing';
-import { getFirestore } from '@autodealers/core';
+import { getMembershipById, getSelfServiceActiveMemberships } from '@autodealers/billing';
+import {
+  filterDealerPlansForAccount,
+  getFirestore,
+  isDealerMultiDealerAccount,
+} from '@autodealers/core';
 
 const db = getFirestore();
 
@@ -21,12 +25,25 @@ export async function GET(request: NextRequest) {
     const currentMembershipId =
       tenantDoc.data()?.membershipId || userDoc.data()?.membershipId || null;
 
-    const allPlans = await getSelfServiceActiveMemberships('dealer');
-    const plans = currentMembershipId
-      ? allPlans.filter((plan) => plan.id !== currentMembershipId)
-      : allPlans;
+    let currentFeatures: unknown;
+    if (currentMembershipId) {
+      const current = await getMembershipById(currentMembershipId);
+      currentFeatures = current?.features;
+    }
 
-    return NextResponse.json({ plans, currentMembershipId });
+    const isMultiDealer = await isDealerMultiDealerAccount({
+      userId: auth.userId,
+      tenantId: auth.tenantId,
+      currentMembershipFeatures: currentFeatures,
+    });
+
+    const allPlans = await getSelfServiceActiveMemberships('dealer');
+    const catalog = filterDealerPlansForAccount(allPlans, isMultiDealer);
+    const plans = currentMembershipId
+      ? catalog.filter((plan) => plan.id !== currentMembershipId)
+      : catalog;
+
+    return NextResponse.json({ plans, currentMembershipId, isMultiDealer });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Internal server error';
     console.error('Error fetching available plans:', error);

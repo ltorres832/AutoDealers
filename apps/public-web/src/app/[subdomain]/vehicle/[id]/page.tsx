@@ -7,6 +7,7 @@ import PublicBackButton from '../../../../components/PublicBackButton';
 import { PublicSiteNavbarBrand } from '../../../../components/PublicSiteNavbarBrand';
 import StarRating from '../../../../components/StarRating';
 import ChatWidget from '../../../../components/ChatWidget';
+import VehicleServiceRecommendations from '../../../../components/VehicleServiceRecommendations';
 import { getVehiclePhotos, handleImageError } from '../../../../lib/vehicle-image';
 import { getCatalogClickContext } from '@/lib/catalog-vehicle-click';
 
@@ -1077,6 +1078,14 @@ export default function VehicleDetailPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 pb-12">
+        <VehicleServiceRecommendations
+          year={vehicle.year}
+          make={vehicle.make}
+          model={vehicle.model}
+        />
       </div>
 
       <style jsx>{`

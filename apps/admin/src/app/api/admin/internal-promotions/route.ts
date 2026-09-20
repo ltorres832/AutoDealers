@@ -42,10 +42,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ promotions });
   } catch (error: any) {
     console.error('Error fetching internal promotions:', error);
-    return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ promotions: [], warning: error.message || 'index_or_query' });
   }
 }
 
@@ -87,6 +84,8 @@ export async function POST(request: NextRequest) {
       isInternal: true,
       createdByAdmin: true,
       imageUrl: body.imageUrl,
+      images: Array.isArray(body.images) ? body.images : body.imageUrl ? [body.imageUrl] : [],
+      animation: body.animation || 'fade',
       placement: body.placement || 'promotions_section',
     });
 

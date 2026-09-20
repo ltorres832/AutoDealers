@@ -10,6 +10,7 @@ export type SellerClientUser = {
   role: string;
   tenantId?: string;
   dealerId?: string;
+  billingMode?: 'self_service' | 'dealer_managed';
   isIndependentWorkspace?: boolean;
   mustChangePassword?: boolean;
   createdByAdmin?: boolean;
@@ -48,20 +49,25 @@ export async function loadCurrentSellerUser(): Promise<SellerClientUser | null> 
     const cu = auth?.currentUser;
     if (!cu || !db) return null;
 
-    const snap = await getDoc(doc(db, 'users', cu.uid));
+    const cookieMatch = typeof document !== 'undefined'
+      ? document.cookie.match(/(?:^|; )authProfileId=([^;]+)/)
+      : null;
+    const profileId = cookieMatch ? decodeURIComponent(cookieMatch[1]) : cu.uid;
+    const snap = await getDoc(doc(db, 'users', profileId));
     if (!snap.exists()) return null;
 
     const d = snap.data();
     if (d?.role !== 'seller' || !d?.tenantId) return null;
 
     return {
-      id: cu.uid,
-      userId: cu.uid,
+      id: snap.id,
+      userId: snap.id,
       email: (d.email as string) || cu.email || '',
       name: (d.name as string) || cu.displayName || 'Vendedor',
       role: 'seller',
       tenantId: d.tenantId as string,
       dealerId: d.dealerId as string | undefined,
+      billingMode: d.billingMode as 'self_service' | 'dealer_managed' | undefined,
       mustChangePassword: d.mustChangePassword === true,
       createdByAdmin: d.createdByAdmin === true,
       adminMembershipSelectionRequired: d.adminMembershipSelectionRequired === true,

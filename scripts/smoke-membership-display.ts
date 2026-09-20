@@ -121,6 +121,48 @@ function main() {
     console.error('❌ Plan sparse: falta beneficio socialMediaEnabled');
     failed = true;
   }
+  if (seller.features.some((l) => l.includes('concesionario'))) {
+    console.error('❌ Plan seller no debe usar textos de concesionario en subdominio');
+    failed = true;
+  }
+  if (!seller.features.some((l) => l.includes('vendedor'))) {
+    console.error('❌ Plan seller: falta texto de subdominio para vendedor');
+    failed = true;
+  }
+
+  const sellerOrphanEmail = {
+    corporateEmailEnabled: false,
+    emailSignatureBasic: true,
+    maxCorporateEmails: 1,
+    maxInventory: 25,
+    customSubdomain: true,
+  };
+  const orphanDisplay = buildMembershipDisplayLines(sellerOrphanEmail, { planKind: 'seller' });
+  const emailOrphans = orphanDisplay.limits
+    .concat(orphanDisplay.features)
+    .filter((l) => /correo|email|firma|alias/i.test(l));
+  if (emailOrphans.length > 0) {
+    console.error('❌ Seller con corporateEmailEnabled=false no debe mostrar email/firmas:', emailOrphans);
+    failed = true;
+  }
+
+  const comingSoonNeedles = [
+    'Agente de Voz IA',
+    'Llamadas entrantes atendidas por IA',
+    'Llamadas de seguimiento automáticas',
+    'Citas de servicio/mantenimiento por voz',
+  ];
+  for (const needle of comingSoonNeedles) {
+    const line = dealer.features.find((l) => l.includes(needle));
+    if (!line || !line.includes('Próximamente')) {
+      console.error(`❌ Falta etiqueta Próximamente en: ${needle}`);
+      failed = true;
+    }
+  }
+  if (dealer.features.some((l) => l.includes('Campañas de llamadas') && l.includes('Próximamente'))) {
+    console.error('❌ Campañas de llamadas no debe marcarse Próximamente');
+    failed = true;
+  }
 
   if (failed) {
     process.exit(1);

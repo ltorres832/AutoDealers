@@ -330,7 +330,7 @@ function DocumentPreview({ config }: { config: DocumentTypeConfig }) {
   }
 
   if (config.showPlatformName) {
-    names.push({ type: 'platform', label: 'AutoDealers' });
+    names.push({ type: 'platform', label: 'AutoDealersOnline' });
   }
   if (config.showDealerName) {
     names.push({ type: 'dealer', label: 'Mi Concesionario' });

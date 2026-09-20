@@ -6,6 +6,7 @@ import '../../../core/presentation/providers/inventory_provider.dart';
 import '../../../core/presentation/providers/auth_provider.dart';
 import '../../../core/data/services/firestore_service.dart';
 import '../../../core/domain/models/vehicle.dart';
+import '../../../core/utils/vehicle_share.dart';
 import '../widgets/seller_drawer.dart';
 
 class SellerInventoryPage extends StatefulWidget {
@@ -127,7 +128,68 @@ class _SellerInventoryPageState extends State<SellerInventoryPage> {
                               subtitle: Text(
                                 '${vehicle.currency} ${vehicle.price.toStringAsFixed(2)}',
                               ),
-                              trailing: const Icon(Icons.chevron_right),
+                              trailing: PopupMenuButton<String>(
+                                onSelected: (value) {
+                                  if (value == 'share') {
+                                    final tenantId = vehicle.tenantId.isNotEmpty
+                                        ? vehicle.tenantId
+                                        : (context
+                                                .read<AuthProvider>()
+                                                .user
+                                                ?.tenantId ??
+                                            '');
+                                    shareVehicleLink(
+                                      context,
+                                      tenantId: tenantId,
+                                      vehicleId: vehicle.id,
+                                      label:
+                                          '${vehicle.year} ${vehicle.make} ${vehicle.model}',
+                                    );
+                                  } else if (value == 'photos') {
+                                    context.push(
+                                      '/seller/inventory/${vehicle.id}/photos',
+                                    );
+                                  } else if (value == 'daco') {
+                                    final tenantId = vehicle.tenantId.isNotEmpty
+                                        ? vehicle.tenantId
+                                        : (context
+                                                .read<AuthProvider>()
+                                                .user
+                                                ?.tenantId ??
+                                            '');
+                                    shareVehicleLink(
+                                      context,
+                                      tenantId: tenantId,
+                                      vehicleId: vehicle.id,
+                                      label:
+                                          'Etiqueta DACO / QR — ${vehicle.year} ${vehicle.make} ${vehicle.model}',
+                                    );
+                                  } else if (value == 'open') {
+                                    inventoryProvider.selectVehicle(vehicle);
+                                    context.push(
+                                      '/seller/inventory/${vehicle.id}',
+                                    );
+                                  }
+                                },
+                                itemBuilder: (context) => const [
+                                  PopupMenuItem(
+                                    value: 'open',
+                                    child: Text('Ver detalle'),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 'share',
+                                    child: Text('Compartir'),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 'daco',
+                                    child: Text('Etiqueta DACO / QR'),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 'photos',
+                                    child: Text('Guía de fotos'),
+                                  ),
+                                ],
+                              ),
                               onTap: () {
                                 inventoryProvider.selectVehicle(vehicle);
                                 context.push('/seller/inventory/${vehicle.id}');

@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '../../../../lib/firebase-admin';
 import { getFirestore } from '../../../../lib/firebase-admin';
+import {
+  createAppCustomToken,
+  findUserForAuthApp,
+  verifyAppPassword,
+} from '@autodealers/core/app-passwords';
 import { identityToolkitSignInWithPassword } from '@/lib/identity-toolkit-http';
+import { resolvePublicWebUrl } from '@autodealers/shared/platform-urls';
 
 export const dynamic = 'force-dynamic';
-
-const DEFAULT_PUBLIC_ORIGIN =
-  'https://public-web-app--autodealers-7f62e.us-central1.hosted.app';
 
 function getPublicOriginForToolkit(request: NextRequest): string {
   const fromEnv = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, '');
@@ -21,7 +24,7 @@ function getPublicOriginForToolkit(request: NextRequest): string {
     return `${proto}://${host.split(',')[0].trim()}`.replace(/\/$/, '');
   }
 
-  return DEFAULT_PUBLIC_ORIGIN;
+  return resolvePublicWebUrl();
 }
 
 async function completeLoginWithVerifiedToken(
@@ -93,6 +96,23 @@ export async function POST(request: NextRequest) {
       email.length > 0 &&
       password.length > 0
     ) {
+      const customerCredential = await verifyAppPassword('customer', email, password);
+      if (customerCredential.configured) {
+        if (customerCredential.ok && customerCredential.userId) {
+          const customToken = await createAppCustomToken(customerCredential.userId, 'customer');
+          return NextResponse.json({ customToken });
+        }
+      }
+
+      const appCredential = await verifyAppPassword('public', email, password);
+      if (appCredential.configured) {
+        if (!appCredential.ok || !appCredential.userId) {
+          return NextResponse.json({ error: 'Email o contraseña incorrectos' }, { status: 401 });
+        }
+        const customToken = await createAppCustomToken(appCredential.userId, 'public');
+        return NextResponse.json({ customToken });
+      }
+
       const firebaseApiKey = (
         process.env.FIREBASE_IDENTITY_TOOLKIT_API_KEY ||
         process.env.NEXT_PUBLIC_FIREBASE_API_KEY ||
@@ -106,7 +126,7 @@ export async function POST(request: NextRequest) {
       }
 
       const originBase = getPublicOriginForToolkit(request);
-      let idToken: string;
+      let localId = '';
       try {
         const r = await identityToolkitSignInWithPassword(
           email,
@@ -114,7 +134,7 @@ export async function POST(request: NextRequest) {
           firebaseApiKey,
           originBase
         );
-        idToken = r.idToken;
+        localId = r.localId || '';
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
         const apiBody = (e as Error & { body?: { error?: { message?: string } } }).body;
@@ -138,12 +158,13 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      try {
-        return await completeLoginWithVerifiedToken(idToken);
-      } catch (error: unknown) {
-        console.error('Error verificando token (fallback):', error);
-        return NextResponse.json({ error: 'Token inválido o expirado' }, { status: 401 });
+      const appUser = await findUserForAuthApp(email, 'public');
+      if (!appUser || (localId && appUser.userId !== localId)) {
+        return NextResponse.json({ error: 'Email o contraseña incorrectos' }, { status: 401 });
       }
+      const customToken = await createAppCustomToken(appUser.userId, 'public');
+      return NextResponse.json({ customToken });
+
     }
 
     if (body.email && body.password && !token) {

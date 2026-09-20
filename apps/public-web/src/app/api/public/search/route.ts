@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { normalizeVin, toVinNormalized } from '@autodealers/core';
+import { findVehiclesByVin, getVehicleById, getVehicles } from '@autodealers/inventory';
 import { getFirestore } from '../../../../lib/firebase-admin';
-import { getVehicles } from '@autodealers/inventory';
 import { normalizeVehiclesArray } from '@/lib/vehicle-photos-normalize';
 import {
   isDealerVisibleOnPublicListing,
@@ -35,65 +36,119 @@ export async function GET(request: NextRequest) {
 
     // Buscar vehículos - OPTIMIZADO: consultas en paralelo
     if (!type || type === 'vehicles' || type === 'all') {
-      const tenantsSnapshot = await db.collection('tenants').get();
-      const tenantDocs = tenantsSnapshot.docs.filter((d) =>
-        isTenantEligibleForPublicCatalog(d.data() as Record<string, unknown>)
-      );
+      const vinNormalized = q && q !== '*' ? toVinNormalized(q) : '';
 
-      const vehiclePromises = tenantDocs.map(async (tenantDoc: any) => {
-        const tenantId = tenantDoc.id;
-        try {
-          const timeoutPromise = new Promise<any[]>((_, reject) => {
-            setTimeout(() => reject(new Error('Timeout')), 25000);
-          });
+      // Atajo: query que parece VIN → lookup indexado (no barrido de tenants)
+      if (vinNormalized) {
+        const matches = await findVehiclesByVin(vinNormalized);
+        const vinVehicles = await Promise.all(
+          matches.map(async (m) => {
+            try {
+              const tenantSnap = await db.collection('tenants').doc(m.tenantId).get();
+              if (!tenantSnap.exists) return null;
+              const tenantData = tenantSnap.data() as Record<string, unknown>;
+              if (!isTenantEligibleForPublicCatalog(tenantData, m.tenantId)) return null;
+              const tenantHasActiveMembership = Boolean(
+                tenantData.membershipId ||
+                  tenantData.subscriptionId ||
+                  tenantData.adminMembershipAccess === 'granted' ||
+                  tenantData.adminMembershipAccess === 'active'
+              );
+              const vehicle = await getVehicleById(m.tenantId, m.vehicleId);
+              if (!vehicle) return null;
+              const payload = {
+                ...vehicle,
+                tenantId: m.tenantId,
+                tenantHasActiveMembership,
+                tenantName: String(tenantData.name || tenantData.companyName || ''),
+                href: `/${m.tenantId}/vehicle/${m.vehicleId}`,
+              };
+              if (!isVehicleVisibleOnPublicListing(payload as any)) return null;
+              return payload;
+            } catch {
+              return null;
+            }
+          })
+        );
+        results.vehicles = normalizeVehiclesArray(
+          vinVehicles
+            .filter((v): v is NonNullable<typeof v> => v != null)
+            .slice(0, limit)
+            .map((v) => ({ ...v } as Record<string, unknown>))
+        );
+      } else {
+        const tenantsSnapshot = await db.collection('tenants').get();
+        const tenantDocs = tenantsSnapshot.docs.filter((d) =>
+          isTenantEligibleForPublicCatalog(d.data() as Record<string, unknown>, d.id)
+        );
 
-          const vehiclesPromise = getVehicles(tenantId, {
-            prefetchCap: 200,
-            limit: 80,
-          } as any);
-
-          const vehicles = await Promise.race([vehiclesPromise, timeoutPromise]) as any[];
-
-          const publishedVehicles = vehicles.filter((v: any) =>
-            isVehicleVisibleOnPublicListing(v)
+        const vehiclePromises = tenantDocs.map(async (tenantDoc: any) => {
+          const tenantId = tenantDoc.id;
+          const tenantData = tenantDoc.data() as Record<string, unknown>;
+          const tenantHasActiveMembership = Boolean(
+            tenantData.membershipId ||
+              tenantData.subscriptionId ||
+              tenantData.adminMembershipAccess === 'granted' ||
+              tenantData.adminMembershipAccess === 'active'
           );
-
-          // Filtrar por término de búsqueda si no es '*'
-          let filteredVehicles = publishedVehicles;
-          if (q && q !== '*') {
-            const searchTerm = q.toLowerCase();
-            filteredVehicles = publishedVehicles.filter((v: any) => {
-              const make = (v.make || '').toLowerCase();
-              const model = (v.model || '').toLowerCase();
-              const year = (v.year || '').toString();
-              const description = (v.description || '').toLowerCase();
-
-              return make.includes(searchTerm) ||
-                model.includes(searchTerm) ||
-                year.includes(searchTerm) ||
-                description.includes(searchTerm);
+          try {
+            const timeoutPromise = new Promise<any[]>((_, reject) => {
+              setTimeout(() => reject(new Error('Timeout')), 25000);
             });
+
+            const vehiclesPromise = getVehicles(tenantId, {
+              prefetchCap: 200,
+              limit: 80,
+            } as any);
+
+            const vehicles = await Promise.race([vehiclesPromise, timeoutPromise]) as any[];
+
+            const publishedVehicles = vehicles.filter((v: any) =>
+              isVehicleVisibleOnPublicListing({ ...v, tenantId, tenantHasActiveMembership })
+            );
+
+            // Filtrar por término de búsqueda si no es '*'
+            let filteredVehicles = publishedVehicles;
+            if (q && q !== '*') {
+              const searchTerm = q.toLowerCase();
+              const vinTerm = normalizeVin(q).toLowerCase();
+              filteredVehicles = publishedVehicles.filter((v: any) => {
+                const make = (v.make || '').toLowerCase();
+                const model = (v.model || '').toLowerCase();
+                const year = (v.year || '').toString();
+                const description = (v.description || '').toLowerCase();
+                const vin = normalizeVin(v.vin || v.specifications?.vin || '').toLowerCase();
+
+                return (
+                  make.includes(searchTerm) ||
+                  model.includes(searchTerm) ||
+                  year.includes(searchTerm) ||
+                  description.includes(searchTerm) ||
+                  (vinTerm.length >= 6 && vin.includes(vinTerm))
+                );
+              });
+            }
+
+            return filteredVehicles;
+          } catch (error) {
+            console.error(`Error searching vehicles for tenant ${tenantId}:`, error);
+            return [];
           }
+        });
 
-          return filteredVehicles;
-        } catch (error) {
-          console.error(`Error searching vehicles for tenant ${tenantId}:`, error);
-          return [];
-        }
-      });
+        // Sin timeout global: con muchos tenants el corte a 8s dejaba el catálogo vacío
+        const settled = await Promise.allSettled(vehiclePromises);
+        const allVehiclesArrays = settled
+          .filter((r): r is PromiseFulfilledResult<any[]> => r.status === 'fulfilled')
+          .map((r) => r.value);
 
-      // Sin timeout global: con muchos tenants el corte a 8s dejaba el catálogo vacío
-      const settled = await Promise.allSettled(vehiclePromises);
-      const allVehiclesArrays = settled
-        .filter((r): r is PromiseFulfilledResult<any[]> => r.status === 'fulfilled')
-        .map((r) => r.value);
-
-      const allVehicles = (allVehiclesArrays || []).flat();
-      results.vehicles = normalizeVehiclesArray(
-        allVehicles
-          .slice(0, limit)
-          .map((v) => ({ ...v } as Record<string, unknown>))
-      );
+        const allVehicles = (allVehiclesArrays || []).flat();
+        results.vehicles = normalizeVehiclesArray(
+          allVehicles
+            .slice(0, limit)
+            .map((v) => ({ ...v } as Record<string, unknown>))
+        );
+      }
     }
 
     // Dealers: una query por rol (evita índices `in` y asegura que no se pierdan filas)
@@ -124,7 +179,7 @@ export async function GET(request: NextRequest) {
             _raw: data,
           };
         })
-        .filter((d: any) => isDealerVisibleOnPublicListing(d._raw || {}))
+        .filter((d: any) => isDealerVisibleOnPublicListing(d._raw || {}, d.id))
         .map(({ _raw, ...rest }: any) => rest);
 
       // Filtrar por término de búsqueda si no es '*'
@@ -152,6 +207,13 @@ export async function GET(request: NextRequest) {
         }
       });
 
+      dealers = dealers.filter((d: any) => {
+        if (!d.tenantId) return false;
+        const tenantData = tenantsMap.get(d.tenantId) as Record<string, unknown> | undefined;
+        if (!tenantData) return false;
+        return isTenantEligibleForPublicCatalog(tenantData, d.tenantId);
+      });
+
       // Obtener ratings de dealers en batch
       const dealerDocs = await Promise.all(
         dealers.map((d: any) => db.collection('users').doc(d.id).get())
@@ -168,8 +230,12 @@ export async function GET(request: NextRequest) {
         }
       });
 
+      const eligibleDealerTenantIds = [
+        ...new Set(dealers.map((d: any) => d.tenantId).filter(Boolean)),
+      ] as string[];
+
       // Obtener conteos de vehículos y sellers en paralelo por tenant
-      const tenantStatsPromises = tenantIds.map(async (tenantId: string) => {
+      const tenantStatsPromises = eligibleDealerTenantIds.map(async (tenantId: string) => {
         try {
           const [vehiclesSnapshot, sellersSnapshot] = await Promise.all([
             db.collection('tenants').doc(tenantId).collection('vehicles').get(),
@@ -192,7 +258,7 @@ export async function GET(request: NextRequest) {
             });
 
           const visibleSellers = sellersSnapshot.docs.filter((doc) =>
-            isSellerVisibleOnPublicListing(doc.data() as Record<string, unknown>)
+            isSellerVisibleOnPublicListing(doc.data() as Record<string, unknown>, doc.id)
           );
 
           return {
@@ -258,7 +324,7 @@ export async function GET(request: NextRequest) {
             _raw: data,
           };
         })
-        .filter((s: any) => isSellerVisibleOnPublicListing(s._raw || {}));
+        .filter((s: any) => isSellerVisibleOnPublicListing(s._raw || {}, s.id));
 
       // Filtrar por término de búsqueda si no es '*'
       if (q && q !== '*') {
@@ -300,6 +366,13 @@ export async function GET(request: NextRequest) {
         if (doc.exists) {
           sellerTenantsMap.set(sellerTenantIds[index], doc.data() as Record<string, unknown>);
         }
+      });
+
+      sellers = sellers.filter((s: any) => {
+        if (!s.tenantId) return false;
+        const tenantData = sellerTenantsMap.get(s.tenantId);
+        if (!tenantData) return false;
+        return isTenantEligibleForPublicCatalog(tenantData, s.tenantId);
       });
 
       const vehiclesByTenantPromises = sellerTenantIds.map(async (tenantId: string) => {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { resolveDashboardFeatureEnabled } from '@autodealers/core/dashboard-feature-membership';
 import type { DashboardType } from '@autodealers/core/feature-flags';
 import { verifyAuth } from '@/lib/auth';
+import { getBillingTenantId } from '@/lib/billing-tenant';
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,8 +18,10 @@ export async function GET(request: NextRequest) {
     }
 
     const auth = await verifyAuth(request);
-    const tenantId =
-      auth && (dashboard === 'dealer' || dashboard === 'seller') ? auth.tenantId : undefined;
+    if (auth?.supportMode) {
+      return NextResponse.json({ enabled: true, supportMode: true });
+    }
+    const tenantId = auth ? getBillingTenantId(auth) : undefined;
 
     const enabled = await resolveDashboardFeatureEnabled(dashboard, featureKey, tenantId);
     return NextResponse.json({ enabled });

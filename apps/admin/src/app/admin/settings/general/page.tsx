@@ -2,6 +2,49 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { PLATFORM_URLS, resolveAdminUrl } from '@autodealers/shared/platform-urls';
+import { ENABLE_TIKTOK_YOUTUBE_PUBLISH } from '@autodealers/core/social-video-platforms';
+
+const ADMIN_STRIPE_WEBHOOK_URL = `${resolveAdminUrl()}/api/webhooks/stripe`;
+
+function isMaskedCredential(value: string | undefined): boolean {
+  return typeof value === 'string' && value.startsWith('••••');
+}
+
+/** Al cambiar Stripe hay que pegar sk_ y pk_ completas; si queda •••• se conserva la clave antigua. */
+function validateStripeCredentialsBeforeSave(credentials: CredentialsConfig): string | null {
+  const sk = credentials.stripeSecretKey?.trim() || '';
+  const pk = credentials.stripePublishableKey?.trim() || '';
+  const skNew = sk.length > 0 && !isMaskedCredential(sk);
+  const pkNew = pk.length > 0 && !isMaskedCredential(pk);
+
+  if (!skNew && !pkNew) return null;
+
+  if (skNew !== pkNew) {
+    return (
+      'Para actualizar Stripe debes pegar las DOS claves completas desde el Dashboard (sk_live_... y pk_live_...). ' +
+      'Si un campo muestra ••••, haz clic en él, bórralo y pega la clave live completa.'
+    );
+  }
+
+  const skLive = sk.startsWith('sk_live_');
+  const pkLive = pk.startsWith('pk_live_');
+  if (skLive !== pkLive) {
+    return 'Secret Key y Publishable Key deben ser del mismo modo (ambas live o ambas test).';
+  }
+
+  return null;
+}
+
+function clearMaskedStripeField(
+  field: 'stripeSecretKey' | 'stripePublishableKey',
+  credentials: CredentialsConfig,
+  setCredentials: (value: CredentialsConfig | ((prev: CredentialsConfig) => CredentialsConfig)) => void
+) {
+  if (isMaskedCredential(credentials[field])) {
+    setCredentials({ ...credentials, [field]: '' });
+  }
+}
 
 interface SystemSettings {
   // Información de la Plataforma
@@ -31,6 +74,10 @@ interface CredentialsConfig {
   metaAppId: string;
   metaAppSecret: string;
   metaVerifyToken: string;
+  tiktokClientKey: string;
+  tiktokClientSecret: string;
+  youtubeClientId: string;
+  youtubeClientSecret: string;
   whatsappAccessToken: string;
   whatsappPhoneNumberId: string;
   whatsappWebhookVerifyToken: string;
@@ -43,11 +90,11 @@ interface CredentialsConfig {
 
 export default function GeneralSettingsPage() {
   const [settings, setSettings] = useState<SystemSettings>({
-    platformName: 'AutoDealers',
+    platformName: 'AutoDealersOnline',
     platformDescription: 'Plataforma SaaS para dealers de autos y vendedores individuales',
-    platformEmail: 'info@autodealers.com',
+    platformEmail: 'info@autodealers-online.com',
     platformPhone: '',
-    platformWebsite: 'https://autodealers.com',
+    platformWebsite: PLATFORM_URLS.public,
     platformAddress: '',
     maintenanceMode: false,
     allowNewRegistrations: true,
@@ -68,6 +115,10 @@ export default function GeneralSettingsPage() {
     metaAppId: '',
     metaAppSecret: '',
     metaVerifyToken: '',
+    tiktokClientKey: '',
+    tiktokClientSecret: '',
+    youtubeClientId: '',
+    youtubeClientSecret: '',
     whatsappAccessToken: '',
     whatsappPhoneNumberId: '',
     whatsappWebhookVerifyToken: '',
@@ -81,6 +132,20 @@ export default function GeneralSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testingStripe, setTestingStripe] = useState(false);
+  const [syncingStripeWebhook, setSyncingStripeWebhook] = useState(false);
+  const [stripeWebhookMessage, setStripeWebhookMessage] = useState('');
+  const [stripeSetupStatus, setStripeSetupStatus] = useState<{
+    mode?: string;
+    accountName?: string | null;
+    webhookReady?: boolean;
+    connectTransfersEnabled?: boolean;
+  } | null>(null);
+  const [testingEmail, setTestingEmail] = useState(false);
+  const [testingPasswordReset, setTestingPasswordReset] = useState(false);
+  const [testEmailAddress, setTestEmailAddress] = useState('');
+  const [testPasswordResetAddress, setTestPasswordResetAddress] = useState('');
+  const [emailTestMessage, setEmailTestMessage] = useState<string | null>(null);
+  const [passwordResetTestMessage, setPasswordResetTestMessage] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -117,18 +182,24 @@ export default function GeneralSettingsPage() {
         // Guardar las credenciales originales (enmascaradas) para referencia
         // El backend ya las envía enmascaradas, así que las usamos directamente
         setCredentials((prev) => {
-          // Solo actualizar campos que existen en la respuesta, mantener los demás
           const updated = { ...prev };
+          const stripeFields = ['stripeSecretKey', 'stripePublishableKey'] as const;
           Object.keys(data.credentials).forEach((key) => {
-            // Si el valor viene enmascarado del backend, mantenerlo
-            // Si viene vacío pero ya teníamos un valor enmascarado, mantener el anterior
-            if (data.credentials[key]) {
-              updated[key as keyof CredentialsConfig] = data.credentials[key];
-            } else if (!prev[key as keyof CredentialsConfig] || !prev[key as keyof CredentialsConfig].toString().startsWith('••••')) {
-              // Si no hay valor previo o el previo no está enmascarado, usar el nuevo (vacío)
-              updated[key as keyof CredentialsConfig] = data.credentials[key] || '';
+            const k = key as keyof CredentialsConfig;
+            const prevVal = prev[k];
+            if (
+              stripeFields.includes(key as (typeof stripeFields)[number]) &&
+              typeof prevVal === 'string' &&
+              prevVal.length > 0 &&
+              !prevVal.startsWith('••••')
+            ) {
+              return;
             }
-            // Si el previo está enmascarado y el nuevo está vacío, mantener el previo
+            if (data.credentials[key]) {
+              updated[k] = data.credentials[key];
+            } else if (!prev[k] || !String(prev[k]).startsWith('••••')) {
+              updated[k] = data.credentials[key] || '';
+            }
           });
           return updated;
         });
@@ -163,7 +234,71 @@ export default function GeneralSettingsPage() {
     }
   }
 
+  async function saveStripeCredentials() {
+    const sk = credentials.stripeSecretKey?.trim() || '';
+    const pk = credentials.stripePublishableKey?.trim() || '';
+
+    if (isMaskedCredential(sk) || isMaskedCredential(pk) || !sk || !pk) {
+      alert(
+        'Haz clic en Secret Key y Publishable Key, bórra los •••• y pega sk_live_ y pk_live_ completas desde Stripe (modo Live).'
+      );
+      return;
+    }
+
+    if (!sk.startsWith('sk_live_') || !pk.startsWith('pk_live_')) {
+      alert('Ambas claves deben ser LIVE (sk_live_... y pk_live_...).');
+      return;
+    }
+
+    setSaving(true);
+    setStripeWebhookMessage('');
+    try {
+      const response = await fetch('/api/admin/settings/credentials', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ stripeSecretKey: sk, stripePublishableKey: pk }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok && response.status !== 207) {
+        alert(data.error || data.message || `Error ${response.status}`);
+        return;
+      }
+
+      if (data.noChanges || data.message?.includes('No hay cambios')) {
+        alert(
+          'No se guardaron las claves. Asegúrate de pegar sk_live_ y pk_live_ completas (sin ••••).'
+        );
+        return;
+      }
+
+      if (data.stripeSetup?.status) {
+        setStripeSetupStatus({
+          mode: data.stripeSetup.status.mode,
+          accountName: data.stripeSetup.validation?.accountName,
+          webhookReady: data.stripeSetup.status.webhookReady,
+          connectTransfersEnabled: data.stripeSetup.status.connectTransfersEnabled,
+        });
+      }
+      setStripeWebhookMessage(data.stripeSetup?.message || data.message || 'Claves Stripe guardadas');
+      await fetchCredentials();
+    } catch (error) {
+      console.error(error);
+      alert('Error al guardar claves Stripe');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function saveCredentials() {
+    const stripeValidationError = validateStripeCredentialsBeforeSave(credentials);
+    if (stripeValidationError) {
+      alert(stripeValidationError);
+      return;
+    }
+
     setSaving(true);
     try {
       const response = await fetch('/api/admin/settings/credentials', {
@@ -183,9 +318,35 @@ export default function GeneralSettingsPage() {
         throw new Error(`Error del servidor (${response.status}): ${response.statusText}`);
       }
 
-      if (response.ok) {
-        alert('Credenciales guardadas y sincronizadas exitosamente');
-        // Recargar credenciales para mostrar valores enmascarados
+      if (response.ok || response.status === 207) {
+        if (
+          data.noChanges ||
+          (typeof data.message === 'string' && data.message.includes('No hay cambios para guardar'))
+        ) {
+          setStripeWebhookMessage(data.message);
+          alert(
+            'No se guardaron cambios en Stripe (campos con ••••). Usa el botón «Guardar claves Stripe» después de pegar sk_live_ y pk_live_ completas.'
+          );
+          return;
+        }
+
+        if (data.stripeSetup?.status) {
+          setStripeSetupStatus({
+            mode: data.stripeSetup.status.mode,
+            accountName: data.stripeSetup.validation?.accountName,
+            webhookReady: data.stripeSetup.status.webhookReady,
+            connectTransfersEnabled: data.stripeSetup.status.connectTransfersEnabled,
+          });
+          setStripeWebhookMessage(data.stripeSetup.message || data.message);
+        } else if (data.stripeSetupError) {
+          setStripeWebhookMessage(
+            `Credenciales guardadas, pero la activación automática falló: ${data.stripeSetupError}`
+          );
+        } else if (data.message) {
+          setStripeWebhookMessage(data.message);
+        } else {
+          setStripeWebhookMessage('Credenciales guardadas y sincronizadas');
+        }
         fetchCredentials();
       } else {
         const errorMessage = data.message || data.error || `Error ${response.status}: ${response.statusText}`;
@@ -229,27 +390,156 @@ export default function GeneralSettingsPage() {
     }
   }
 
+  async function syncStripeWebhook() {
+    setSyncingStripeWebhook(true);
+    setStripeWebhookMessage('');
+    try {
+      const response = await fetch('/api/admin/stripe/ensure-webhook', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'No se pudo sincronizar el webhook');
+      }
+      const note = data.appHostingWebhookNote ? ` ${data.appHostingWebhookNote}` : '';
+      setStripeWebhookMessage(`${data.message || 'Webhook sincronizado'}${note}`);
+      if (data.result?.webhookSecret) {
+        setCredentials((prev) => ({
+          ...prev,
+          stripeWebhookSecret: data.result.webhookSecret,
+        }));
+      }
+      if (data.status) {
+        setStripeSetupStatus({
+          mode: data.status.mode,
+          accountName: data.status.accountName,
+          webhookReady: data.status.webhookReady,
+          connectTransfersEnabled: data.status.connectTransfersEnabled,
+        });
+      }
+    } catch (error) {
+      setStripeWebhookMessage(
+        error instanceof Error ? error.message : 'Error al sincronizar webhook'
+      );
+    } finally {
+      setSyncingStripeWebhook(false);
+    }
+  }
+
   async function testStripeConnection() {
     setTestingStripe(true);
+    setStripeWebhookMessage('');
     try {
+      const payload: Record<string, string> = {};
+      if (credentials.stripeSecretKey && !credentials.stripeSecretKey.startsWith('••••')) {
+        payload.stripeSecretKey = credentials.stripeSecretKey;
+      }
+      if (credentials.stripePublishableKey && !credentials.stripePublishableKey.startsWith('••••')) {
+        payload.stripePublishableKey = credentials.stripePublishableKey;
+      }
+
       const response = await fetch('/api/admin/settings/test/stripe', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
       setTestResults({ ...testResults, stripe: data.success });
-      
+
       if (data.success) {
-        alert('Conexión con Stripe exitosa');
+        setStripeSetupStatus({
+          mode: data.mode,
+          accountName: data.accountName,
+          webhookReady: data.webhookSecretConfigured,
+          connectTransfersEnabled: data.connectTransfersEnabled,
+        });
+        setStripeWebhookMessage(
+          `${data.message}${data.accountName ? ` · ${data.accountName}` : ''}${
+            data.connectTransfersEnabled === false
+              ? ' · Connect transfers pendientes en Stripe'
+              : ''
+          } · Pulsa «Guardar y Sincronizar Credenciales» abajo para aplicar en producción.`
+        );
       } else {
-        alert('Error al conectar con Stripe: ' + (data.error || 'Unknown error'));
+        setStripeWebhookMessage(
+          [data.error, data.hint].filter(Boolean).join(' — ') || 'Error al conectar con Stripe'
+        );
       }
     } catch (error) {
       console.error('Error:', error);
       setTestResults({ ...testResults, stripe: false });
-      alert('Error al probar conexión con Stripe');
+      setStripeWebhookMessage('Error al probar conexión con Stripe');
     } finally {
       setTestingStripe(false);
+    }
+  }
+
+  async function testEmailConnection() {
+    const email = testEmailAddress.trim();
+    if (!email) return;
+
+    setTestingEmail(true);
+    setEmailTestMessage(null);
+    try {
+      const response = await fetch('/api/admin/settings/test/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email }),
+      });
+      const data = await response.json().catch(() => ({}));
+      setTestResults({ ...testResults, email: Boolean(data.success) });
+
+      if (data.success) {
+        setEmailTestMessage(`OK: enviado por ${data.provider}. From: ${data.from}`);
+        alert(`Email enviado correctamente.\nProveedor: ${data.provider}\nFrom: ${data.from}`);
+      } else {
+        setEmailTestMessage(`Error: ${data.error || 'Unknown error'}${data.from ? ` | From: ${data.from}` : ''}`);
+        alert(`Error enviando email: ${data.error || 'Unknown error'}${data.from ? `\nFrom: ${data.from}` : ''}`);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      setTestResults({ ...testResults, email: false });
+      setEmailTestMessage('Error al probar email');
+      alert('Error al probar email');
+    } finally {
+      setTestingEmail(false);
+    }
+  }
+
+  async function testPasswordResetEmail() {
+    const email = testPasswordResetAddress.trim();
+    if (!email) return;
+
+    setTestingPasswordReset(true);
+    setPasswordResetTestMessage(null);
+    try {
+      const response = await fetch('/api/admin/settings/test/password-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email }),
+      });
+      const data = await response.json().catch(() => ({}));
+      setTestResults({ ...testResults, passwordReset: Boolean(data.success) });
+
+      if (data.success) {
+        setPasswordResetTestMessage('OK: reset enviado. Revisa inbox/spam.');
+        alert('Reset enviado correctamente. Revisa inbox/spam.');
+      } else {
+        setPasswordResetTestMessage(`Error: ${data.error || 'Unknown error'}`);
+        alert(`Reset no enviado: ${data.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      setTestResults({ ...testResults, passwordReset: false });
+      setPasswordResetTestMessage('Error al probar reset');
+      alert('Error al probar reset');
+    } finally {
+      setTestingPasswordReset(false);
     }
   }
 
@@ -294,7 +584,7 @@ export default function GeneralSettingsPage() {
                   setSettings({ ...settings, platformName: e.target.value })
                 }
                 className="w-full border rounded px-3 py-2"
-                placeholder="AutoDealers"
+                placeholder="AutoDealersOnline"
                 required
               />
               <p className="text-xs text-gray-500 mt-1">
@@ -312,7 +602,7 @@ export default function GeneralSettingsPage() {
                   setSettings({ ...settings, platformWebsite: e.target.value })
                 }
                 className="w-full border rounded px-3 py-2"
-                placeholder="https://autodealers.com"
+                placeholder={PLATFORM_URLS.public}
               />
             </div>
           </div>
@@ -547,16 +837,72 @@ export default function GeneralSettingsPage() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-lg font-semibold">Stripe</h3>
-                <p className="text-sm text-gray-600">Configuración de pagos y suscripciones</p>
+                <p className="text-sm text-gray-600">
+                  Pega las claves, guarda credenciales y el sistema valida, crea el webhook y activa
+                  Connect — sin ir a Stripe ni Firebase.
+                </p>
               </div>
-              <button
-                onClick={testStripeConnection}
-                disabled={testingStripe}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium disabled:opacity-50"
-              >
-                {testingStripe ? 'Probando...' : 'Probar Conexión'}
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={saveStripeCredentials}
+                  disabled={saving}
+                  className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 disabled:opacity-50"
+                >
+                  {saving ? 'Guardando…' : 'Guardar claves Stripe'}
+                </button>
+                <button
+                  onClick={testStripeConnection}
+                  disabled={testingStripe}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium disabled:opacity-50"
+                >
+                  {testingStripe ? 'Validando…' : 'Validar claves'}
+                </button>
+                <button
+                  type="button"
+                  onClick={syncStripeWebhook}
+                  disabled={syncingStripeWebhook}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50"
+                >
+                  {syncingStripeWebhook ? 'Sincronizando…' : 'Re-sincronizar webhook'}
+                </button>
+              </div>
             </div>
+            {stripeWebhookMessage && (
+              <div
+                className={`mb-4 rounded-lg border px-4 py-3 text-sm ${
+                  stripeSetupStatus?.webhookReady
+                    ? 'border-green-200 bg-green-50 text-green-900'
+                    : 'border-primary-200 bg-primary-50 text-primary-900'
+                }`}
+              >
+                {stripeWebhookMessage}
+              </div>
+            )}
+            {stripeSetupStatus && (
+              <div className="mb-4 grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                <div className="rounded-lg border px-3 py-2">
+                  <div className="text-gray-500">Modo</div>
+                  <div className="font-semibold uppercase">{stripeSetupStatus.mode || '—'}</div>
+                </div>
+                <div className="rounded-lg border px-3 py-2">
+                  <div className="text-gray-500">Webhook</div>
+                  <div
+                    className={`font-semibold ${stripeSetupStatus.webhookReady ? 'text-green-700' : 'text-amber-700'}`}
+                  >
+                    {stripeSetupStatus.webhookReady ? 'Listo' : 'Pendiente'}
+                  </div>
+                </div>
+                <div className="rounded-lg border px-3 py-2">
+                  <div className="text-gray-500">Connect</div>
+                  <div
+                    className={`font-semibold ${stripeSetupStatus.connectTransfersEnabled ? 'text-green-700' : 'text-amber-700'}`}
+                  >
+                    {stripeSetupStatus.connectTransfersEnabled ? 'Activo' : 'Pendiente'}
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-2">
@@ -565,6 +911,9 @@ export default function GeneralSettingsPage() {
                 <input
                   type="password"
                   value={credentials.stripeSecretKey}
+                  onFocus={() =>
+                    clearMaskedStripeField('stripeSecretKey', credentials, setCredentials)
+                  }
                   onChange={(e) =>
                     setCredentials({ ...credentials, stripeSecretKey: e.target.value })
                   }
@@ -582,12 +931,20 @@ export default function GeneralSettingsPage() {
                 <input
                   type="text"
                   value={credentials.stripePublishableKey}
+                  onFocus={() =>
+                    clearMaskedStripeField('stripePublishableKey', credentials, setCredentials)
+                  }
                   onChange={(e) =>
                     setCredentials({ ...credentials, stripePublishableKey: e.target.value })
                   }
                   placeholder="pk_live_... o pk_test_..."
                   className="w-full border rounded px-3 py-2 font-mono text-sm"
                 />
+                {isMaskedCredential(credentials.stripePublishableKey) && (
+                  <p className="text-xs text-amber-700 mt-1">
+                    Este valor enmascarado es la clave antigua. Haz clic y pega la pk_live_... completa.
+                  </p>
+                )}
                 <p className="text-xs text-gray-500 mt-1">
                   Usada en el frontend para formularios de pago
                 </p>
@@ -623,26 +980,28 @@ export default function GeneralSettingsPage() {
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
                   Stripe → Developers → Webhooks. Producción:{' '}
-                  <code className="text-xs break-all">
-                    https://admin-app--autodealers-7f62e.us-central1.hosted.app/api/webhooks/stripe
-                  </code>
+                  <code className="text-xs break-all">{ADMIN_STRIPE_WEBHOOK_URL}</code>
                 </p>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  Webhook Secret
+                  Webhook (automático)
                 </label>
                 <input
-                  type="password"
-                  value={credentials.stripeWebhookSecret}
-                  onChange={(e) =>
-                    setCredentials({ ...credentials, stripeWebhookSecret: e.target.value })
+                  type="text"
+                  readOnly
+                  value={
+                    credentials.stripeWebhookSecret?.startsWith('••••')
+                      ? 'Configurado automáticamente (whsec_••••)'
+                      : credentials.stripeWebhookSecret
+                        ? 'Configurado automáticamente'
+                        : 'Se generará al guardar las claves Stripe'
                   }
-                  placeholder="whsec_..."
-                  className="w-full border rounded px-3 py-2 font-mono text-sm"
+                  className="w-full border rounded px-3 py-2 font-mono text-sm bg-gray-50 text-gray-600"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Para verificar eventos de Stripe (webhook de Admin / membresías)
+                  No hace falta copiarlo de Stripe. Al guardar <code className="text-xs">sk_...</code> y{' '}
+                  <code className="text-xs">pk_...</code>, el admin crea el endpoint y guarda el secreto.
                 </p>
               </div>
               <div>
@@ -665,12 +1024,19 @@ export default function GeneralSettingsPage() {
                 </p>
               </div>
             </div>
-            <div className="mt-4 p-3 bg-primary-50 border border-primary-200 rounded-lg">
+            <div className="mt-4 p-3 bg-primary-50 border border-primary-200 rounded-lg space-y-2">
               <p className="text-sm text-primary-800">
-                ✅ <strong>Las credenciales se sincronizan automáticamente</strong> con toda la plataforma (admin, dealer, seller, advertiser, public-web) y se usan en tiempo real desde Firestore.
+                <strong>Flujo automático:</strong> pega <code className="text-xs">sk_live_...</code> y{' '}
+                <code className="text-xs">pk_live_...</code>, pulsa <strong>Guardar Credenciales</strong>{' '}
+                abajo. El sistema valida la cuenta, crea/actualiza el webhook con Connect y guarda el{' '}
+                <code className="text-xs">whsec_...</code> en Firestore.
               </p>
-              <p className="text-xs text-primary-700 mt-1">
-                Si no se configuran aquí, el sistema usará las variables de entorno como respaldo.
+              <p className="text-xs text-primary-700">
+                Revisa el estado completo en{' '}
+                <Link href="/admin/stripe" className="underline">
+                  Admin → Stripe
+                </Link>{' '}
+                (balance, comisiones afiliados, transferencias).
               </p>
             </div>
           </div>
@@ -842,6 +1208,78 @@ export default function GeneralSettingsPage() {
             </div>
           </div>
 
+          {/* TikTok — oculto hasta ENABLE_TIKTOK_YOUTUBE_PUBLISH */}
+          {ENABLE_TIKTOK_YOUTUBE_PUBLISH && (
+          <div className="border-b pb-6">
+            <h3 className="text-lg font-semibold mb-4">TikTok (Login Kit / Content Posting)</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Redirect URI del dealer: <code className="text-xs bg-gray-100 px-1 rounded">/api/settings/integrations/callback</code>
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Client Key</label>
+                <input
+                  type="text"
+                  value={credentials.tiktokClientKey}
+                  onChange={(e) =>
+                    setCredentials({ ...credentials, tiktokClientKey: e.target.value })
+                  }
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="aw…"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Client Secret</label>
+                <input
+                  type="password"
+                  value={credentials.tiktokClientSecret}
+                  onChange={(e) =>
+                    setCredentials({ ...credentials, tiktokClientSecret: e.target.value })
+                  }
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="••••••••"
+                />
+              </div>
+            </div>
+          </div>
+          )}
+
+          {/* YouTube — oculto hasta ENABLE_TIKTOK_YOUTUBE_PUBLISH */}
+          {ENABLE_TIKTOK_YOUTUBE_PUBLISH && (
+          <div className="border-b pb-6">
+            <h3 className="text-lg font-semibold mb-4">YouTube (Google OAuth)</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Habilita YouTube Data API v3 y usa el mismo redirect URI de integraciones del dealer.
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Client ID</label>
+                <input
+                  type="text"
+                  value={credentials.youtubeClientId}
+                  onChange={(e) =>
+                    setCredentials({ ...credentials, youtubeClientId: e.target.value })
+                  }
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="….apps.googleusercontent.com"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Client Secret</label>
+                <input
+                  type="password"
+                  value={credentials.youtubeClientSecret}
+                  onChange={(e) =>
+                    setCredentials({ ...credentials, youtubeClientSecret: e.target.value })
+                  }
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="••••••••"
+                />
+              </div>
+            </div>
+          </div>
+          )}
+
           {/* WhatsApp */}
           <div className="border-b pb-6">
             <h3 className="text-lg font-semibold mb-4">WhatsApp Business API</h3>
@@ -936,7 +1374,9 @@ export default function GeneralSettingsPage() {
 
           {/* Email */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">Email (SendGrid/Resend)</h3>
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h3 className="text-lg font-semibold">Email (SendGrid/Resend)</h3>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-2">
@@ -956,14 +1396,69 @@ export default function GeneralSettingsPage() {
                   From Address
                 </label>
                 <input
-                  type="email"
+                  type="text"
                   value={credentials.emailFromAddress}
                   onChange={(e) =>
                     setCredentials({ ...credentials, emailFromAddress: e.target.value })
                   }
-                  placeholder="noreply@autodealers.com"
+                  placeholder="AutoDealersOnline <noreply@autodealers-online.com>"
                   className="w-full border rounded px-3 py-2"
                 />
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Email para prueba directa</label>
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    value={testEmailAddress}
+                    onChange={(e) => setTestEmailAddress(e.target.value)}
+                    placeholder="tu@email.com"
+                    className="w-full border rounded px-3 py-2"
+                  />
+                  <button
+                    type="button"
+                    onClick={testEmailConnection}
+                    disabled={testingEmail || !testEmailAddress.trim()}
+                    className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 disabled:opacity-50 text-sm whitespace-nowrap"
+                  >
+                    {testingEmail ? 'Probando...' : 'Probar email'}
+                  </button>
+                </div>
+                {emailTestMessage && (
+                  <p className={`text-xs mt-1 ${testResults.email ? 'text-green-700' : 'text-red-600'}`}>
+                    {emailTestMessage}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Email de usuario para reset</label>
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    value={testPasswordResetAddress}
+                    onChange={(e) => setTestPasswordResetAddress(e.target.value)}
+                    placeholder="usuario@dominio.com"
+                    className="w-full border rounded px-3 py-2"
+                  />
+                  <button
+                    type="button"
+                    onClick={testPasswordResetEmail}
+                    disabled={testingPasswordReset || !testPasswordResetAddress.trim()}
+                    className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 text-sm whitespace-nowrap"
+                  >
+                    {testingPasswordReset ? 'Probando...' : 'Probar reset'}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Debe existir en Firebase Auth; si solo existe en Firestore, Firebase no genera reset.
+                </p>
+                {passwordResetTestMessage && (
+                  <p className={`text-xs mt-1 ${testResults.passwordReset ? 'text-green-700' : 'text-red-600'}`}>
+                    {passwordResetTestMessage}
+                  </p>
+                )}
               </div>
             </div>
           </div>

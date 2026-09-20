@@ -35,7 +35,7 @@ export default function TrustPillars() {
         <section className="py-16 bg-primary-50 border-t border-primary-100">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="text-center mb-12">
-                    <h2 className="text-3xl font-bold text-gray-900">¿Por qué usar AutoDealers?</h2>
+                    <h2 className="text-3xl font-bold text-gray-900">¿Por qué usar AutoDealersOnline?</h2>
                     <p className="text-gray-600 mt-2">La forma más segura y moderna de comprar tu próximo auto.</p>
                 </div>
                 <div className="grid md:grid-cols-3 gap-8">

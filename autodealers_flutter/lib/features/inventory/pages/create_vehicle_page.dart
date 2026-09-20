@@ -8,6 +8,7 @@ import '../../../core/presentation/providers/inventory_provider.dart';
 import '../../../core/presentation/providers/auth_provider.dart';
 import '../../../core/data/services/storage_service.dart';
 import '../../../core/domain/models/vehicle.dart';
+import '../widgets/vin_decode_field.dart';
 import '../../dealer/widgets/dealer_drawer.dart';
 import '../../seller/widgets/seller_drawer.dart';
 
@@ -301,12 +302,21 @@ class _CreateVehiclePageState extends State<CreateVehiclePage> {
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 16),
-              TextFormField(
+              VinDecodeField(
                 controller: _vinController,
-                decoration: const InputDecoration(
-                  labelText: 'VIN',
-                  border: OutlineInputBorder(),
-                ),
+                onDecoded: (result) {
+                  setState(() {
+                    if (result.make != null && result.make!.isNotEmpty) {
+                      _makeController.text = result.make!;
+                    }
+                    if (result.model != null && result.model!.isNotEmpty) {
+                      _modelController.text = result.model!;
+                    }
+                    if (result.year != null) {
+                      _yearController.text = result.year.toString();
+                    }
+                  });
+                },
               ),
               const SizedBox(height: 16),
               TextFormField(

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import StarRating from '@/components/StarRating';
 import { getDashboardLoginUrl, getDashboardLabel } from '@/lib/dashboard-login-urls';
+import { AdminDeleteButton } from '@/components/AdminDeleteButton';
 
 interface User {
   id: string;
@@ -58,7 +59,8 @@ export default function AdminUsersPage() {
     try {
       const params = new URLSearchParams();
       if (filters.role) params.append('role', filters.role);
-      if (filters.status) params.append('status', filters.status);
+      if (filters.status && filters.status !== '__all__') params.append('status', filters.status);
+      if (filters.status === '__all__') params.append('includeCancelled', 'true');
       if (filters.search) params.append('search', filters.search);
 
       const response = await fetch(`/api/admin/users?${params.toString()}`);
@@ -144,10 +146,12 @@ export default function AdminUsersPage() {
             onChange={(e) => setFilters({ ...filters, status: e.target.value })}
             className="border rounded px-3 py-2"
           >
-            <option value="">Todos los estados</option>
+            <option value="">Activos (sin cancelados)</option>
+            <option value="__all__">Todos (incl. cancelados)</option>
             <option value="active">Activo</option>
             <option value="inactive">Inactivo</option>
             <option value="suspended">Suspendido</option>
+            <option value="cancelled">Cancelado</option>
           </select>
           <div className="flex items-center">
             <span className="text-sm text-gray-600">
@@ -279,12 +283,30 @@ export default function AdminUsersPage() {
                         🎁 Mes Gratis
                       </button>
                     )}
+                    {(user.role === 'dealer' || user.role === 'seller') && user.tenantId ? (
+                      <Link
+                        href={`/admin/courtesy-days?tenantId=${encodeURIComponent(user.tenantId)}&name=${encodeURIComponent(user.name || '')}`}
+                        className="text-sm px-3 py-1 rounded bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+                      >
+                        Días de cortesía
+                      </Link>
+                    ) : null}
                     <Link
                       href={`/admin/users/${user.id}/edit`}
                       className="text-primary-600 hover:text-primary-700 text-sm"
                     >
                       Editar
                     </Link>
+                    {user.role !== 'admin' ? (
+                      <AdminDeleteButton
+                        deleteUrl={`/api/admin/users/${user.id}`}
+                        label="Dar de baja"
+                        confirmMessage={`¿Dar de baja a ${user.name || user.email}? Se deshabilitará su acceso y desaparecerá de esta lista.`}
+                        successMessage={`${user.name || user.email} dado de baja.`}
+                        onDeleted={fetchUsers}
+                        className="text-sm px-3 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
+                      />
+                    ) : null}
                   </div>
                 </td>
               </tr>
@@ -444,6 +466,7 @@ function CreateUserModal({
     tenantId: '',
     phone: '',
     whatsapp: '',
+    notificationAudience: 'all' as 'all' | 'public' | 'platform',
   });
   const [tenants, setTenants] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -501,6 +524,8 @@ function CreateUserModal({
           tenantId: formData.role === 'admin' ? '' : formData.tenantId,
           phone: formData.role === 'admin' ? formData.phone.trim() || undefined : formData.phone.trim(),
           whatsapp: formData.whatsapp.trim() || undefined,
+          notificationAudience:
+            formData.role === 'admin' ? formData.notificationAudience : undefined,
           ...(useManualDealerId && manualDealerId.trim()
             ? { dealerId: manualDealerId.trim() }
             : {}),
@@ -784,6 +809,30 @@ function CreateUserModal({
                   placeholder="Si vacío, se usa el teléfono"
                 />
               </div>
+            </div>
+          )}
+          {formData.role === 'admin' && (
+            <div className="space-y-2 border-t pt-4">
+              <label className="block text-sm font-medium">Notificaciones que recibe este admin</label>
+              <select
+                value={formData.notificationAudience}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    notificationAudience: e.target.value as 'all' | 'public' | 'platform',
+                  })
+                }
+                className="w-full border rounded px-3 py-2"
+              >
+                <option value="all">Todo (todas las alertas)</option>
+                <option value="public">Público — contacto y solicitudes de información</option>
+                <option value="platform">Plataforma — registros, banners y pagos</option>
+              </select>
+              <p className="text-xs text-gray-500">
+                Divide los avisos entre buzones. Ej.: un admin &quot;Público&quot; recibe el formulario
+                de contacto y las solicitudes de info; uno &quot;Plataforma&quot; recibe los nuevos
+                registros y aprobaciones.
+              </p>
             </div>
           )}
           {formData.role === 'admin' && (

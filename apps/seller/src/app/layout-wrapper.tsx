@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { TenantLogo } from '@/components/TenantLogo';
 import NotificationsPanel from '@/components/NotificationsPanel';
 import { cleanupInvalidTokens } from '@/lib/cleanup-invalid-tokens';
@@ -13,8 +13,11 @@ import { AnnouncementsBanner } from '@/components/AnnouncementsBanner';
 import { PolicyAcceptanceModal } from '@/components/PolicyAcceptanceModal';
 import { NotificationAlertsBootstrap } from '@autodealers/shared/client';
 import { BillingAccessGuard } from '@/components/BillingAccessGuard';
+import { MembershipApiNotice } from '@/components/MembershipApiNotice';
+import { MembershipPageGate } from '@/components/MembershipPageGate';
 import { MustChangePasswordGate } from '@/components/MustChangePasswordGate';
 import { DealerInviteBanner } from '@/components/DealerInviteBanner';
+import { SupportModeBanner } from '@/components/SupportModeBanner';
 
 // Rutas que no deben usar el layout wrapper
 const publicRoutes = ['/login'];
@@ -28,21 +31,28 @@ const navigationItems = [
   { name: 'Tareas', href: '/tasks', icon: '✅', featureKey: 'crm_tasks' },
   { name: 'Workflows', href: '/workflows', icon: '⚙️', featureKey: 'crm_workflows' },
   { name: 'Inventario', href: '/inventory', icon: '🚗', featureKey: null },
+  { name: 'Documentos', href: '/documents', icon: '📄', featureKey: null },
+  { name: 'Contratos', href: '/contracts', icon: '📃', featureKey: null },
+  { name: 'Clientes', href: '/fi', icon: '👥', featureKey: 'fi_module' },
+  { name: 'Casos de Cliente', href: '/customer-files', icon: '📁', featureKey: 'customer_files' },
+  { name: 'F&I', href: '/fi', icon: '💰', featureKey: 'fi_module' },
   { name: 'Mensajes', href: '/messages', icon: '💬', featureKey: null },
   { name: 'Chat Interno', href: '/internal-chat', icon: '💬', featureKey: null },
-  { name: 'Chat Público', href: '/public-chat', icon: '💬', featureKey: null },
-  { name: 'Citas', href: '/appointments', icon: '📅', featureKey: null },
-  { name: 'Campañas', href: '/campaigns', icon: '📢', featureKey: null },
-  { name: 'Publicaciones Sociales', href: '/social-posts', icon: '📱', featureKey: null },
+  { name: 'Chat Público', href: '/public-chat', icon: '💬', featureKey: 'public_chat' },
+  { name: 'Citas', href: '/appointments', icon: '📅', featureKey: 'appointments' },
+  { name: 'Campañas', href: '/campaigns', icon: '📢', featureKey: 'campaigns' },
+  { name: 'Publicaciones Sociales', href: '/social-posts', icon: '📱', featureKey: 'social_posts' },
   { name: 'Promociones', href: '/promotions', icon: '🎁', featureKey: null },
   { name: 'Banners Premium', href: '/banners', icon: '🎨', featureKey: null },
   { name: 'Referidos', href: '/referrals', icon: '🎁', featureKey: null },
   { name: 'Reseñas', href: '/reviews', icon: '⭐', featureKey: null },
-  { name: 'Casos de Cliente', href: '/customer-files', icon: '📁', featureKey: null },
-  { name: 'F&I', href: '/fi', icon: '💰', featureKey: null },
+  { name: 'Deal desk', href: '/deals', icon: '📝', featureKey: null },
   { name: 'Estadísticas de Ventas', href: '/sales-statistics', icon: '📊', featureKey: null },
+  { name: 'Mi compensación', href: '/compensation', icon: '💵', featureKey: 'compensation_portal' },
   { name: 'Reportes', href: '/reports', icon: '📈', featureKey: 'crm_reports' },
+  { name: 'Guía del Vendedor', href: '/docs/guia-vendedor', icon: '🎬', featureKey: null },
   { name: 'Usuarios', href: '/users', icon: '👥', featureKey: null },
+  { name: 'Políticas legales', href: '/policies', icon: '📜', featureKey: null },
   { name: 'Configuración', href: '/settings', icon: '⚙️', featureKey: null },
 ];
 
@@ -52,13 +62,9 @@ export default function SellerLayoutWrapper({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
-  const visibleNavigationItems = navigationItems.filter(
-    (item) => !(user?.dealerId && item.href === '/referrals')
-  );
   const [maintenanceActive, setMaintenanceActive] = useState(false);
   const [showPolicyModal, setShowPolicyModal] = useState(false);
   const fetchingUserRef = React.useRef(false);
@@ -75,37 +81,6 @@ export default function SellerLayoutWrapper({
       const profile = await loadCurrentSellerUser();
       if (profile) {
         setUser(profile);
-
-        if (
-          !profile.dealerId &&
-          !profile.mustChangePassword &&
-          pathname &&
-          !pathname.startsWith('/settings/membership') &&
-          !pathname.startsWith('/settings/dealer-link') &&
-          !pathname.startsWith('/join-dealer') &&
-          pathname !== '/login'
-        ) {
-          try {
-            const { fetchWithAuth } = await import('@/lib/fetch-with-auth');
-            if (profile.adminMembershipAccess === 'granted') {
-              return;
-            }
-            const subResponse = await fetchWithAuth('/api/settings/membership/subscription', {});
-            if (subResponse.ok) {
-              const subData = await subResponse.json();
-              if (
-                subData.subscription &&
-                (subData.subscription.status === 'active' ||
-                  subData.subscription.status === 'trialing')
-              ) {
-                return;
-              }
-            }
-            router.replace('/settings/membership?onboarding=required');
-          } catch {
-            router.replace('/settings/membership?onboarding=required');
-          }
-        }
         return;
       }
 
@@ -181,86 +156,63 @@ export default function SellerLayoutWrapper({
     setMobileNavOpen(false);
   }, [pathname]);
 
+  // Auth + intervalos: solo por pathname (NO por user). Depender de `user` re-montaba
+  // listeners y timers en cada setUser → parpadeo / “brincos” en el layout.
   useEffect(() => {
     void import('@/lib/fetch-interceptor');
     checkMaintenanceMode();
-    
-    // Verificar mantenimiento cada 60 segundos (reducido de 30)
+
     const maintenanceInterval = setInterval(checkMaintenanceMode, 60000);
-    
-    // NO limpiar tokens automáticamente - puede expulsar usuarios después del login
-    // cleanupInvalidTokens();
-    
-    // Listener de Firebase Auth para detectar cambios en el estado de autenticación
     let authUnsubscribe: (() => void) | null = null;
-    
+
     if (typeof window !== 'undefined' && pathname && !publicRoutes.includes(pathname)) {
       import('@/lib/firebase-client').then(({ auth }) => {
-        if (auth) {
-          const { onAuthStateChanged } = require('firebase/auth');
-          authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser: any) => {
-            if (firebaseUser) {
-              // Solo obtener usuario si no hay uno cargado o si el ID cambió
-              if (!user || user.id !== firebaseUser.uid) {
-                await fetchUser();
-              }
-            } else {
-              setUser(null);
-            }
-          });
-        }
+        if (!auth) return;
+        const { onAuthStateChanged } = require('firebase/auth');
+        authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser: any) => {
+          if (firebaseUser) {
+            await fetchUser();
+          } else {
+            setUser(null);
+          }
+        });
       });
     }
-    
-    // Solo hacer fetch si no es una ruta pública y no hay usuario cargado
-    let timer: NodeJS.Timeout | null = null;
-    if (pathname && !publicRoutes.includes(pathname) && !user) {
-      // Intentar obtener usuario inmediatamente
-      fetchUser();
-      
-      // También intentar después de un delay solo si aún no hay usuario
-      timer = setTimeout(() => {
-        if (!user) {
-          fetchUser();
-        }
-      }, 1000); // 1 segundo para dar tiempo suficiente
-    }
-    
-    // Configurar renovación automática del token cada 45 minutos
-    // Los tokens de Firebase expiran después de 1 hora, así que refrescamos antes
-    const tokenRefreshInterval = setInterval(async () => {
-      try {
-        const { ensureFreshToken } = await import('@/lib/token-refresh');
-        const token = await ensureFreshToken();
-        if (token) {
-          console.log('✅ Token renovado automáticamente');
-        } else {
-          console.warn('⚠️ No se pudo renovar el token automáticamente');
-        }
-      } catch (error) {
-        console.error('Error al renovar token automáticamente:', error);
-      }
-    }, 45 * 60 * 1000); // 45 minutos (antes de que expire)
 
-    // Verificar políticas requeridas después de obtener el usuario
-    // Solo verificar una vez cuando el usuario se carga inicialmente
-    let policyTimer: NodeJS.Timeout | null = null;
-    if (user?.id && pathname && !publicRoutes.includes(pathname)) {
-      // Usar un pequeño delay para evitar verificaciones múltiples
-      policyTimer = setTimeout(() => {
-        checkRequiredPolicies();
+    let timer: NodeJS.Timeout | null = null;
+    if (pathname && !publicRoutes.includes(pathname)) {
+      fetchUser();
+      timer = setTimeout(() => {
+        fetchUser();
       }, 1000);
     }
 
+    const tokenRefreshInterval = setInterval(async () => {
+      try {
+        const { ensureFreshToken } = await import('@/lib/token-refresh');
+        await ensureFreshToken();
+      } catch (error) {
+        console.error('Error al renovar token automáticamente:', error);
+      }
+    }, 45 * 60 * 1000);
+
     return () => {
-      if (policyTimer) clearTimeout(policyTimer);
       clearInterval(maintenanceInterval);
       clearInterval(tokenRefreshInterval);
       if (timer) clearTimeout(timer);
       if (authUnsubscribe) authUnsubscribe();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname, user]);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!user?.id || !pathname || publicRoutes.includes(pathname)) return;
+    const policyTimer = setTimeout(() => {
+      checkRequiredPolicies();
+    }, 1000);
+    return () => clearTimeout(policyTimer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, pathname]);
 
   async function handleLogout() {
     try {
@@ -309,7 +261,8 @@ export default function SellerLayoutWrapper({
     'div',
     null,
     React.createElement(NotificationAlertsBootstrap),
-    showPolicyModal && user && user.id && React.createElement(PolicyAcceptanceModal, {
+    React.createElement(MembershipApiNotice),
+    showPolicyModal && user && user.id && !user.supportMode && React.createElement(PolicyAcceptanceModal, {
       userId: user.id,
       role: 'seller',
       tenantId: user.tenantId,
@@ -392,7 +345,7 @@ export default function SellerLayoutWrapper({
             'nav',
             { className: 'flex-1 min-h-0 px-4 py-6 space-y-1 overflow-y-auto custom-scrollbar' },
             React.createElement(NavigationWithFeatureFlags, {
-              items: visibleNavigationItems,
+              items: navigationItems,
               sidebarCollapsed: sidebarCollapsed,
               onNavigate: () => setMobileNavOpen(false),
             })
@@ -508,31 +461,43 @@ export default function SellerLayoutWrapper({
             )
           )
         ),
-        React.createElement(
-          'main',
-          { className: 'custom-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto' },
           React.createElement(
-            'div',
-            { className: 'mx-auto max-w-7xl px-3 py-6 sm:px-6 lg:px-8' },
-            React.createElement(DealerInviteBanner, {
-              userId: user?.id,
-              dealerId: user?.dealerId,
-            }),
+            'main',
+            { className: 'custom-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto' },
+            user?.supportMode
+              ? React.createElement(SupportModeBanner, {
+                  targetName: user?.name,
+                  targetEmail: user?.email,
+                  adminEmail: user?.supportAdminEmail,
+                })
+              : null,
             React.createElement(
-              MustChangePasswordGate,
-              {
-                user,
-                children: React.createElement(BillingAccessGuard, {
-                  tenantId: user?.tenantId,
-                  dealerId: user?.dealerId,
-                  adminMembershipAccess: user?.adminMembershipAccess,
-                  userReady: Boolean(user?.id),
-                  children,
-                }),
-              }
+              'div',
+              { className: 'mx-auto max-w-7xl px-3 py-6 sm:px-6 lg:px-8' },
+              React.createElement(DealerInviteBanner, {
+                userId: user?.id,
+                dealerId: user?.dealerId,
+              }),
+              React.createElement(
+                MustChangePasswordGate,
+                {
+                  user,
+                  children: React.createElement(BillingAccessGuard, {
+                    tenantId: user?.tenantId,
+                    dealerId: user?.dealerId,
+                    billingMode: user?.billingMode,
+                    adminMembershipAccess: user?.adminMembershipAccess,
+                    userReady: Boolean(user?.id),
+                    supportMode: user?.supportMode === true,
+                    children: React.createElement(MembershipPageGate, {
+                      user,
+                      children,
+                    }),
+                  }),
+                }
+              )
             )
           )
-        )
       )
     )
   );

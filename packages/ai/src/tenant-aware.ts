@@ -3,7 +3,7 @@
 import { AIClassifier } from './classification';
 import { AIAssistant } from './assistant';
 import { AIContentGenerator } from './content';
-import { getAIConfig, getAIApiKey, isAIEnabled, getAIModel } from '@autodealers/core';
+import { getAIConfig, getAIApiKey, isAIEnabled, getAIModel, tenantCanClassifyLeads, tenantCanAutoRespond, tenantCanGenerateContent } from '@autodealers/core';
 import { LeadClassification, AIResponse } from './types';
 
 /**
@@ -20,6 +20,10 @@ export async function classifyLeadWithTenantConfig(
   }
 ): Promise<LeadClassification | null> {
   try {
+    if (!(await tenantCanClassifyLeads(tenantId))) {
+      return null;
+    }
+
     // Verificar si la IA está habilitada
     if (!(await isAIEnabled(tenantId))) {
       return null;
@@ -62,13 +66,15 @@ export async function generateResponseWithTenantConfig(
   leadHistory?: string[]
 ): Promise<AIResponse | null> {
   try {
+    if (!(await tenantCanAutoRespond(tenantId))) {
+      return null;
+    }
+
     if (!(await isAIEnabled(tenantId))) {
       return null;
     }
 
     const config = await getAIConfig(tenantId);
-    
-    // Verificar configuración de respuestas automáticas desde el dashboard
     const { getFirestore } = await import('@autodealers/core');
     const db = getFirestore();
     const aiConfigDoc = await db
@@ -184,7 +190,7 @@ export async function generateResponseWithTenantConfig(
     const openai = new OpenAI({ apiKey });
     
     const completion = await openai.chat.completions.create({
-      model: config.responseSettings.model || 'gpt-4-turbo-preview',
+      model: config.responseSettings.model || 'gpt-4o-mini',
       messages: [
         { role: 'system', content: systemPrompt },
         { 

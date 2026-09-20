@@ -2,9 +2,7 @@
  * Identity Toolkit vía Node https (fallback cuando el SDK del navegador falla con network-request-failed).
  */
 import https from 'https';
-
-const DEFAULT_PUBLIC_ORIGIN =
-  'https://public-web-app--autodealers-7f62e.us-central1.hosted.app';
+import { resolvePublicWebUrl } from '@autodealers/shared/platform-urls';
 
 export async function identityToolkitSignInWithPassword(
   email: string,
@@ -15,7 +13,7 @@ export async function identityToolkitSignInWithPassword(
   const base = (
     originBase ||
     process.env.NEXT_PUBLIC_APP_URL ||
-    DEFAULT_PUBLIC_ORIGIN
+    resolvePublicWebUrl()
   ).replace(/\/$/, '');
 
   const bodyStr = JSON.stringify({ email, password, returnSecureToken: true });

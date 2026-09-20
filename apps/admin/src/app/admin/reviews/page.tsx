@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRealtimeReviews } from '@/hooks/useRealtimeReviews';
+import { AdminDeleteButton } from '@/components/AdminDeleteButton';
 
 interface GlobalStats {
   total: number;
@@ -202,6 +203,12 @@ export default function AdminReviewsPage() {
                     })}
                   </p>
                 </div>
+                <AdminDeleteButton
+                  deleteUrl={`/api/admin/reviews/${review.tenantId}/${review.id}`}
+                  label="Eliminar"
+                  confirmMessage="¿Eliminar esta reseña permanentemente?"
+                  className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 shrink-0"
+                />
               </div>
 
               {review.response && (

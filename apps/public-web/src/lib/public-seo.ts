@@ -17,7 +17,9 @@ export const PUBLIC_SITEMAP_STATIC_PATHS = [
   '/privacidad',
   '/precios',
   '/caracteristicas',
+  '/plataforma',
   '/demo-vendedor',
+  '/demo-dealer',
   '/sobre-nosotros',
   '/advertise',
   '/publicar-gratis',
@@ -35,11 +37,52 @@ const CORE_RESERVED_SLUGS = [
   'manifest.json',
   'apple-app-site-association',
   'demo-vendedor',
+  'demo-dealer',
+  'plataforma',
   'promo',
+  'sales',
+  'login',
+  'register',
+  'registro',
+  'search',
+  'compare',
+  'dealers',
+  'dealer',
+  'seller',
+  'home-seller',
+  'contacto',
+  'faq',
+  'terminos',
+  'privacidad',
+  'precios',
+  'caracteristicas',
+  'sobre-nosotros',
+  'advertise',
+  'ads-preview',
+  'publicar-gratis',
+  'anuncio',
+  'category',
+  'contracts',
+  'fi',
+  'upload-documents',
+  'review',
+  'survey',
+  'dashboard',
+  'partners',
+  'affiliate',
+  'setup-firebase',
+  'api',
+  'brand',
+  'static',
 ] as const;
 
 /** Slugs que nunca deben tratarse como tenant en /[subdomain]. */
-export const RESERVED_SUBDOMAIN_SLUGS = new Set<string>(CORE_RESERVED_SLUGS);
+export const RESERVED_SUBDOMAIN_SLUGS = new Set<string>([
+  ...CORE_RESERVED_SLUGS,
+  ...PUBLIC_SITEMAP_STATIC_PATHS.map((path) => path.split('/').filter(Boolean)[0]).filter(
+    (seg): seg is string => Boolean(seg)
+  ),
+]);
 
 export function isReservedSubdomainSlug(slug: string): boolean {
   const normalized = (slug || '').trim().toLowerCase();

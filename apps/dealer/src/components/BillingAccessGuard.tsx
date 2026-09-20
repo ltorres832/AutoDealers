@@ -9,19 +9,27 @@ const GRACE_DAYS = 3;
 
 function isBillingBlocked(status: string, daysPastDue: number): boolean {
   if (status === 'suspended' || status === 'unpaid' || status === 'cancelled') return true;
+  if (status === 'incomplete' || status === 'incomplete_expired') return true;
   if (status === 'past_due' && daysPastDue >= GRACE_DAYS) return true;
   return false;
+}
+
+function isActiveSubscription(status: string | undefined): boolean {
+  return status === 'active' || status === 'trialing' || status === 'past_due';
 }
 
 export function BillingAccessGuard({
   tenantId,
   membershipId,
   userReady = true,
+  supportMode = false,
   children,
 }: {
   tenantId?: string;
   membershipId?: string;
   userReady?: boolean;
+  /** Admin en modo soporte: no bloquear por facturación/onboarding */
+  supportMode?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -31,16 +39,17 @@ export function BillingAccessGuard({
   const onMembershipPage =
     pathname?.startsWith('/settings/membership') || pathname === '/login';
 
-  const hasAssignedMembership = Boolean(membershipId?.trim());
+  const hasPlanOnFile = Boolean(membershipId) || Boolean(subscription);
 
   const needsOnboarding =
+    !supportMode &&
     userReady &&
     !loading &&
-    !subscription &&
-    !hasAssignedMembership &&
+    !hasPlanOnFile &&
     !onMembershipPage;
 
   const blocked =
+    !supportMode &&
     !loading &&
     subscription &&
     isBillingBlocked(subscription.status, subscription.daysPastDue ?? 0);
@@ -104,8 +113,21 @@ export function BillingAccessGuard({
             Pagar membresía
           </a>
         </div>
-      ) : (
+      ) : isActiveSubscription(subscription.status) || Boolean(membershipId) ? (
         children
+      ) : (
+        <div className="max-w-lg mx-auto mt-16 p-8 bg-white rounded-lg shadow text-center">
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Membresía pendiente</h2>
+          <p className="text-gray-600 mb-4">
+            Tu membresía todavía no está activa. Completa el pago para acceder a la plataforma.
+          </p>
+          <a
+            href="/settings/membership"
+            className="inline-block bg-primary-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-primary-700"
+          >
+            Completar pago
+          </a>
+        </div>
       )}
     </>
   );

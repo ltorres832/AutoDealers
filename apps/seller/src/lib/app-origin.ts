@@ -1,8 +1,7 @@
 import type { NextRequest } from 'next/server';
+import { resolveSellerUrl } from '@autodealers/shared/platform-urls';
 
 const DEV_ORIGIN = 'http://localhost:3003';
-const PROD_ORIGIN =
-  'https://seller-app--autodealers-7f62e.us-central1.hosted.app';
 
 /**
  * Origen de la app seller para OAuth Meta, Stripe, etc.
@@ -28,7 +27,7 @@ export function getAppOrigin(request?: NextRequest): string {
     const url = request.nextUrl;
     if (url.hostname === '0.0.0.0' || url.hostname === '127.0.0.1') {
       if (process.env.NODE_ENV === 'production') {
-        return PROD_ORIGIN;
+        return resolveSellerUrl();
       }
       const port = url.port || '3003';
       return `http://localhost:${port}`;
@@ -42,7 +41,7 @@ export function getAppOrigin(request?: NextRequest): string {
   }
 
   if (process.env.NODE_ENV === 'production') {
-    return PROD_ORIGIN;
+    return resolveSellerUrl();
   }
 
   return DEV_ORIGIN;

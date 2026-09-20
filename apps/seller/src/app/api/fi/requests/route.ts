@@ -14,6 +14,7 @@ import {
   fiStatusToExpeditionStage,
   syncLinkedCustomerFileExpedition,
 } from '@autodealers/crm';
+import { notifyFIRequestSubmitted } from '@autodealers/core';
 
 // Implementación directa para evitar problemas de webpack
 function generateRandomId(): string {
@@ -375,6 +376,21 @@ export async function POST(request: NextRequest) {
         user.userId,
         sellerNotes
       );
+      try {
+        const clientDoc = await db
+          .collection('tenants')
+          .doc(user.tenantId!)
+          .collection('fi_clients')
+          .doc(clientId)
+          .get();
+        await notifyFIRequestSubmitted(user.tenantId!, {
+          requestId: fiRequest.id,
+          clientName: clientDoc.data()?.name || 'Cliente',
+          sellerUserId: user.userId,
+        });
+      } catch (notificationError) {
+        console.error('Error notificando envío directo F&I:', notificationError);
+      }
       // Recargar la solicitud para obtener el estado actualizado
       const updatedRequest = await getFIRequestsDirect(user.tenantId!, {
         clientId: fiRequest.clientId,

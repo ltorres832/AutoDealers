@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { getActivePolicies } from '@autodealers/core';
+import { getPublicPolicyByType } from '@/lib/public-policies';
 
 export async function GET(
   request: NextRequest,
@@ -11,24 +11,22 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const language = (searchParams.get('language') || 'es') as 'es' | 'en';
     
-    const policies = await getActivePolicies(
-      type as any,
-      'public',
-      undefined,
-      language
-    );
-    
-    if (policies.length === 0) {
+    const policy = await getPublicPolicyByType(type, { language });
+
+    if (!policy) {
       return NextResponse.json(
         { error: 'Política no encontrada' },
-        { status: 404 }
+        {
+          status: 404,
+          headers: { 'Cache-Control': 'no-store' },
+        }
       );
     }
-    
-    // Retornar la política más reciente
-    const policy = policies[0];
-    
-    return NextResponse.json({ policy });
+
+    return NextResponse.json(
+      { policy },
+      { headers: { 'Cache-Control': 'no-store' } }
+    );
   } catch (error: any) {
     console.error('Error fetching policy:', error);
     return NextResponse.json(

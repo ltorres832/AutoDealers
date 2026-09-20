@@ -1,5 +1,7 @@
 /** Misma normalización que el panel vendedor (settings/website). */
 
+import { applyWebsiteHeroMediaToHero } from '@autodealers/shared/website-hero-media';
+
 export const DEFAULT_HERO_TITLE = 'Encuentra el vehículo perfecto para ti';
 export const DEFAULT_HERO_SUBTITLE = 'Tenemos la mejor selección de vehículos';
 export const DEFAULT_HERO_CTA = 'Ver Inventario';
@@ -85,6 +87,7 @@ export function normalizeWebsiteSettingsFromFirestore(
     if (typeof hero.ctaText !== 'string' || !hero.ctaText.trim()) {
       hero.ctaText = DEFAULT_HERO_CTA;
     }
+    applyWebsiteHeroMediaToHero(hero);
   }
   const chat = merged.chat;
   if (isPlainObject(chat) && typeof chat.welcomeMessage !== 'string') {
@@ -98,7 +101,9 @@ export type WebsiteSettingsView = {
     title: string;
     subtitle: string;
     ctaText: string;
+    mediaMode?: 'gradient' | 'image' | 'video';
     backgroundImage?: string;
+    backgroundVideoUrl?: string;
   };
   sections: {
     about: { enabled: boolean; title: string; content: string };
@@ -122,8 +127,14 @@ export function toWebsiteSettingsView(raw: Record<string, unknown>): WebsiteSett
         typeof hero.ctaText === 'string' && hero.ctaText.trim()
           ? hero.ctaText.trim()
           : DEFAULT_HERO_CTA,
+      mediaMode:
+        hero.mediaMode === 'image' || hero.mediaMode === 'video' || hero.mediaMode === 'gradient'
+          ? hero.mediaMode
+          : 'gradient',
       backgroundImage:
         typeof hero.backgroundImage === 'string' ? hero.backgroundImage : undefined,
+      backgroundVideoUrl:
+        typeof hero.backgroundVideoUrl === 'string' ? hero.backgroundVideoUrl : undefined,
     },
     sections: {
       about: {

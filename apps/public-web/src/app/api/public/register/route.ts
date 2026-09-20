@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   createUser,
   finalizeUserRegistration,
-  getUserByReferralCode,
+  findPlatformProfile,
+  PlatformProfileExistsError,
+  resolveReferrerByCode,
   upsertNewsletterSubscriber,
-  announceNewRegistrationOnFacebook,
+  triggerRegistrationSocialAnnounceIfNeeded,
+  sendWelcomeEmailForRole,
   isTenantSubdomainSlugAvailable,
   validateTenantSubdomainSlug,
   normalizeLoginEmail,
+  notifyPlatformAdminsOfRegistration,
 } from '@autodealers/core';
 import { getFirestore } from '@autodealers/core';
 import * as admin from 'firebase-admin';
@@ -102,6 +106,13 @@ export async function POST(request: NextRequest) {
 
     // Crear usuario sin membresía (se asignará después)
     const role = accountType === 'dealer' ? 'dealer' : 'seller';
+    const existingProfile = await findPlatformProfile(
+      normalizedEmail,
+      role === 'dealer' ? 'dealer' : 'seller'
+    );
+    if (existingProfile) {
+      throw new PlatformProfileExistsError(role === 'dealer' ? 'dealer' : 'seller');
+    }
 
     // Crear tenant primero
     const tenantRef = db.collection('tenants').doc();
@@ -153,13 +164,45 @@ export async function POST(request: NextRequest) {
       userId: user.id,
     });
 
+    void sendWelcomeEmailForRole({
+      email: normalizedEmail,
+      name,
+      role,
+      createdByAdmin: false,
+    }).catch((err) => console.warn('[public/register] welcome email failed:', err));
+
+    void notifyPlatformAdminsOfRegistration({
+      kind: role === 'dealer' ? 'dealer' : 'seller',
+      name,
+      email: normalizedEmail,
+      title: role === 'dealer' ? 'Nuevo concesionario registrado' : 'Nuevo vendedor registrado',
+      message: `${name} (${normalizedEmail}) se registró como ${
+        role === 'dealer' ? 'concesionario' : 'vendedor'
+      }${accountType === 'dealer' && companyName ? ` — ${companyName}` : ''}.`,
+      adminRoute: '/admin/users',
+      audience: 'platform',
+      metadata: {
+        userId: user.id,
+        tenantId,
+        role,
+      },
+      details: companyName ? [{ label: 'Compañía', value: companyName }] : undefined,
+    }).catch((err) => console.warn('[public/register] admin notify failed:', err));
+
     if (referralCode && typeof referralCode === 'string') {
-      const refCode = referralCode.trim();
-      if (refCode) {
-        const referrerId = await getUserByReferralCode(refCode);
-        if (referrerId && referrerId !== user.id) {
+      const refCode = referralCode.trim().toUpperCase();
+      if (refCode && refCode !== 'N/A' && refCode !== 'NA') {
+        const referrer = await resolveReferrerByCode(refCode);
+        if (!referrer) {
+          return NextResponse.json(
+            { error: 'El código de referido no es válido. Verifica e intenta de nuevo o usa N/A.' },
+            { status: 400 }
+          );
+        }
+        if (referrer.id !== user.id) {
           await db.collection('users').doc(user.id).update({
-            referredBy: referrerId,
+            referredBy: referrer.id,
+            referredByType: referrer.type,
             referralCodeUsed: refCode,
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           });
@@ -167,14 +210,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Facebook: anuncio en página AutoDealers + en página propia si ya está conectada (si no, queda pendiente)
-    announceNewRegistrationOnFacebook({
+    // Facebook: anuncio en página AutoDealersOnline + en página propia si ya está conectada (si no, queda pendiente)
+    triggerRegistrationSocialAnnounceIfNeeded({
       tenantId,
       userId: user.id,
       displayName: accountType === 'dealer' ? (companyName || name) : name,
       accountType: accountType === 'dealer' ? 'dealer' : 'seller',
       companyName: companyName || undefined,
-    }).catch((err) => console.warn('registration Facebook announce:', err));
+    }).catch((err) => console.warn('registration social announce:', err));
 
     // Retornar también email y name para que el frontend pueda usarlos
     return NextResponse.json({
@@ -189,9 +232,9 @@ export async function POST(request: NextRequest) {
     console.error('Error creating account:', error);
 
     // Manejar errores específicos
-    if (error.code === 'auth/email-already-in-use') {
+    if (error instanceof PlatformProfileExistsError || error.code === 'PROFILE_ALREADY_EXISTS') {
       return NextResponse.json(
-        { error: 'Este email ya está registrado' },
+        { error: error.message || 'Este email ya está registrado para este tipo de cuenta' },
         { status: 400 }
       );
     }

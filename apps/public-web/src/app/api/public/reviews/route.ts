@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getFirestore } from '../../../../lib/firebase-admin';
+import { isDemoPromoAccount, isKnownDemoId } from '@/lib/public-catalog-visibility';
 
 export const revalidate = 0; // Disable static caching for real-time data
 
@@ -52,6 +53,14 @@ export async function GET(request: Request) {
             const data = doc.data();
             const pathPaths = doc.ref.path.split('/');
             const tenantId = pathPaths[1];
+            if (
+                isKnownDemoId(tenantId) ||
+                isKnownDemoId(data.dealerId) ||
+                isKnownDemoId(data.sellerId) ||
+                isDemoPromoAccount(data as Record<string, unknown>, doc.id)
+            ) {
+                continue;
+            }
 
             let vehicleName = '';
             let dealerName = '';

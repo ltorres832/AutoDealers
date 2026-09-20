@@ -7,6 +7,7 @@ import { RealtimeIndicator } from '@/components/RealtimeIndicator';
 import StarRating from '@/components/StarRating';
 import { fetchWithAuth } from '@/lib/fetch-with-auth';
 import { getDashboardLoginUrl } from '@/lib/dashboard-login-urls';
+import { formatTenantHostname, tenantHostSuffix } from '@autodealers/shared/platform-urls';
 
 interface Tenant {
   id: string;
@@ -170,7 +171,7 @@ export default function AdminTenantsPage() {
                 <p className="text-sm text-gray-600 capitalize">{tenant.type}</p>
                 {tenant.subdomain && (
                   <p className="text-xs text-gray-500 mt-1">
-                    {tenant.subdomain}.autodealers.com
+                    {formatTenantHostname(tenant.subdomain)}
                   </p>
                 )}
               </div>
@@ -225,6 +226,14 @@ export default function AdminTenantsPage() {
               >
                 Ver Detalles
               </Link>
+              {(tenant.type === 'dealer' || tenant.type === 'seller') ? (
+                <Link
+                  href={`/admin/courtesy-days?tenantId=${encodeURIComponent(tenant.id)}&name=${encodeURIComponent(tenant.name)}`}
+                  className="px-4 py-2 rounded text-sm bg-green-100 text-green-800 hover:bg-green-200"
+                >
+                  Días de cortesía
+                </Link>
+              ) : null}
               <button
                 onClick={() => toggleStatus(tenant.id, tenant.status)}
                 className={`px-4 py-2 rounded text-sm ${
@@ -502,7 +511,7 @@ function CreateTenantModal({
                 className="flex-1 border rounded-l px-3 py-2"
                 placeholder="mi-dealer"
               />
-              <span className="border border-l-0 rounded-r px-3 py-2 bg-gray-50 text-sm">.autodealers.com</span>
+              <span className="border border-l-0 rounded-r px-3 py-2 bg-gray-50 text-sm">{tenantHostSuffix()}</span>
             </div>
           </div>
 

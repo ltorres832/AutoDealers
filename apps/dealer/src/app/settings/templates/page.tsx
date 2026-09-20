@@ -452,7 +452,7 @@ function CreateTemplateModal({
                 onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
                 className="w-full border rounded px-3 py-2"
                 required
-                placeholder="Ej: Bienvenido a AutoDealers"
+                placeholder="Ej: Bienvenido a AutoDealersOnline"
               />
             </div>
           )}

@@ -2,9 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { verifyAuth } from '@/lib/auth';
 
-import { getStripeInstance } from '@autodealers/core';
-
-import { getFirestore } from '@autodealers/core';
+import { getStripeInstance, getFirestore, salesEmployeeMetadataForTenant } from '@autodealers/core';
 
 import { getSubscriptionByTenantId, syncMembershipForSubscription } from '@autodealers/billing';
 
@@ -19,6 +17,7 @@ import {
   stripeSubscriptionPeriodFields,
 
 } from '@autodealers/billing/membership-trial';
+import { resolveMembershipPricing, ensureIntroToRegularSchedule } from '@autodealers/billing';
 
 import { dealerManagedBillingResponse } from '@/lib/dealer-managed-guard';
 
@@ -210,6 +209,14 @@ export async function POST(request: NextRequest) {
 
 
 
+    const pricing = resolveMembershipPricing(membership as unknown as Record<string, unknown>);
+    if (!pricing.checkoutStripePriceId) {
+      return NextResponse.json(
+        { error: 'La membres�a no tiene Price de Stripe configurado.' },
+        { status: 400 }
+      );
+    }
+
     let stripeSubscriptionId: string;
 
     let stripeSubscription: Awaited<ReturnType<typeof stripe.subscriptions.create>>;
@@ -240,21 +247,26 @@ export async function POST(request: NextRequest) {
 
         {
 
-          items: [{ id: primaryItem.id, price: membership.stripePriceId }],
+          items: [{ id: primaryItem.id, price: pricing.checkoutStripePriceId }],
 
           proration_behavior: 'create_prorations',
 
           default_payment_method: paymentMethodId,
 
           metadata: {
-
-            tenantId: auth.tenantId,
-
-            userId: auth.userId,
-
-            membershipId: membershipId,
-
-          },
+          tenantId: auth.tenantId,
+          userId: auth.userId,
+          membershipId: membershipId,
+          ...(await salesEmployeeMetadataForTenant(auth.tenantId)),
+          ...(pricing.schedule
+            ? {
+                introSchedule: '1',
+                introMonths: String(pricing.schedule.introMonths),
+                introStripePriceId: pricing.schedule.introStripePriceId,
+                regularStripePriceId: pricing.schedule.regularStripePriceId,
+              }
+            : {}),
+        },
 
         }
 
@@ -276,7 +288,7 @@ export async function POST(request: NextRequest) {
 
         customer: customerId,
 
-        items: [{ price: membership.stripePriceId }],
+        items: [{ price: pricing.checkoutStripePriceId }],
 
         payment_settings: {
 
@@ -311,6 +323,20 @@ export async function POST(request: NextRequest) {
     }
 
 
+
+    if (pricing.schedule && !subscription?.stripeSubscriptionId) {
+      try {
+        await ensureIntroToRegularSchedule({
+          stripe: stripe as any,
+          subscriptionId: stripeSubscriptionId,
+          introStripePriceId: pricing.schedule.introStripePriceId,
+          regularStripePriceId: pricing.schedule.regularStripePriceId,
+          introMonths: pricing.schedule.introMonths,
+        });
+      } catch (schedErr) {
+        console.warn('Intro schedule (seller subscribe):', schedErr);
+      }
+    }
 
     const periodFields = stripeSubscriptionPeriodFields(stripeSubscription);
 
@@ -386,7 +412,28 @@ export async function POST(request: NextRequest) {
 
 
 
-    await syncMembershipForSubscription(firestoreSubscriptionId, membershipId);
+    if (periodFields.status === 'active' || periodFields.status === 'trialing') {
+      await syncMembershipForSubscription(firestoreSubscriptionId, membershipId);
+      try {
+        const { ensureVoiceProvisionedForTenant } = await import('@autodealers/voice');
+        const voiceResult = await ensureVoiceProvisionedForTenant(auth.tenantId, {
+          source: 'seller_subscribe',
+          updatedBy: auth.userId,
+        });
+        if (!voiceResult.ok && !voiceResult.skipped) {
+          console.warn('[subscribe seller] Voice provision:', voiceResult.reason);
+        }
+      } catch (voiceErr) {
+        console.warn('[subscribe seller] Voice provision skipped:', voiceErr);
+      }
+    } else {
+      console.log('⏳ Suscripción creada sin activar membresía hasta confirmación Stripe:', {
+        tenantId: auth.tenantId,
+        userId: auth.userId,
+        stripeSubscriptionId,
+        status: periodFields.status,
+      });
+    }
 
 
 

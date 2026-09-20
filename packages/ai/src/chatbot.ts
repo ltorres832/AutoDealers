@@ -47,7 +47,7 @@ Si no tienes suficiente información, pregunta amablemente.`;
     ];
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: 'gpt-4o-mini',
       messages,
       temperature: 0.7,
       max_tokens: 300,
@@ -81,7 +81,7 @@ export async function detectAndRespondInLanguage(
     const openai = new OpenAI({ apiKey });
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',

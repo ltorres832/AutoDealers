@@ -75,18 +75,13 @@ export default function TasksList({ leadId, assignedTo, tenantId, onTaskComplete
     if (!confirm('¿Estás seguro de eliminar esta tarea?')) return;
 
     try {
-      const apiPath = tenantId && auth?.role === 'admin'
-        ? `/api/admin/tasks/${taskId}`
-        : `/api/tasks/${taskId}`;
-      
-      const body = tenantId && auth?.role === 'admin'
-        ? JSON.stringify({ tenantId })
-        : undefined;
+      const apiPath =
+        tenantId && auth?.role === 'admin'
+          ? `/api/admin/tasks/${taskId}?tenantId=${encodeURIComponent(effectiveTenantId)}`
+          : `/api/tasks/${taskId}`;
 
       const response = await fetch(apiPath, {
         method: 'DELETE',
-        headers: body ? { 'Content-Type': 'application/json' } : undefined,
-        body,
         credentials: 'include',
       });
 

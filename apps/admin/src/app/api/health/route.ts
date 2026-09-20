@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     // Basic health check - can be extended to check database connectivity, etc.
     return NextResponse.json({
       status: 'healthy',
-      service: 'AutoDealers Admin Panel API',
+      service: 'AutoDealersOnline Admin Panel API',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
     });

@@ -46,6 +46,8 @@ export async function POST(
       );
     }
 
+    const isLead = requestData?.isLead === true;
+
     // Actualizar la solicitud
     await db.collection('multi_dealer_requests').doc(userId).update({
       status: 'rejected',
@@ -54,19 +56,23 @@ export async function POST(
       reviewNotes: reason,
     });
 
-    // Eliminar el usuario (ya que fue creado con disabled: true)
-    try {
-      await auth.deleteUser(userId);
-    } catch (error: any) {
-      // Si el usuario ya fue eliminado o no existe, continuar
-      console.warn('Error deleting user (may already be deleted):', error.message);
-    }
+    // Solo el flujo legado creaba una cuenta deshabilitada al enviar la
+    // solicitud. Los leads nuevos no tienen cuenta, así que no hay nada que borrar.
+    if (!isLead) {
+      // Eliminar el usuario (ya que fue creado con disabled: true)
+      try {
+        await auth.deleteUser(userId);
+      } catch (error: any) {
+        // Si el usuario ya fue eliminado o no existe, continuar
+        console.warn('Error deleting user (may already be deleted):', error.message);
+      }
 
-    // Eliminar el documento de usuario en Firestore
-    try {
-      await db.collection('users').doc(userId).delete();
-    } catch (error: any) {
-      console.warn('Error deleting user document:', error.message);
+      // Eliminar el documento de usuario en Firestore
+      try {
+        await db.collection('users').doc(userId).delete();
+      } catch (error: any) {
+        console.warn('Error deleting user document:', error.message);
+      }
     }
 
     // Crear notificación (si el usuario aún existe en algún sistema)

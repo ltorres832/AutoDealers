@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../domain/models/vehicle.dart';
 import '../../config/firebase_config.dart';
 import '../services/firestore_service.dart';
+import '../../domain/models/photo_guide.dart';
 
 class InventoryRepository {
   final FirebaseFirestore _firestore = FirebaseConfig.firestore;
@@ -228,5 +229,111 @@ class InventoryRepository {
     await updateVehicle(vehicleId, {
       'publishedOnPublicPage': published,
     }, tenantId: tenantId);
+  }
+
+  DocumentReference<Map<String, dynamic>> _photoSetRef(
+    String tenantId,
+    String vehicleId,
+  ) {
+    return _firestore
+        .collection('tenants')
+        .doc(tenantId)
+        .collection('vehicle_photo_sets')
+        .doc(vehicleId);
+  }
+
+  /// Lee el set de fotos guiadas; si no existe, siembra desde `photos` del vehículo.
+  Future<List<VehiclePhotoSlot>> getVehiclePhotoSet({
+    required String tenantId,
+    required String vehicleId,
+  }) async {
+    final snap = await _photoSetRef(tenantId, vehicleId).get();
+    if (snap.exists) {
+      final data = snap.data() ?? {};
+      final raw = data['slots'];
+      if (raw is List) {
+        return raw
+            .whereType<Map>()
+            .map((e) => VehiclePhotoSlot.fromJson(Map<String, dynamic>.from(e)))
+            .toList();
+      }
+      return [];
+    }
+
+    final vehicle = await getVehicle(vehicleId, tenantId: tenantId);
+    final photos = vehicle?.photos ?? [];
+    return photos.asMap().entries.map((e) {
+      final angleId = e.key < kPhotoGuideAngles.length
+          ? kPhotoGuideAngles[e.key].id
+          : 'extra_${e.key}';
+      return VehiclePhotoSlot(angleId: angleId, originalUrl: e.value);
+    }).toList();
+  }
+
+  /// Upsert de un ángulo. Conserva original; no borra fotos existentes.
+  Future<List<VehiclePhotoSlot>> upsertVehiclePhotoSlot({
+    required String tenantId,
+    required String vehicleId,
+    required String angleId,
+    required String originalUrl,
+    String? editedUrl,
+    String? sceneId,
+    bool appendToVehiclePhotos = true,
+  }) async {
+    final trimmed = originalUrl.trim();
+    if (trimmed.isEmpty) {
+      throw Exception('La URL de la foto es requerida');
+    }
+
+    final existing = await getVehiclePhotoSet(
+      tenantId: tenantId,
+      vehicleId: vehicleId,
+    );
+    final slots = List<VehiclePhotoSlot>.from(existing);
+    final idx = slots.indexWhere((s) => s.angleId == angleId);
+    final next = VehiclePhotoSlot(
+      angleId: angleId,
+      originalUrl: trimmed,
+      editedUrl: editedUrl ?? (idx >= 0 ? slots[idx].editedUrl : null),
+      sceneId: sceneId ?? (idx >= 0 ? slots[idx].sceneId : null),
+      createdAt: DateTime.now().toIso8601String(),
+    );
+    if (idx >= 0) {
+      slots[idx] = next;
+    } else {
+      slots.add(next);
+    }
+
+    await _photoSetRef(tenantId, vehicleId).set({
+      'slots': slots.map((s) => s.toJson()).toList(),
+      'vehicleId': vehicleId,
+      'tenantId': tenantId,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    if (appendToVehiclePhotos) {
+      final vehicleRef = _firestore
+          .collection('tenants')
+          .doc(tenantId)
+          .collection('vehicles')
+          .doc(vehicleId);
+      final vehicleSnap = await vehicleRef.get();
+      if (vehicleSnap.exists) {
+        final photos = List<String>.from(
+          (vehicleSnap.data()?['photos'] as List?)?.map((e) => e.toString()) ??
+              [],
+        );
+        if (!photos.contains(trimmed) &&
+            !photos.contains(next.displayUrl)) {
+          photos.add(trimmed);
+          await vehicleRef.set({
+            'photos': photos,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        }
+      }
+    }
+
+    return slots;
   }
 }

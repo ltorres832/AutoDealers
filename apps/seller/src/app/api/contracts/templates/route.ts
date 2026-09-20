@@ -18,10 +18,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ templates });
   } catch (error: any) {
     console.error('Error fetching contract templates:', error);
-    return NextResponse.json(
-      { error: error.message || 'Error al obtener plantillas' },
-      { status: 500 }
-    );
+    return NextResponse.json({ templates: [], warning: error.message || 'index_or_query' });
   }
 }
 

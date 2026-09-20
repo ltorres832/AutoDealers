@@ -12,6 +12,7 @@ buildConfig:
     npm run build --workspace=@autodealers/ai
     npm run build --workspace=@autodealers/messaging
     npm run build --workspace=@autodealers/reports
+    npm run build --workspace=@autodealers/voice
     cd apps/dealer && npm run build
   outputDir: .next
 
@@ -61,6 +62,14 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  - variable: FIREBASE_CLIENT_EMAIL
+    secret: FIREBASE_CLIENT_EMAIL
+    availability:
+      - RUNTIME
+  - variable: FIREBASE_PRIVATE_KEY
+    secret: FIREBASE_PRIVATE_KEY
+    availability:
+      - RUNTIME
   - variable: STRIPE_SECRET_KEY
     secret: STRIPE_SECRET_KEY
     availability:
@@ -74,9 +83,17 @@ env:
     availability:
       - RUNTIME
   - variable: NEXT_PUBLIC_APP_URL
-    value: https://dealers.autodealers-online.com
+    value: https://dealer.autodealers-online.com
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_PUBLIC_WEB_URL
     value: https://www.autodealers-online.com
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_PLATFORM_DOMAIN
+    value: autodealers-online.com
+    availability:
+      - BUILD
+      - RUNTIME

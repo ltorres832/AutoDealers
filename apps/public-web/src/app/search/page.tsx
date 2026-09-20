@@ -88,7 +88,10 @@ export default function SearchPage() {
         <div className="text-center mb-8">
           <h1 className="text-3xl sm:text-4xl font-bold mb-4">Buscar Vendedor o Dealer</h1>
           <p className="text-gray-600">
-            Encuentra vendedores y dealers por nombre
+            Encuentra vendedores y dealers por nombre.{' '}
+            <Link href="/vin" className="text-primary-600 hover:underline font-medium">
+              Buscar vehículo por VIN
+            </Link>
           </p>
         </div>
 
@@ -129,15 +132,15 @@ export default function SearchPage() {
                 <h2 className="text-2xl font-bold mb-4">
                   Vendedores ({sellers.length})
                 </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {sellers.map((seller) => (
                     <Link
                       key={seller.id}
                       href={`/seller/${seller.id}`}
-                      className="bg-white rounded-lg shadow hover:shadow-lg transition p-6"
+                      className="bg-white rounded-lg shadow hover:shadow-lg transition p-4"
                     >
-                      <div className="flex items-center gap-4 mb-4">
-                        <div className="w-16 h-16 rounded-full bg-primary-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center overflow-hidden flex-shrink-0">
                           {seller.photo ? (
                             <img
                               src={seller.photo}
@@ -151,18 +154,18 @@ export default function SearchPage() {
                               }}
                             />
                           ) : (
-                            <span className="text-2xl text-primary-600">
+                            <span className="text-xl text-primary-600">
                               {seller.name.charAt(0).toUpperCase()}
                             </span>
                           )}
                         </div>
                         <div className="flex-1">
-                          <h3 className="font-bold text-lg">{seller.name}</h3>
-                          <p className="text-sm text-gray-600">{seller.title}</p>
+                          <h3 className="font-bold text-base">{seller.name}</h3>
+                          <p className="text-xs text-gray-600">{seller.title}</p>
                         </div>
                       </div>
                       {seller.sellerRating > 0 && (
-                        <div className="mb-2">
+                        <div className="mb-1.5">
                           <StarRating
                             rating={seller.sellerRating}
                             count={seller.sellerRatingCount}
@@ -171,7 +174,7 @@ export default function SearchPage() {
                           />
                         </div>
                       )}
-                      <p className="text-sm text-gray-600">
+                      <p className="text-xs text-gray-600">
                         {seller.publishedVehiclesCount} vehículo{seller.publishedVehiclesCount !== 1 ? 's' : ''} disponible{seller.publishedVehiclesCount !== 1 ? 's' : ''}
                       </p>
                     </Link>
@@ -186,21 +189,21 @@ export default function SearchPage() {
                 <h2 className="text-2xl font-bold mb-4">
                   Dealers ({dealers.length})
                 </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {dealers.map((dealer) => (
                     <Link
                       key={dealer.id}
                       href={`/dealer/${dealer.id}`}
-                      className="bg-white rounded-lg shadow hover:shadow-lg transition p-6"
+                      className="bg-white rounded-lg shadow hover:shadow-lg transition p-4"
                     >
-                      <h3 className="font-bold text-xl mb-2">
+                      <h3 className="font-bold text-lg mb-1.5">
                         {dealer.companyName || dealer.name}
                       </h3>
                       {dealer.companyName && dealer.name !== dealer.companyName && (
-                        <p className="text-sm text-gray-600 mb-2">{dealer.name}</p>
+                        <p className="text-xs text-gray-600 mb-1.5">{dealer.name}</p>
                       )}
                       {dealer.dealerRating > 0 && (
-                        <div className="mb-2">
+                        <div className="mb-1.5">
                           <StarRating
                             rating={dealer.dealerRating}
                             count={dealer.dealerRatingCount}
@@ -209,10 +212,10 @@ export default function SearchPage() {
                           />
                         </div>
                       )}
-                      <p className="text-sm text-gray-600">
+                      <p className="text-xs text-gray-600">
                         {dealer.publishedVehiclesCount} vehículo{dealer.publishedVehiclesCount !== 1 ? 's' : ''} disponible{dealer.publishedVehiclesCount !== 1 ? 's' : ''}
                       </p>
-                      <p className="text-sm text-gray-600 mt-1">
+                      <p className="text-xs text-gray-600 mt-1">
                         {dealer.sellersCount} vendedor{dealer.sellersCount !== 1 ? 'es' : ''}
                       </p>
                     </Link>

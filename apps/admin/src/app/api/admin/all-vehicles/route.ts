@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
     const tenantId = searchParams.get('tenantId');
     const status = searchParams.get('status');
     const search = searchParams.get('search');
+    const includeDeleted = searchParams.get('includeDeleted') === 'true';
 
     console.log('🔍 Filtros:', { tenantId, status, search });
 
@@ -71,6 +72,7 @@ export async function GET(request: NextRequest) {
         
         vehiclesSnapshot.docs.forEach((doc: any) => {
           const data = doc.data();
+          if (!includeDeleted && data?.deleted === true) return;
           vehicles.push({
             id: doc.id,
             tenantId: tenantId_,

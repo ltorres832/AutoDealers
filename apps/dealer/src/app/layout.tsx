@@ -4,6 +4,7 @@ import './globals.css';
 import '../../../../packages/shared/src/styles/brand-surface.css';
 import DealerLayoutWrapper from './layout-wrapper';
 import { PlatformBrandingHead } from '@/components/PlatformBrandingHead';
+import { PlatformVisitTracker } from '@autodealers/shared/platform-visit-tracker';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -17,7 +18,7 @@ export const viewport: Viewport = {
 const platformBrandIcon = '/brand/ad-platform-logo.png';
 
 export const metadata: Metadata = {
-  title: 'AutoDealers - Dashboard Dealer',
+  title: 'AutoDealersOnline - Dashboard Dealer',
   description: 'Dashboard para dealers',
   icons: {
     icon: [
@@ -38,6 +39,7 @@ export default function RootLayout({
     <html lang="es">
       <body className={`${inter.className} brand-top-accent min-h-[100dvh] overflow-x-hidden antialiased`}>
         <PlatformBrandingHead />
+        <PlatformVisitTracker app="dealer" />
         <DealerLayoutWrapper>{children}</DealerLayoutWrapper>
       </body>
     </html>

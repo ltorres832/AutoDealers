@@ -26,19 +26,46 @@ export async function GET(request: NextRequest) {
 
     const limits: Array<{ name: string; current: number; limit: number | null; icon: string }> = [];
 
-    if (features.maxInventory && features.maxInventory > 0 && auth.role === 'seller') {
+    if (auth.role === 'seller') {
       const {
         filterVehiclesOwnedBySeller,
         loadVehiclesForSellerWorkspace,
       } = await import('@/lib/seller-vehicles');
-      const all = await loadVehiclesForSellerWorkspace(auth);
-      const vehicles = filterVehiclesOwnedBySeller(all, auth.userId);
-      limits.push({
-        name: 'Inventario',
-        current: vehicles.length,
-        limit: features.maxInventory,
-        icon: '🚗',
-      });
+
+      let inventoryLimit: number | null =
+        features.maxInventory && features.maxInventory > 0 ? features.maxInventory : null;
+      let inventoryCurrent = 0;
+
+      if (auth.dealerId) {
+        const { getSellerLimitsSummary } = await import('@autodealers/core');
+        const summary = await getSellerLimitsSummary(
+          auth.dealerId,
+          auth.userId,
+          auth.tenantId
+        );
+        inventoryCurrent = summary.usage.maxInventory;
+        const assigned = summary.assigned.maxInventory;
+        const effective = summary.effective.maxInventory;
+        if (assigned !== undefined) {
+          inventoryLimit = assigned;
+        } else if (effective !== null && effective !== undefined) {
+          inventoryLimit = effective;
+        }
+      } else if (features.maxInventory && features.maxInventory > 0) {
+        const all = await loadVehiclesForSellerWorkspace(auth);
+        const vehicles = filterVehiclesOwnedBySeller(all, auth.userId);
+        inventoryCurrent = vehicles.length;
+        inventoryLimit = features.maxInventory;
+      }
+
+      if (inventoryLimit !== null) {
+        limits.push({
+          name: 'Inventario',
+          current: inventoryCurrent,
+          limit: inventoryLimit,
+          icon: '🚗',
+        });
+      }
     }
 
     const normalizedFeatures = normalizeMembershipFeatures(

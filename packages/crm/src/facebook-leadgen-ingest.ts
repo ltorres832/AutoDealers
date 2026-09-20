@@ -223,5 +223,15 @@ export async function ingestFacebookLeadgenWebhook(
     metadata: { leadId: lead.id } as any,
   } as any);
 
+  // Agente de voz: encolar llamada automática si el tenant lo tiene activado
+  // Import dinámico con concatenación para no romper el typecheck de apps
+  // que aún no resuelven @autodealers/voice en build (App Hosting).
+  try {
+    const voice: any = await import('@autodealers/' + 'voice');
+    await voice.maybeEnqueueSocialLeadCall(tenantId, lead);
+  } catch (error) {
+    console.warn('[crm] Auto-llamada de voz omitida (leadgen):', error);
+  }
+
   return { ok: true, leadId: lead.id };
 }

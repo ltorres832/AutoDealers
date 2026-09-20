@@ -109,6 +109,8 @@ async function getAllSellersForAdmin(filters = {}) {
   }
   if (filters.status) {
     rows = rows.filter((s) => (s.status || "active") === filters.status);
+  } else if (!filters.includeCancelled) {
+    rows = rows.filter((s) => (s.status || "active") !== "cancelled");
   }
   if (filters.search) {
     const q = filters.search.trim().toLowerCase();

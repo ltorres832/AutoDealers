@@ -60,7 +60,7 @@ export async function POST(
         );
       }
       // Si estaba aprobado, volver a activo, si no, mantener como pausado hasta aprobación
-      newStatus = data?.approvedAt ? 'active' : 'pending';
+      newStatus = data?.approvedAt || data?.paymentStatus === 'paid' ? 'active' : 'pending';
     } else {
       return NextResponse.json(
         { error: 'Acción inválida. Use "pause" o "resume"' },

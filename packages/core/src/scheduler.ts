@@ -506,6 +506,9 @@ export async function runScheduledTasks(): Promise<void> {
     const { runFollowUpCampaigns } = await import('./follow-up');
     await runFollowUpCampaigns();
 
+    const { processTenantAiAutomation } = await import('./tenant-ai-automation');
+    await processTenantAiAutomation();
+
     console.log('Scheduled tasks completed');
   } catch (error) {
     console.error('Error running scheduled tasks:', error);

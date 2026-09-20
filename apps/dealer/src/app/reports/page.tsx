@@ -208,24 +208,24 @@ export default function ReportsPage() {
             <div className="space-y-4">
               <div>
                 <p className="text-sm text-gray-600">Total de Ventas</p>
-                <p className="text-3xl font-bold">{salesReport.total}</p>
+                <p className="text-3xl font-bold">{salesReport.total ?? 0}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Revenue Total</p>
                 <p className="text-3xl font-bold text-green-600">
-                  ${salesReport.totalRevenue.toLocaleString()}
+                  ${Number(salesReport.totalRevenue || 0).toLocaleString()}
                 </p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Precio Promedio</p>
                 <p className="text-2xl font-bold">
-                  ${salesReport.averageSalePrice.toLocaleString()}
+                  ${Number(salesReport.averageSalePrice || 0).toLocaleString()}
                 </p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Tasa de Conversión</p>
                 <p className="text-2xl font-bold">
-                  {salesReport.conversionRate.toFixed(1)}%
+                  {Number(salesReport.conversionRate || 0).toFixed(1)}%
                 </p>
               </div>
             </div>
@@ -238,18 +238,18 @@ export default function ReportsPage() {
             <div className="space-y-4">
               <div>
                 <p className="text-sm text-gray-600">Total de Leads</p>
-                <p className="text-3xl font-bold">{leadsReport.total}</p>
+                <p className="text-3xl font-bold">{leadsReport.total ?? 0}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Tasa de Conversión</p>
                 <p className="text-2xl font-bold">
-                  {leadsReport.conversionRate.toFixed(1)}%
+                  {Number(leadsReport.conversionRate || 0).toFixed(1)}%
                 </p>
               </div>
               <div>
                 <p className="text-sm text-gray-600 mb-2">Por Fuente</p>
                 <div className="space-y-1">
-                  {Object.entries(leadsReport.bySource).map(([source, count]) => (
+                  {Object.entries(leadsReport.bySource || {}).map(([source, count]) => (
                     <div key={source} className="flex justify-between">
                       <span className="capitalize">{source}</span>
                       <span className="font-bold">{count}</span>

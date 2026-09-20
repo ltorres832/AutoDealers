@@ -1,8 +1,7 @@
 import type { NextRequest } from 'next/server';
+import { resolveDealerUrl } from '@autodealers/shared/platform-urls';
 
 const DEV_ORIGIN = 'http://localhost:3002';
-const PROD_ORIGIN =
-  'https://dealer-app--autodealers-7f62e.us-central1.hosted.app';
 
 export function getAppOrigin(request?: NextRequest): string {
   const fromEnv =
@@ -24,7 +23,7 @@ export function getAppOrigin(request?: NextRequest): string {
     const url = request.nextUrl;
     if (url.hostname === '0.0.0.0' || url.hostname === '127.0.0.1') {
       if (process.env.NODE_ENV === 'production') {
-        return PROD_ORIGIN;
+        return resolveDealerUrl();
       }
       const port = url.port || '3002';
       return `http://localhost:${port}`;
@@ -38,7 +37,7 @@ export function getAppOrigin(request?: NextRequest): string {
   }
 
   if (process.env.NODE_ENV === 'production') {
-    return PROD_ORIGIN;
+    return resolveDealerUrl();
   }
 
   return DEV_ORIGIN;

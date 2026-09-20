@@ -41,7 +41,7 @@ Proporciona:
 Responde en formato JSON:`;
 
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4-turbo-preview',
+        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
@@ -81,7 +81,7 @@ Responde en formato JSON:`;
   async analyzeSentiment(message: string): Promise<AISentiment> {
     try {
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4-turbo-preview',
+        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',

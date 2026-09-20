@@ -34,6 +34,10 @@ interface PricingConfig {
       durations: number[];
       prices: Record<number, number>;
     };
+    vehicle_page: {
+      durations: number[];
+      prices: Record<number, number>;
+    };
   };
   currency: string;
   taxRate: number;
@@ -83,7 +87,7 @@ export function usePricingConfig() {
 // Función helper para obtener precio de banner
 export function getBannerPrice(
   config: PricingConfig | null,
-  placement: 'hero' | 'sidebar' | 'between_content' | 'sponsors_section',
+  placement: 'hero' | 'sidebar' | 'between_content' | 'sponsors_section' | 'vehicle_page',
   duration: number
 ): number {
   if (!config) return 0;

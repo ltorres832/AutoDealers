@@ -1,42 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { useRealtimeReferrals } from '@/hooks/useRealtimeReferrals';
-
-interface Referral {
-  id: string;
-  referrerId: string;
-  referredId: string;
-  referredEmail: string;
-  referralCode: string;
-  membershipType: string;
-  userType: string;
-  status: string;
-  rewardStatus: {
-    discountApplied: boolean;
-    freeMonthApplied: boolean;
-    promotionsAvailable: number;
-    bannersAvailable: number;
-    promotionsUsed: number;
-    bannersUsed: number;
-  };
-  createdAt: string;
-  confirmedAt?: string;
-  rewardsGrantedAt?: string;
-}
-
-interface ReferralStats {
-  total: number;
-  pending: number;
-  confirmed: number;
-  rewarded: number;
-  cancelled: number;
-}
+import { fetchWithAuth } from '@/lib/fetch-with-auth';
 
 export default function ReferralsAdminPage() {
-  const router = useRouter();
-  const [stats, setStats] = useState<ReferralStats | null>(null);
   const [filter, setFilter] = useState<string>('all');
   const [showGrantCreditModal, setShowGrantCreditModal] = useState(false);
   const [cronRunning, setCronRunning] = useState(false);
@@ -47,31 +15,9 @@ export default function ReferralsAdminPage() {
   } | null>(null);
   const [cronError, setCronError] = useState<string | null>(null);
 
-  // Hook en tiempo real para referidos
-  const { referrals, loading } = useRealtimeReferrals({
+  const { referrals, stats, loading, error, refresh } = useRealtimeReferrals({
     status: filter === 'all' ? undefined : filter,
   });
-
-  // Calcular estadísticas en tiempo real
-  useEffect(() => {
-    if (referrals.length > 0) {
-      setStats({
-        total: referrals.length,
-        pending: referrals.filter(r => r.status === 'pending').length,
-        confirmed: referrals.filter(r => r.status === 'confirmed').length,
-        rewarded: referrals.filter(r => r.status === 'rewarded').length,
-        cancelled: referrals.filter(r => r.status === 'cancelled').length,
-      });
-    } else {
-      setStats({
-        total: 0,
-        pending: 0,
-        confirmed: 0,
-        rewarded: 0,
-        cancelled: 0,
-      });
-    }
-  }, [referrals]);
 
   async function runReferralConfirmationCron() {
     if (
@@ -85,9 +31,8 @@ export default function ReferralsAdminPage() {
     setCronError(null);
     setCronResult(null);
     try {
-      const response = await fetch('/api/admin/referrals/process-due-confirmations', {
+      const response = await fetchWithAuth('/api/admin/referrals/process-due-confirmations', {
         method: 'POST',
-        credentials: 'include',
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -98,6 +43,7 @@ export default function ReferralsAdminPage() {
         skipped: data.skipped ?? 0,
         errors: data.errors ?? [],
       });
+      await refresh();
     } catch (err) {
       setCronError(err instanceof Error ? err.message : 'No se pudo ejecutar el cron');
     } finally {
@@ -133,6 +79,23 @@ export default function ReferralsAdminPage() {
     );
   }
 
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-800 mb-4">
+          Error cargando referidos: {error}
+        </div>
+        <button
+          type="button"
+          onClick={() => void refresh()}
+          className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+        >
+          Reintentar
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6">
       <div className="mb-6 flex justify-between items-center">
@@ -151,6 +114,16 @@ export default function ReferralsAdminPage() {
             type="button"
             onClick={(e) => {
               e.preventDefault();
+              window.location.href = '/admin/referrals/affiliates';
+            }}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors cursor-pointer"
+          >
+            🤝 Afiliados externos
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
               window.location.href = '/admin/referrals/config';
             }}
             className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors cursor-pointer"
@@ -162,10 +135,36 @@ export default function ReferralsAdminPage() {
             onClick={() => setShowGrantCreditModal(true)}
             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
           >
-            ➕ Otorgar Crédito
+            ➕ Otorgar recompensa
           </button>
         </div>
       </div>
+
+      <div className="mb-6 rounded-lg border border-primary-100 bg-primary-50 px-4 py-3 text-sm text-primary-900">
+        <p className="font-semibold">Cómo funcionan las recompensas</p>
+        <ul className="mt-2 list-disc pl-5 space-y-1">
+          <li>
+            <strong>Pendiente:</strong> el referido se registró. Aún no hay crédito.
+          </li>
+          <li>
+            <strong>Confirmado:</strong> el referido eligió plan. La recompensa se otorga a los 14 días
+            (botón “Procesar recompensas” o cron).
+          </li>
+          <li>
+            <strong>Recompensado:</strong> el referidor ya recibió descuento, mes gratis, promoción o banner.
+          </li>
+          <li>
+            <strong>Otorgar recompensa:</strong> acredita ahora 1 promoción o 1 banner al dealer/vendedor.
+            Lo ve en su panel → Referidos → Mis Recompensas y lo usa al crear esa pieza.
+          </li>
+        </ul>
+      </div>
+
+      {error && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          {error}
+        </div>
+      )}
 
       {cronError && (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
@@ -193,9 +192,7 @@ export default function ReferralsAdminPage() {
         </div>
       )}
 
-      {/* Estadísticas */}
-      {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
           <div className="bg-white rounded-lg shadow p-4">
             <div className="text-sm text-gray-600 mb-1">Total</div>
             <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
@@ -217,7 +214,6 @@ export default function ReferralsAdminPage() {
             <div className="text-2xl font-bold text-red-600">{stats.cancelled}</div>
           </div>
         </div>
-      )}
 
       {/* Filtros */}
       <div className="bg-white rounded-lg shadow p-4 mb-6">
@@ -316,7 +312,7 @@ export default function ReferralsAdminPage() {
                       {getStatusBadge(referral.status)}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
-                      {referral.status === 'rewarded' && (
+                      {referral.status === 'rewarded' && referral.rewardStatus && (
                         <div className="space-y-1">
                           {referral.rewardStatus.discountApplied && (
                             <div className="text-xs">✓ Descuento</div>
@@ -324,14 +320,14 @@ export default function ReferralsAdminPage() {
                           {referral.rewardStatus.freeMonthApplied && (
                             <div className="text-xs">✓ Mes gratis</div>
                           )}
-                          {referral.rewardStatus.promotionsAvailable > 0 && (
+                          {(referral.rewardStatus.promotionsAvailable ?? 0) > 0 && (
                             <div className="text-xs">
-                              {referral.rewardStatus.promotionsUsed}/{referral.rewardStatus.promotionsAvailable} promociones
+                              {referral.rewardStatus.promotionsUsed ?? 0}/{referral.rewardStatus.promotionsAvailable} promociones
                             </div>
                           )}
-                          {referral.rewardStatus.bannersAvailable > 0 && (
+                          {(referral.rewardStatus.bannersAvailable ?? 0) > 0 && (
                             <div className="text-xs">
-                              {referral.rewardStatus.bannersUsed}/{referral.rewardStatus.bannersAvailable} banners
+                              {referral.rewardStatus.bannersUsed ?? 0}/{referral.rewardStatus.bannersAvailable} banners
                             </div>
                           )}
                         </div>
@@ -352,9 +348,9 @@ export default function ReferralsAdminPage() {
       {showGrantCreditModal && (
         <GrantCreditModal
           onClose={() => setShowGrantCreditModal(false)}
-          onSuccess={() => {
+          onSuccess={async () => {
             setShowGrantCreditModal(false);
-            // El hook useRealtimeReferrals actualiza automáticamente
+            await refresh();
           }}
         />
       )}
@@ -363,34 +359,66 @@ export default function ReferralsAdminPage() {
 }
 
 function GrantCreditModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const [email, setEmail] = useState('');
   const [userId, setUserId] = useState('');
+  const [matches, setMatches] = useState<Array<{ id: string; name: string; email: string; role: string }>>([]);
   const [type, setType] = useState<'promotion' | 'banner'>('promotion');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  async function searchUsers() {
+    const q = email.trim();
+    if (q.length < 2) {
+      setMatches([]);
+      return;
+    }
+    try {
+      const res = await fetchWithAuth(`/api/admin/users?search=${encodeURIComponent(q)}`);
+      const data = await res.json().catch(() => ({}));
+      const rows = ((data.users || []) as Array<{ id: string; name?: string; email?: string; role?: string }>)
+        .filter((u) => u.role === 'dealer' || u.role === 'seller')
+        .slice(0, 8)
+        .map((u) => ({
+          id: u.id,
+          name: u.name || '',
+          email: u.email || '',
+          role: u.role || '',
+        }));
+      setMatches(rows);
+    } catch {
+      setMatches([]);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setSuccess('');
 
     try {
-      const response = await fetch('/api/admin/referrals/grant-credit', {
+      const response = await fetchWithAuth('/api/admin/referrals/grant-credit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId,
+          email: email.trim() || undefined,
+          userId: userId.trim() || undefined,
           type,
         }),
       });
 
+      const data = await response.json().catch(() => ({}));
       if (response.ok) {
-        onSuccess();
+        setSuccess(data.message || 'Recompensa acreditada.');
+        setTimeout(() => {
+          onSuccess();
+        }, 1200);
       } else {
-        const data = await response.json();
-        setError(data.error || 'Error al otorgar crédito');
+        setError(data.error || 'Error al otorgar la recompensa');
       }
-    } catch (err: any) {
-      setError(err.message || 'Error al otorgar crédito');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error al otorgar la recompensa');
     } finally {
       setLoading(false);
     }
@@ -399,49 +427,86 @@ function GrantCreditModal({ onClose, onSuccess }: { onClose: () => void; onSucce
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Otorgar Crédito</h2>
-        
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Otorgar recompensa</h2>
+        <p className="text-sm text-gray-600 mb-4">
+          Acredita ahora 1 promoción o 1 banner al dealer o vendedor. Quien lo recibe lo usa en su
+          panel (Referidos → Mis Recompensas) al crear esa pieza. No es dinero ni días de membresía.
+        </p>
+
         {error && (
           <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm">
             {error}
+          </div>
+        )}
+        {success && (
+          <div className="mb-4 p-3 bg-green-50 text-green-800 rounded-lg text-sm">
+            {success}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              ID del Usuario
+              Correo del dealer o vendedor
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setUserId('');
+              }}
+              onBlur={() => void searchUsers()}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2"
+              placeholder="correo@ejemplo.com"
+            />
+            {matches.length > 0 ? (
+              <ul className="mt-2 border rounded-lg divide-y max-h-40 overflow-auto">
+                {matches.map((m) => (
+                  <li key={m.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUserId(m.id);
+                        setEmail(m.email);
+                        setMatches([]);
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                    >
+                      <span className="font-medium">{m.name || m.email}</span>
+                      <span className="text-gray-500"> · {m.email} · {m.role === 'dealer' ? 'Dealer' : 'Vendedor'}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              ID de usuario (opcional)
             </label>
             <input
               type="text"
               value={userId}
               onChange={(e) => setUserId(e.target.value)}
-              required
               className="w-full border border-gray-300 rounded-lg px-4 py-2"
-              placeholder="ID del usuario (dealer o seller)"
+              placeholder="Si no tienes el correo, pega el ID de usuario o del tenant"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Tipo de Crédito
+              Qué se acredita
             </label>
             <select
               value={type}
               onChange={(e) => setType(e.target.value as 'promotion' | 'banner')}
               className="w-full border border-gray-300 rounded-lg px-4 py-2"
             >
-              <option value="promotion">Promoción</option>
-              <option value="banner">Banner</option>
+              <option value="promotion">1 promoción gratis (no expira hasta usarla)</option>
+              <option value="banner">1 banner gratis (no expira hasta usarlo; luego 7 días)</option>
             </select>
-          </div>
-
-          <div className="bg-primary-50 border border-primary-200 rounded-lg p-3 text-sm text-primary-800">
-            <p className="font-semibold mb-1">ℹ️ Información sobre expiración:</p>
-            <ul className="list-disc list-inside space-y-1">
-              <li><strong>Promociones:</strong> No expiran hasta que se usen</li>
-              <li><strong>Banners:</strong> No expiran hasta que se usen. Una vez usados, válidos por 7 días</li>
-            </ul>
           </div>
 
           <div className="flex gap-2 justify-end">
@@ -454,10 +519,10 @@ function GrantCreditModal({ onClose, onSuccess }: { onClose: () => void; onSucce
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || (!email.trim() && !userId.trim())}
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
             >
-              {loading ? 'Otorgando...' : 'Otorgar Crédito'}
+              {loading ? 'Acreditando…' : 'Acreditar ahora'}
             </button>
           </div>
         </form>

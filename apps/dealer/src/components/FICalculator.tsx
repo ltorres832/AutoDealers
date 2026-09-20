@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FinancingCalculator, FinancingCalculationResult } from '@autodealers/crm';
+import type { FinancingCalculator, FinancingCalculationResult } from '@autodealers/crm';
 
 interface FICalculatorProps {
   requestId: string;

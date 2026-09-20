@@ -1,4 +1,8 @@
 import { getFirestore } from '@autodealers/shared';
+import {
+  formatPlatformEmailFrom,
+  normalizePlatformMessageText,
+} from '@autodealers/shared/platform-sender';
 import { getEmailCredentials, getTwilioCredentials } from './credentials';
 import { getWhatsAppConfig } from './whatsapp-config';
 
@@ -14,10 +18,10 @@ export function resolveEmailProvider(apiKey: string): 'resend' | 'sendgrid' {
   return apiKey.startsWith('re_') ? 'resend' : 'sendgrid';
 }
 
-/** Dirección remitente: credenciales → platformEmail → env → default. */
+/** Dirección remitente: credenciales → platformEmail → env → default (con nombre de marca). */
 export async function resolveDefaultFromAddress(): Promise<string> {
   const creds = await getEmailCredentials();
-  if (creds.fromAddress?.trim()) return creds.fromAddress.trim();
+  if (creds.fromAddress?.trim()) return formatPlatformEmailFrom(creds.fromAddress);
 
   try {
     const mainDoc = await getFirestore()
@@ -26,13 +30,13 @@ export async function resolveDefaultFromAddress(): Promise<string> {
       .get();
     const platformEmail = mainDoc.data()?.platformEmail;
     if (typeof platformEmail === 'string' && platformEmail.includes('@')) {
-      return platformEmail.trim();
+      return formatPlatformEmailFrom(platformEmail);
     }
   } catch {
     // non-critical
   }
 
-  return process.env.EMAIL_FROM_ADDRESS?.trim() || 'info@autodealers.com';
+  return formatPlatformEmailFrom(process.env.EMAIL_FROM_ADDRESS);
 }
 
 export async function createEmailService(): Promise<{
@@ -90,8 +94,8 @@ export async function sendOutboundEmail(
     direction: 'outbound',
     from: configured.fromAddress,
     to,
-    content: html,
-    metadata: { subject },
+    content: normalizePlatformMessageText(html),
+    metadata: { subject: normalizePlatformMessageText(subject) },
   });
 
   return {
@@ -118,7 +122,7 @@ export async function sendOutboundSms(
     direction: 'outbound',
     from: creds.phoneNumber || '',
     to,
-    content,
+    content: normalizePlatformMessageText(content),
   });
 
   return {
@@ -144,7 +148,7 @@ export async function sendOutboundWhatsApp(
     direction: 'outbound',
     from: wa.phoneNumberId,
     to,
-    content,
+    content: normalizePlatformMessageText(content),
   });
 
   return {

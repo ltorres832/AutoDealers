@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth, isDealerPortalRole } from '@/lib/auth';
-import { getVehicleByStockNumber, buildVehicleStockSnapshot } from '@autodealers/inventory';
+import {
+  getVehicleByStockNumber,
+  getVehicleById,
+  buildVehicleStockSnapshot,
+  findVehiclesByVin,
+} from '@autodealers/inventory';
+import { toVinNormalized } from '@autodealers/core';
 
 export const dynamic = 'force-dynamic';
 
-/** GET ?stock=STK-... — inventario completo + snapshot para leads/FI */
+/** GET ?stock=STK-... | ?vin=... — inventario completo + snapshot para leads/FI */
 export async function GET(request: NextRequest) {
   try {
     const auth = await verifyAuth(request);
@@ -13,11 +19,33 @@ export async function GET(request: NextRequest) {
     }
 
     const stock = request.nextUrl.searchParams.get('stock')?.trim();
-    if (!stock) {
-      return NextResponse.json({ error: 'Parámetro stock requerido' }, { status: 400 });
+    const vinRaw = request.nextUrl.searchParams.get('vin')?.trim();
+
+    if (!stock && !vinRaw) {
+      return NextResponse.json(
+        { error: 'Parámetro stock o vin requerido' },
+        { status: 400 }
+      );
     }
 
-    const vehicle = await getVehicleByStockNumber(auth.tenantId, stock);
+    let vehicle = null as Awaited<ReturnType<typeof getVehicleById>>;
+
+    if (stock) {
+      vehicle = await getVehicleByStockNumber(auth.tenantId, stock);
+    } else if (vinRaw) {
+      const vinNormalized = toVinNormalized(vinRaw);
+      if (!vinNormalized) {
+        return NextResponse.json({ error: 'VIN inválido' }, { status: 400 });
+      }
+      const matches = (await findVehiclesByVin(vinNormalized)).filter(
+        (m) => m.tenantId === auth.tenantId
+      );
+      if (matches.length === 0) {
+        return NextResponse.json({ error: 'Vehículo no encontrado' }, { status: 404 });
+      }
+      vehicle = await getVehicleById(matches[0].tenantId, matches[0].vehicleId);
+    }
+
     if (!vehicle) {
       return NextResponse.json({ error: 'Vehículo no encontrado' }, { status: 404 });
     }

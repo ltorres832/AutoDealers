@@ -12,7 +12,7 @@ import { DEFAULT_BRAND_LOGO_PATH, normalizePublicSiteLogoField } from '../lib/de
 // Valores por defecto (fallback)
 const DEFAULT_SITE_INFO = {
   // Información de la empresa
-  name: 'AutoDealers',
+  name: 'AutoDealersOnline',
   description: 'La plataforma completa para encontrar y comprar vehículos. Miles de opciones verificadas.',
   logo: DEFAULT_BRAND_LOGO_PATH,
   /** Subtítulo bajo el nombre en el navbar de la home */
@@ -30,7 +30,7 @@ const DEFAULT_SITE_INFO = {
   // Copyright
   copyright: {
     year: 2025,
-    company: 'AutoDealers',
+    company: 'AutoDealersOnline',
     text: 'Todos los derechos reservados.',
   },
 

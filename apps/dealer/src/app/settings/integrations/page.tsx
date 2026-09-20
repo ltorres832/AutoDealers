@@ -10,10 +10,12 @@ import {
   type MetaIntegrationRow,
   type MetaTokenHealthSummary,
 } from '@autodealers/shared/client';
+import MetaVehicleCatalogCard from '@/components/MetaVehicleCatalogCard';
+import { ENABLE_TIKTOK_YOUTUBE_PUBLISH } from '@autodealers/core/social-video-platforms';
 
 interface Integration {
   id: string;
-  type: 'whatsapp' | 'facebook' | 'instagram';
+  type: 'whatsapp' | 'facebook' | 'instagram' | 'tiktok' | 'youtube';
   status: 'active' | 'inactive' | 'error';
   name: string;
   description: string;
@@ -21,6 +23,27 @@ interface Integration {
   platformManaged?: boolean;
   metaTokenHealth?: MetaTokenHealthSummary;
 }
+
+const videoIntegrations: Integration[] = ENABLE_TIKTOK_YOUTUBE_PUBLISH
+  ? [
+      {
+        id: 'tiktok',
+        type: 'tiktok',
+        name: 'TikTok',
+        description:
+          'Publica videos (p. ej. vacantes en RR.HH.). Requiere una app TikTok aprobada por el admin y un video corto en MP4.',
+        status: 'inactive',
+      },
+      {
+        id: 'youtube',
+        type: 'youtube',
+        name: 'YouTube',
+        description:
+          'Sube Shorts/videos (p. ej. vacantes). El admin configura el cliente OAuth de Google con YouTube Data API.',
+        status: 'inactive',
+      },
+    ]
+  : [];
 
 const availableIntegrations: Integration[] = [
   {
@@ -45,8 +68,8 @@ const availableIntegrations: Integration[] = [
       'Instagram Business se autoriza con Meta (Facebook): inicia sesión, elige la página de Facebook vinculada a tu perfil profesional de Instagram y acepta los permisos.',
     status: 'inactive',
   },
+  ...videoIntegrations,
 ];
-
 function toMetaRow(
   integration: Integration | undefined,
   fallbackType: 'facebook' | 'instagram'
@@ -359,6 +382,13 @@ export default function IntegrationsPage() {
         await initiateOAuth('instagram');
         return;
       }
+
+      if (ENABLE_TIKTOK_YOUTUBE_PUBLISH && (type === 'tiktok' || type === 'youtube')) {
+        setConnectingType(type);
+        addDebugLog(`🔵 Iniciando conexión con ${type}...`);
+        await initiateOAuth(type);
+        return;
+      }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Error desconocido';
       addDebugLog(`❌ Error en handleConnect: ${message}`);
@@ -504,6 +534,14 @@ export default function IntegrationsPage() {
         <p className="text-gray-600">
           Conecta tus redes sociales para gestionar tus comunicaciones
         </p>
+        <div className="mt-3 flex flex-wrap gap-3 text-sm">
+          <Link href="/settings/integrations/apps" className="text-primary-600 underline">
+            Apps / Zapier / DMS webhooks
+          </Link>
+          <Link href="/settings/integrations/api" className="text-primary-600 underline">
+            API pública v0
+          </Link>
+        </div>
 
         {/* Settings Tabs */}
         <div className="mt-6 border-b border-gray-200">
@@ -583,6 +621,54 @@ export default function IntegrationsPage() {
           </div>
         ))}
 
+        {ENABLE_TIKTOK_YOUTUBE_PUBLISH &&
+          integrations
+          .filter((i) => i.type === 'tiktok' || i.type === 'youtube')
+          .map((integration) => (
+            <div
+              key={integration.id}
+              className="bg-white rounded-lg shadow border border-gray-200 p-6"
+            >
+              <div className="flex justify-between items-start">
+                <div className="flex items-start gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gray-50 border border-gray-100">
+                    <SocialIcon platform={integration.type} size={32} />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold mb-1">{integration.name}</h3>
+                    <p className="text-gray-600 mb-3">{integration.description}</p>
+                    {integration.status === 'active' && (
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                        ✓ Conectado
+                        {integration.pageName ? ` · ${integration.pageName}` : ''}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  {integration.status === 'active' ? (
+                    <button
+                      type="button"
+                      onClick={() => handleDisconnect(integration.id)}
+                      className="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 font-medium"
+                    >
+                      Desconectar
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={connectingType === integration.type}
+                      onClick={() => handleConnect(integration.type)}
+                      className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {connectingType === integration.type ? 'Conectando...' : 'Conectar'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+
         <MetaIntegrationsCard
           facebook={toMetaRow(integrations.find((i) => i.type === 'facebook'), 'facebook')}
           instagram={toMetaRow(integrations.find((i) => i.type === 'instagram'), 'instagram')}
@@ -593,6 +679,8 @@ export default function IntegrationsPage() {
           onVerifyPermissions={() => void verifyMetaPermissions()}
           verifyingPermissions={verifyingMeta}
         />
+
+        <MetaVehicleCatalogCard onNotify={showToast} />
       </div>
 
       <div className="mt-8 bg-primary-50 border border-primary-200 rounded-lg p-4">

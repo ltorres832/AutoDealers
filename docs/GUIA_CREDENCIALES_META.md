@@ -213,7 +213,42 @@ Si tienes problemas:
 6. ✅ Conectar página de Facebook e Instagram
 7. ✅ Ingresar credenciales en la plataforma
 8. ✅ Autorizar acceso
+9. ✅ (Plataforma / admin) Instalar **System User token permanente** (ver abajo)
 
 ¡Listo para conectar tus redes sociales! 🎉
+
+---
+
+## ♾️ Token permanente de plataforma (System User)
+
+El OAuth de un usuario de Facebook tiene `data_access_expires_at` (~90 días). **No** uses solo «Reconectar OAuth» para la cuenta `_platform` si quieres que Meta no se caiga.
+
+### Ya preparado en el BM `autodealerspr`
+
+- Business ID: `25825518717087396`
+- System User ADMIN: `AutoDealersOnline Platform` (`122101529703480902`)
+- Página asignada: AutoDealers-Online (`935597762971394`)
+- Ad account preferida (ACTIVE): `act_1080340951331625`
+
+### Paso manual único (Business Manager)
+
+1. Abre [System Users](https://business.facebook.com/settings/system-users/122101529703480902?business_id=25825518717087396)
+2. **Generate new token** → app **AutoDealersOnline**
+3. Marca permisos de Pages, Ads e Instagram
+4. Copia el token
+
+### Instalar en AutoDealers
+
+**Opción A — Admin UI:** Integraciones Meta → «Token permanente (System User)» → pegar → Instalar.
+
+**Opción B — Script:**
+
+```bash
+cd apps/admin
+set META_SYSTEM_USER_TOKEN=EAAB...
+node scripts/install-platform-system-user-token.js
+```
+
+La API valida el token con `debug_token`, deriva el page token y lo guarda en `tenants/_platform/integrations` (facebook + instagram) con `tokenSource=system_user`. Un token correcto muestra `expires_at=0` y `data_access_expires_at=0`.
 
 

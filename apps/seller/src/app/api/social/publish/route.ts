@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
+import { validateMembershipFeature } from '@/lib/membership-middleware';
+import { normalizeSocialPostContent } from '@autodealers/core';
 import { SocialPublisherService, PostContent } from '@autodealers/messaging';
 
 const publisher = new SocialPublisherService();
@@ -8,6 +10,9 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
+    const membershipBlock = await validateMembershipFeature(request, 'useSocialMedia');
+    if (membershipBlock) return membershipBlock;
+
     const auth = await verifyAuth(request);
     if (!auth || !auth.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -24,8 +29,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Debes seleccionar al menos una plataforma' }, { status: 400 });
     }
 
-    // Publicar en las plataformas seleccionadas
-    const results = await publisher.publishToMultiple(auth.tenantId, content, platforms);
+    const normalizedContent = await normalizeSocialPostContent({
+      content,
+      tenantId: auth.tenantId,
+      userId: auth.userId,
+      accountType: auth.role === 'dealer' ? 'dealer' : 'seller',
+    });
+
+    const results = await publisher.publishToMultiple(auth.tenantId, normalizedContent, platforms);
 
     const allSuccess = results.every((r) => r.success);
     const failures = results.filter((r) => !r.success);

@@ -28,11 +28,12 @@ const nextConfig = {
     '@google-cloud/firestore',
     '@google-cloud/storage',
     'stripe',
+    'sharp',
   ],
   images: {
     unoptimized: true,
   },
-  transpilePackages: ['@autodealers/core', '@autodealers/crm', '@autodealers/inventory', '@autodealers/messaging', '@autodealers/ai', '@autodealers/billing', '@autodealers/shared'],
+  transpilePackages: ['@autodealers/core', '@autodealers/crm', '@autodealers/inventory', '@autodealers/messaging', '@autodealers/ai', '@autodealers/billing', '@autodealers/shared', '@autodealers/voice'],
   // Configuración de Turbopack (vacía para usar webpack en build)
   turbopack: {},
   webpack: (config, { isServer }) => {
@@ -51,11 +52,21 @@ const nextConfig = {
         'components/TrustGalleryEditor.tsx'
       ),
       '@autodealers/shared/promo-video-urls': path.join(sharedSrc, 'promo-video-urls.ts'),
+      '@autodealers/shared/website-hero-media': path.join(sharedSrc, 'website-hero-media.ts'),
+      '@autodealers/shared/components/WebsiteHeroMediaEditor': path.join(
+        sharedSrc,
+        'components/WebsiteHeroMediaEditor.tsx'
+      ),
       '@autodealers/shared/public-trust-gallery': path.join(sharedSrc, 'public-trust-gallery.ts'),
       '@autodealers/shared/settings-profile': path.join(sharedSrc, 'settings-profile.ts'),
+      '@autodealers/core': path.join(__dirname, '../../packages/core/src'),
       '@autodealers/core/user-auth-sync': path.join(
         __dirname,
         '../../packages/core/src/user-auth-sync.ts'
+      ),
+      '@autodealers/core/ad-placement-explainer': path.join(
+        __dirname,
+        '../../packages/core/src/ad-placement-explainer.tsx'
       ),
       '@autodealers/shared/firebase-storage-upload': path.join(
         sharedSrc,

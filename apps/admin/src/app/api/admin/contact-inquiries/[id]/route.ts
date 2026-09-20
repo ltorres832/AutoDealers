@@ -42,3 +42,27 @@ export async function PATCH(
     return NextResponse.json({ error: 'Error' }, { status: 500 });
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const auth = await verifyAuth(request);
+    if (!auth || auth.role !== 'admin') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const { adminDeleteContactInquiry } = await import('@autodealers/core/admin-platform-delete');
+    await adminDeleteContactInquiry(id);
+    return NextResponse.json({ success: true });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Error';
+    if (msg.includes('no encontrada')) {
+      return NextResponse.json({ error: msg }, { status: 404 });
+    }
+    console.error('admin contact-inquiries DELETE:', e);
+    return NextResponse.json({ error: 'Error' }, { status: 500 });
+  }
+}

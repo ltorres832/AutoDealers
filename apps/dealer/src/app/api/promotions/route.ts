@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth, isDealerPortalRole } from '@/lib/auth';
-import { createPromotion, getPromotions, createNotification, canExecuteFeature, getAvailableCredits, useRewardCredit } from '@autodealers/core';
+import { createPromotion, getPromotions, createNotification, canExecuteFeature, getAvailableCredits, useRewardCredit, getCreditContentDays } from '@autodealers/core';
 
 export async function GET(request: NextRequest) {
   try {
@@ -139,13 +139,23 @@ export async function POST(request: NextRequest) {
       autoSendToCustomers: body.autoSendToCustomers || false,
       channels: body.channels || ['whatsapp'],
       aiGenerated: body.aiGenerated || false,
-      isPaid: body.isPaid || false,
+      // Seguridad: si el cliente pide usar crédito, NO confiamos en su isPaid.
+      // Solo se marcará como pagada tras consumir el crédito correctamente.
+      isPaid: body.useCredit === true ? false : (body.isPaid || false),
       isFreePromotion: isFreePromotion, // Marcar como promoción gratuita para landing
     };
 
     // Agregar imágenes y videos si existen
     if (body.images && body.images.length > 0) {
       promotionData.images = body.images;
+      promotionData.imageUrl = body.images[0];
+    }
+    if (body.animation) {
+      promotionData.animation = body.animation;
+    }
+    if (body.placement) {
+      const { parsePromoPlacement } = await import('@autodealers/core/ad-placements');
+      promotionData.placement = parsePromoPlacement(body.placement);
     }
     if (body.videos && body.videos.length > 0) {
       promotionData.videos = body.videos;
@@ -165,16 +175,34 @@ export async function POST(request: NextRequest) {
     
     if (body.useCredit === true) {
       const availableCredits = await getAvailableCredits(auth.userId, 'promotion');
-      if (availableCredits.length > 0) {
-        creditId = availableCredits[0].id;
-        const success = await useRewardCredit(creditId, promotionData.name);
-        if (success) {
-          creditUsed = true;
-          // Marcar la promoción como pagada con crédito
-          promotionData.isPaid = true;
-          promotionData.paidWithCredit = true;
-          promotionData.creditId = creditId;
-        }
+      if (availableCredits.length === 0) {
+        return NextResponse.json(
+          { error: 'No tienes créditos de promoción disponibles' },
+          { status: 400 }
+        );
+      }
+
+      creditId = availableCredits[0].id;
+      const contentDays = await getCreditContentDays(creditId);
+      const success = await useRewardCredit(creditId, promotionData.name);
+      if (!success) {
+        return NextResponse.json(
+          { error: 'No se pudo aplicar el crédito de promoción' },
+          { status: 400 }
+        );
+      }
+
+      creditUsed = true;
+      // Marcar la promoción como pagada con crédito
+      promotionData.isPaid = true;
+      promotionData.paidWithCredit = true;
+      promotionData.creditId = creditId;
+
+      // Topear la duración a los días que otorga el crédito
+      const maxEndDate = new Date(startDate);
+      maxEndDate.setDate(maxEndDate.getDate() + contentDays);
+      if (!promotionData.endDate || promotionData.endDate > maxEndDate) {
+        promotionData.endDate = maxEndDate;
       }
     }
 

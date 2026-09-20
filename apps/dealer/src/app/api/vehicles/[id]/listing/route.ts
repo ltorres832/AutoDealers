@@ -4,6 +4,7 @@ import { getFirestore } from '@autodealers/core';
 import {
   applyVehicleListingAction,
   keepVehicleListingActive,
+  notifyDealerOfInventorySale,
   type VehicleListingAction,
 } from '@autodealers/inventory';
 
@@ -45,7 +46,10 @@ export async function PATCH(
     const action = body.action as VehicleListingAction | 'keep_active';
     const showPublicSoldBadge = Boolean(body.showPublicSoldBadge);
 
-    const tenantId = await resolveVehicleTenantId(auth, vehicleId);
+    const tenantId = await resolveVehicleTenantId(
+      { tenantId: auth.tenantId, userId: auth.userId, dealerId: auth.dealerId },
+      vehicleId
+    );
     if (!tenantId) {
       return NextResponse.json({ error: 'Vehículo no encontrado' }, { status: 404 });
     }
@@ -58,9 +62,17 @@ export async function PATCH(
       action === 'reactivate' ||
       action === 'delete'
     ) {
-      await applyVehicleListingAction(tenantId, vehicleId, action, {
+      const result = await applyVehicleListingAction(tenantId, vehicleId, action, {
         showPublicSoldBadge: action === 'sold' ? showPublicSoldBadge : undefined,
       });
+
+      // Venta: notificar la baja de inventario al dueño del dealer
+      if (action === 'sold') {
+        await notifyDealerOfInventorySale(tenantId, result.vehicle, {
+          remainingQuantity: result.remainingQuantity ?? 0,
+          soldByUserId: auth.userId,
+        });
+      }
     } else {
       return NextResponse.json({ error: 'Acción no válida' }, { status: 400 });
     }

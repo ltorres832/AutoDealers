@@ -111,8 +111,17 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  - variable: NEXT_PUBLIC_BUSINESS_URL
+    value: https://business.autodealers-online.com
+    availability:
+      - BUILD
+      - RUNTIME
   - variable: NEXT_PUBLIC_PLATFORM_DOMAIN
     value: autodealers-online.com
     availability:
       - BUILD
+      - RUNTIME
+  - variable: META_CAPI_ACCESS_TOKEN
+    secret: META_CAPI_ACCESS_TOKEN
+    availability:
       - RUNTIME

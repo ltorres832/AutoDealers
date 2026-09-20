@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { requireTenantFeature } from '@/lib/membership-middleware';
-import { getFirestore } from '@autodealers/core';
+import { getEmailCredentials, getFirestore, notifyFIDocumentEvent } from '@autodealers/core';
 import {
   generateAndStoreFIDocument,
   fiTemplateFilename,
@@ -107,7 +107,7 @@ export async function POST(
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    const allowedRoles = ['dealer', 'master_dealer', 'manager', 'dealer_admin'];
+    const allowedRoles = ['dealer', 'master_dealer', 'manager', 'dealer_admin', 'fi_manager'];
     if (!allowedRoles.includes(user.role as string)) {
       return NextResponse.json(
         { error: 'No tienes permiso para enviar emails externos' },
@@ -196,7 +196,6 @@ export async function POST(
     }
 
     try {
-      const { getEmailCredentials } = await import('@autodealers/core/src/credentials');
       const emailCreds = await getEmailCredentials();
       if (!emailCreds?.apiKey) {
         return NextResponse.json(
@@ -277,6 +276,16 @@ export async function POST(
           sentByName: userName,
           sentAt: admin.firestore.FieldValue.serverTimestamp(),
         });
+
+      await notifyFIDocumentEvent(user.tenantId, {
+        title: 'Email F&I enviado a tercero',
+        message: `${userName} envió "${subject}" a ${to}${attachPdf ? ' con PDF adjunto' : ''}.`,
+        sellerId: fiRequest.createdBy,
+        excludeUserIds: [user.userId],
+        requestId: id,
+        clientId: fiRequest.clientId,
+        route: `/fi/requests/${id}`,
+      });
 
       return NextResponse.json({
         success: true,

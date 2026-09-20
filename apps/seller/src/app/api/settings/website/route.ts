@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
     const primaryPublicSiteUrl = resolvePrimaryPublicSiteUrl({
       sellerId: auth.userId,
       publicCatalogUrl,
+      subdomain,
     });
 
     return NextResponse.json({
@@ -56,7 +57,7 @@ export async function GET(request: NextRequest) {
       /** Catálogo legacy /seller/{uid} (no usar como enlace principal). */
       publicCatalogUrl,
       publicCatalogPath: catalogPath,
-      /** Mini-sitio por subdominio (ej. pedroortiz.autodealers.com). */
+      /** Mini-sitio por subdominio (ej. pedroortiz.autodealers-online.com). */
       publicSubdomainUrl,
       /** Enlace recomendado para clientes. */
       primaryPublicSiteUrl,

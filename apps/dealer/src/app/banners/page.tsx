@@ -3,8 +3,36 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRealtimeBanners } from '@/hooks/useRealtimeBanners';
-import { StripePaymentForm } from '@autodealers/shared';
+import { StripePaymentForm } from '@autodealers/shared/client';
 import { PaymentMethodSelector } from '@/components/PaymentMethodSelector';
+import { resolveAdCreativePreviewSrc } from '@autodealers/core/ad-creative';
+import { AdPlacementExplainer } from '@autodealers/core/ad-placement-explainer';
+import { isAdPlacement } from '@autodealers/core/ad-placements';
+
+function BannerMediaThumb({ banner }: { banner: { title?: string; imageUrl?: string; images?: string[]; videoUrl?: string; videos?: string[]; mediaType?: string } }) {
+  const preview = resolveAdCreativePreviewSrc(banner);
+  if (preview.kind === 'video') {
+    return (
+      <div className="relative mb-3 h-32 overflow-hidden rounded bg-black">
+        <video src={preview.src} className="h-full w-full object-cover" muted playsInline />
+        <span className="absolute bottom-1 left-1 rounded bg-black/65 px-1.5 py-0.5 text-[10px] font-bold text-white">VIDEO</span>
+      </div>
+    );
+  }
+  if (preview.kind === 'image') {
+    return (
+      <div className="relative mb-3">
+        <img src={preview.src} alt={banner.title} className="h-32 w-full rounded object-cover" />
+        {Array.isArray(banner.images) && banner.images.length > 1 ? (
+          <span className="absolute left-2 top-2 rounded bg-black/65 px-1.5 py-0.5 text-[10px] font-bold text-white">
+            Slideshow · {banner.images.length}
+          </span>
+        ) : null}
+      </div>
+    );
+  }
+  return null;
+}
 
 interface Banner {
   id: string;
@@ -86,7 +114,7 @@ export default function BannersPage() {
             clientSecret: data.clientSecret,
             paymentIntentId: data.paymentIntentId,
             bannerId: data.bannerId,
-            amount: formData.price || 0,
+            amount: data.price || formData.price || 0,
             description: `Banner Premium: ${formData.title || 'Banner publicitario'}`,
           });
           setPaymentType('banner');
@@ -177,6 +205,11 @@ export default function BannersPage() {
           <p className="text-gray-600 mt-2">
             Aumenta tu visibilidad con banners premium en la landing page pública
           </p>
+          <p className="mt-2 max-w-2xl text-sm text-gray-500">
+            La ubicación «Banner en la ficha del vehículo» aparece después de
+            la ficha técnica, antes de más vehículos. Es un banner visual, no
+            un bloque de texto.
+          </p>
         </div>
         <button
           onClick={() => setShowBuyModal(true)}
@@ -231,13 +264,7 @@ export default function BannersPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {activeBanners.map((banner) => (
                 <div key={banner.id} className="bg-white rounded-lg border-2 border-yellow-300 p-4">
-                  {banner.imageUrl && (
-                    <img
-                      src={banner.imageUrl}
-                      alt={banner.title}
-                      className="w-full h-32 object-cover rounded mb-3"
-                    />
-                  )}
+                  <BannerMediaThumb banner={banner} />
                   <h3 className="font-bold text-lg mb-2">{banner.title}</h3>
                   <p className="text-sm text-gray-600 mb-3">{banner.description}</p>
                   <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
@@ -280,13 +307,7 @@ export default function BannersPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {assignedBanners.map((banner) => (
                 <div key={banner.id} className="bg-white rounded-lg border-2 border-primary-300 p-4">
-                  {banner.imageUrl && (
-                    <img
-                      src={banner.imageUrl}
-                      alt={banner.title}
-                      className="w-full h-32 object-cover rounded mb-3"
-                    />
-                  )}
+                  <BannerMediaThumb banner={banner} />
                   <h3 className="font-bold text-lg mb-2">{banner.title}</h3>
                   <p className="text-sm text-gray-600 mb-3">{banner.description}</p>
                   <div className="bg-primary-50 border border-primary-200 rounded p-3 mb-3">
@@ -321,13 +342,7 @@ export default function BannersPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {pendingBanners.map((banner) => (
               <div key={banner.id} className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
-                {banner.imageUrl && (
-                  <img
-                    src={banner.imageUrl}
-                    alt={banner.title}
-                    className="w-full h-32 object-cover rounded mb-3"
-                  />
-                )}
+                <BannerMediaThumb banner={banner} />
                 <h3 className="font-bold mb-2">{banner.title}</h3>
                 <p className="text-sm text-gray-600 mb-3">{banner.description}</p>
                 <div className="text-xs text-yellow-600 font-medium">
@@ -363,13 +378,7 @@ export default function BannersPage() {
                 key={banner.id}
                 className="bg-white rounded-lg shadow hover:shadow-lg transition p-6"
               >
-                {banner.imageUrl && (
-                  <img
-                    src={banner.imageUrl}
-                    alt={banner.title}
-                    className="w-full h-40 object-cover rounded mb-4"
-                  />
-                )}
+                <BannerMediaThumb banner={banner} />
                 <div className="flex justify-between items-start mb-2">
                   <h3 className="text-lg font-bold">{banner.title}</h3>
                   <span className={`px-3 py-1 rounded text-xs ${
@@ -644,6 +653,7 @@ function BuyBannerModal({
     linkType: 'dealer' as 'vehicle' | 'dealer' | 'seller' | 'filter',
     linkValue: '',
     duration: 7,
+    placement: 'hero' as string,
     imageFile: null as File | null,
     videoFile: null as File | null,
     mediaType: 'image' as 'image' | 'video',
@@ -651,6 +661,27 @@ function BuyBannerModal({
   });
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [placementOptions, setPlacementOptions] = useState<
+    Array<{
+      id: string;
+      label: string;
+      description: string;
+      pixelSize: string;
+      aspectRatio?: string;
+      width?: number;
+      height?: number;
+      prices: Record<number, number>;
+    }>
+  >([]);
+
+  useEffect(() => {
+    fetch('/api/banners/placements')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.placements?.length) setPlacementOptions(data.placements);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (formData.linkType === 'vehicle') {
@@ -670,13 +701,8 @@ function BuyBannerModal({
     }
   }
 
-  const prices: Record<number, number> = {
-    7: 99,
-    15: 149,
-    30: 299,
-  };
-
-  const getPrice = () => prices[formData.duration] || 99;
+  const selectedPlacement = placementOptions.find((item) => item.id === formData.placement);
+  const getPrice = () => selectedPlacement?.prices?.[formData.duration] || 0;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -725,6 +751,7 @@ function BuyBannerModal({
         imageUrl: formData.mediaType === 'image' ? url : undefined,
         videoUrl: formData.mediaType === 'video' ? url : undefined,
         mediaType: formData.mediaType,
+        price: getPrice(),
       });
     } catch (error: any) {
       alert(`Error: ${error.message}`);
@@ -742,6 +769,52 @@ function BuyBannerModal({
           </p>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Ubicación *</label>
+            <select
+              value={formData.placement}
+              onChange={(e) => setFormData({ ...formData, placement: e.target.value })}
+              className="w-full border rounded px-3 py-2"
+              required
+            >
+              {(placementOptions.length
+                ? placementOptions
+                : [
+                    { id: 'hero', label: 'Banner grande de arriba (home)', pixelSize: '1920 × 600 px', aspectRatio: '16:5', width: 1920, height: 600 },
+                    { id: 'sidebar', label: 'Al lado del inventario (columna izquierda)', pixelSize: '400 × 300 px', aspectRatio: '4:3', width: 400, height: 300 },
+                    { id: 'between_content', label: 'Banner ancho cerca del final de la home', pixelSize: '1200 × 384 px', aspectRatio: '25:8', width: 1200, height: 384 },
+                    { id: 'sponsors_section', label: '3 anuncios “Ofertas recomendadas” (casi al final)', pixelSize: '400 × 300 px', aspectRatio: '4:3', width: 400, height: 300 },
+                    { id: 'vehicle_page', label: 'Banner en la ficha del vehículo', pixelSize: '760 × 300 px', aspectRatio: '38:15', width: 760, height: 300 },
+                  ]
+              ).map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.label} — {item.pixelSize}
+                </option>
+              ))}
+            </select>
+            {selectedPlacement?.description && (
+              <p className="text-xs text-gray-600 mt-1">{selectedPlacement.description}</p>
+            )}
+            {selectedPlacement?.pixelSize ? (
+              <div className="mt-2 rounded-lg border border-primary-200 bg-primary-50 p-3">
+                <p className="text-sm font-semibold text-gray-900">
+                  Tamaño exacto: {selectedPlacement.pixelSize}
+                </p>
+                <p className="text-xs text-gray-600">
+                  Proporción {selectedPlacement.aspectRatio || '—'}
+                  {selectedPlacement.width && selectedPlacement.height
+                    ? ` · ${selectedPlacement.width} × ${selectedPlacement.height} px`
+                    : ''}
+                </p>
+              </div>
+            ) : null}
+            {isAdPlacement(formData.placement) ? (
+              <div className="mt-3">
+                <AdPlacementExplainer placement={formData.placement} />
+              </div>
+            ) : null}
+          </div>
+
           <div>
             <label className="block text-sm font-medium mb-2">Título del Banner *</label>
             <input
@@ -857,11 +930,9 @@ function BuyBannerModal({
                 <strong>📸 Especificaciones de Imagen para Banner:</strong>
                 <ul className="mt-1 ml-4 list-disc space-y-1">
                   <li><strong>Formatos permitidos:</strong> JPG, JPEG, PNG, WebP</li>
-                  <li><strong>Tamaño recomendado:</strong> 1920x600px (proporción 16:5)</li>
-                  <li><strong>Tamaño mínimo:</strong> 1200x400px</li>
-                  <li><strong>Tamaño máximo por archivo:</strong> 10MB</li>
-                  <li><strong>Resolución máxima:</strong> 4000x1500px</li>
-                  <li><strong>Relación de aspecto:</strong> 16:5 o 3:1 (horizontal)</li>
+                  <li><strong>Tamaño exacto:</strong> {selectedPlacement?.pixelSize || 'según la ubicación'}</li>
+                  <li><strong>Proporción:</strong> {selectedPlacement?.aspectRatio || 'según la ubicación'}</li>
+                  <li><strong>Tamaño máximo por archivo:</strong> 20MB</li>
                 </ul>
               </div>
               {formData.imageFile && (
@@ -911,9 +982,9 @@ function BuyBannerModal({
               onChange={(e) => setFormData({ ...formData, duration: Number(e.target.value) })}
               className="w-full border rounded px-3 py-2"
             >
-              <option value={7}>7 días - ${getPrice().toFixed(2)}</option>
-              <option value={15}>15 días - ${getPrice().toFixed(2)}</option>
-              <option value={30}>30 días - ${getPrice().toFixed(2)}</option>
+              <option value={7}>7 días - ${(selectedPlacement?.prices?.[7] || 0).toFixed(2)}</option>
+              <option value={15}>15 días - ${(selectedPlacement?.prices?.[15] || 0).toFixed(2)}</option>
+              <option value={30}>30 días - ${(selectedPlacement?.prices?.[30] || 0).toFixed(2)}</option>
             </select>
           </div>
 

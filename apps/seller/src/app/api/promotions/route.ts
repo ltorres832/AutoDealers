@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createPromotion, getPromotions, createNotification, canExecuteFeature, getAvailableCredits, useRewardCredit } from '@autodealers/core';
+import { createPromotion, getPromotions, createNotification, canExecuteFeature, getAvailableCredits, useRewardCredit, getCreditContentDays } from '@autodealers/core';
 import { verifyAuth } from '@/lib/auth';
 import { dealerManagedReferralsResponse } from '@/lib/referrals-access-guard';
 
@@ -80,6 +80,26 @@ export async function POST(request: NextRequest) {
 
     // Verificar si es una promoción gratuita para el landing (no pagada)
     const isFreePromotion = body.isFreePromotion === true && !body.isPaid;
+
+    if (auth.dealerId) {
+      const { canSellerPerformAllocatedAction } = await import('@autodealers/core');
+      const allocated = await canSellerPerformAllocatedAction({
+        dealerTenantId: auth.dealerId,
+        sellerUserId: auth.userId,
+        sellerTenantId: auth.tenantId,
+        action: 'createPromotion',
+      });
+      if (!allocated.allowed) {
+        return NextResponse.json(
+          {
+            error: allocated.reason || 'Límite de promociones asignado alcanzado',
+            limit: allocated.limit,
+            current: allocated.current,
+          },
+          { status: 403 }
+        );
+      }
+    }
     
     // Si es promoción gratuita para landing, validar feature y límite global
     if (isFreePromotion) {
@@ -127,6 +147,7 @@ export async function POST(request: NextRequest) {
 
     const promotionData: any = {
       tenantId: auth.tenantId,
+      createdBy: auth.userId,
       name: body.name,
       description: body.description || '',
       type: body.type || 'discount',
@@ -140,16 +161,26 @@ export async function POST(request: NextRequest) {
       autoSendToCustomers: body.autoSendToCustomers || false,
       channels: body.channels || ['whatsapp'],
       aiGenerated: body.aiGenerated || false,
-      isPaid: body.isPaid || false,
+      // Seguridad: si el cliente pide usar crédito, NO confiamos en su isPaid.
+      // Solo se marcará como pagada tras consumir el crédito correctamente.
+      isPaid: body.useCredit === true ? false : (body.isPaid || false),
       isFreePromotion: isFreePromotion, // Marcar como promoción gratuita para landing
     };
 
     // Agregar imágenes y videos si existen
     if (body.images && body.images.length > 0) {
       promotionData.images = body.images;
+      promotionData.imageUrl = body.images[0];
     }
     if (body.videos && body.videos.length > 0) {
       promotionData.videos = body.videos;
+    }
+    if (body.animation) {
+      promotionData.animation = body.animation;
+    }
+    if (body.placement) {
+      const { parsePromoPlacement } = await import('@autodealers/core/ad-placements');
+      promotionData.placement = parsePromoPlacement(body.placement);
     }
 
     // Si se solicita usar crédito de referido, verificar y usar
@@ -158,15 +189,34 @@ export async function POST(request: NextRequest) {
       if (blocked) return blocked;
 
       const availableCredits = await getAvailableCredits(auth.userId, 'promotion');
-      if (availableCredits.length > 0) {
-        const creditId = availableCredits[0].id;
-        // Usar el crédito antes de crear la promoción
-        const success = await useRewardCredit(creditId, promotionData.name);
-        if (success) {
-          // Marcar la promoción como pagada ya que usó crédito
-          promotionData.isPaid = true;
-          promotionData.usedCreditId = creditId;
-        }
+      if (availableCredits.length === 0) {
+        return NextResponse.json(
+          { error: 'No tienes créditos de promoción disponibles' },
+          { status: 400 }
+        );
+      }
+
+      const creditId = availableCredits[0].id;
+      const contentDays = await getCreditContentDays(creditId);
+
+      // Usar el crédito antes de crear la promoción
+      const success = await useRewardCredit(creditId, promotionData.name);
+      if (!success) {
+        return NextResponse.json(
+          { error: 'No se pudo aplicar el crédito de promoción' },
+          { status: 400 }
+        );
+      }
+
+      // El crédito paga la promoción destacada
+      promotionData.isPaid = true;
+      promotionData.usedCreditId = creditId;
+
+      // Topear la duración a los días que otorga el crédito
+      const maxEndDate = new Date(startDate);
+      maxEndDate.setDate(maxEndDate.getDate() + contentDays);
+      if (!promotionData.endDate || promotionData.endDate > maxEndDate) {
+        promotionData.endDate = maxEndDate;
       }
     }
 

@@ -12,9 +12,9 @@ const projectId =
   process.env.GCLOUD_PROJECT || process.env.FIREBASE_PROJECT_ID || 'autodealers-7f62e';
 const location = process.env.SCHEDULER_LOCATION || 'us-central1';
 const cronSecret = process.env.CRON_SECRET;
-const adminAppUrl =
-  process.env.ADMIN_APP_URL ||
-  'https://admin-app--autodealers-7f62e.us-central1.hosted.app';
+import { PLATFORM_URLS } from './platform-domains.mjs';
+
+const adminAppUrl = process.env.ADMIN_APP_URL || PLATFORM_URLS.admin;
 const jobName = process.env.SCHEDULER_JOB_NAME || 'confirm-referral-rewards-daily';
 
 if (!cronSecret) {

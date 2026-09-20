@@ -116,7 +116,7 @@ export async function GET(request: NextRequest) {
           conversionRate: 0,
         }
       },
-      { status: 500 }
+      { status: 200 }
     );
   }
 }

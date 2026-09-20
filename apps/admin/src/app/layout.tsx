@@ -4,6 +4,7 @@ import './globals.css';
 import '../../../../packages/shared/src/styles/brand-surface.css';
 import { AuthProvider } from './auth-provider';
 import { BrandingHead } from '@/components/BrandingHead';
+import { PlatformVisitTracker } from '@autodealers/shared/platform-visit-tracker';
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -28,8 +29,8 @@ const poppins = Poppins({
 const platformBrandIcon = '/brand/ad-platform-logo.png';
 
 export const metadata: Metadata = {
-  title: 'AutoDealers - Panel Administrativo',
-  description: 'Panel administrativo supremo de AutoDealers',
+  title: 'AutoDealersOnline - Panel Administrativo',
+  description: 'Panel administrativo supremo de AutoDealersOnline',
   icons: {
     icon: [
       { url: platformBrandIcon, type: 'image/png', sizes: '32x32' },
@@ -49,6 +50,7 @@ export default function RootLayout({
     <html lang="es" className={`${inter.variable} ${poppins.variable}`}>
       <body className={`${inter.className} brand-top-accent font-sans antialiased min-h-[100dvh] overflow-x-hidden`}>
         <BrandingHead />
+        <PlatformVisitTracker app="admin" />
         <AuthProvider>
           {children}
         </AuthProvider>

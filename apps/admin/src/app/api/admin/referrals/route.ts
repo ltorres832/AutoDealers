@@ -16,34 +16,18 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const adminUser = await db.collection('admin_users').doc(auth.userId).get();
-    if (!adminUser.exists) {
-      return NextResponse.json(
-        { error: 'Usuario admin no encontrado' },
-        { status: 404 }
-      );
-    }
-
-    // Verificar permisos de admin (todos los admins pueden gestionar referidos por ahora)
-
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     const userId = searchParams.get('userId');
     const limit = parseInt(searchParams.get('limit') || '100');
 
-    let query = db.collection('referrals').orderBy('createdAt', 'desc');
+    const snapshot = await db
+      .collection('referrals')
+      .orderBy('createdAt', 'desc')
+      .limit(Math.min(limit, 500))
+      .get();
 
-    if (status) {
-      query = query.where('status', '==', status) as any;
-    }
-
-    if (userId) {
-      query = query.where('referrerId', '==', userId) as any;
-    }
-
-    const snapshot = await query.limit(limit).get();
-
-    const referrals = snapshot.docs.map((doc) => {
+    let referrals = snapshot.docs.map((doc) => {
       const data = doc.data();
       return {
         id: doc.id,
@@ -54,6 +38,13 @@ export async function GET(request: NextRequest) {
         paymentDate: data.paymentDate?.toDate().toISOString(),
       };
     });
+
+    if (status) {
+      referrals = referrals.filter((r) => r.status === status);
+    }
+    if (userId) {
+      referrals = referrals.filter((r) => r.referrerId === userId);
+    }
 
     // Estadísticas generales
     const allReferralsSnapshot = await db.collection('referrals').get();

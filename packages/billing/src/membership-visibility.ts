@@ -14,7 +14,7 @@ const LEGACY_MEMBERSHIP_DOC_IDS = new Set(['dealer', 'seller', 'free']);
 /** Excluye placeholders legacy (`memberships/seller`, `memberships/dealer`, etc.). */
 export function isCatalogMembership(membership: MembershipLike): boolean {
   const type = membership.type;
-  if (type !== 'dealer' && type !== 'seller') return false;
+  if (type !== 'dealer' && type !== 'seller' && type !== 'business') return false;
   if (!String(membership.name || '').trim()) return false;
 
   const id = String(membership.id || '');

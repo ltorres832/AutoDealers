@@ -129,6 +129,45 @@ export async function PATCH(
     if (patch.settings && typeof patch.settings === 'object') {
       patch.settings = { ...(cur.settings || {}), ...(patch.settings as object) };
     }
+    if (patch.websiteSettings && typeof patch.websiteSettings === 'object') {
+      const curWs =
+        cur.websiteSettings && typeof cur.websiteSettings === 'object'
+          ? (cur.websiteSettings as Record<string, unknown>)
+          : {};
+      const nextWs = patch.websiteSettings as Record<string, unknown>;
+      const curHero =
+        curWs.hero && typeof curWs.hero === 'object'
+          ? (curWs.hero as Record<string, unknown>)
+          : {};
+      const nextHero =
+        nextWs.hero && typeof nextWs.hero === 'object'
+          ? (nextWs.hero as Record<string, unknown>)
+          : null;
+
+      const mergedHero = nextHero
+        ? {
+            // Conservar videos promocionales del dealer si el admin solo edita el fondo del hero
+            promoVideoUrl: curHero.promoVideoUrl,
+            promoVideoUrls: curHero.promoVideoUrls,
+            ...nextHero,
+            backgroundImage:
+              typeof nextHero.backgroundImage === 'string' && nextHero.backgroundImage.trim()
+                ? nextHero.backgroundImage.trim()
+                : null,
+            backgroundVideoUrl:
+              typeof nextHero.backgroundVideoUrl === 'string' &&
+              nextHero.backgroundVideoUrl.trim()
+                ? nextHero.backgroundVideoUrl.trim()
+                : null,
+          }
+        : curHero;
+
+      patch.websiteSettings = {
+        ...curWs,
+        ...nextWs,
+        hero: mergedHero,
+      };
+    }
 
     await updateTenant(id, patch as any);
 

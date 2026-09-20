@@ -14,7 +14,7 @@ function isCatalogMembershipRow(row: MembershipListRow): boolean {
 }
 
 export async function queryMembershipsFromFirestore(options?: {
-  type?: 'dealer' | 'seller';
+  type?: 'dealer' | 'seller' | 'business';
   activeOnly?: boolean;
 }): Promise<MembershipListRow[]> {
   const db = getFirestore();

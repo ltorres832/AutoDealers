@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth, isDealerPortalRole } from '@/lib/auth';
-import { getFirestore } from '@autodealers/core';
-
-const db = getFirestore();
+import { getSellerNetworkActivity } from '@/lib/seller-network-activity';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,135 +11,40 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Obtener filtro de dealer si se proporciona
-    const searchParams = request.nextUrl.searchParams;
-    const dealerFilter = searchParams.get('dealerId');
+    const dealerFilter = request.nextUrl.searchParams.get('dealerId') || undefined;
 
-    // Si hay filtro, usarlo; de lo contrario usar el tenantId del usuario autenticado
-    const dealerIdsToFilter = dealerFilter 
-      ? [dealerFilter]
-      : [auth.tenantId]; // Por defecto, el dealer actual
-
-    // Si el usuario tiene múltiples dealers asociados, incluir todos si no hay filtro
-    if (!dealerFilter) {
-      const currentUserDoc = await db.collection('users').doc(auth.userId).get();
-      const currentUserData = currentUserDoc.data();
-      const associatedDealers = currentUserData?.associatedDealers || [];
-      if (associatedDealers.length > 0) {
-        dealerIdsToFilter.push(...associatedDealers);
-      }
-    }
-
-    // Obtener todos los vendedores de los dealers seleccionados
-    const sellersQueries = dealerIdsToFilter.map(dealerId =>
-      db.collection('users')
-        .where('role', '==', 'seller')
-        .where('dealerId', '==', dealerId)
-        .get()
-    );
-
-    const sellersSnapshots = await Promise.all(sellersQueries);
-    const allSellers: any[] = [];
-    sellersSnapshots.forEach(snapshot => {
-      snapshot.docs.forEach(doc => {
-        if (!allSellers.find(s => s.id === doc.id)) {
-          allSellers.push({ id: doc.id, data: doc.data() });
-        }
-      });
+    const network = await getSellerNetworkActivity(auth.tenantId, {
+      userId: auth.userId,
+      dealerIds: dealerFilter ? [dealerFilter] : undefined,
+      kinds: ['leads', 'sales', 'appointments', 'campaigns', 'promotions', 'social', 'sellers'],
+      limitPerSeller: 15,
     });
 
-    const activities = await Promise.all(
-      allSellers.map(async (sellerDoc) => {
-        const sellerData = sellerDoc.data;
-        const sellerId = sellerDoc.id;
-        
-        // Obtener tenantId del seller (puede ser el mismo del dealer o uno propio)
-        const sellerTenantId = sellerData.tenantId || auth.tenantId;
-
-        // Obtener leads del seller
-        const leadsSnapshot = await db
-          .collection('tenants')
-          .doc(sellerTenantId)
-          .collection('leads')
-          .where('assignedTo', '==', sellerId)
-          .get();
-
-        const leads = leadsSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt?.toDate()?.toISOString(),
-        }));
-
-        // Obtener ventas del seller
-        const salesSnapshot = await db
-          .collection('tenants')
-          .doc(sellerTenantId)
-          .collection('sales')
-          .where('sellerId', '==', sellerId)
-          .orderBy('createdAt', 'desc')
-          .limit(10)
-          .get();
-
-        const sales = salesSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt?.toDate()?.toISOString(),
-        }));
-
-        // Obtener citas del seller
-        const appointmentsSnapshot = await db
-          .collection('tenants')
-          .doc(sellerTenantId)
-          .collection('appointments')
-          .where('sellerId', '==', sellerId)
-          .orderBy('date', 'desc')
-          .limit(10)
-          .get();
-
-        const appointments = appointmentsSnapshot.docs.map((doc) => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            ...data,
-            date: data.date?.toDate()?.toISOString(),
-          };
-        });
-
-        // Obtener campañas (si existen)
-        const campaignsSnapshot = await db
-          .collection('tenants')
-          .doc(sellerTenantId)
-          .collection('campaigns')
-          .where('createdBy', '==', sellerId)
-          .get();
-
-        const campaigns = campaignsSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-
-        // Calcular estadísticas
-        const stats = {
-          totalLeads: leads.length,
-          activeLeads: leads.filter((l: any) => l.status !== 'closed' && l.status !== 'lost').length,
-          totalSales: sales.length,
-          totalRevenue: sales.reduce((sum: number, s: any) => sum + (s.price || 0), 0),
-          totalAppointments: appointments.length,
-          totalCampaigns: campaigns.length,
-        };
-
-        return {
-          sellerId,
-          sellerName: sellerData.name || 'Sin nombre',
-          sellerEmail: sellerData.email || '',
-          stats,
-          recentLeads: leads.slice(0, 10),
-          recentSales: sales,
-          recentAppointments: appointments,
-          recentCampaigns: campaigns,
-        };
-      })
-    );
+    const activities = network.summaryBySeller.map((summary) => {
+      const sellerId = summary.sellerId;
+      return {
+        sellerId,
+        sellerName: summary.sellerName,
+        sellerEmail: summary.sellerEmail,
+        stats: {
+          totalLeads: summary.totalLeads,
+          activeLeads: summary.activeLeads,
+          totalSales: summary.totalSales,
+          totalRevenue: summary.totalRevenue,
+          totalAppointments: network.appointments.filter((a) => a.ownerId === sellerId).length,
+          totalCampaigns: summary.totalCampaigns,
+          totalPromotions: summary.totalPromotions,
+          totalSocialPosts: summary.totalSocialPosts,
+          scheduledSocialPosts: summary.scheduledSocialPosts,
+        },
+        recentLeads: network.leads.filter((l) => l.ownerId === sellerId).slice(0, 10),
+        recentSales: network.sales.filter((s) => s.ownerId === sellerId).slice(0, 10),
+        recentAppointments: network.appointments.filter((a) => a.ownerId === sellerId).slice(0, 10),
+        recentCampaigns: network.campaigns.filter((c) => c.ownerId === sellerId).slice(0, 10),
+        recentPromotions: network.promotions.filter((p) => p.ownerId === sellerId).slice(0, 10),
+        recentSocialPosts: network.social.filter((p) => p.ownerId === sellerId).slice(0, 10),
+      };
+    });
 
     return NextResponse.json({ activities });
   } catch (error: any) {
@@ -152,4 +55,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

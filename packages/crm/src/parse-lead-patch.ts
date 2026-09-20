@@ -83,11 +83,47 @@ export function parseLeadPatchBody(
         changed = true;
       }
     }
+    if (typeof c.city === 'string') {
+      const city = c.city.trim().slice(0, 120);
+      if (city !== (next.city ?? '')) {
+        next.city = city || undefined;
+        changed = true;
+      }
+    }
+    if (typeof c.photo === 'string') {
+      const photo = c.photo.trim().slice(0, 2000);
+      if (photo !== (next.photo ?? '')) {
+        next.photo = photo || undefined;
+        changed = true;
+      }
+    }
     if (!next.preferredChannel) {
       next.preferredChannel = 'phone';
     }
     if (changed) {
       updates.contact = next;
+    }
+  }
+
+  if ('source' in raw && typeof raw.source === 'string') {
+    updates.source = raw.source.trim().slice(0, 40) as Lead['source'];
+  }
+
+  if ('vehicleInterest' in raw && raw.vehicleInterest !== undefined) {
+    updates.vehicleInterest =
+      raw.vehicleInterest === null ? null : String(raw.vehicleInterest).slice(0, 500);
+  }
+
+  if ('budget' in raw && raw.budget !== undefined) {
+    updates.budget = raw.budget === null ? null : String(raw.budget).slice(0, 80);
+  }
+
+  if ('nextFollowUpDate' in raw) {
+    if (raw.nextFollowUpDate === null || raw.nextFollowUpDate === '') {
+      updates.nextFollowUpDate = null;
+    } else if (typeof raw.nextFollowUpDate === 'string') {
+      const d = new Date(raw.nextFollowUpDate);
+      if (!Number.isNaN(d.getTime())) updates.nextFollowUpDate = d;
     }
   }
 

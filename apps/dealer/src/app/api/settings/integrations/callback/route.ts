@@ -1,5 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { decodeSocialOAuthState, publishPendingTenantRegistrationFacebookPost } from '@autodealers/core';
+import {
+  decodeSocialOAuthState,
+  getMetaCredentials,
+  getTikTokCredentials,
+  getYouTubeCredentials,
+  exchangeTikTokCode,
+  exchangeGoogleCode,
+  fetchYouTubeChannel,
+  publishPendingTenantRegistrationFacebookPost,
+  isTikTokYouTubePublishEnabled,
+} from '@autodealers/core';
 import { META_PAGES_GRAPH_FIELDS } from '@autodealers/core/meta-oauth-scopes';
 import { finalizeMetaUserAccessToken, type MetaTokenHealth } from '@autodealers/core/meta-token-health';
 import { buildAppRedirectUrl } from '@/lib/app-origin';
@@ -169,17 +179,112 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Obtener credenciales globales desde system_settings.credentials (donde el admin las guarda)
-    const credentialsDoc = await db.collection('system_settings').doc('credentials').get();
-    
-    let clientId: string | undefined;
-    let clientSecret: string | undefined;
+    const { getIntegrationsOAuthCallbackUrl } = await import('@/lib/app-origin');
+    const redirectUri = getIntegrationsOAuthCallbackUrl(request);
 
-    if (credentialsDoc.exists) {
-      const credentialsData = credentialsDoc.data();
-      clientId = credentialsData?.metaAppId;
-      clientSecret = credentialsData?.metaAppSecret;
+    if (type === 'tiktok') {
+      if (!isTikTokYouTubePublishEnabled()) {
+        return NextResponse.redirect(
+          buildAppRedirectUrl('/settings/integrations?error=feature_unavailable', request)
+        );
+      }
+      const { clientKey, clientSecret } = await getTikTokCredentials();
+      if (!clientKey || !clientSecret) {
+        return NextResponse.redirect(
+          buildAppRedirectUrl('/settings/integrations?error=tiktok_not_configured', request)
+        );
+      }
+      try {
+        const token = await exchangeTikTokCode({
+          clientKey,
+          clientSecret,
+          code,
+          redirectUri,
+        });
+        let displayName = token.open_id;
+        try {
+          const infoRes = await fetch(
+            'https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name,avatar_url',
+            { headers: { Authorization: `Bearer ${token.access_token}` } }
+          );
+          const infoJson = (await infoRes.json()) as {
+            data?: { user?: { display_name?: string; open_id?: string } };
+          };
+          if (infoJson.data?.user?.display_name) {
+            displayName = infoJson.data.user.display_name;
+          }
+        } catch {
+          /* optional */
+        }
+        await upsertTenantIntegration(tenantId, 'tiktok', leadOwnerUserId, {
+          accessToken: token.access_token,
+          refreshToken: token.refresh_token || null,
+          openId: token.open_id,
+          expiresAt: Date.now() + (token.expires_in || 86400) * 1000,
+          scope: token.scope || null,
+          pageName: displayName,
+          displayName,
+        });
+        return NextResponse.redirect(
+          buildAppRedirectUrl('/settings/integrations?success=connected&tiktok=1', request)
+        );
+      } catch (e: any) {
+        return NextResponse.redirect(
+          buildAppRedirectUrl(
+            `/settings/integrations?error=${encodeURIComponent(e?.message || 'tiktok_oauth_failed')}`,
+            request
+          )
+        );
+      }
     }
+
+    if (type === 'youtube') {
+      if (!isTikTokYouTubePublishEnabled()) {
+        return NextResponse.redirect(
+          buildAppRedirectUrl('/settings/integrations?error=feature_unavailable', request)
+        );
+      }
+      const { clientId, clientSecret } = await getYouTubeCredentials();
+      if (!clientId || !clientSecret) {
+        return NextResponse.redirect(
+          buildAppRedirectUrl('/settings/integrations?error=youtube_not_configured', request)
+        );
+      }
+      try {
+        const token = await exchangeGoogleCode({
+          clientId,
+          clientSecret,
+          code,
+          redirectUri,
+        });
+        const channel = await fetchYouTubeChannel(token.access_token).catch(() => ({}));
+        await upsertTenantIntegration(tenantId, 'youtube', leadOwnerUserId, {
+          accessToken: token.access_token,
+          refreshToken: token.refresh_token || null,
+          expiresAt: Date.now() + (token.expires_in || 3600) * 1000,
+          scope: token.scope || null,
+          channelId: channel.channelId || null,
+          channelTitle: channel.channelTitle || null,
+          pageName: channel.channelTitle || 'YouTube',
+        });
+        return NextResponse.redirect(
+          buildAppRedirectUrl('/settings/integrations?success=connected&youtube=1', request)
+        );
+      } catch (e: any) {
+        return NextResponse.redirect(
+          buildAppRedirectUrl(
+            `/settings/integrations?error=${encodeURIComponent(e?.message || 'youtube_oauth_failed')}`,
+            request
+          )
+        );
+      }
+    }
+
+    // Credenciales globales de Meta: entorno / Secret Manager y, como fallback
+    // heredado, system_settings.credentials
+    const metaCreds = await getMetaCredentials();
+    let clientId: string | undefined = metaCreds.appId;
+    let clientSecret: string | undefined = metaCreds.appSecret;
 
     // Si no hay credenciales globales, intentar obtener del tenant (compatibilidad hacia atrás)
     if (!clientId || !clientSecret) {
@@ -203,8 +308,6 @@ export async function GET(request: NextRequest) {
         buildAppRedirectUrl(`/settings/integrations?error=meta_app_not_configured`, request)
       );
     }
-    const { getIntegrationsOAuthCallbackUrl } = await import('@/lib/app-origin');
-    const redirectUri = getIntegrationsOAuthCallbackUrl(request);
 
     const tokenResponse = await fetch(
       `https://graph.facebook.com/v18.0/oauth/access_token?` +

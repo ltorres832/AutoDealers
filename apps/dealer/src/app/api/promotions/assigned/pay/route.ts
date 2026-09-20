@@ -104,6 +104,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Crear Payment Intent para pago integrado
+    const salesOriginMeta: Record<string, string> = {};
+    if (requestData?.source === 'sales_employee' || requestData?.assignedByRole === 'sales_employee') {
+      if (requestData.salesEmployeeId) {
+        salesOriginMeta.employeeId = String(requestData.salesEmployeeId);
+        salesOriginMeta.salesEmployeeId = String(requestData.salesEmployeeId);
+      }
+      if (requestData.salesAdOrderId) salesOriginMeta.salesAdOrderId = String(requestData.salesAdOrderId);
+      salesOriginMeta.source = 'sales_employee';
+      salesOriginMeta.assignedByRole = 'sales_employee';
+    }
+
     const paymentIntent = await stripeService.createPaymentIntent(
       requestData.price,
       'usd',
@@ -113,10 +124,12 @@ export async function POST(request: NextRequest) {
         userId: auth.userId,
         type: 'paid_promotion',
         promotionRequestId: promotionRequestId,
+        requestId: promotionRequestId,
         isAssigned: 'true',
         promotionScope: requestData.promotionScope,
         vehicleId: requestData.vehicleId || null,
         duration: requestData.duration,
+        ...salesOriginMeta,
       },
       customerId
     );

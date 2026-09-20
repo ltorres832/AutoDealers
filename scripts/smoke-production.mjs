@@ -1,16 +1,12 @@
 #!/usr/bin/env node
 /**
- * HTTP smoke checks against deployed App Hosting URLs.
+ * HTTP smoke checks against deployed production URLs.
  * Override with env vars (e.g. in GitHub Actions secrets/vars).
  */
+import { PLATFORM_URLS } from './platform-domains.mjs';
 
-const DEFAULT_PUBLIC =
-  process.env.SMOKE_PUBLIC_WEB_URL ||
-  "https://public-web-app--autodealers-7f62e.us-central1.hosted.app";
-
-const DEFAULT_ADMIN =
-  process.env.SMOKE_ADMIN_URL ||
-  "https://admin-app--autodealers-7f62e.us-central1.hosted.app";
+const DEFAULT_PUBLIC = process.env.SMOKE_PUBLIC_WEB_URL || PLATFORM_URLS.public;
+const DEFAULT_ADMIN = process.env.SMOKE_ADMIN_URL || PLATFORM_URLS.admin;
 
 const checks = [
   {

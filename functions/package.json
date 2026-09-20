@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Cloud Functions para AutoDealersPR",
   "scripts": {
-    "build": "tsc",
+    "build": "node ./build-functions.js",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",
@@ -17,7 +17,8 @@
   "dependencies": {
     "firebase-admin": "^12.0.0",
     "firebase-functions": "^4.5.0",
-    "next": "^16.1.6"
+    "openai": "^4.77.0",
+    "stripe": "^14.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

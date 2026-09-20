@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { ForgotPasswordPanel } from '@/components/ForgotPasswordPanel';
 import { auth } from '@/lib/firebase-client';
 import { cleanupInvalidTokens } from '@/lib/cleanup-invalid-tokens';
@@ -12,9 +11,35 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const router = useRouter();
 
-  // NO hacer nada en el login - dejar que el usuario inicie sesión normalmente
+  useEffect(() => {
+    if (!auth) return;
+    let cancelled = false;
+    // Si Firebase aún tiene sesión pero la cookie authToken se perdió, sincronizar
+    // cookie y luego entrar. Sin esto: login ↔ dashboard en loop (brinca).
+    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!firebaseUser || cancelled) return;
+      try {
+        const token = await firebaseUser.getIdToken(true);
+        if (!token || token.length < 200 || !token.startsWith('eyJ')) return;
+        const isSecure = window.location.protocol === 'https:';
+        document.cookie = `authToken=${encodeURIComponent(token)}; path=/; max-age=86400; SameSite=Lax${
+          isSecure ? '; Secure' : ''
+        }`;
+        localStorage.setItem('authToken', token);
+        const params = new URLSearchParams(window.location.search);
+        const raw = params.get('redirect') || '/dashboard';
+        const next = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/dashboard';
+        window.location.replace(next);
+      } catch {
+        /* quedarse en login */
+      }
+    });
+    return () => {
+      cancelled = true;
+      unsub();
+    };
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -28,46 +53,37 @@ export default function LoginPage() {
     }
 
     try {
-      // Autenticar con Firebase Auth (verifica credenciales)
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      
-      // Obtener un token fresco (forzar renovación para asegurar que sea válido)
+      const loginResponse = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const loginData = await loginResponse.json().catch(() => ({}));
+      // customToken es obligatorio: sessionToken corto no autentica Firebase y rebota a /login.
+      if (!loginResponse.ok || !loginData.customToken) {
+        throw new Error(loginData.error || 'Error al validar usuario');
+      }
+
+      const userCredential = await signInWithCustomToken(auth, loginData.customToken);
       const token = await userCredential.user.getIdToken(true);
-      
-      // Verificar que el token sea válido (debe tener más de 200 caracteres para ser un JWT válido)
+
       if (!token) {
         throw new Error('Error al obtener token de autenticación. Por favor, intenta nuevamente.');
       }
-      
+
       if (token.length < 200) {
         console.error('❌ Token demasiado corto:', token.length);
-        console.error('❌ Token recibido:', token);
-        throw new Error(`Error: El token obtenido es demasiado corto (${token.length} caracteres). Por favor, intenta nuevamente.`);
+        throw new Error(
+          `Error: El token obtenido es demasiado corto (${token.length} caracteres). Por favor, intenta nuevamente.`
+        );
       }
-      
-      // Verificar que el token tenga formato JWT válido
+
       if (!token.startsWith('eyJ')) {
         console.error('❌ Token no tiene formato JWT válido');
-        console.error('❌ Token preview:', token.substring(0, 100));
         throw new Error('Error: El token obtenido no tiene el formato correcto. Por favor, intenta nuevamente.');
       }
       
       console.log('✅ Token obtenido correctamente, longitud:', token.length);
-
-      // Validar usuario con la API (verifica estado y rol)
-      const loginResponse = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: userCredential.user.uid,
-        }),
-      });
-
-      const loginData = await loginResponse.json();
-
-      if (!loginResponse.ok) {
-        throw new Error(loginData.error || 'Error al validar usuario');
-      }
 
       // Verificar que sea seller
       if (loginData.user?.role !== 'seller') {
@@ -94,6 +110,9 @@ export default function LoginPage() {
       
       // Guardar con un nombre específico para seller para evitar conflictos
       document.cookie = `authToken=${cookieValue}; path=/; max-age=86400; SameSite=Lax${isSecure ? '; Secure' : ''}`;
+      if (loginData.user?.id) {
+        document.cookie = `authProfileId=${encodeURIComponent(loginData.user.id)}; path=/; max-age=86400; SameSite=Lax${isSecure ? '; Secure' : ''}`;
+      }
       localStorage.setItem('authToken', token);
 
       console.log('✅ Token guardado en cookie, longitud:', token.length);
@@ -131,7 +150,7 @@ export default function LoginPage() {
   return (
     <div className="brand-login-shell brand-top-accent">
       <header className="brand-login-header">
-        <h1 className="text-2xl font-bold tracking-tight">AutoDealers</h1>
+        <h1 className="text-2xl font-bold tracking-tight">AutoDealersOnline</h1>
         <p className="text-sm text-white/90 mt-1">Portal Vendedor</p>
       </header>
       <div className="brand-login-body">

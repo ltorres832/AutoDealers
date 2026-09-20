@@ -163,16 +163,32 @@ export async function generateContractFromTemplate(
     throw new Error('Template not found');
   }
 
-  // TODO: Aquí se integraría con un servicio de PDF para llenar los campos
-  // Por ahora, creamos el contrato con la plantilla como documento original
-  // y luego se puede procesar para llenar los campos
+  // Sellar PDF plantilla con valores en posiciones (pdf-lib vía @autodealers/core)
+  let documentUrl = template.templateDocumentUrl;
+  try {
+    const { stampPdfUrlWithFieldValues, uploadFile } = await import('@autodealers/core');
+    const stamped = await stampPdfUrlWithFieldValues(
+      template.templateDocumentUrl,
+      template.fillableFields || [],
+      fieldValues
+    );
+    documentUrl = await uploadFile(
+      tenantId,
+      stamped,
+      `contract-from-template-${templateId}-${Date.now()}.pdf`,
+      'application/pdf',
+      'contracts'
+    );
+  } catch (err) {
+    console.warn('stamp contract template PDF failed, using original', err);
+  }
 
   const { createContract } = await import('./contracts');
 
   const contract = await createContract(tenantId, {
     name: template.name,
     type: template.type,
-    originalDocumentUrl: template.templateDocumentUrl,
+    originalDocumentUrl: documentUrl,
     saleId: saleId || undefined,
     leadId: leadId || undefined,
     vehicleId: vehicleId || undefined,
@@ -197,7 +213,7 @@ export async function generateContractFromTemplate(
 
   return {
     contractId: contract.id,
-    documentUrl: template.templateDocumentUrl,
+    documentUrl,
   };
 }
 

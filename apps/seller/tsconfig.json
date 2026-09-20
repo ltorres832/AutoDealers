@@ -36,7 +36,9 @@
       "@autodealers/shared": ["../../packages/shared/src"],
       "@autodealers/shared/*": ["../../packages/shared/src/*"],
       "@autodealers/billing": ["../../packages/billing/src"],
-      "@autodealers/billing/*": ["../../packages/billing/src/*"]
+      "@autodealers/billing/*": ["../../packages/billing/src/*"],
+      "@autodealers/voice": ["../../packages/voice/src"],
+      "@autodealers/voice/*": ["../../packages/voice/src/*"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],

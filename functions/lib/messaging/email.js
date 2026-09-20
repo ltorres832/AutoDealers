@@ -98,7 +98,7 @@ exports.sendEmailTemplate = (0, https_1.onCall)(async (request) => {
             to,
             content,
             metadata: {
-                subject: subject || 'Mensaje de AutoDealers',
+                subject: subject || 'Mensaje de AutoDealersOnline',
             },
         });
         return { success: response.status === 'sent', messageId: response.id };

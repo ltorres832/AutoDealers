@@ -25,9 +25,49 @@ async function readMembershipFeaturesFromDb(
   };
 }
 
+/** Reúne todos los tenantIds que deben recibir las features de un plan. */
+async function collectTenantIdsForMembership(membershipId: string): Promise<Set<string>> {
+  const id = membershipId.trim();
+  const tenantIds = new Set<string>();
+
+  const tenantsSnapshot = await getDb()
+    .collection('tenants')
+    .where('membershipId', '==', id)
+    .get();
+  tenantsSnapshot.docs.forEach((doc) => tenantIds.add(doc.id));
+
+  const subsSnapshot = await getDb()
+    .collection('subscriptions')
+    .where('membershipId', '==', id)
+    .get();
+  for (const doc of subsSnapshot.docs) {
+    const tid = doc.data()?.tenantId;
+    if (typeof tid === 'string' && tid.trim()) {
+      tenantIds.add(tid.trim());
+    }
+  }
+
+  const usersSnapshot = await getDb()
+    .collection('users')
+    .where('membershipId', '==', id)
+    .get();
+  for (const doc of usersSnapshot.docs) {
+    const tid = doc.data()?.tenantId;
+    if (typeof tid === 'string' && tid.trim()) {
+      tenantIds.add(tid.trim());
+    }
+    const dealerId = doc.data()?.dealerId;
+    if (typeof dealerId === 'string' && dealerId.trim()) {
+      tenantIds.add(dealerId.trim());
+    }
+  }
+
+  return tenantIds;
+}
+
 /**
- * Sincroniza las features de una membresía con todos los tenants que la usan
- * Se ejecuta automáticamente cuando se actualiza una membresía
+ * Sincroniza las features de una membresía con todos los tenants que la usan.
+ * Se ejecuta automáticamente cuando se actualiza una membresía.
  */
 export async function syncMembershipFeaturesToTenants(
   membershipId: string,
@@ -53,86 +93,51 @@ export async function syncMembershipFeaturesToTenants(
     syncVersion = typeof data?.syncVersion === 'number' ? data.syncVersion : undefined;
   }
 
-  const tenantsSnapshot = await getDb().collection('tenants')
-    .where('membershipId', '==', id)
-    .get();
+  const tenantIds = await collectTenantIdsForMembership(id);
 
-  if (tenantsSnapshot.empty) {
-    console.log(`No hay tenants usando la membresía ${id}`);
+  if (tenantIds.size === 0) {
+    console.log(`No hay tenants vinculados a la membresía ${id}`);
     return;
   }
 
-  // Actualizar caché de features para cada tenant
-  const batch = getDb().batch();
   const now = admin.firestore.Timestamp.now();
+  const batchSize = 400;
+  const ids = Array.from(tenantIds);
 
-  tenantsSnapshot.docs.forEach((doc) => {
-    const tenantRef = getDb().collection('tenants').doc(doc.id);
-    batch.update(tenantRef, {
-      featuresCache: features,
-      featuresLastSynced: now,
-      membershipSyncVersion: syncVersion ?? 0,
-    });
-  });
+  for (let i = 0; i < ids.length; i += batchSize) {
+    const batch = getDb().batch();
+    const chunk = ids.slice(i, i + batchSize);
+    for (const tenantId of chunk) {
+      const tenantRef = getDb().collection('tenants').doc(tenantId);
+      batch.set(
+        tenantRef,
+        {
+          membershipId: id,
+          featuresCache: features,
+          featuresLastSynced: now,
+          membershipSyncVersion: syncVersion ?? 0,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+    }
+    await batch.commit();
+  }
 
-  await batch.commit();
-
-  console.log(`✅ Features sincronizadas para ${tenantsSnapshot.size} tenants`);
+  console.log(`✅ Features sincronizadas para ${tenantIds.size} tenants (membresía ${id})`);
 }
 
 /**
- * Obtiene las features desde caché (más rápido) o desde la membresía
+ * Obtiene las features del plan (siempre lectura fresca desde memberships).
  */
 export async function getTenantFeaturesCached(tenantId: string) {
-  const tenantDoc = await getDb().collection('tenants').doc(tenantId).get();
-  if (!tenantDoc.exists) {
-    return null;
-  }
-
-  const tenantData = tenantDoc.data();
-  const membershipId = tenantData?.membershipId;
-
-  if (!membershipId) {
-    return null;
-  }
-
-  // Intentar obtener desde caché
-  if (tenantData?.featuresCache && tenantData?.featuresLastSynced) {
-    const lastSynced = tenantData.featuresLastSynced.toDate();
-    const now = new Date();
-    const hoursSinceSync = (now.getTime() - lastSynced.getTime()) / (1000 * 60 * 60);
-
-    // Si la caché tiene menos de 1 hora, usarla
-    if (hoursSinceSync < 1) {
-      return tenantData.featuresCache;
-    }
-  }
-
-  const fromDb = await readMembershipFeaturesFromDb(membershipId);
-  if (!fromDb) {
-    return null;
-  }
-
-  await getDb().collection('tenants').doc(tenantId).update({
-    featuresCache: fromDb.features,
-    featuresLastSynced: admin.firestore.FieldValue.serverTimestamp(),
-    membershipSyncVersion: fromDb.syncVersion ?? 0,
-  });
-
-  return fromDb.features;
+  const { getTenantMembershipFeatures } = await import('./membership-validation');
+  return getTenantMembershipFeatures(tenantId);
 }
 
 /**
- * Listener para sincronización automática cuando se actualiza una membresía
- * Se puede configurar como Cloud Function o ejecutar manualmente
+ * Listener para sincronización automática cuando se actualiza una membresía.
  */
 export async function setupMembershipSyncListener() {
-  // Esto se ejecutaría como Cloud Function
-  // Por ahora, se llama manualmente desde la API de actualización
   console.log('Listener de sincronización de membresías configurado');
 }
-
-
-
-
-

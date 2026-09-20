@@ -10,6 +10,7 @@ interface User {
   role: 'manager' | 'dealer_admin';
   status: string;
   tenantId?: string;
+  tenantIds?: string[];
   dealerId?: string;
   permissions?: {
     canManageInventory?: boolean;
@@ -124,6 +125,13 @@ export default function UsersManagementPage() {
               </div>
             )}
 
+            {user.tenantIds && user.tenantIds.length > 0 && (
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 mb-1">Dealers autorizados:</p>
+                <p className="text-xs font-mono text-gray-700">{user.tenantIds.join(', ')}</p>
+              </div>
+            )}
+
             {user.permissions && (
               <div className="mb-4">
                 <p className="text-sm text-gray-600 mb-2">Permisos:</p>
@@ -198,12 +206,14 @@ function CreateUserModal({
   onClose: () => void;
   onSuccess: () => void;
 }) {
+  const [dealers, setDealers] = useState<Array<{ id: string; name: string; pending?: boolean }>>([]);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
     phone: '',
     role: 'manager' as 'manager' | 'dealer_admin',
+    tenantIds: [] as string[],
     permissions: {
       canManageInventory: false,
       canManageLeads: false,
@@ -219,12 +229,37 @@ function CreateUserModal({
   });
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch('/api/dealers');
+        const data = await res.json().catch(() => ({}));
+        const list = Array.isArray(data.dealers)
+          ? data.dealers.filter((dealer: { pending?: boolean }) => !dealer.pending)
+          : [];
+        setDealers(list);
+        if (list[0]?.id) {
+          setFormData((prev) => ({
+            ...prev,
+            tenantIds: prev.tenantIds.length > 0 ? prev.tenantIds : [list[0].id],
+          }));
+        }
+      } catch {
+        setDealers([]);
+      }
+    })();
+  }, []);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     
     // Validar que al menos un permiso esté seleccionado
     if (Object.values(formData.permissions).every(p => !p)) {
       alert('Debes seleccionar al menos un permiso para el usuario');
+      return;
+    }
+    if (formData.tenantIds.length === 0) {
+      alert('Debes seleccionar al menos un dealer al que este empleado tendrá acceso');
       return;
     }
     
@@ -342,6 +377,40 @@ function CreateUserModal({
                 ? 'El gerente puede ver y gestionar operaciones del negocio'
                 : 'El administrador tiene acceso completo, incluyendo crear otros usuarios'}
             </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Dealers que puede manejar *</label>
+            <p className="text-xs text-gray-500 mb-3">
+              Selecciona las sedes/dealers a las que este empleado tendrá acceso independiente.
+            </p>
+            <div className="space-y-2 border rounded p-4 bg-gray-50 max-h-48 overflow-y-auto">
+              {dealers.length === 0 ? (
+                <p className="text-sm text-gray-500">No hay dealers activos disponibles para asignar.</p>
+              ) : (
+                dealers.map((dealer) => {
+                  const checked = formData.tenantIds.includes(dealer.id);
+                  return (
+                    <label key={dealer.id} className="flex items-center gap-3 rounded p-2 hover:bg-white">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(e) => {
+                          setFormData({
+                            ...formData,
+                            tenantIds: e.target.checked
+                              ? Array.from(new Set([...formData.tenantIds, dealer.id]))
+                              : formData.tenantIds.filter((id) => id !== dealer.id),
+                          });
+                        }}
+                      />
+                      <span className="text-sm font-medium">{dealer.name}</span>
+                      <span className="text-xs font-mono text-gray-500">{dealer.id}</span>
+                    </label>
+                  );
+                })
+              )}
+            </div>
           </div>
 
           {/* Permisos */}

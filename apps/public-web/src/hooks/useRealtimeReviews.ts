@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { getFirebaseClient } from '../lib/firebase-client';
 import { collectionGroup, query, where, orderBy, limit as limitQuery, onSnapshot } from 'firebase/firestore';
+import { isDemoPromoAccount, isKnownDemoId } from '@/lib/demo-account';
 
 interface Review {
   id: string;
@@ -66,7 +67,15 @@ export function useRealtimeReviews(limit: number = 6) {
         // Obtener información del tenant
         const tenantPath = docSnapshot.ref.path.split('/');
         const tenantId = tenantPath[1];
-        
+        if (
+          isKnownDemoId(tenantId) ||
+          isKnownDemoId(data.dealerId) ||
+          isKnownDemoId(data.sellerId) ||
+          isDemoPromoAccount(data as Record<string, unknown>, docSnapshot.id)
+        ) {
+          continue;
+        }
+
         let vehicleName = '';
         let dealerName = '';
         let sellerName = '';

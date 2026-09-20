@@ -1,5 +1,6 @@
 import * as admin from 'firebase-admin';
 import { EmailService } from '@autodealers/messaging';
+import { formatPlatformEmailFrom } from '@autodealers/shared/platform-sender';
 import { getEmailCredentials, getFirestore, getNewsletterAudience } from '@autodealers/core';
 
 const BATCH_SIZE = 20;
@@ -8,13 +9,13 @@ function wrapNewsletterHtml(subject: string, bodyHtml: string): string {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; color: #111; line-height: 1.6;">
       <div style="border-bottom: 3px solid #E10600; padding-bottom: 16px; margin-bottom: 24px;">
-        <strong style="font-size: 18px; color: #5c0300;">AutoDealers</strong>
+        <strong style="font-size: 18px; color: #5c0300;">AutoDealersOnline</strong>
         <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Boletín informativo</div>
       </div>
       <h1 style="font-size: 22px; margin: 0 0 16px;">${subject}</h1>
       <div>${bodyHtml}</div>
       <p style="font-size: 12px; color: #94a3b8; margin-top: 32px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
-        Recibes este correo porque te registraste en AutoDealers o te suscribiste a nuestra newsletter.
+        Recibes este correo porque te registraste en AutoDealersOnline o te suscribiste a nuestra newsletter.
       </p>
     </div>
   `;
@@ -46,8 +47,8 @@ export async function sendNewsletterCampaign(params: {
 
   const provider =
     emailApiKey.includes('re_') || emailApiKey.startsWith('re_') ? 'resend' : 'sendgrid';
-  const emailService = new EmailService(emailApiKey, provider, emailCreds.fromAddress);
-  const from = emailCreds.fromAddress || 'noreply@autodealers.com';
+  const emailService = new EmailService(emailApiKey, provider, formatPlatformEmailFrom(emailCreds.fromAddress));
+  const from = formatPlatformEmailFrom(emailCreds.fromAddress);
   const html = wrapNewsletterHtml(subject, bodyHtml);
 
   let audience = await getNewsletterAudience();

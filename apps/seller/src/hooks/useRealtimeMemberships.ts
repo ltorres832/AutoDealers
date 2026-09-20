@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { db } from '@/lib/firebase-client';
+import { db, auth } from '@/lib/firebase-client';
 import { collection, onSnapshot } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
 import { filterPublicCatalogMemberships } from '@autodealers/billing/membership-visibility';
+import { serializeMembershipPromoForApi } from '@autodealers/billing/membership-promo-pricing';
 
 interface Membership {
   id: string;
@@ -15,17 +17,31 @@ interface Membership {
   features: Record<string, unknown>;
   stripePriceId?: string;
   isActive: boolean;
+  displayPrice?: number;
+  regularPrice?: number;
+  launchActive?: boolean;
+  introConfigured?: boolean;
+  pricingBadge?: string | null;
 }
 
 export function useRealtimeMemberships(type: 'dealer' | 'seller' = 'seller') {
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [firebaseReady, setFirebaseReady] = useState(false);
 
   useEffect(() => {
-    if (!db) {
-      setLoading(false);
-      return;
+    if (!auth) return undefined;
+    const unsub = onAuthStateChanged(auth, (user) => {
+      setFirebaseReady(!!user);
+    });
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    if (!db || !firebaseReady) {
+      if (!firebaseReady) setLoading(false);
+      return undefined;
     }
 
     const unsubscribe = onSnapshot(
@@ -33,6 +49,7 @@ export function useRealtimeMemberships(type: 'dealer' | 'seller' = 'seller') {
       (snapshot) => {
         const mapped: Membership[] = snapshot.docs.map((doc) => {
           const d = doc.data();
+          const promo = serializeMembershipPromoForApi(d as Record<string, unknown>);
           return {
             id: doc.id,
             name: (d.name as string) || doc.id,
@@ -43,11 +60,15 @@ export function useRealtimeMemberships(type: 'dealer' | 'seller' = 'seller') {
             features: (d.features as Record<string, unknown>) || {},
             stripePriceId: d.stripePriceId as string | undefined,
             isActive: d.isActive !== false,
-          };
+            ...promo,
+          } as Membership;
         });
 
-        let rows = filterPublicCatalogMemberships(mapped.filter((m) => m.type === type));
-        rows.sort((a, b) => (a.price || 0) - (b.price || 0));
+        const rows = filterPublicCatalogMemberships(mapped.filter((m) => m.type === type));
+        rows.sort(
+          (a, b) =>
+            (Number(a.displayPrice ?? a.price) || 0) - (Number(b.displayPrice ?? b.price) || 0)
+        );
         setMemberships(rows);
         setLoading(false);
         setError(null);
@@ -60,7 +81,7 @@ export function useRealtimeMemberships(type: 'dealer' | 'seller' = 'seller') {
     );
 
     return () => unsubscribe();
-  }, [type]);
+  }, [type, firebaseReady]);
 
   return { memberships, loading, error };
 }

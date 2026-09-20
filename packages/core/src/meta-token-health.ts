@@ -3,6 +3,7 @@
  */
 
 import {
+  META_REQUIRED_SCOPES_CATALOG,
   META_REQUIRED_SCOPES_INSTAGRAM,
   META_REQUIRED_SCOPES_ORGANIC,
   META_REQUIRED_SCOPES_PAID_ADS,
@@ -19,6 +20,7 @@ export interface MetaTokenHealth {
   missingForOrganic: string[];
   missingForPaidAds: string[];
   missingForInstagram: string[];
+  missingForCatalog: string[];
   pagesOk: boolean;
   pageTokenOk: boolean;
   adAccountsOk: boolean;
@@ -26,10 +28,14 @@ export interface MetaTokenHealth {
   adAccountName?: string;
   pageId?: string;
   pageName?: string;
+  /** Business Manager visible con el token (requisito del catálogo de vehículos). */
+  businessesOk?: boolean;
+  businessId?: string;
   warnings: string[];
   readyForOrganic: boolean;
   readyForPaidAds: boolean;
   readyForInstagram: boolean;
+  readyForCatalog?: boolean;
 }
 
 function scopeGranted(granted: string[], required: string): boolean {
@@ -136,6 +142,7 @@ export async function auditMetaUserAccess(input: {
   const missingForOrganic = missingFrom(grantedScopes, META_REQUIRED_SCOPES_ORGANIC);
   const missingForPaidAds = missingFrom(grantedScopes, META_REQUIRED_SCOPES_PAID_ADS);
   const missingForInstagram = missingFrom(grantedScopes, META_REQUIRED_SCOPES_INSTAGRAM);
+  const missingForCatalog = missingFrom(grantedScopes, META_REQUIRED_SCOPES_CATALOG);
   const missingScopes = [
     ...new Set([...missingForOrganic, ...missingForPaidAds, ...missingForInstagram]),
   ];
@@ -212,11 +219,31 @@ export async function auditMetaUserAccess(input: {
     warnings.push(e instanceof Error ? e.message : 'Error al listar cuentas publicitarias');
   }
 
+  let businessesOk = false;
+  let businessId: string | undefined;
+  try {
+    const bizRes = await fetch(
+      `https://graph.facebook.com/${GRAPH_VERSION}/me/businesses?` +
+        `fields=id,name&limit=5&access_token=${encodeURIComponent(input.userAccessToken)}`
+    );
+    const bizJson = (await bizRes.json()) as {
+      data?: Array<{ id?: string; name?: string }>;
+      error?: { message?: string };
+    };
+    if (bizRes.ok && Array.isArray(bizJson.data) && bizJson.data.length > 0) {
+      businessesOk = true;
+      businessId = bizJson.data[0]?.id != null ? String(bizJson.data[0].id) : undefined;
+    }
+  } catch {
+    // Sin Business Manager: la tarjeta del catálogo lo indica; no es error global.
+  }
+
   const readyForOrganic =
     tokenValid && pagesOk && pageTokenOk && missingForOrganic.length === 0;
   const readyForPaidAds =
     tokenValid && adAccountsOk && missingForPaidAds.length === 0 && !!adAccountId;
   const readyForInstagram = tokenValid && missingForInstagram.length === 0;
+  const readyForCatalog = tokenValid && businessesOk && missingForCatalog.length === 0;
 
   if (missingScopes.length > 0) {
     warnings.push(
@@ -233,6 +260,7 @@ export async function auditMetaUserAccess(input: {
     missingForOrganic,
     missingForPaidAds,
     missingForInstagram,
+    missingForCatalog,
     pagesOk,
     pageTokenOk,
     adAccountsOk,
@@ -240,10 +268,13 @@ export async function auditMetaUserAccess(input: {
     adAccountName,
     pageId,
     pageName,
+    businessesOk,
+    businessId,
     warnings,
     readyForOrganic,
     readyForPaidAds,
     readyForInstagram,
+    readyForCatalog,
   };
 }
 

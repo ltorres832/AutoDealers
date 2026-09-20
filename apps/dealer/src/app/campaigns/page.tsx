@@ -23,6 +23,9 @@ interface Campaign {
     spend: number;
   };
   createdAt: string;
+  ownerType?: 'dealer' | 'seller';
+  ownerId?: string;
+  ownerName?: string;
 }
 
 export default function CampaignsPage() {
@@ -30,8 +33,13 @@ export default function CampaignsPage() {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [authorFilter, setAuthorFilter] = useState<string>('all');
+  const [sellerOptions, setSellerOptions] = useState<Array<{ id: string; name: string }>>([]);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sid = params.get('sellerId');
+    if (sid) setAuthorFilter(sid);
     fetchCampaigns();
   }, []);
 
@@ -66,9 +74,33 @@ export default function CampaignsPage() {
 
   async function fetchCampaigns() {
     try {
-      const response = await fetchWithAuth('/api/campaigns', {});
-      const data = await response.json();
-      setCampaigns(data.campaigns || []);
+      const [ownRes, netRes] = await Promise.all([
+        fetchWithAuth('/api/campaigns', {}),
+        fetchWithAuth('/api/sellers/network-activity?kinds=campaigns,sellers', {}),
+      ]);
+      const ownData = await ownRes.json();
+      const netData = await netRes.json().catch(() => ({}));
+      const own = (ownData.campaigns || []).map((c: Campaign) => ({
+        ...c,
+        platforms: (c.platforms || []).filter((p) => p !== 'whatsapp'),
+        ownerType: 'dealer' as const,
+        ownerName: 'Dealer',
+      }));
+      const sellerOnes = (netData.campaigns || []).map((c: any) => ({
+        ...c,
+        platforms: (c.platforms || []).filter((p: string) => p !== 'whatsapp'),
+        budgets: c.budgets || [],
+        type: c.type || 'seller',
+        ownerType: 'seller' as const,
+      }));
+      const byId = new Map<string, Campaign>();
+      for (const c of [...own, ...sellerOnes]) {
+        if (!byId.has(c.id)) byId.set(c.id, c);
+      }
+      setCampaigns(Array.from(byId.values()));
+      setSellerOptions(
+        (netData.sellers || []).map((s: any) => ({ id: s.id, name: s.name }))
+      );
     } catch (error) {
       console.error('Error:', error);
     } finally {
@@ -84,14 +116,19 @@ export default function CampaignsPage() {
     );
   }
 
+  const filteredCampaigns = campaigns.filter((c) => {
+    if (authorFilter === 'all') return true;
+    if (authorFilter === 'dealer') return c.ownerType !== 'seller';
+    return c.ownerId === authorFilter || c.ownerType === 'seller' && c.ownerId === authorFilter;
+  });
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold">Campañas de Publicidad</h1>
           <p className="text-gray-600 mt-2">
-            Crea y gestiona todas tus campañas desde un solo lugar. La IA te ayudará
-            a crear contenido y optimizar tus campañas.
+            Campañas tuyas y de tus vendedores (monitoreo). Sin WhatsApp.
           </p>
         </div>
         <button
@@ -102,7 +139,24 @@ export default function CampaignsPage() {
         </button>
       </div>
 
-      {campaigns.length === 0 ? (
+      <div className="mb-4 flex flex-wrap gap-3 items-center">
+        <label className="text-sm font-medium text-gray-700">Autor</label>
+        <select
+          value={authorFilter}
+          onChange={(e) => setAuthorFilter(e.target.value)}
+          className="border rounded-lg px-3 py-2 text-sm"
+        >
+          <option value="all">Todos</option>
+          <option value="dealer">Dealer (mías)</option>
+          {sellerOptions.map((s) => (
+            <option key={s.id} value={s.id}>
+              Vendedor: {s.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {filteredCampaigns.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-12 text-center">
           <div className="text-6xl mb-4">📢</div>
           <h2 className="text-xl font-bold mb-2">No hay campañas creadas</h2>
@@ -118,13 +172,22 @@ export default function CampaignsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {campaigns.map((campaign) => (
+          {filteredCampaigns.map((campaign) => (
             <div
               key={campaign.id}
               className="bg-white rounded-lg shadow hover:shadow-lg transition p-6"
             >
               <div className="flex justify-between items-start mb-4">
-                <h3 className="text-lg font-bold">{campaign.name}</h3>
+                <div>
+                  <h3 className="text-lg font-bold">{campaign.name}</h3>
+                  {campaign.ownerType === 'seller' ? (
+                    <p className="text-xs text-indigo-700 mt-1">
+                      Vendedor: {campaign.ownerName || '—'}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-gray-500 mt-1">Dealer</p>
+                  )}
+                </div>
                 <span
                   className={`px-3 py-1 rounded text-xs ${
                     campaign.status === 'active'
@@ -140,7 +203,7 @@ export default function CampaignsPage() {
 
               <div className="mb-4">
                 <div className="flex gap-2 flex-wrap">
-                  {campaign.platforms.map((platform) => (
+                  {(campaign.platforms || []).map((platform) => (
                     <span
                       key={platform}
                       className="px-2 py-1 bg-gray-100 rounded text-xs capitalize"

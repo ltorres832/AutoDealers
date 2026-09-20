@@ -115,6 +115,14 @@ export default function ReferralsPage() {
   return (
     <div className="max-w-7xl mx-auto p-6">
       <h1 className="text-3xl font-bold text-gray-900 mb-6">Sistema de Referidos</h1>
+      <div className="mb-6 rounded-lg border border-primary-100 bg-primary-50 px-4 py-3 text-sm text-primary-900">
+        <p>
+          Comparte tu código. Cuando alguien se registra y elige plan, el referido queda{' '}
+          <strong>pendiente</strong> y luego <strong>confirmado</strong>. A los 14 días se acreditan
+          las recompensas (<strong>recompensado</strong>). Promociones y banners gratis aparecen arriba
+          y se usan al crear esa pieza. Si admin te otorga un crédito, también aparece aquí al instante.
+        </p>
+      </div>
 
       {/* Código de Referido */}
       <div className="bg-white rounded-lg shadow p-6 mb-6">

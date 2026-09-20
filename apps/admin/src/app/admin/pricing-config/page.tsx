@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { AD_PLACEMENT_IDS, type AdPlacementId } from '@autodealers/core/ad-placement-dimensions';
+import { AD_PLACEMENT_LABELS } from '@autodealers/core/ad-placements';
 
 interface PricingConfig {
   promotions: {
@@ -31,6 +33,10 @@ interface PricingConfig {
       prices: Record<number, number>;
     };
     sponsors_section: {
+      durations: number[];
+      prices: Record<number, number>;
+    };
+    vehicle_page: {
       durations: number[];
       prices: Record<number, number>;
     };
@@ -119,6 +125,7 @@ export default function PricingConfigPage() {
             sidebar: { durations: [7, 15, 30], prices: { 7: 99, 15: 149, 30: 299 } },
             between_content: { durations: [7, 15, 30], prices: { 7: 149, 15: 249, 30: 449 } },
             sponsors_section: { durations: [7, 15, 30], prices: { 7: 79, 15: 129, 30: 229 } },
+            vehicle_page: { durations: [7, 15, 30], prices: { 7: 119, 15: 199, 30: 349 } },
           },
           limits: { 
             maxActivePromotions: 12, 
@@ -158,7 +165,16 @@ export default function PricingConfigPage() {
         
         if (data.config) {
           console.log('Setting config:', data.config);
-          setConfig(data.config);
+          setConfig({
+            ...data.config,
+            banners: {
+              ...data.config.banners,
+              vehicle_page: data.config.banners?.vehicle_page || {
+                durations: [7, 15, 30],
+                prices: { 7: 119, 15: 199, 30: 349 },
+              },
+            },
+          });
         } else {
           console.error('No config in response:', data);
           setMessage({ type: 'error', text: 'No se recibió configuración del servidor' });
@@ -174,6 +190,7 @@ export default function PricingConfigPage() {
             sidebar: { durations: [7, 15, 30], prices: { 7: 99, 15: 149, 30: 299 } },
             between_content: { durations: [7, 15, 30], prices: { 7: 149, 15: 249, 30: 449 } },
             sponsors_section: { durations: [7, 15, 30], prices: { 7: 79, 15: 129, 30: 229 } },
+            vehicle_page: { durations: [7, 15, 30], prices: { 7: 119, 15: 199, 30: 349 } },
           },
             limits: { 
             maxActivePromotions: 12, 
@@ -220,6 +237,7 @@ export default function PricingConfigPage() {
             sidebar: { durations: [7, 15, 30], prices: { 7: 99, 15: 149, 30: 299 } },
             between_content: { durations: [7, 15, 30], prices: { 7: 149, 15: 249, 30: 449 } },
             sponsors_section: { durations: [7, 15, 30], prices: { 7: 79, 15: 129, 30: 229 } },
+            vehicle_page: { durations: [7, 15, 30], prices: { 7: 119, 15: 199, 30: 349 } },
           },
           limits: { 
             maxActivePromotions: 12, 
@@ -260,12 +278,13 @@ export default function PricingConfigPage() {
           dealer: { durations: [3, 7, 15, 30], prices: { 3: 49.99, 7: 89.99, 15: 149.99, 30: 199.99 } },
           seller: { durations: [3, 7, 15, 30], prices: { 3: 24.99, 7: 44.99, 15: 79.99, 30: 119.99 } },
         },
-        banners: {
-          hero: { durations: [7, 15, 30], prices: { 7: 199, 15: 349, 30: 599 } },
-          sidebar: { durations: [7, 15, 30], prices: { 7: 99, 15: 149, 30: 299 } },
-          between_content: { durations: [7, 15, 30], prices: { 7: 149, 15: 249, 30: 449 } },
-          sponsors_section: { durations: [7, 15, 30], prices: { 7: 79, 15: 129, 30: 229 } },
-        },
+          banners: {
+            hero: { durations: [7, 15, 30], prices: { 7: 199, 15: 349, 30: 599 } },
+            sidebar: { durations: [7, 15, 30], prices: { 7: 99, 15: 149, 30: 299 } },
+            between_content: { durations: [7, 15, 30], prices: { 7: 149, 15: 249, 30: 449 } },
+            sponsors_section: { durations: [7, 15, 30], prices: { 7: 79, 15: 129, 30: 229 } },
+            vehicle_page: { durations: [7, 15, 30], prices: { 7: 119, 15: 199, 30: 349 } },
+          },
         limits: { 
           maxActivePromotions: 12, 
           maxActiveBanners: 4,
@@ -342,7 +361,7 @@ export default function PricingConfigPage() {
     });
   }
 
-  function updateBannerPrice(placement: 'hero' | 'sidebar' | 'between_content' | 'sponsors_section', duration: number, price: number) {
+  function updateBannerPrice(placement: AdPlacementId, duration: number, price: number) {
     if (!config) return;
     setConfig({
       ...config,
@@ -399,7 +418,7 @@ export default function PricingConfigPage() {
     });
   }
 
-  function addBannerDuration(placement: 'hero' | 'sidebar' | 'between_content' | 'sponsors_section', duration: number) {
+  function addBannerDuration(placement: AdPlacementId, duration: number) {
     if (!config) return;
     if (config.banners[placement].durations.includes(duration)) return;
     
@@ -419,7 +438,7 @@ export default function PricingConfigPage() {
     });
   }
 
-  function removeBannerDuration(placement: 'hero' | 'sidebar' | 'between_content' | 'sponsors_section', duration: number) {
+  function removeBannerDuration(placement: AdPlacementId, duration: number) {
     if (!config) return;
     if (config.banners[placement].durations.length <= 1) return;
     
@@ -877,17 +896,10 @@ export default function PricingConfigPage() {
       <div className="bg-white rounded-lg shadow p-6 mb-6">
         <h2 className="text-xl font-bold mb-4">Precios de Banners por Ubicación</h2>
         
-        {config && (['hero', 'sidebar', 'between_content', 'sponsors_section'] as const).map((placement) => {
-          const placementLabels: Record<typeof placement, string> = {
-            hero: 'Hero Banner (Parte Superior)',
-            sidebar: 'Sidebar Banner (Barra Lateral)',
-            between_content: 'Between Content Banner (Entre Contenido)',
-            sponsors_section: 'Sponsors Section Banner (Sección de Patrocinadores)',
-          };
-
+        {config && AD_PLACEMENT_IDS.map((placement) => {
           return (
             <div key={placement} className="mb-6 pb-6 border-b last:border-b-0">
-              <h3 className="text-lg font-semibold mb-3">{placementLabels[placement]}</h3>
+              <h3 className="text-lg font-semibold mb-3">{AD_PLACEMENT_LABELS[placement]}</h3>
               
               <div className="space-y-3">
                 {(config?.banners?.[placement]?.durations || []).map((duration) => (
@@ -920,7 +932,7 @@ export default function PricingConfigPage() {
                 <div className="flex gap-2 mt-2">
                   <input
                     type="number"
-                    placeholder={`Agregar duración (días) - ${placementLabels[placement]}`}
+                    placeholder={`Agregar duración (días) - ${AD_PLACEMENT_LABELS[placement]}`}
                     className="border rounded px-3 py-2 flex-1"
                     min="1"
                     onKeyPress={(e) => {
@@ -935,7 +947,7 @@ export default function PricingConfigPage() {
                   />
                   <button
                     onClick={() => {
-                      const input = document.querySelector(`input[placeholder*="${placementLabels[placement]}"]`) as HTMLInputElement;
+                      const input = document.querySelector(`input[placeholder*="${AD_PLACEMENT_LABELS[placement]}"]`) as HTMLInputElement;
                       const duration = parseInt(input?.value || '0');
                       if (duration > 0) {
                         addBannerDuration(placement, duration);

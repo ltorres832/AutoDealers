@@ -9,15 +9,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const campaigns = await getAdCampaigns(auth.tenantId, auth.userId);
-
-    return NextResponse.json({ campaigns });
+    try {
+      const campaigns = await getAdCampaigns(auth.tenantId, auth.userId);
+      return NextResponse.json({ campaigns: campaigns || [] });
+    } catch (e: any) {
+      console.warn('social/ads fallback', e?.message || e);
+      return NextResponse.json({ campaigns: [], warning: e?.message || 'index_or_query' });
+    }
   } catch (error: any) {
     console.error('Error fetching ad campaigns:', error);
-    return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ campaigns: [], error: error.message });
   }
 }
-

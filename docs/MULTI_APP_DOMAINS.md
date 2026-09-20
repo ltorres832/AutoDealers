@@ -8,9 +8,9 @@ Cada panel tiene su **propio subdominio** en el mismo dominio raíz. Los concesi
 |-----|---------------------|----------------|
 | **Public** (web + marketplace) | `public-web-app` | https://www.autodealers-online.com |
 | **Admin** | `admin-app` | https://admin.autodealers-online.com |
-| **Dealers** | `dealer-app` | https://dealers.autodealers-online.com |
-| **Sellers** | `seller-app` | https://sellers.autodealers-online.com |
-| **Advertiser** | `advertiser-app` | https://ads.autodealers-online.com |
+| **Dealers** | `dealer-app` | https://dealer.autodealers-online.com |
+| **Sellers** | `seller-app` | https://seller.autodealers-online.com |
+| **Advertiser** | `advertiser-app` | https://advertiser.autodealers-online.com |
 
 Apex `autodealers-online.com` → redirigir a `www` (opcional, en Firebase al conectar el dominio).
 
@@ -24,7 +24,7 @@ Repite esto **una vez por backend** (5 backends):
 
 1. Abre [App Hosting](https://console.firebase.google.com/project/autodealers-7f62e/apphosting).
 2. Entra al backend (ej. `dealer-app`) → **Settings** → **Domains** → **Add custom domain**.
-3. Escribe el host (ej. `dealers.autodealers-online.com`).
+3. Escribe el host (ej. `dealer.autodealers-online.com`).
 4. Firebase te muestra registros DNS (CNAME y a veces TXT `_acme-challenge` / `fah-claim`).
 5. Añádelos en tu registrador DNS.
 6. **Verify records** y espera SSL (minutos a 24 h).
@@ -33,9 +33,9 @@ Repite esto **una vez por backend** (5 backends):
 |---------|------------------|
 | `public-web-app` | `www.autodealers-online.com` |
 | `admin-app` | `admin.autodealers-online.com` |
-| `dealer-app` | `dealers.autodealers-online.com` |
-| `seller-app` | `sellers.autodealers-online.com` |
-| `advertiser-app` | `ads.autodealers-online.com` |
+| `dealer-app` | `dealer.autodealers-online.com` |
+| `seller-app` | `seller.autodealers-online.com` |
+| `advertiser-app` | `advertiser.autodealers-online.com` |
 
 ### Public-web también vía Firebase Hosting (opcional)
 
@@ -72,7 +72,7 @@ Añade **todos** estos hosts (sin `https://`):
 node scripts/print-firebase-auth-domains.mjs
 ```
 
-Incluye: `www.autodealers-online.com`, `admin.autodealers-online.com`, `dealers.autodealers-online.com`, `sellers.autodealers-online.com`, `ads.autodealers-online.com`, `autodealers-online.com`, más los `*.hosted.app` de respaldo.
+Incluye: `www.autodealers-online.com`, `admin.autodealers-online.com`, `dealer.autodealers-online.com`, `seller.autodealers-online.com`, `advertiser.autodealers-online.com`, `autodealers-online.com`, más los `*.hosted.app` de respaldo.
 
 ---
 
@@ -85,9 +85,9 @@ Añade referrers:
 ```
 https://www.autodealers-online.com/*
 https://admin.autodealers-online.com/*
-https://dealers.autodealers-online.com/*
-https://sellers.autodealers-online.com/*
-https://ads.autodealers-online.com/*
+https://dealer.autodealers-online.com/*
+https://seller.autodealers-online.com/*
+https://advertiser.autodealers-online.com/*
 https://autodealers-online.com/*
 ```
 
@@ -120,9 +120,9 @@ npm run deploy:advertiser:firebase
 En `www.autodealers-online.com/login`, tras iniciar sesión el usuario va al panel según su rol:
 
 - Admin → `admin.autodealers-online.com`
-- Dealer → `dealers.autodealers-online.com`
-- Seller → `sellers.autodealers-online.com`
-- Advertiser → `ads.autodealers-online.com`
+- Dealer → `dealer.autodealers-online.com`
+- Seller → `seller.autodealers-online.com`
+- Advertiser → `advertiser.autodealers-online.com`
 
 Eso usa `NEXT_PUBLIC_ADMIN_URL`, `NEXT_PUBLIC_DEALER_URL`, etc. en `apps/public-web/apphosting.yaml`.
 

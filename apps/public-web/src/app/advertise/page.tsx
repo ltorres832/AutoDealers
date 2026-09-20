@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import PublicBackButton from '@/components/PublicBackButton';
 import { PublicMarketingNav } from '@/components/PublicMarketingNav';
@@ -10,23 +10,34 @@ import {
   getAdvertiserLoginUrl,
   getAdvertiserRegisterUrl,
 } from '@/config/advertiser-links';
+import {
+  enrichPlacementWithDimensions,
+  getPlacementDisplayRows,
+} from '@/lib/ad-placement-display';
 
 interface PlacementPrice {
   id: string;
   label: string;
   prices: Record<string, number>;
   fromPrice: number | null;
+  imageSize?: string;
+  aspectRatio?: string;
+  imageWidth?: number;
+  imageHeight?: number;
 }
 
 export default function AdvertisePage() {
   const [placements, setPlacements] = useState<PlacementPrice[]>([]);
   const [loadingPrices, setLoadingPrices] = useState(true);
+  const dimensionRows = useMemo(() => getPlacementDisplayRows(), []);
 
   useEffect(() => {
     fetch('/api/public/ad-pricing-config')
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data?.placements) setPlacements(data.placements);
+        if (data?.placements) {
+          setPlacements(data.placements.map(enrichPlacementWithDimensions));
+        }
       })
       .catch(() => {})
       .finally(() => setLoadingPrices(false));
@@ -44,7 +55,7 @@ export default function AdvertisePage() {
       <section className="max-w-7xl mx-auto px-4 py-16">
         <div className="text-center mb-12">
           <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">
-            Anuncia en AutoDealers
+            Anuncia en AutoDealersOnline
           </h1>
           <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto">
             Llega a miles de compradores de vehículos cada mes.{' '}
@@ -103,6 +114,44 @@ export default function AdvertisePage() {
 
         <div className="mb-16">
           <h2 className="text-2xl font-bold text-gray-900 mb-2 text-center">
+            Tamaños exactos de imagen
+          </h2>
+          <p className="text-center text-gray-600 mb-6 max-w-2xl mx-auto">
+            Diseña tus banners con estas medidas en Canva, Photoshop u otra herramienta. Si subes otro
+            tamaño, el sistema escala sin recortar tu imagen.
+          </p>
+          <div className="bg-white rounded-xl shadow border border-gray-100 overflow-hidden max-w-4xl mx-auto">
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs uppercase tracking-wide text-gray-500 bg-gray-50">
+                    <th className="px-4 py-3 font-medium">Ubicación</th>
+                    <th className="px-4 py-3 font-medium">Tamaño exacto</th>
+                    <th className="px-4 py-3 font-medium">Proporción</th>
+                    <th className="px-4 py-3 font-medium hidden sm:table-cell">Ancho × Alto</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {dimensionRows.map((row) => (
+                    <tr key={row.id}>
+                      <td className="px-4 py-3 font-medium text-gray-900">{row.label}</td>
+                      <td className="px-4 py-3 font-bold text-gray-900 whitespace-nowrap">
+                        {row.pixelSize}
+                      </td>
+                      <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{row.aspectRatio}</td>
+                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap hidden sm:table-cell">
+                        {row.width} × {row.height}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div className="mb-16">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2 text-center">
             Precios por anuncio
           </h2>
           <p className="text-center text-gray-600 mb-8">
@@ -114,13 +163,26 @@ export default function AdvertisePage() {
               <div className="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600" />
             </div>
           ) : placements.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {placements.map((placement) => (
                 <div
                   key={placement.id}
                   className="bg-white rounded-xl shadow p-6 border border-gray-100 text-center"
                 >
                   <h3 className="font-semibold text-gray-900 mb-2">{placement.label}</h3>
+                  <p className="text-sm font-bold text-primary-700 mb-1">
+                    {placement.imageSize || dimensionRows.find((r) => r.id === placement.id)?.pixelSize}
+                  </p>
+                  {dimensionRows.find((r) => r.id === placement.id)?.where ? (
+                    <p className="mb-2 text-xs leading-relaxed text-gray-600">
+                      {dimensionRows.find((r) => r.id === placement.id)?.where}
+                    </p>
+                  ) : null}
+                  <p className="text-xs text-gray-500 mb-2">
+                    Proporción{' '}
+                    {placement.aspectRatio ||
+                      dimensionRows.find((r) => r.id === placement.id)?.aspectRatio}
+                  </p>
                   {placement.fromPrice != null && (
                     <p className="text-2xl font-bold text-primary-600 mb-3">
                       desde ${placement.fromPrice.toFixed(0)}
@@ -154,7 +216,7 @@ export default function AdvertisePage() {
 
         <div className="bg-white rounded-xl shadow-lg p-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
-            ¿Por qué anunciar en AutoDealers?
+            ¿Por qué anunciar en AutoDealersOnline?
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="text-center">

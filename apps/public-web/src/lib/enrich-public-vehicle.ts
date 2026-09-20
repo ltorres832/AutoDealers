@@ -33,6 +33,8 @@ export async function enrichPublicVehicleDetail(
   let sellerName = '';
   let sellerPhoto = '';
   let sellerTitle = '';
+  let sellerPhone = '';
+  let sellerWhatsapp = '';
   let sellerRating = 0;
   let sellerRatingCount = 0;
 
@@ -43,12 +45,15 @@ export async function enrichPublicVehicleDetail(
       sellerName = typeof s.name === 'string' ? s.name : '';
       sellerPhoto =
         (typeof s.photo === 'string' && s.photo) ||
+        (typeof s.profilePhoto === 'string' && s.profilePhoto) ||
         (typeof s.photoUrl === 'string' && s.photoUrl) ||
         '';
       sellerTitle =
         (typeof s.title === 'string' && s.title) ||
         (typeof s.jobTitle === 'string' && s.jobTitle) ||
         '';
+      sellerPhone = typeof s.phone === 'string' ? s.phone : '';
+      sellerWhatsapp = typeof s.whatsapp === 'string' ? s.whatsapp : '';
       sellerRating = typeof s.sellerRating === 'number' ? s.sellerRating : 0;
       sellerRatingCount = typeof s.sellerRatingCount === 'number' ? s.sellerRatingCount : 0;
 
@@ -76,6 +81,16 @@ export async function enrichPublicVehicleDetail(
     sellerName,
     sellerPhoto,
     sellerTitle,
+    sellerPhone,
+    sellerWhatsapp,
+    tenantPhone:
+      (typeof tenantData.contactPhone === 'string' && tenantData.contactPhone) ||
+      (typeof tenantData.phone === 'string' && tenantData.phone) ||
+      '',
+    tenantWhatsapp:
+      (typeof tenantData.whatsapp === 'string' && tenantData.whatsapp) ||
+      (typeof tenantData.contactPhone === 'string' && tenantData.contactPhone) ||
+      '',
     sellerRating,
     sellerRatingCount,
   };

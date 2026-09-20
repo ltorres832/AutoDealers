@@ -11,7 +11,7 @@ import type { DynamicFeatureCatalogEntry } from '@/lib/membership-display';
 interface Membership {
   id: string;
   name: string;
-  type: 'dealer' | 'seller';
+  type: 'dealer' | 'seller' | 'business';
   price: number;
   currency: string;
   billingCycle: 'monthly' | 'yearly';
@@ -21,7 +21,7 @@ interface Membership {
 interface User {
   id: string;
   email: string;
-  type: 'dealer' | 'seller';
+  type: 'dealer' | 'seller' | 'business';
 }
 
 export default function PreciosPage() {
@@ -57,7 +57,7 @@ export default function PreciosPage() {
     }
   }
 
-  const fetchMemberships = async (type: 'dealer' | 'seller') => {
+  const fetchMemberships = async (type: 'dealer' | 'seller' | 'business') => {
     setLoading(true);
     try {
       const response = await fetch(`/api/public/memberships?type=${type}`, { cache: 'no-store' });
@@ -109,7 +109,14 @@ export default function PreciosPage() {
                 Elige el plan perfecto para tu negocio. Todos incluyen prueba gratuita de {trialDays} días.
               </p>
               <p className="text-sm text-gray-500">
-                Mostrando planes para: <span className="font-semibold">{user.type === 'dealer' ? 'Concesionarios' : 'Vendedores'}</span>
+                Mostrando planes para:{' '}
+                <span className="font-semibold">
+                  {user.type === 'dealer'
+                    ? 'Concesionarios'
+                    : user.type === 'business'
+                      ? 'Talleres y servicios automotrices'
+                      : 'Vendedores'}
+                </span>
               </p>
             </div>
 
@@ -121,14 +128,25 @@ export default function PreciosPage() {
             ) : memberships.length === 0 ? (
               <div className="text-center py-12 text-gray-500">
                 <p className="text-xl mb-2">
-                  No hay planes disponibles para {user.type === 'dealer' ? 'concesionarios' : 'vendedores'} en este momento.
+                  No hay planes disponibles para{' '}
+                  {user.type === 'dealer'
+                    ? 'concesionarios'
+                    : user.type === 'business'
+                      ? 'talleres y servicios automotrices'
+                      : 'vendedores'}{' '}
+                  en este momento.
                 </p>
                 <p className="text-sm">Por favor, contacta al administrador.</p>
               </div>
             ) : (
               <div className="mb-16">
                 <h2 className="text-3xl font-bold mb-8 text-center">
-                  Planes para {user.type === 'dealer' ? 'Concesionarios' : 'Vendedores'}
+                  Planes para{' '}
+                  {user.type === 'dealer'
+                    ? 'Concesionarios'
+                    : user.type === 'business'
+                      ? 'talleres y servicios automotrices'
+                      : 'Vendedores'}
                 </h2>
                 <div className="grid md:grid-cols-3 gap-8">
                   {memberships.map((membership) => (

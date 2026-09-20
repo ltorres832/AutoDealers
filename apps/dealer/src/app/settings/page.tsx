@@ -8,9 +8,30 @@ export default function SettingsPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Configuración</h1>
         <p className="text-gray-600">
-          Gestiona la configuración de tu cuenta y preferencias
+          Gestiona tu concesionario, marca e integraciones desde un solo lugar
         </p>
       </div>
+
+      <Link
+        href="/settings/membership"
+        className="mb-8 flex flex-col gap-3 rounded-2xl border-2 border-primary-300 bg-gradient-to-br from-primary-50 via-white to-amber-50 p-6 shadow-sm transition hover:border-primary-500 hover:shadow-md sm:flex-row sm:items-center sm:justify-between"
+      >
+        <div className="flex items-start gap-4">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary-100 text-3xl">
+            💎
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Membresía y planes</h2>
+            <p className="mt-1 text-sm text-gray-600">
+              Activa o mejora tu plan para desbloquear Kanban, F&amp;I, campañas, citas, reportes y más
+              herramientas del panel.
+            </p>
+          </div>
+        </div>
+        <span className="inline-flex shrink-0 items-center justify-center rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white">
+          Ver planes
+        </span>
+      </Link>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Link
@@ -91,6 +112,36 @@ export default function SettingsPage() {
         </Link>
 
         <Link
+          href="/settings/security"
+          className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+        >
+          <div className="flex items-center space-x-4">
+            <div className="h-12 w-12 rounded-lg bg-slate-100 flex items-center justify-center">
+              <span className="text-2xl">🔒</span>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Seguridad</h3>
+              <p className="text-sm text-gray-600">Cambiar contraseña de acceso</p>
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          href="/settings/support"
+          className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+        >
+          <div className="flex items-center space-x-4">
+            <div className="h-12 w-12 rounded-lg bg-emerald-100 flex items-center justify-center">
+              <span className="text-2xl">🛟</span>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Soporte</h3>
+              <p className="text-sm text-gray-600">Email, WhatsApp y mensajes al equipo</p>
+            </div>
+          </div>
+        </Link>
+
+        <Link
           href="/settings/ai"
           className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
         >
@@ -100,7 +151,22 @@ export default function SettingsPage() {
             </div>
             <div>
               <h3 className="text-lg font-semibold text-gray-900">Configuración de IA</h3>
-              <p className="text-sm text-gray-600">Decide qué quiere que la IA haga por ti</p>
+              <p className="text-sm text-gray-600">Decide qué quieres que la IA haga por ti</p>
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          href="/settings/voice-agent"
+          className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+        >
+          <div className="flex items-center space-x-4">
+            <div className="h-12 w-12 rounded-lg bg-violet-100 flex items-center justify-center">
+              <span className="text-2xl">🎙️</span>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Agente de Voz IA</h3>
+              <p className="text-sm text-gray-600">Llamadas y seguimiento con voz (según tu plan)</p>
             </div>
           </div>
         </Link>
@@ -121,16 +187,16 @@ export default function SettingsPage() {
         </Link>
 
         <Link
-          href="/settings/membership"
+          href="/settings/payments"
           className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
         >
           <div className="flex items-center space-x-4">
-            <div className="h-12 w-12 rounded-lg bg-primary-100 flex items-center justify-center">
-              <span className="text-2xl">💎</span>
+            <div className="h-12 w-12 rounded-lg bg-emerald-100 flex items-center justify-center">
+              <span className="text-2xl">💳</span>
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Membresía</h3>
-              <p className="text-sm text-gray-600">Plan y características</p>
+              <h3 className="text-lg font-semibold text-gray-900">Historial de pagos</h3>
+              <p className="text-sm text-gray-600">Membresía, promociones, banners y destacados</p>
             </div>
           </div>
         </Link>
@@ -198,6 +264,23 @@ export default function SettingsPage() {
         </Link>
 
         <Link
+          href="/settings/featured"
+          className="bg-white rounded-xl shadow-sm border-2 border-amber-200 p-6 hover:shadow-md transition-shadow md:col-span-2"
+        >
+          <div className="flex items-center space-x-4">
+            <div className="h-12 w-12 rounded-lg bg-amber-100 flex items-center justify-center">
+              <span className="text-2xl">⭐</span>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Destacar mi dealer</h3>
+              <p className="text-sm text-gray-600">
+                Compra destacado o boost 24h para aparecer con prioridad en la web pública
+              </p>
+            </div>
+          </div>
+        </Link>
+
+        <Link
           href="/settings/branding"
           className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
         >
@@ -242,8 +325,21 @@ export default function SettingsPage() {
           </div>
         </Link>
 
+        <Link
+          href="/settings/migration"
+          className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+        >
+          <div className="flex items-center space-x-4">
+            <div className="h-12 w-12 rounded-lg bg-primary-100 flex items-center justify-center">
+              <span className="text-2xl">📥</span>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Migración CSV</h3>
+              <p className="text-sm text-gray-600">Importa inventario desde otra plataforma</p>
+            </div>
+          </div>
+        </Link>
       </div>
     </div>
   );
 }
-

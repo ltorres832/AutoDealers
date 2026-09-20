@@ -3,22 +3,13 @@ import { verifyAuth } from '@/lib/auth';
 import { optimizeAdImageForPlacement } from '@/lib/ad-image-optimize';
 import type { AdPlacement } from '@/lib/ad-placement-preview';
 import { getStorage } from '@autodealers/core';
+import { parseAdPlacement } from '@autodealers/core/ad-placements';
 
 const MAX_IMAGE_MB = 20;
 const MAX_VIDEO_MB = 50;
 
-const PLACEMENTS: AdPlacement[] = [
-  'hero',
-  'sidebar',
-  'sponsors_section',
-  'between_content',
-];
-
 function parsePlacement(raw: string | null): AdPlacement {
-  if (raw && PLACEMENTS.includes(raw as AdPlacement)) {
-    return raw as AdPlacement;
-  }
-  return 'between_content';
+  return parseAdPlacement(raw, 'between_content');
 }
 
 export async function POST(request: NextRequest) {
@@ -48,6 +39,9 @@ export async function POST(request: NextRequest) {
     }
     if (kind === 'video' && !isVideo) {
       return NextResponse.json({ error: 'El archivo debe ser un video' }, { status: 400 });
+    }
+    if (kind === 'video' && !['video/mp4', 'video/webm', 'video/quicktime'].includes(file.type)) {
+      return NextResponse.json({ error: 'Formato de video no permitido. Usa MP4 o WebM.' }, { status: 400 });
     }
 
     const maxSize = kind === 'video' ? MAX_VIDEO_MB : MAX_IMAGE_MB;

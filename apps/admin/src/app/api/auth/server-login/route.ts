@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as admin from 'firebase-admin';
 import { randomBytes } from 'crypto';
+import { resolveAuthenticatedUserId } from '@autodealers/core/app-passwords';
 import { getFirebaseWebClientConfig, AUTODEALERS_FIREBASE_WEB_DEFAULTS } from '@autodealers/shared/firebase-web-client-config';
 
 // Importación dinámica para evitar problemas de inicialización
@@ -129,19 +130,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const signIn = await signInWithEmailPassword(email, password);
-    if ('error' in signIn) {
-      if (signIn.error === 'config') {
+    const authResult = await resolveAuthenticatedUserId({
+      appKey: 'admin',
+      email,
+      password,
+      firebaseSignIn: async (loginEmail, loginPassword) => {
+        const signIn = await signInWithEmailPassword(loginEmail, loginPassword);
+        return 'error' in signIn ? null : signIn.uid;
+      },
+    });
+
+    if ('error' in authResult) {
+      if (authResult.error === 'config') {
         return NextResponse.json(
           { error: 'Error de configuración del servidor' },
           { status: 500 }
         );
       }
-      return NextResponse.json(
-        { error: 'Credenciales inválidas' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Credenciales inválidas' }, { status: 401 });
     }
+
+    const signedUid = authResult.userId;
 
     console.log('✅ Credenciales Firebase correctas');
 
@@ -168,7 +177,7 @@ export async function POST(request: NextRequest) {
 
     let user;
     try {
-      user = await auth.getUser(signIn.uid);
+      user = await auth.getUser(signedUid);
       console.log(`✅ Usuario encontrado: ${user.uid}`);
 
       const adminDoc = await db.collection('admin_users').doc(user.uid).get();

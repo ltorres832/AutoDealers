@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { fetchWithAuth } from '@/lib/fetch-with-auth';
 
 interface RewardConfig {
   seller: {
@@ -67,27 +68,8 @@ export default function ReferralConfigPage() {
     try {
       setLoading(true);
       setMessage('');
-      
-      // Obtener token de localStorage o cookies
-      const token = typeof window !== 'undefined' 
-        ? localStorage.getItem('authToken') || 
-          document.cookie.split(';').find(c => c.trim().startsWith('authToken='))?.split('=')[1]
-        : null;
-      
-      console.log('🔐 Fetching config - Token:', token ? `${token.substring(0, 20)}...` : 'No token');
-      
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-      
-      const response = await fetch('/api/admin/referrals/config', {
-        credentials: 'include',
-        headers,
-      });
+
+      const response = await fetchWithAuth('/api/admin/referrals/config');
       
       const contentType = response.headers.get('content-type');
       
@@ -126,19 +108,9 @@ export default function ReferralConfigPage() {
       setSaving(true);
       setMessage('');
       
-      // Obtener token de localStorage o cookies
-      const token = typeof window !== 'undefined' 
-        ? localStorage.getItem('authToken') || 
-          document.cookie.split(';').find(c => c.trim().startsWith('authToken='))?.split('=')[1]
-        : null;
-      
-      const response = await fetch('/api/admin/referrals/config', {
+      const response = await fetchWithAuth('/api/admin/referrals/config', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ config }),
       });
 

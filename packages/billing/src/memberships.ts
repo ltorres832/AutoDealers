@@ -9,6 +9,7 @@ import {
   coerceMembershipPrice,
   normalizeMembershipFeatures,
 } from './membership-coerce';
+import { readMembershipFeatureFlag } from './membership-feature-catalog';
 import { getFirestoreFieldValue } from '@autodealers/shared';
 import { getFirestore } from '@autodealers/core';
 
@@ -159,12 +160,16 @@ export async function updateMembership(
 
 /**
  * Verifica si una membresía tiene una feature específica
+ * (respeta alias históricos y features opt-out).
  */
 export function hasFeature(
   membership: Membership,
-  feature: keyof Membership['features']
+  feature: keyof Membership['features'] | string
 ): boolean {
-  return membership.features[feature] === true;
+  return readMembershipFeatureFlag(
+    membership.features as unknown as Record<string, unknown>,
+    String(feature)
+  );
 }
 
 /**

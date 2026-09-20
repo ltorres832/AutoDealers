@@ -13,12 +13,12 @@ export default function FAQPage() {
       category: 'General',
       questions: [
         {
-          q: '¿Qué es AutoDealers?',
-          a: 'AutoDealers es una plataforma completa de gestión para concesionarios que incluye CRM, inventario, marketing automatizado, IA integrada y más, todo en un solo lugar.',
+          q: '¿Qué es AutoDealersOnline?',
+          a: 'AutoDealersOnline es una plataforma completa de gestión para concesionarios que incluye CRM, inventario, marketing automatizado, IA integrada y más, todo en un solo lugar.',
         },
         {
-          q: '¿Necesito conocimientos técnicos para usar AutoDealers?',
-          a: 'No, AutoDealers está diseñado para ser intuitivo y fácil de usar. Nuestro equipo también ofrece entrenamiento y soporte para ayudarte a comenzar.',
+          q: '¿Necesito conocimientos técnicos para usar AutoDealersOnline?',
+          a: 'No, AutoDealersOnline está diseñado para ser intuitivo y fácil de usar. Nuestro equipo también ofrece entrenamiento y soporte para ayudarte a comenzar.',
         },
         {
           q: '¿Puedo probar antes de comprar?',
@@ -56,11 +56,11 @@ export default function FAQPage() {
         },
         {
           q: '¿Puedo integrar con mi sitio web existente?',
-          a: 'Sí, AutoDealers ofrece API completa y webhooks para integrar con sistemas existentes. También puedes usar nuestro sitio web incluido.',
+          a: 'Sí, AutoDealersOnline ofrece API completa y webhooks para integrar con sistemas existentes. También puedes usar nuestro sitio web incluido.',
         },
         {
           q: '¿Cómo funciona la publicación en redes sociales?',
-          a: 'Conectas tus cuentas de Facebook e Instagram, y AutoDealers puede publicar automáticamente o programar posts. También analiza el engagement y optimiza el contenido.',
+          a: 'Conectas tus cuentas de Facebook e Instagram, y AutoDealersOnline puede publicar automáticamente o programar posts. También analiza el engagement y optimiza el contenido.',
         },
         {
           q: '¿Puedo personalizar el CRM?',
@@ -113,7 +113,7 @@ export default function FAQPage() {
             </span>
           </h1>
           <p className="text-xl text-gray-600">
-            Encuentra respuestas a las preguntas más comunes sobre AutoDealers
+            Encuentra respuestas a las preguntas más comunes sobre AutoDealersOnline
           </p>
         </div>
 

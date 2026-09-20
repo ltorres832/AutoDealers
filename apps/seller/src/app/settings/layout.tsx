@@ -3,18 +3,23 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { isDealerManagedClientUser } from '@/lib/dealer-managed-client';
 import { loadCurrentSellerUser } from '@/lib/current-seller-user';
 
 const BASE_NAV = [
   { href: '/settings', label: 'Resumen', match: (p: string) => p === '/settings' },
   { href: '/settings/profile', label: 'Perfil', match: (p: string) => p.startsWith('/settings/profile') },
+  { href: '/settings/security', label: 'Seguridad', match: (p: string) => p.startsWith('/settings/security') },
+  { href: '/settings/support', label: 'Soporte', match: (p: string) => p.startsWith('/settings/support') },
   { href: '/settings/notifications', label: 'Notificaciones', match: (p: string) => p.startsWith('/settings/notifications') },
   { href: '/settings/document-branding', label: 'PDF F&I', match: (p: string) => p.startsWith('/settings/document-branding') },
   { href: '/settings/seller-public-page', label: 'Fotos y videos', match: (p: string) => p.startsWith('/settings/seller-public-page') },
   { href: '/settings/branding', label: 'Marca web', match: (p: string) => p.startsWith('/settings/branding') },
   { href: '/settings/integrations', label: 'Integraciones', match: (p: string) => p.startsWith('/settings/integrations') },
+  { href: '/settings/voice-agent', label: 'Agente de Voz', match: (p: string) => p.startsWith('/settings/voice-agent') },
   { href: '/settings/dealer-link', label: 'Concesionario', match: (p: string) => p.startsWith('/settings/dealer-link') },
   { href: '/settings/membership', label: 'Membresía', match: (p: string) => p.startsWith('/settings/membership'), hideForDealerManaged: true },
+  { href: '/settings/payments', label: 'Pagos', match: (p: string) => p.startsWith('/settings/payments'), hideForDealerManaged: true },
   { href: '/settings/templates', label: 'Plantillas', match: (p: string) => p.startsWith('/settings/templates') },
   { href: '/settings/policies', label: 'Políticas', match: (p: string) => p.startsWith('/settings/policies') },
 ] as const;
@@ -25,7 +30,7 @@ export default function SellerSettingsLayout({ children }: { children: React.Rea
 
   useEffect(() => {
     void loadCurrentSellerUser().then((user) => {
-      setDealerManaged(Boolean(user?.dealerId));
+      setDealerManaged(isDealerManagedClientUser(user));
     });
   }, []);
 

@@ -306,44 +306,44 @@ function DealersPageContent() {
                   </span>
                 )}
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {displayedDealers.map((dealer) => (
                   <Link
                     key={dealer.id}
                     href={`/dealer/${dealer.id}`}
-                    className="bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all overflow-hidden border-2 border-transparent hover:border-primary-500 group"
+                    className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all overflow-hidden border-2 border-transparent hover:border-primary-500 group"
                   >
-                    <div className="p-6">
+                    <div className="p-4">
                       {/* Foto y Nombre */}
-                      <div className="flex items-center gap-4 mb-4">
+                      <div className="flex items-center gap-3 mb-3">
                         {dealer.photo ? (
                           <img
                             src={dealer.photo}
                             alt={dealer.companyName || dealer.name}
-                            className="w-16 h-16 rounded-full object-cover"
+                            className="w-12 h-12 rounded-full object-cover"
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
                               target.style.display = 'none';
                               const parent = target.parentElement;
                               if (parent) {
                                 const fallback = document.createElement('div');
-                                fallback.className = 'w-16 h-16 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white text-xl font-bold';
+                                fallback.className = 'w-12 h-12 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white text-lg font-bold';
                                 fallback.textContent = (dealer.companyName || dealer.name).charAt(0).toUpperCase();
                                 parent.appendChild(fallback);
                               }
                             }}
                           />
                         ) : (
-                          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white text-xl font-bold">
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white text-lg font-bold">
                             {(dealer.companyName || dealer.name).charAt(0).toUpperCase()}
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-lg font-bold text-gray-900 group-hover:text-primary-600 transition truncate">
+                          <h3 className="text-base font-bold text-gray-900 group-hover:text-primary-600 transition truncate">
                             {dealer.companyName || dealer.name}
                           </h3>
                           {dealer.companyName && dealer.name !== dealer.companyName && (
-                            <p className="text-sm text-gray-600 truncate">{dealer.name}</p>
+                            <p className="text-xs text-gray-600 truncate">{dealer.name}</p>
                           )}
                           {dealer.location && (
                             <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
@@ -359,7 +359,7 @@ function DealersPageContent() {
 
                       {/* Rating */}
                       {dealer.dealerRating > 0 ? (
-                        <div className="flex items-center gap-2 mb-4">
+                        <div className="flex items-center gap-2 mb-3">
                           <StarRating
                             rating={dealer.dealerRating}
                             count={dealer.dealerRatingCount}
@@ -368,20 +368,20 @@ function DealersPageContent() {
                           />
                         </div>
                       ) : (
-                        <p className="text-xs text-gray-400 mb-4">Sin calificaciones aún</p>
+                        <p className="text-xs text-gray-400 mb-3">Sin calificaciones aún</p>
                       )}
 
                       {/* Estadísticas */}
-                      <div className="space-y-2 mb-4">
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="space-y-1.5 mb-3">
+                        <div className="flex items-center gap-2 text-xs text-gray-600">
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
                           <span>{dealer.publishedVehiclesCount || 0} vehículos disponibles</span>
                         </div>
                         {dealer.sellersCount > 0 && (
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <div className="flex items-center gap-2 text-xs text-gray-600">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                             </svg>
                             <span>{dealer.sellersCount} vendedor{dealer.sellersCount !== 1 ? 'es' : ''}</span>
@@ -390,7 +390,7 @@ function DealersPageContent() {
                       </div>
 
                       {/* Botón */}
-                      <button className="w-full bg-primary-600 text-white py-2 rounded-lg hover:bg-primary-700 font-medium transition-colors">
+                      <button className="w-full bg-primary-600 text-white py-1.5 rounded-lg hover:bg-primary-700 font-medium text-xs transition-colors">
                         Ver Perfil Completo
                       </button>
                     </div>
@@ -423,43 +423,43 @@ function DealersPageContent() {
                   </span>
                 )}
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {displayedSellers.map((seller) => (
                   <Link
                     key={seller.id}
                     href={`/seller/${seller.id}`}
-                    className="bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all overflow-hidden border-2 border-transparent hover:border-primary-500 group"
+                    className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all overflow-hidden border-2 border-transparent hover:border-primary-500 group"
                   >
-                    <div className="p-6">
+                    <div className="p-4">
                       {/* Foto y Nombre */}
-                      <div className="flex items-center gap-4 mb-4">
+                      <div className="flex items-center gap-3 mb-3">
                         {seller.photo ? (
                           <img
                             src={seller.photo}
                             alt={seller.name}
-                            className="w-16 h-16 rounded-full object-cover"
+                            className="w-12 h-12 rounded-full object-cover"
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
                               target.style.display = 'none';
                               const parent = target.parentElement;
                               if (parent) {
                                 const fallback = document.createElement('div');
-                                fallback.className = 'w-16 h-16 rounded-full bg-gradient-to-br from-primary-500 to-brand-red-bright600 flex items-center justify-center text-white text-xl font-bold';
+                                fallback.className = 'w-12 h-12 rounded-full bg-gradient-to-br from-primary-500 to-brand-red-bright600 flex items-center justify-center text-white text-lg font-bold';
                                 fallback.textContent = seller.name.charAt(0).toUpperCase();
                                 parent.appendChild(fallback);
                               }
                             }}
                           />
                         ) : (
-                          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary-500 to-brand-red-bright600 flex items-center justify-center text-white text-xl font-bold">
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-500 to-brand-red-bright600 flex items-center justify-center text-white text-lg font-bold">
                             {seller.name.charAt(0).toUpperCase()}
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-lg font-bold text-gray-900 group-hover:text-primary-600 transition truncate">
+                          <h3 className="text-base font-bold text-gray-900 group-hover:text-primary-600 transition truncate">
                             {seller.name}
                           </h3>
-                          <p className="text-sm text-gray-600 truncate">{seller.title || 'Vendedor'}</p>
+                          <p className="text-xs text-gray-600 truncate">{seller.title || 'Vendedor'}</p>
                           {seller.tenantName && (
                             <p className="text-xs text-gray-500 mt-1 truncate">{seller.tenantName}</p>
                           )}
@@ -468,7 +468,7 @@ function DealersPageContent() {
 
                       {/* Rating */}
                       {seller.sellerRating > 0 ? (
-                        <div className="flex items-center gap-2 mb-4">
+                        <div className="flex items-center gap-2 mb-3">
                           <StarRating
                             rating={seller.sellerRating}
                             count={seller.sellerRatingCount}
@@ -477,19 +477,19 @@ function DealersPageContent() {
                           />
                         </div>
                       ) : (
-                        <p className="text-xs text-gray-400 mb-4">Sin calificaciones aún</p>
+                        <p className="text-xs text-gray-400 mb-3">Sin calificaciones aún</p>
                       )}
 
                       {/* Vehículos */}
-                      <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="flex items-center gap-2 text-xs text-gray-600 mb-3">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <span>{seller.publishedVehiclesCount || 0} vehículo{seller.publishedVehiclesCount !== 1 ? 's' : ''} disponible{seller.publishedVehiclesCount !== 1 ? 's' : ''}</span>
                       </div>
 
                       {/* Botón */}
-                      <button className="w-full bg-primary-600 text-white py-2 rounded-lg hover:bg-primary-700 font-medium transition-colors">
+                      <button className="w-full bg-primary-600 text-white py-1.5 rounded-lg hover:bg-primary-700 font-medium text-xs transition-colors">
                         Ver Perfil Completo
                       </button>
                     </div>

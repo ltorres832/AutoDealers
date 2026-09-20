@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       message: 'POST para procesar suscripciones vencidas y suspender cuentas por falta de pago.',
-      graceDays: process.env.SUBSCRIPTION_GRACE_DAYS || '3 (default)',
+      graceDays: process.env.SUBSCRIPTION_GRACE_DAYS || '1 (default, ~24 h)',
     });
   } catch (error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

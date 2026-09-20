@@ -1,6 +1,7 @@
 // Utilidad para obtener configuración de precios
 
 import { getFirestore } from '@autodealers/shared';
+import { DEFAULT_BANNER_PLACEMENT_CONFIG, mergeStoredBannerPlacements } from './ad-placements';
 
 // Lazy initialization - solo se inicializa cuando se necesita
 function getDb() {
@@ -41,6 +42,10 @@ export interface PricingConfig {
       durations: number[];
       prices: Record<number, number>;
     };
+    vehicle_page: {
+      durations: number[];
+      prices: Record<number, number>;
+    };
   };
   limits: {
     maxActivePromotions: number;
@@ -78,40 +83,9 @@ const defaultConfig: PricingConfig = {
       },
     },
   },
-        banners: {
-          hero: {
-            durations: [7, 15, 30],
-            prices: {
-              7: 199,
-              15: 349,
-              30: 599,
-            },
-          },
-          sidebar: {
-            durations: [7, 15, 30],
-            prices: {
-              7: 99,
-              15: 149,
-              30: 299,
-            },
-          },
-          between_content: {
-            durations: [7, 15, 30],
-            prices: {
-              7: 149,
-              15: 249,
-              30: 449,
-            },
-          },
-          sponsors_section: {
-            durations: [7, 15, 30],
-            prices: {
-              7: 79,
-              15: 129,
-              30: 229,
-            },
-          },
-        },
+  banners: {
+    ...DEFAULT_BANNER_PLACEMENT_CONFIG,
+  },
   limits: {
     maxActivePromotions: 12,
     maxActiveBanners: 4,
@@ -122,6 +96,32 @@ let cachedConfig: PricingConfig | null = null;
 let cacheTimestamp: number = 0;
 /** TTL corto: la config la edita el admin en Firestore y debe verse rápido en todas las instancias (sin redeploy). */
 const CACHE_DURATION = 15 * 1000; // 15 segundos
+
+function mergeBannerPricing(banners: PricingConfig['banners'] | Record<string, unknown> | undefined): PricingConfig['banners'] {
+  const stored = (banners || {}) as Record<string, { durations?: number[]; prices?: Record<number, number> }>;
+  if (stored && !stored.hero && stored.durations) {
+    const oldBanners = stored as { durations?: number[]; prices?: Record<number, number> };
+    return mergeStoredBannerPlacements({
+      hero: {
+        durations: oldBanners.durations || [7, 15, 30],
+        prices: oldBanners.prices || DEFAULT_BANNER_PLACEMENT_CONFIG.hero.prices,
+      },
+      sidebar: {
+        durations: oldBanners.durations || [7, 15, 30],
+        prices: oldBanners.prices || DEFAULT_BANNER_PLACEMENT_CONFIG.sidebar.prices,
+      },
+      between_content: {
+        durations: oldBanners.durations || [7, 15, 30],
+        prices: oldBanners.prices || DEFAULT_BANNER_PLACEMENT_CONFIG.between_content.prices,
+      },
+      sponsors_section: {
+        durations: oldBanners.durations || [7, 15, 30],
+        prices: oldBanners.prices || DEFAULT_BANNER_PLACEMENT_CONFIG.sponsors_section.prices,
+      },
+    });
+  }
+  return mergeStoredBannerPlacements(stored);
+}
 
 /**
  * Obtiene la configuración de precios desde Firestore
@@ -138,9 +138,17 @@ export async function getPricingConfig(): Promise<PricingConfig> {
     
     if (configDoc.exists) {
       const config = configDoc.data() as PricingConfig;
-      cachedConfig = config;
+      cachedConfig = {
+        ...defaultConfig,
+        ...config,
+        promotions: {
+          ...defaultConfig.promotions,
+          ...(config.promotions || {}),
+        },
+        banners: mergeBannerPricing(config.banners),
+      };
       cacheTimestamp = now;
-      return config;
+      return cachedConfig;
     }
   } catch (error) {
     console.error('Error fetching pricing config:', error);
@@ -165,34 +173,10 @@ export async function getPromotionPrice(
  * Obtiene el precio de un banner según su placement
  */
 export async function getBannerPrice(
-  placement: 'hero' | 'sidebar' | 'between_content' | 'sponsors_section',
+  placement: 'hero' | 'sidebar' | 'between_content' | 'sponsors_section' | 'vehicle_page',
   duration: number
 ): Promise<number> {
   const config = await getPricingConfig();
-  
-  // Migrar estructura antigua si existe
-  if (config.banners && !config.banners.hero && (config.banners as any).durations) {
-    const oldBanners = config.banners as any;
-    config.banners = {
-      hero: {
-        durations: oldBanners.durations || [7, 15, 30],
-        prices: oldBanners.prices || { 7: 199, 15: 349, 30: 599 },
-      },
-      sidebar: {
-        durations: oldBanners.durations || [7, 15, 30],
-        prices: oldBanners.prices || { 7: 99, 15: 149, 30: 299 },
-      },
-      between_content: {
-        durations: oldBanners.durations || [7, 15, 30],
-        prices: oldBanners.prices || { 7: 149, 15: 249, 30: 449 },
-      },
-      sponsors_section: {
-        durations: oldBanners.durations || [7, 15, 30],
-        prices: oldBanners.prices || { 7: 79, 15: 129, 30: 229 },
-      },
-    };
-  }
-  
   return config.banners[placement]?.prices[duration] || 0;
 }
 
@@ -210,16 +194,9 @@ export async function getPromotionDurations(
  * Obtiene las duraciones disponibles para banners según su placement
  */
 export async function getBannerDurations(
-  placement: 'hero' | 'sidebar' | 'between_content' | 'sponsors_section'
+  placement: 'hero' | 'sidebar' | 'between_content' | 'sponsors_section' | 'vehicle_page'
 ): Promise<number[]> {
   const config = await getPricingConfig();
-  
-  // Migrar estructura antigua si existe
-  if (config.banners && !config.banners.hero && (config.banners as any).durations) {
-    const oldBanners = config.banners as any;
-    return oldBanners.durations || [7, 15, 30];
-  }
-  
   return config.banners[placement]?.durations || [7, 15, 30];
 }
 

@@ -1,6 +1,13 @@
 // Servicio de Email
 
 import { MessagePayload, MessageResponse } from './types';
+import {
+  defaultPlatformEmailSubject,
+  formatPlatformEmailFrom,
+  normalizePlatformMessageText,
+  parseEmailAddress,
+  PLATFORM_NAME,
+} from '@autodealers/shared/platform-sender';
 
 export class EmailService {
   private apiKey: string;
@@ -21,17 +28,44 @@ export class EmailService {
    * Envía un email
    */
   async sendEmail(payload: MessagePayload): Promise<MessageResponse> {
+    const normalizedPayload: MessagePayload = {
+      ...payload,
+      content: normalizePlatformMessageText(payload.content),
+      metadata: payload.metadata
+        ? {
+            ...payload.metadata,
+            ...(payload.metadata.subject
+              ? { subject: normalizePlatformMessageText(String(payload.metadata.subject)) }
+              : {}),
+          }
+        : payload.metadata,
+    };
+
     if (this.provider === 'zoho_smtp') {
-      return this.sendWithZohoSMTP(payload);
+      return this.sendWithZohoSMTP(normalizedPayload);
     }
     if (this.provider === 'resend') {
-      return this.sendWithResend(payload);
+      return this.sendWithResend(normalizedPayload);
     }
-    return this.sendWithSendGrid(payload);
+    return this.sendWithSendGrid(normalizedPayload);
   }
 
   private resolveFrom(payload: MessagePayload): string {
-    return payload.from?.trim() || this.defaultFrom;
+    return formatPlatformEmailFrom(payload.from?.trim() || this.defaultFrom);
+  }
+
+  private resolveHeaders(payload: MessagePayload): Record<string, string> {
+    const headers = payload.metadata?.headers;
+    if (!headers || typeof headers !== 'object') {
+      return {};
+    }
+
+    return Object.entries(headers).reduce<Record<string, string>>((acc, [key, value]) => {
+      if (typeof value === 'string' && value.trim()) {
+        acc[key] = value;
+      }
+      return acc;
+    }, {});
   }
 
   /**
@@ -42,9 +76,13 @@ export class EmailService {
       const body: Record<string, unknown> = {
         from: this.resolveFrom(payload),
         to: payload.to,
-        subject: payload.metadata?.subject || 'Mensaje de AutoDealers',
+        subject: payload.metadata?.subject || defaultPlatformEmailSubject(),
         html: payload.content,
       };
+      const headers = this.resolveHeaders(payload);
+      if (Object.keys(headers).length > 0) {
+        body.headers = headers;
+      }
 
       if (payload.emailAttachments?.length) {
         body.attachments = payload.emailAttachments.map((a) => ({
@@ -87,12 +125,23 @@ export class EmailService {
    */
   private async sendWithSendGrid(payload: MessagePayload): Promise<MessageResponse> {
     try {
+      const parsedFrom = parseEmailAddress(this.resolveFrom(payload));
       const sgBody: Record<string, unknown> = {
         personalizations: [{ to: [{ email: payload.to }] }],
-        from: { email: this.resolveFrom(payload) },
-        subject: payload.metadata?.subject || 'Mensaje de AutoDealers',
+        from: {
+          email: parsedFrom.email,
+          name: parsedFrom.name || PLATFORM_NAME,
+        },
+        subject: payload.metadata?.subject || defaultPlatformEmailSubject(),
         content: [{ type: 'text/html', value: payload.content }],
       };
+      const headers = this.resolveHeaders(payload);
+      if (Object.keys(headers).length > 0) {
+        sgBody.headers = headers;
+        if (headers['Reply-To']) {
+          sgBody.reply_to = { email: headers['Reply-To'] };
+        }
+      }
 
       if (payload.emailAttachments?.length) {
         sgBody.attachments = payload.emailAttachments.map((a) => ({

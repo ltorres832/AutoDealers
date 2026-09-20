@@ -32,6 +32,26 @@ export interface BrowserNotificationPayload {
   route?: string;
 }
 
+export function resolveNotificationRoute(metadata?: Record<string, unknown> | null): string | undefined {
+  if (!metadata) return undefined;
+  const candidates = [
+    metadata.route,
+    metadata.url,
+    metadata.href,
+    metadata.link,
+    metadata.actionUrl,
+    metadata.clickAction,
+    metadata.click_action,
+  ];
+  const raw = candidates.find((value) => typeof value === 'string' && value.trim()) as
+    | string
+    | undefined;
+  if (!raw) return undefined;
+  const value = raw.trim();
+  if (/^https?:\/\//i.test(value)) return value;
+  return value.startsWith('/') ? value : `/${value}`;
+}
+
 /**
  * Muestra notificación nativa del navegador si hay permiso.
  */
@@ -46,8 +66,9 @@ export function showBrowserNotification(payload: BrowserNotificationPayload): vo
     });
     n.onclick = () => {
       window.focus();
-      if (payload.route) {
-        window.location.href = payload.route;
+      const route = resolveNotificationRoute({ route: payload.route });
+      if (route) {
+        window.location.href = route;
       }
       n.close();
     };

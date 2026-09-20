@@ -81,6 +81,14 @@ export async function GET(request: NextRequest) {
               30: 229,
             },
           },
+          vehicle_page: {
+            durations: [7, 15, 30],
+            prices: {
+              7: 119,
+              15: 199,
+              30: 349,
+            },
+          },
         },
         limits: {
           maxActivePromotions: 12,
@@ -134,6 +142,7 @@ export async function GET(request: NextRequest) {
           sidebar: { price: 100, duration: 30 },
           between_content: { price: 150, duration: 30 },
           sponsors_section: { price: 80, duration: 30 },
+          vehicle_page: { price: 119, duration: 30 },
         },
         limits: {
           maxBanners: 4,
@@ -143,8 +152,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ config: defaultConfig });
     }
     
+    const { mergeStoredBannerPlacements } = await import('@autodealers/core/ad-placements');
+    if (config.banners) {
+      const mergedBanners = mergeStoredBannerPlacements(config.banners);
+      if (!config.banners.vehicle_page) {
+        await db.collection('admin_config').doc('pricing').set(
+          { banners: { vehicle_page: mergedBanners.vehicle_page } },
+          { merge: true }
+        );
+      }
+      config.banners = mergedBanners;
+    }
     // Asegurar que la estructura esté completa y migrar estructura antigua si existe
-    const needsMigration = !config.banners?.hero || !config.banners?.sidebar || !config.banners?.between_content || !config.banners?.sponsors_section;
+    const needsMigration = !config.banners?.hero || !config.banners?.sidebar || !config.banners?.between_content || !config.banners?.sponsors_section || !config.banners?.vehicle_page;
     
     if (needsMigration || !config.promotions || !config.banners || !config.limits) {
       // Valores por defecto completos
@@ -179,6 +199,10 @@ export async function GET(request: NextRequest) {
           sponsors_section: {
             durations: [7, 15, 30],
             prices: { 7: 79, 15: 129, 30: 229 },
+          },
+          vehicle_page: {
+            durations: [7, 15, 30],
+            prices: { 7: 119, 15: 199, 30: 349 },
           },
         },
         limits: {
@@ -228,6 +252,10 @@ export async function GET(request: NextRequest) {
           sponsors_section: {
             durations: oldBanners.durations || [7, 15, 30],
             prices: oldBanners.prices || { 7: 79, 15: 129, 30: 229 },
+          },
+          vehicle_page: {
+            durations: [7, 15, 30],
+            prices: { 7: 119, 15: 199, 30: 349 },
           },
         };
       }
@@ -307,8 +335,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Actualizar configuración
+    const { mergeStoredBannerPlacements } = await import('@autodealers/core/ad-placements');
+    const banners = mergeStoredBannerPlacements(config.banners);
     await db.collection('admin_config').doc('pricing').set({
       ...config,
+      banners,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
 

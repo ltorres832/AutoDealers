@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import type { DashboardType } from '@autodealers/core/feature-flags';
 
 interface NavItem {
   name: string;
@@ -14,59 +14,29 @@ interface NavItem {
 interface NavigationWithFeatureFlagsProps {
   items: NavItem[];
   sidebarCollapsed: boolean;
+  dashboard?: DashboardType;
   onNavigate?: () => void;
 }
 
+/**
+ * Seller sidebar: ALWAYS render every item (fail-open).
+ * Do not hide by membership / feature flags. Gating happens on the page
+ * via MembershipPageGate (prompt to select/activate membership).
+ */
 export default function NavigationWithFeatureFlags({
   items,
   sidebarCollapsed,
   onNavigate,
 }: NavigationWithFeatureFlagsProps) {
   const pathname = usePathname();
-  const [enabledFeatures, setEnabledFeatures] = useState<Record<string, boolean>>({});
-
-  useEffect(() => {
-    // Verificar todas las features de una vez
-    const checkFeatures = async () => {
-      const features: Record<string, boolean> = {};
-      
-      for (const item of items) {
-        if (item.featureKey) {
-          try {
-            const response = await fetch(
-              `/api/feature-flags/check?dashboard=seller&featureKey=${encodeURIComponent(item.featureKey)}`,
-              { credentials: 'include' }
-            );
-            if (response.ok) {
-              const data = await response.json();
-              features[item.featureKey] = data.enabled !== false;
-            } else {
-              features[item.featureKey] = true; // Por defecto habilitado
-            }
-          } catch (error) {
-            features[item.featureKey] = true; // Por defecto habilitado
-          }
-        }
-      }
-      
-      setEnabledFeatures(features);
-    };
-
-    checkFeatures();
-  }, [items]);
 
   return (
     <>
       {items.map((item) => {
-        // Si tiene featureKey, verificar si está habilitado
-        if (item.featureKey && !enabledFeatures[item.featureKey]) {
-          return null; // No mostrar si está deshabilitado
-        }
-
         const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
         return (
           <Link
-            key={item.href}
+            key={`${item.name}-${item.href}`}
             href={item.href}
             onClick={() => onNavigate?.()}
             className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-start'} px-4 py-3 rounded-lg transition-all ${
@@ -91,4 +61,3 @@ export default function NavigationWithFeatureFlags({
     </>
   );
 }
-

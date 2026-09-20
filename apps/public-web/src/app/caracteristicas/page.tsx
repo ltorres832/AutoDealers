@@ -15,7 +15,7 @@ export default function CaracteristicasPage() {
                 <span className="text-white font-bold text-xl">AD</span>
               </div>
               <span className="text-2xl font-bold bg-gradient-to-r from-primary-600 to-primary-600 bg-clip-text text-transparent">
-                AutoDealers
+                AutoDealersOnline
               </span>
             </Link>
             <Link
@@ -167,14 +167,22 @@ export default function CaracteristicasPage() {
         <div className="mt-16 text-center bg-gradient-to-r from-primary-600 to-primary-600 rounded-2xl p-12 text-white">
           <h2 className="text-3xl font-bold mb-4">¿Listo para comenzar?</h2>
           <p className="text-xl mb-8 opacity-90">
-            Prueba todas estas características gratis durante 7 días
+            Explora la plataforma completa — web propia, marketplace, redes, equipo y mucho más
           </p>
-          <Link
-            href="/registro"
-            className="inline-block bg-white text-primary-600 px-8 py-4 rounded-lg hover:shadow-xl transition-all font-semibold text-lg"
-          >
-            Comenzar Gratis
-          </Link>
+          <div className="flex flex-wrap justify-center gap-4">
+            <Link
+              href="/plataforma"
+              className="inline-block bg-white text-primary-600 px-8 py-4 rounded-lg hover:shadow-xl transition-all font-semibold text-lg"
+            >
+              Ver la plataforma
+            </Link>
+            <Link
+              href="/registro"
+              className="inline-block border-2 border-white text-white px-8 py-4 rounded-lg hover:bg-white/10 transition-all font-semibold text-lg"
+            >
+              Crear cuenta
+            </Link>
+          </div>
         </div>
       </div>
     </div>

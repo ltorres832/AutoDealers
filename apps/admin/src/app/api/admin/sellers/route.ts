@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const dealerId = searchParams.get('dealerId')?.trim() || undefined;
     const status = searchParams.get('status')?.trim() || undefined;
+    const includeCancelled = searchParams.get('includeCancelled') === 'true';
     const search = searchParams.get('search')?.trim() || undefined;
     const linkType = searchParams.get('linkType') as 'all' | 'independent' | 'linked' | null;
 
@@ -23,6 +24,7 @@ export async function GET(request: NextRequest) {
       status,
       search,
       linkType: linkType && linkType !== 'all' ? linkType : undefined,
+      includeCancelled,
     });
 
     const authAdmin = getAuth();

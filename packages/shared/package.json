@@ -26,6 +26,11 @@
       "require": "./dist/platform-colors.js",
       "types": "./dist/platform-colors.d.ts"
     },
+    "./platform-sender": {
+      "import": "./dist/platform-sender.js",
+      "require": "./dist/platform-sender.js",
+      "types": "./dist/platform-sender.d.ts"
+    },
     "./components/SocialMediaLinks": {
       "import": "./dist/components/SocialMediaLinks.js",
       "require": "./dist/components/SocialMediaLinks.js",
@@ -46,6 +51,8 @@
       "require": "./dist/components/PromoVideosEditor.js",
       "types": "./dist/components/PromoVideosEditor.d.ts"
     },
+    "./website-hero-media": "./src/website-hero-media.ts",
+    "./components/WebsiteHeroMediaEditor": "./src/components/WebsiteHeroMediaEditor.tsx",
     "./public-trust-gallery": {
       "import": "./dist/public-trust-gallery.js",
       "require": "./dist/public-trust-gallery.js",
@@ -55,6 +62,16 @@
       "import": "./dist/settings-profile.js",
       "require": "./dist/settings-profile.js",
       "types": "./dist/settings-profile.d.ts"
+    },
+    "./platform-urls": {
+      "import": "./dist/platform-urls.js",
+      "require": "./dist/platform-urls.js",
+      "types": "./dist/platform-urls.d.ts"
+    },
+    "./platform-support-whatsapp": {
+      "import": "./dist/platform-support-whatsapp.js",
+      "require": "./dist/platform-support-whatsapp.js",
+      "types": "./dist/platform-support-whatsapp.d.ts"
     },
     "./components/PublicTrustGallery": {
       "import": "./dist/components/PublicTrustGallery.js",
@@ -70,7 +87,13 @@
       "import": "./dist/firebase-storage-upload.js",
       "require": "./dist/firebase-storage-upload.js",
       "types": "./dist/firebase-storage-upload.d.ts"
-    }
+    },
+    "./delete-with-feedback": {
+      "import": "./dist/delete-with-feedback.js",
+      "require": "./dist/delete-with-feedback.js",
+      "types": "./dist/delete-with-feedback.d.ts"
+    },
+    "./platform-visit-tracker": "./src/platform-visit-tracker.tsx"
   },
   "scripts": {
     "build": "tsc",

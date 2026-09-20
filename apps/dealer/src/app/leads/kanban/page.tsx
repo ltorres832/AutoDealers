@@ -64,7 +64,7 @@ export default function LeadsKanbanPage() {
         canReassign={Boolean(user.role && isDealerPortalRole(user.role))}
         userId={user.id}
         userRole={user.role}
-        dealerVisibleOnly={Boolean(user.role && isDealerPortalRole(user.role))}
+        dealerVisibleOnly={false}
       />
     </div>
   );

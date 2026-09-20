@@ -20,18 +20,21 @@ interface SalesStatistics {
 }
 
 export default function SalesStatisticsPage() {
-  const [statistics, setStatistics] = useState<SalesStatistics | null>(null);
+  const [statistics, setStatistics] = useState<SalesStatistics & { sellers?: Array<{ id: string; name: string }> } | null>(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<'day' | 'week' | 'month'>('day');
+  const [sellerId, setSellerId] = useState<string>('');
 
   useEffect(() => {
     fetchStatistics();
-  }, [period]);
+  }, [period, sellerId]);
 
   async function fetchStatistics() {
     setLoading(true);
     try {
-      const response = await fetch(`/api/sales/statistics?period=${period}`);
+      const qs = new URLSearchParams({ period });
+      if (sellerId) qs.set('sellerId', sellerId);
+      const response = await fetch(`/api/sales/statistics?${qs.toString()}`);
       if (response.ok) {
         const data = await response.json();
         setStatistics(data.statistics);
@@ -61,9 +64,12 @@ export default function SalesStatisticsPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="mb-6">
         <h1 className="text-3xl font-bold mb-4">Estadísticas de Ventas</h1>
+        <p className="text-sm text-gray-600 mb-4">
+          Totales del equipo e individuales (incluye vendedores vinculados).
+        </p>
         
         {/* Selector de Período */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex flex-wrap gap-2 mb-4">
           <button
             onClick={() => setPeriod('day')}
             className={`px-4 py-2 rounded ${
@@ -94,6 +100,18 @@ export default function SalesStatisticsPage() {
           >
             Mes
           </button>
+          <select
+            value={sellerId}
+            onChange={(e) => setSellerId(e.target.value)}
+            className="border rounded px-3 py-2 text-sm ml-2"
+          >
+            <option value="">Todos los vendedores</option>
+            {(statistics?.sellers || statistics?.bySeller || []).map((s: any) => (
+              <option key={s.sellerId || s.id} value={s.sellerId || s.id}>
+                {s.sellerName || s.name}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 

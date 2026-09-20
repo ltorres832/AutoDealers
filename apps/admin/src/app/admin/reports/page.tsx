@@ -671,7 +671,7 @@ export default function ReportsPage() {
         <div className="border-t pt-6 mt-8">
           <div className="text-center text-gray-500 text-sm">
             <p>Reporte generado el {new Date().toLocaleDateString()} a las {new Date().toLocaleTimeString()}</p>
-            <p className="mt-2">AutoDealers Platform - Sistema de Gestión Integral</p>
+            <p className="mt-2">AutoDealersOnline Platform - Sistema de Gestión Integral</p>
           </div>
         </div>
       </div>

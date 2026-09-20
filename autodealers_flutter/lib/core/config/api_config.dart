@@ -31,3 +31,9 @@ const String kContactWhatsApp = String.fromEnvironment(
   'CONTACT_WHATSAPP',
   defaultValue: '1234567890',
 );
+
+/// Base URL del sitio público (landings /share/...).
+const String kPublicWebBaseUrl = String.fromEnvironment(
+  'PUBLIC_WEB_BASE_URL',
+  defaultValue: 'https://www.autodealers-online.com',
+);

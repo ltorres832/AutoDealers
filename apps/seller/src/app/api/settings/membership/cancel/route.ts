@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (isDealerManagedSeller(auth.dealerId)) {
+    if (isDealerManagedSeller(auth.dealerId, auth.billingMode)) {
       return NextResponse.json(
         {
           error: 'dealer_managed',

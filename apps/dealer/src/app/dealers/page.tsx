@@ -4,12 +4,16 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { membershipAllowsMultiDealerNetwork } from '@autodealers/billing/membership-network';
 import { DEALER_ACTIVE_TENANT_KEY } from '@/lib/dealer-tenant-storage';
+import { formatTenantHostname } from '@autodealers/shared/platform-urls';
 
 interface Dealer {
   id: string;
   name: string;
   email?: string;
   status: string;
+  networkStatus?: string;
+  role?: string;
+  pending?: boolean;
   subdomain?: string;
   createdAt: string;
 }
@@ -132,27 +136,39 @@ export default function DealersManagementPage() {
               <div>
                 <h3 className="text-lg font-bold">{dealer.name}</h3>
                 {dealer.subdomain && (
-                  <p className="text-sm text-gray-600">{dealer.subdomain}.autodealers.com</p>
+                  <p className="text-sm text-gray-600">{formatTenantHostname(dealer.subdomain)}</p>
                 )}
               </div>
               <span
                 className={`px-3 py-1 rounded text-xs ${
-                  dealer.status === 'active'
+                  dealer.pending
+                    ? 'bg-amber-100 text-amber-700'
+                    : dealer.status === 'active'
                     ? 'bg-green-100 text-green-700'
                     : 'bg-gray-100 text-gray-700'
                 }`}
               >
-                {dealer.status === 'active' ? 'Activo' : 'Inactivo'}
+                {dealer.pending ? 'Pendiente de enlazar' : dealer.status === 'active' ? 'Activo' : 'Inactivo'}
               </span>
             </div>
 
             <div className="flex gap-2">
-              <Link
-                href={`/dealers/${dealer.id}/context`}
-                className="flex-1 px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 text-center text-sm"
-              >
-                Trabajar en esta sede
-              </Link>
+              {dealer.pending ? (
+                <button
+                  type="button"
+                  disabled
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-500 rounded text-center text-sm"
+                >
+                  Falta enlazar tenant
+                </button>
+              ) : (
+                <Link
+                  href={`/dealers/${dealer.id}/context`}
+                  className="flex-1 px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 text-center text-sm"
+                >
+                  Trabajar en esta sede
+                </Link>
+              )}
               <button
                 className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 text-sm"
               >

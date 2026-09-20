@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { DealerSellerLinksPanel } from '@/components/DealerSellerLinksPanel';
+import { buildTenantSiteUrl, tenantHostSuffix } from '@autodealers/shared/platform-urls';
 
 interface Seller {
   id: string;
@@ -19,17 +20,55 @@ interface Seller {
   dealerId?: string;
 }
 
+interface DealerOption {
+  id: string;
+  name?: string;
+  tenantId?: string;
+  pending?: boolean;
+}
+
 export default function SellersPage() {
   const { user } = useAuth();
   const [sellers, setSellers] = useState<Seller[]>([]);
+  const [dealers, setDealers] = useState<DealerOption[]>([]);
+  const [sellerDealerTargets, setSellerDealerTargets] = useState<Record<string, string>>({});
+  const [sellerActionLoading, setSellerActionLoading] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [marketingBySeller, setMarketingBySeller] = useState<
+    Record<string, { leads: number; campaigns: number; social: number; sales: number }>
+  >({});
 
   useEffect(() => {
     fetchSellers();
-    // También ejecutar diagnóstico
+    fetchDealers();
     fetchDebug();
+    fetchMarketingSummary();
   }, []);
+
+  async function fetchMarketingSummary() {
+    try {
+      const { fetchWithAuth } = await import('@/lib/fetch-with-auth');
+      const res = await fetchWithAuth(
+        '/api/sellers/network-activity?kinds=leads,sales,campaigns,social,sellers&limit=20',
+        {}
+      );
+      const data = await res.json();
+      if (!res.ok) return;
+      const map: typeof marketingBySeller = {};
+      for (const row of data.summaryBySeller || []) {
+        map[row.sellerId] = {
+          leads: row.activeLeads || 0,
+          campaigns: row.totalCampaigns || 0,
+          social: row.totalSocialPosts || 0,
+          sales: row.totalSales || 0,
+        };
+      }
+      setMarketingBySeller(map);
+    } catch {
+      /* ignore */
+    }
+  }
 
   async function fetchDebug() {
     try {
@@ -88,6 +127,68 @@ export default function SellersPage() {
       setSellers([]);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function fetchDealers() {
+    try {
+      const { fetchWithAuth } = await import('@/lib/fetch-with-auth');
+      const response = await fetchWithAuth('/api/dealers', {});
+      if (!response.ok) return;
+      const data = await response.json();
+      const list = Array.isArray(data.dealers) ? data.dealers.filter((dealer: DealerOption) => !dealer.pending) : [];
+      setDealers(list);
+    } catch (error) {
+      console.error('Error cargando dealers:', error);
+      setDealers([]);
+    }
+  }
+
+  async function moveSellerToDealer(seller: Seller) {
+    const toDealerTenantId = sellerDealerTargets[seller.id];
+    if (!toDealerTenantId) {
+      alert('Selecciona el dealer destino.');
+      return;
+    }
+    setSellerActionLoading(seller.id);
+    try {
+      const { fetchWithAuth } = await import('@/lib/fetch-with-auth');
+      const response = await fetchWithAuth(`/api/sellers/${seller.id}/dealer-assignment`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ toDealerTenantId, fromDealerTenantId: seller.dealerId }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'No se pudo mover el vendedor.');
+      }
+      await fetchSellers();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'No se pudo mover el vendedor.');
+    } finally {
+      setSellerActionLoading(null);
+    }
+  }
+
+  async function removeSellerAssignment(seller: Seller) {
+    if (!confirm('¿Quitar este vendedor del dealer actual? La cuenta del vendedor no se elimina.')) return;
+    setSellerActionLoading(seller.id);
+    try {
+      const { fetchWithAuth } = await import('@/lib/fetch-with-auth');
+      const response = await fetchWithAuth(`/api/sellers/${seller.id}/dealer-assignment`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dealerTenantId: seller.dealerId || user?.tenantId }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'No se pudo quitar el vendedor.');
+      }
+      await fetchSellers();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'No se pudo quitar el vendedor.');
+    } finally {
+      setSellerActionLoading(null);
     }
   }
 
@@ -160,14 +261,34 @@ export default function SellersPage() {
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
                   <p className="text-sm text-gray-600">Ventas</p>
-                  <p className="text-2xl font-bold">{seller.salesCount || 0}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Revenue</p>
                   <p className="text-2xl font-bold">
-                    ${(seller.revenue || 0).toLocaleString()}
+                    {marketingBySeller[seller.id]?.sales ?? seller.salesCount ?? 0}
                   </p>
                 </div>
+                <div>
+                  <p className="text-sm text-gray-600">Leads activos</p>
+                  <p className="text-2xl font-bold">{marketingBySeller[seller.id]?.leads ?? 0}</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs text-gray-600 mb-4">
+                <Link
+                  href={`/campaigns?sellerId=${seller.id}`}
+                  className="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200"
+                >
+                  {marketingBySeller[seller.id]?.campaigns ?? 0} campañas
+                </Link>
+                <Link
+                  href={`/social-posts?sellerId=${seller.id}`}
+                  className="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200"
+                >
+                  {marketingBySeller[seller.id]?.social ?? 0} redes
+                </Link>
+                <Link
+                  href={`/leads?sellerId=${seller.id}`}
+                  className="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200"
+                >
+                  Ver leads
+                </Link>
               </div>
 
               <div className="space-y-2">
@@ -190,6 +311,45 @@ export default function SellersPage() {
                     Editar
                   </Link>
                 </div>
+                {dealers.length > 1 ? (
+                  <div className="mt-3 rounded border border-gray-200 bg-gray-50 p-3">
+                    <label className="block text-xs font-medium text-gray-600">
+                      Mover a dealer
+                      <select
+                        value={sellerDealerTargets[seller.id] || ''}
+                        onChange={(e) =>
+                          setSellerDealerTargets((prev) => ({ ...prev, [seller.id]: e.target.value }))
+                        }
+                        className="mt-1 w-full rounded border px-2 py-2 text-sm"
+                      >
+                        <option value="">Seleccionar dealer</option>
+                        {dealers.map((dealer) => (
+                          <option key={dealer.id} value={dealer.tenantId || dealer.id}>
+                            {dealer.name || dealer.tenantId || dealer.id}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <div className="mt-2 flex gap-2">
+                      <button
+                        type="button"
+                        disabled={sellerActionLoading === seller.id}
+                        onClick={() => void moveSellerToDealer(seller)}
+                        className="flex-1 rounded bg-gray-900 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                      >
+                        Cambiar dealer
+                      </button>
+                      <button
+                        type="button"
+                        disabled={sellerActionLoading === seller.id}
+                        onClick={() => void removeSellerAssignment(seller)}
+                        className="rounded border border-red-200 px-3 py-2 text-xs font-semibold text-red-700 disabled:opacity-50"
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
             </div>
           </div>
         ))}
@@ -364,9 +524,9 @@ function CreateSellerModal({
                   required={formData.createOwnTenant}
                 />
                 <p className="text-xs text-primary-700 mt-1">
-                  ✅ El subdominio es del dominio de la plataforma (autodealers.com)
+                  ✅ El subdominio es del dominio de la plataforma ({tenantHostSuffix()})
                   <br />
-                  ✅ El vendedor tendrá su propia página web en: <strong>https://{formData.subdomain || 'subdomain'}.autodealers.com</strong>
+                  ✅ El vendedor tendrá su propia página web en: <strong>{buildTenantSiteUrl(formData.subdomain || 'subdomain')}</strong>
                   <br />
                   ✅ Podrá iniciar sesión con su email y contraseña
                   <br />

@@ -13,13 +13,21 @@ interface Advertiser {
   website?: string;
   industry: string;
   status: string;
-  plan: string;
+  plan: string | null;
+  registrationSource?: string;
+  createdByName?: string;
+  assignedAdminId?: string;
+  assignedAdminName?: string;
   createdAt: string;
 }
 
-export function useRealtimeAdvertisers() {
+export function useRealtimeAdvertisers(options?: { includeCancelled?: boolean }) {
   const [advertisers, setAdvertisers] = useState<Advertiser[]>([]);
   const [loading, setLoading] = useState(true);
+  const includeCancelled = options?.includeCancelled === true;
+
+  const applyAdvertiserFilter = (rows: Advertiser[]) =>
+    includeCancelled ? rows : rows.filter((row) => row.status !== 'cancelled');
 
   useEffect(() => {
     const client = getFirebaseClient();
@@ -42,7 +50,7 @@ export function useRealtimeAdvertisers() {
         };
       });
 
-      setAdvertisers(allAdvertisers);
+      setAdvertisers(applyAdvertiserFilter(allAdvertisers));
       setLoading(false);
     }, (error: any) => {
       console.error('Error en listener de anunciantes:', error);
@@ -51,14 +59,14 @@ export function useRealtimeAdvertisers() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [includeCancelled]);
 
   async function fetchAdvertisers() {
     try {
       const response = await fetch('/api/admin/advertisers');
       if (response.ok) {
         const data = await response.json();
-        setAdvertisers(data.advertisers || []);
+        setAdvertisers(applyAdvertiserFilter(data.advertisers || []));
       }
     } catch (error) {
       console.error('Error fetching advertisers:', error);

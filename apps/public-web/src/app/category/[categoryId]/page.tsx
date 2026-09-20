@@ -6,6 +6,7 @@ import Link from 'next/link';
 import PublicBackButton from '@/components/PublicBackButton';
 import { getFirstPhoto, handleImageError } from '@/lib/vehicle-image';
 import { pingCatalogVehicleClick } from '@/lib/catalog-vehicle-click';
+import VehicleImageFrame from '@/components/VehicleImageFrame';
 
 interface Vehicle {
   id: string;
@@ -195,7 +196,7 @@ export default function CategoryPage() {
               </Link>
             </div>
           ) : viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {sortedVehicles.map((vehicle) => (
                 <Link
                   key={vehicle.id}
@@ -210,32 +211,29 @@ export default function CategoryPage() {
                   }
                 >
                   {getFirstPhoto(vehicle) ? (
-                    <div className="relative h-48 bg-white overflow-hidden border-b border-gray-100">
-                      <img
+                    <VehicleImageFrame
                         src={getFirstPhoto(vehicle)!}
                         alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
-                        className="w-full h-full object-contain object-center group-hover:scale-[1.02] transition-transform duration-300"
-                        loading="lazy"
-                        referrerPolicy="no-referrer"
+                        className="h-40 border-b border-gray-100 sm:h-44"
+                        imageClassName="transition-transform duration-300 group-hover:scale-[1.02]"
                         onError={handleImageError}
                       />
-                    </div>
                   ) : (
-                    <div className="h-48 bg-white border-b border-gray-100 flex items-center justify-center">
-                      <span className="text-6xl">🚗</span>
+                    <div className="h-40 sm:h-44 bg-white border-b border-gray-100 flex items-center justify-center">
+                      <span className="text-5xl">🚗</span>
                     </div>
                   )}
-                  <div className="p-4">
-                    <h3 className="font-bold text-lg mb-2">
+                  <div className="p-3">
+                    <h3 className="font-bold text-base mb-1.5">
                       {vehicle.year} {vehicle.make} {vehicle.model}
                     </h3>
-                    <p className="text-2xl font-bold text-primary-600 mb-2">
+                    <p className="text-xl font-bold text-primary-600 mb-1.5">
                       {vehicle.currency} {vehicle.price.toLocaleString()}
                     </p>
-                    <p className="text-sm text-gray-600 mb-2">
+                    <p className="text-xs text-gray-600 mb-1.5">
                       Millaje: {(vehicle.mileage ?? 0).toLocaleString()} millas
                     </p>
-                    <p className="text-sm text-gray-600 line-clamp-2">
+                    <p className="text-xs text-gray-600 line-clamp-2">
                       {vehicle.description}
                     </p>
                   </div>
@@ -248,7 +246,7 @@ export default function CategoryPage() {
                 <Link
                   key={vehicle.id}
                   href={`/${vehicle.tenantId}/vehicle/${vehicle.id}`}
-                  className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all p-6 flex gap-6 group"
+                  className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all p-4 flex gap-4 group"
                   onClick={() =>
                     pingCatalogVehicleClick({
                       vehicleId: vehicle.id,
@@ -258,29 +256,26 @@ export default function CategoryPage() {
                   }
                 >
                   {getFirstPhoto(vehicle) ? (
-                    <div className="relative w-64 h-48 bg-white rounded-lg overflow-hidden flex-shrink-0 border border-gray-100">
-                      <img
+                    <VehicleImageFrame
                         src={getFirstPhoto(vehicle)!}
                         alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
-                        className="w-full h-full object-contain object-center group-hover:scale-[1.02] transition-transform duration-300"
-                        loading="lazy"
-                        referrerPolicy="no-referrer"
+                        className="h-36 w-52 flex-shrink-0 rounded-lg border border-gray-100"
+                        imageClassName="transition-transform duration-300 group-hover:scale-[1.02]"
                         onError={handleImageError}
                       />
-                    </div>
                   ) : (
-                    <div className="w-64 h-48 bg-white rounded-lg flex items-center justify-center flex-shrink-0 border border-gray-100">
-                      <span className="text-6xl">🚗</span>
+                    <div className="w-52 h-36 bg-white rounded-lg flex items-center justify-center flex-shrink-0 border border-gray-100">
+                      <span className="text-5xl">🚗</span>
                     </div>
                   )}
                   <div className="flex-1">
-                    <h3 className="text-2xl font-bold mb-2">
+                    <h3 className="text-xl font-bold mb-1.5">
                       {vehicle.year} {vehicle.make} {vehicle.model}
                     </h3>
-                    <p className="text-3xl font-bold text-primary-600 mb-3">
+                    <p className="text-2xl font-bold text-primary-600 mb-2">
                       {vehicle.currency} {vehicle.price.toLocaleString()}
                     </p>
-                    <div className="flex gap-6 mb-3">
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2 text-sm">
                       <span className="text-gray-600">
                         Millaje: {(vehicle.mileage ?? 0).toLocaleString()} millas
                       </span>
@@ -293,7 +288,7 @@ export default function CategoryPage() {
                         </span>
                       )}
                     </div>
-                    <p className="text-gray-700 line-clamp-3">
+                    <p className="text-sm text-gray-700 line-clamp-3">
                       {vehicle.description}
                     </p>
                   </div>

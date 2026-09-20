@@ -16,23 +16,21 @@ export async function verifyAuth(request: NextRequest): Promise<AuthContext | nu
     if (!token) return null;
 
     // Sesión de soporte (admin → panel business)
-    if (token.length < 200) {
-      try {
-        const { tryParseSupportSessionToken, validateSupportSessionToken } = await import(
-          '@autodealers/core'
-        );
-        if (tryParseSupportSessionToken(token)) {
-          const validated = await validateSupportSessionToken(token);
-          if (!validated || validated.session.portal !== 'business') return null;
-          return {
-            userId: validated.session.targetUserId,
-            role: 'automotive_business',
-            tenantId: validated.session.targetTenantId,
-          };
-        }
-      } catch {
-        /* continuar */
+    try {
+      const { tryParseSupportSessionToken, validateSupportSessionToken } = await import(
+        '@autodealers/core'
+      );
+      if (tryParseSupportSessionToken(token)) {
+        const validated = await validateSupportSessionToken(token);
+        if (!validated || validated.session.portal !== 'business') return null;
+        return {
+          userId: validated.session.targetUserId,
+          role: 'automotive_business',
+          tenantId: validated.session.targetTenantId,
+        };
       }
+    } catch {
+      /* continuar */
     }
 
     try {

@@ -2,21 +2,23 @@
 
 import { useState, useEffect } from 'react';
 import { fetchWithAuth } from '@/lib/fetch-with-auth';
+import { prepareAdminMembershipFeaturesForSave } from '@/lib/membership-features-admin';
 
 interface CreateMembershipModalProps {
   onClose: () => void;
   onSuccess: () => void;
 }
 
-// Componente helper para checkboxes de features
 function FeatureCheckbox({
   label,
   checked,
   onChange,
+  comingSoon = false,
 }: {
   label: string;
   checked: boolean;
   onChange: (value: boolean) => void;
+  comingSoon?: boolean;
 }) {
   return (
     <label className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
@@ -27,88 +29,133 @@ function FeatureCheckbox({
         className="w-4 h-4 text-primary-600 rounded"
       />
       <span className="text-xs">{label}</span>
+      {comingSoon ? (
+        <span className="inline-flex shrink-0 items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-900">
+          Próximamente
+        </span>
+      ) : null}
     </label>
   );
 }
+
+type FeatureState = Record<string, boolean | string>;
+
+const INITIAL_FEATURES: FeatureState = {
+  maxSellers: '',
+  maxInventory: '',
+  maxCampaigns: '',
+  maxPromotions: '',
+  maxLeadsPerMonth: '',
+  maxAppointmentsPerMonth: '',
+  maxStorageGB: '',
+  maxApiCallsPerMonth: '',
+  maxCustomerDocumentRequestsPerMonth: '',
+  customSubdomain: false,
+  customDomain: false,
+  aiEnabled: false,
+  aiAutoResponses: false,
+  aiContentGeneration: false,
+  aiLeadClassification: false,
+  socialMediaEnabled: false,
+  socialMediaScheduling: false,
+  socialMediaAnalytics: false,
+  marketplaceEnabled: false,
+  marketplaceFeatured: false,
+  advancedReports: false,
+  customReports: false,
+  exportData: false,
+  whiteLabel: false,
+  apiAccess: false,
+  webhooks: false,
+  ssoEnabled: false,
+  multiLanguage: false,
+  customTemplates: false,
+  emailMarketing: false,
+  smsMarketing: false,
+  whatsappMarketing: false,
+  videoUploads: false,
+  virtualTours: false,
+  liveChat: false,
+  appointmentScheduling: false,
+  paymentProcessing: false,
+  inventorySync: false,
+  crmAdvanced: false,
+  leadScoring: false,
+  automationWorkflows: false,
+  customerDocumentRequestsEnabled: true,
+  integrationsUnlimited: false,
+  prioritySupport: false,
+  dedicatedManager: false,
+  trainingSessions: false,
+  customBranding: false,
+  mobileApp: false,
+  offlineMode: false,
+  dataBackup: false,
+  complianceTools: false,
+  analyticsAdvanced: false,
+  aBTesting: false,
+  seoTools: false,
+  customIntegrations: false,
+  freePromotionsOnLanding: false,
+  corporateEmailEnabled: false,
+  maxCorporateEmails: '',
+  emailSignatureBasic: false,
+  emailSignatureAdvanced: false,
+  emailAliases: false,
+  multiDealerEnabled: false,
+  maxDealers: '',
+  requiresAdminApproval: false,
+  multipleDealers: false,
+  fiModule: false,
+  fiMultipleManagers: false,
+  voiceAIEnabled: false,
+  voiceInboundEnabled: false,
+  voiceOutboundEnabled: false,
+  voiceServiceCallsEnabled: false,
+  voiceCampaignsEnabled: false,
+  overageBillingEnabled: false,
+  compensationPortalEnabled: true,
+  dmsServiceEnabled: true,
+  dmsPartsEnabled: true,
+  dmsFinanceEnabled: true,
+  dmsHrEnabled: true,
+  publicApiEnabled: false,
+  vin_camera_scan: true,
+  share_landing: true,
+  photo_guide: true,
+  bg_remover: true,
+  dynamic_scenes: true,
+  dealer_site_builder: true,
+  daco_labels: true,
+  inventory_alliances: true,
+  inventory_feed_sync: true,
+};
 
 export default function CreateMembershipModal({ onClose, onSuccess }: CreateMembershipModalProps) {
   const [dynamicFeatures, setDynamicFeatures] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     name: '',
-    type: 'dealer' as 'dealer' | 'seller',
+    type: 'dealer' as 'dealer' | 'seller' | 'business',
     price: '',
     currency: 'USD',
     billingCycle: 'monthly' as 'monthly' | 'yearly',
-    features: {
-      // Límites numéricos
-      maxSellers: '',
-      maxInventory: '',
-      maxCampaigns: '',
-      maxPromotions: '',
-      maxAppointmentsPerMonth: '',
-      maxStorageGB: '',
-      maxApiCallsPerMonth: '',
-      // Features booleanas
-      customSubdomain: false,
-      customDomain: false,
-      aiEnabled: false,
-      aiAutoResponses: false,
-      aiContentGeneration: false,
-      aiLeadClassification: false,
-      socialMediaEnabled: false,
-      socialMediaScheduling: false,
-      socialMediaAnalytics: false,
-      marketplaceEnabled: false,
-      marketplaceFeatured: false,
-      advancedReports: false,
-      customReports: false,
-      exportData: false,
-      whiteLabel: false,
-      apiAccess: false,
-      webhooks: false,
-      ssoEnabled: false,
-      multiLanguage: false,
-      customTemplates: false,
-      emailMarketing: false,
-      smsMarketing: false,
-      whatsappMarketing: false,
-      videoUploads: false,
-      virtualTours: false,
-      liveChat: false,
-      appointmentScheduling: false,
-      paymentProcessing: false,
-      inventorySync: false,
-      crmAdvanced: false,
-      leadScoring: false,
-      automationWorkflows: false,
-      integrationsUnlimited: false,
-      prioritySupport: false,
-      dedicatedManager: false,
-      trainingSessions: false,
-      customBranding: false,
-      mobileApp: false,
-      offlineMode: false,
-      dataBackup: false,
-      complianceTools: false,
-      analyticsAdvanced: false,
-      aBTesting: false,
-      seoTools: false,
-      customIntegrations: false,
-      freePromotionsOnLanding: false,
-      // Email corporativo
-      corporateEmailEnabled: false,
-      maxCorporateEmails: '',
-      emailSignatureBasic: false,
-      emailSignatureAdvanced: false,
-      emailAliases: false,
-      multiDealerEnabled: false,
-      maxDealers: '',
-      requiresAdminApproval: false,
-      multipleDealers: false,
-    },
+    launchPrice: '',
+    launchEndsAt: '',
+    introPrice: '',
+    introMonths: '',
+    features: { ...INITIAL_FEATURES },
   });
-  const [showAllFeatures, setShowAllFeatures] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const setFeature = (key: string, value: boolean | string) => {
+    setFormData((prev) => ({
+      ...prev,
+      features: { ...prev.features, [key]: value },
+    }));
+  };
+
+  const bool = (key: string) => Boolean(formData.features[key]);
+  const str = (key: string) => String(formData.features[key] ?? '');
 
   useEffect(() => {
     fetchDynamicFeatures();
@@ -119,24 +166,35 @@ export default function CreateMembershipModal({ onClose, onSuccess }: CreateMemb
       const response = await fetchWithAuth('/api/admin/dynamic-features');
       const data = await response.json();
       setDynamicFeatures(data.features || []);
-      
-      // Inicializar valores por defecto de features dinámicas
-      const defaultValues: any = {};
+
+      const defaultValues: FeatureState = {};
       data.features?.forEach((feature: any) => {
         if (feature.defaultValue !== undefined) {
           defaultValues[feature.key] = feature.defaultValue;
         } else if (feature.type === 'boolean') {
           defaultValues[feature.key] = false;
-        } else if (feature.type === 'number') {
-          defaultValues[feature.key] = '';
-        } else if (feature.type === 'string') {
-          defaultValues[feature.key] = '';
-        } else if (feature.type === 'select') {
+        } else {
           defaultValues[feature.key] = '';
         }
       });
-      
-      setFormData(prev => ({
+
+      // No dejar que catálogo dinámico pise INV360 (opt-out, default ON).
+      const inv360Keys = [
+        'vin_camera_scan',
+        'share_landing',
+        'photo_guide',
+        'bg_remover',
+        'dynamic_scenes',
+        'daco_labels',
+        'dealer_site_builder',
+        'inventory_alliances',
+        'inventory_feed_sync',
+      ] as const;
+      for (const k of inv360Keys) {
+        delete defaultValues[k];
+      }
+
+      setFormData((prev) => ({
         ...prev,
         features: { ...prev.features, ...defaultValues },
       }));
@@ -150,6 +208,49 @@ export default function CreateMembershipModal({ onClose, onSuccess }: CreateMemb
     setLoading(true);
 
     try {
+      const featuresPayload = prepareAdminMembershipFeaturesForSave({
+        ...formData.features,
+        multiDealerEnabled:
+          formData.type === 'dealer' ? formData.features.multiDealerEnabled === true : false,
+        maxDealers:
+          formData.type === 'dealer' && formData.features.multiDealerEnabled === true
+            ? formData.features.maxDealers === ''
+              ? undefined
+              : formData.features.maxDealers
+            : undefined,
+        requiresAdminApproval:
+          formData.type === 'dealer' && formData.features.multiDealerEnabled === true
+            ? formData.features.requiresAdminApproval === true
+            : false,
+        multipleDealers:
+          formData.type === 'dealer' && formData.features.multiDealerEnabled === true
+            ? formData.features.multipleDealers === true
+            : false,
+        fiModule:
+          formData.type === 'dealer' || formData.type === 'seller'
+            ? formData.features.fiModule === true
+            : false,
+        fiMultipleManagers:
+          formData.type === 'dealer' ? formData.features.fiMultipleManagers === true : false,
+        customDomain: formData.type === 'business' ? false : formData.features.customDomain === true,
+        // Inventario competitivo: no aplica a business; dealer-only solo en dealer
+        vin_camera_scan:
+          formData.type === 'business' ? false : formData.features.vin_camera_scan === true,
+        share_landing:
+          formData.type === 'business' ? false : formData.features.share_landing === true,
+        photo_guide: formData.type === 'business' ? false : formData.features.photo_guide === true,
+        bg_remover: formData.type === 'business' ? false : formData.features.bg_remover === true,
+        dynamic_scenes:
+          formData.type === 'business' ? false : formData.features.dynamic_scenes === true,
+        daco_labels: formData.type === 'business' ? false : formData.features.daco_labels === true,
+        dealer_site_builder:
+          formData.type === 'dealer' ? formData.features.dealer_site_builder === true : false,
+        inventory_alliances:
+          formData.type === 'dealer' ? formData.features.inventory_alliances === true : false,
+        inventory_feed_sync:
+          formData.type === 'dealer' ? formData.features.inventory_feed_sync === true : false,
+      });
+
       const response = await fetchWithAuth('/api/admin/memberships', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -159,99 +260,20 @@ export default function CreateMembershipModal({ onClose, onSuccess }: CreateMemb
           price: parseFloat(formData.price),
           currency: formData.currency,
           billingCycle: formData.billingCycle,
-          createStripeProduct: true, // Indica que debe crear producto en Stripe
-          features: {
-            // Límites numéricos
-            maxSellers: formData.features.maxSellers ? parseInt(formData.features.maxSellers) : undefined,
-            maxInventory: formData.features.maxInventory ? parseInt(formData.features.maxInventory) : undefined,
-            maxCampaigns: formData.features.maxCampaigns ? parseInt(formData.features.maxCampaigns) : undefined,
-            maxPromotions: formData.features.maxPromotions ? parseInt(formData.features.maxPromotions) : undefined,
-            maxAppointmentsPerMonth: formData.features.maxAppointmentsPerMonth ? parseInt(formData.features.maxAppointmentsPerMonth) : undefined,
-            maxStorageGB: formData.features.maxStorageGB ? parseInt(formData.features.maxStorageGB) : undefined,
-            maxApiCallsPerMonth: formData.features.maxApiCallsPerMonth ? parseInt(formData.features.maxApiCallsPerMonth) : undefined,
-            // Features booleanas
-            customSubdomain: formData.features.customSubdomain,
-            customDomain: formData.features.customDomain,
-            aiEnabled: formData.features.aiEnabled,
-            aiAutoResponses: formData.features.aiAutoResponses,
-            aiContentGeneration: formData.features.aiContentGeneration,
-            aiLeadClassification: formData.features.aiLeadClassification,
-            socialMediaEnabled: formData.features.socialMediaEnabled,
-            socialMediaScheduling: formData.features.socialMediaScheduling,
-            socialMediaAnalytics: formData.features.socialMediaAnalytics,
-            marketplaceEnabled: formData.features.marketplaceEnabled,
-            marketplaceFeatured: formData.features.marketplaceFeatured,
-            advancedReports: formData.features.advancedReports,
-            customReports: formData.features.customReports,
-            exportData: formData.features.exportData,
-            whiteLabel: formData.features.whiteLabel,
-            apiAccess: formData.features.apiAccess,
-            webhooks: formData.features.webhooks,
-            ssoEnabled: formData.features.ssoEnabled,
-            multiLanguage: formData.features.multiLanguage,
-            customTemplates: formData.features.customTemplates,
-            emailMarketing: formData.features.emailMarketing,
-            smsMarketing: formData.features.smsMarketing,
-            whatsappMarketing: formData.features.whatsappMarketing,
-            videoUploads: formData.features.videoUploads,
-            virtualTours: formData.features.virtualTours,
-            liveChat: formData.features.liveChat,
-            appointmentScheduling: formData.features.appointmentScheduling,
-            paymentProcessing: formData.features.paymentProcessing,
-            inventorySync: formData.features.inventorySync,
-            crmAdvanced: formData.features.crmAdvanced,
-            leadScoring: formData.features.leadScoring,
-            automationWorkflows: formData.features.automationWorkflows,
-            integrationsUnlimited: formData.features.integrationsUnlimited,
-            prioritySupport: formData.features.prioritySupport,
-            dedicatedManager: formData.features.dedicatedManager,
-            trainingSessions: formData.features.trainingSessions,
-            customBranding: formData.features.customBranding,
-            mobileApp: formData.features.mobileApp,
-            offlineMode: formData.features.offlineMode,
-            dataBackup: formData.features.dataBackup,
-            complianceTools: formData.features.complianceTools,
-            analyticsAdvanced: formData.features.analyticsAdvanced,
-            aBTesting: formData.features.aBTesting,
-            seoTools: formData.features.seoTools,
-            customIntegrations: formData.features.customIntegrations,
-            freePromotionsOnLanding: formData.features.freePromotionsOnLanding,
-            // Email corporativo
-            corporateEmailEnabled: formData.features.corporateEmailEnabled,
-            maxCorporateEmails: formData.features.maxCorporateEmails ? parseInt(formData.features.maxCorporateEmails) : undefined,
-            emailSignatureBasic: formData.features.emailSignatureBasic,
-            emailSignatureAdvanced: formData.features.emailSignatureAdvanced,
-            emailAliases: formData.features.emailAliases,
-            multiDealerEnabled: formData.type === 'dealer' ? formData.features.multiDealerEnabled : false,
-            maxDealers:
-              formData.type === 'dealer' && formData.features.multiDealerEnabled
-                ? formData.features.maxDealers === ''
-                  ? null
-                  : parseInt(String(formData.features.maxDealers), 10) || null
-                : undefined,
-            requiresAdminApproval:
-              formData.type === 'dealer' && formData.features.multiDealerEnabled
-                ? formData.features.requiresAdminApproval
-                : false,
-            multipleDealers:
-              formData.type === 'dealer' && formData.features.multiDealerEnabled
-                ? formData.features.multipleDealers
-                : false,
-            // Features dinámicas - se agregan automáticamente
-            ...dynamicFeatures.reduce((acc, feature) => {
-              const value = (formData.features as any)[feature.key];
-              if (value !== undefined && value !== null && value !== '') {
-                if (feature.type === 'boolean') {
-                  acc[feature.key] = Boolean(value);
-                } else if (feature.type === 'number') {
-                  acc[feature.key] = parseFloat(value) || undefined;
-                } else {
-                  acc[feature.key] = value;
-                }
+          createStripeProduct: true,
+          ...(formData.launchPrice && formData.launchEndsAt
+            ? {
+                launchPrice: parseFloat(formData.launchPrice),
+                launchEndsAt: new Date(formData.launchEndsAt).toISOString(),
               }
-              return acc;
-            }, {} as Record<string, any>),
-          },
+            : {}),
+          ...(formData.introPrice && formData.introMonths
+            ? {
+                introPrice: parseFloat(formData.introPrice),
+                introMonths: parseInt(formData.introMonths, 10),
+              }
+            : {}),
+          features: featuresPayload,
           isActive: true,
         }),
       });
@@ -259,7 +281,9 @@ export default function CreateMembershipModal({ onClose, onSuccess }: CreateMemb
       if (response.ok) {
         const data = await response.json();
         if (data.stripeCreated) {
-          alert(`✅ Membresía creada exitosamente!\n\n💳 Producto en Stripe: Creado\n🔗 Stripe Price ID: ${data.stripePriceId}`);
+          alert(
+            `✅ Membresía creada exitosamente!\n\n💳 Producto en Stripe: Creado\n🔗 Stripe Price ID: ${data.stripePriceId}`
+          );
         } else {
           alert('✅ Membresía creada exitosamente!');
         }
@@ -277,14 +301,21 @@ export default function CreateMembershipModal({ onClose, onSuccess }: CreateMemb
     }
   }
 
+  const regularPrice = formData.price || '49';
+  const introExample = formData.introPrice || '19';
+  const introN = formData.introMonths || '3';
+  const cycleLabel = formData.billingCycle === 'yearly' ? 'años' : 'meses';
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b">
           <h2 className="text-2xl font-bold">Crear Membresía</h2>
+          <p className="text-sm text-gray-600 mt-1">
+            Misma configuración de features que al editar. Puedes ajustar todo después.
+          </p>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* Información básica */}
           <div>
             <label className="block text-sm font-medium mb-2">Nombre</label>
             <input
@@ -304,7 +335,8 @@ export default function CreateMembershipModal({ onClose, onSuccess }: CreateMemb
                 className="w-full border rounded px-3 py-2"
               >
                 <option value="dealer">Dealer</option>
-                <option value="seller">Seller</option>
+                <option value="seller">Vendedor</option>
+                <option value="business">Negocio automotriz</option>
               </select>
             </div>
             <div>
@@ -321,7 +353,7 @@ export default function CreateMembershipModal({ onClose, onSuccess }: CreateMemb
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-2">Precio</label>
+              <label className="block text-sm font-medium mb-2">Precio regular</label>
               <input
                 type="number"
                 value={formData.price}
@@ -329,6 +361,9 @@ export default function CreateMembershipModal({ onClose, onSuccess }: CreateMemb
                 className="w-full border rounded px-3 py-2"
                 required
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Precio permanente del plan (lo que se cobra siempre, salvo promociones abajo).
+              </p>
             </div>
             <div>
               <label className="block text-sm font-medium mb-2">Moneda</label>
@@ -343,296 +378,615 @@ export default function CreateMembershipModal({ onClose, onSuccess }: CreateMemb
               </select>
             </div>
           </div>
-          {/* Indicador de Stripe */}
+
+          <div className="border border-amber-200 rounded-lg p-4 bg-amber-50/50 space-y-3">
+            <p className="text-sm font-semibold text-amber-900">
+              Precio de lanzamiento (opcional) — oferta del catálogo por fecha
+            </p>
+            <p className="text-xs text-amber-900/80">
+              Hasta la fecha que indiques, <strong>todos</strong> ven y pagan el precio de lanzamiento.
+              Cuando llega esa fecha, el catálogo vuelve solo al precio regular. No es por suscriptor:
+              es una oferta de calendario.
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium mb-1">Precio lanzamiento</label>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={formData.launchPrice}
+                  onChange={(e) => setFormData({ ...formData, launchPrice: e.target.value })}
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="Ej: 29"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1">Válido hasta</label>
+                <input
+                  type="datetime-local"
+                  value={formData.launchEndsAt}
+                  onChange={(e) => setFormData({ ...formData, launchEndsAt: e.target.value })}
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="border border-emerald-200 rounded-lg p-4 bg-emerald-50/50 space-y-3">
+            <p className="text-sm font-semibold text-emerald-900">
+              Precio intro por N cobros (opcional) — descuento por suscriptor
+            </p>
+            <p className="text-xs text-emerald-900/80">
+              Cada persona que se suscriba paga un precio más bajo durante los primeros N cobros
+              (meses si el plan es mensual; años si es anual). Después Stripe pasa solo al precio
+              regular. No depende de una fecha del calendario: el descuento arranca cuando esa
+              persona se suscribe.
+            </p>
+            <p className="text-xs bg-white/70 border border-emerald-100 rounded px-3 py-2 text-emerald-950">
+              Ejemplo: regular ${regularPrice}, intro ${introExample} × {introN} {cycleLabel} →
+              cobra ${introExample} los primeros {introN} {cycleLabel}, luego ${regularPrice}{' '}
+              automáticamente.
+            </p>
+            <p className="text-xs text-gray-600">
+              Déjalo vacío si no quieres este tipo de promo. Si solo quieres oferta hasta una fecha,
+              usa solo &quot;Precio de lanzamiento&quot; arriba.
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium mb-1">
+                  Precio intro (lo que paga al inicio)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={formData.introPrice}
+                  onChange={(e) => setFormData({ ...formData, introPrice: e.target.value })}
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="Vacío = sin intro"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1">
+                  Cuántos cobros al precio intro
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={36}
+                  value={formData.introMonths}
+                  onChange={(e) => setFormData({ ...formData, introMonths: e.target.value })}
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="Ej: 1 = primer mes"
+                />
+              </div>
+            </div>
+          </div>
+
           <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
             <div className="flex items-start gap-3">
               <span className="text-2xl">💳</span>
               <div>
                 <h4 className="font-semibold text-primary-900 mb-1">
-                  Integración Automática con Stripe
+                  Integración automática con Stripe
                 </h4>
                 <p className="text-sm text-primary-700">
-                  Al crear esta membresía, se creará automáticamente un producto y precio en Stripe. 
-                  No necesitas hacer nada manualmente.
+                  Al crear, se generan en Stripe el producto y los precios (regular y, si aplica,
+                  lanzamiento / intro).
                 </p>
-                <div className="mt-2 text-xs text-primary-600 space-y-1">
-                  <div>✓ Producto creado en Stripe</div>
-                  <div>✓ Precio configurado: <strong>${formData.price || '0'} {formData.currency}</strong></div>
-                  <div>✓ Intervalo: <strong>{formData.billingCycle === 'monthly' ? 'Mensual' : 'Anual'}</strong></div>
-                  <div>✓ Vinculación automática</div>
-                </div>
               </div>
             </div>
           </div>
 
-          {/* Límites Numéricos */}
           <div>
-            <label className="block text-sm font-medium mb-2">Límites Numéricos</label>
+            <label className="block text-sm font-medium mb-2">Límites numéricos</label>
             <p className="text-xs text-gray-500 mb-3">Deja vacío para ilimitado</p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">Máx. Vendedores</label>
-                <input
-                  type="number"
-                  value={formData.features.maxSellers}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    features: { ...formData.features, maxSellers: e.target.value },
-                  })}
-                  className="w-full border rounded px-2 py-1 text-sm"
-                  placeholder="Ilimitado"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">Máx. Inventario</label>
-                <input
-                  type="number"
-                  value={formData.features.maxInventory}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    features: { ...formData.features, maxInventory: e.target.value },
-                  })}
-                  className="w-full border rounded px-2 py-1 text-sm"
-                  placeholder="Ilimitado"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">Máx. Campañas</label>
-                <input
-                  type="number"
-                  value={formData.features.maxCampaigns}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    features: { ...formData.features, maxCampaigns: e.target.value },
-                  })}
-                  className="w-full border rounded px-2 py-1 text-sm"
-                  placeholder="Ilimitado"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">Máx. Promociones</label>
-                <input
-                  type="number"
-                  value={formData.features.maxPromotions}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    features: { ...formData.features, maxPromotions: e.target.value },
-                  })}
-                  className="w-full border rounded px-2 py-1 text-sm"
-                  placeholder="Ilimitado"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">Máx. Citas/Mes</label>
-                <input
-                  type="number"
-                  value={formData.features.maxAppointmentsPerMonth}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    features: { ...formData.features, maxAppointmentsPerMonth: e.target.value },
-                  })}
-                  className="w-full border rounded px-2 py-1 text-sm"
-                  placeholder="Ilimitado"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">Almacenamiento (GB)</label>
-                <input
-                  type="number"
-                  value={formData.features.maxStorageGB}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    features: { ...formData.features, maxStorageGB: e.target.value },
-                  })}
-                  className="w-full border rounded px-2 py-1 text-sm"
-                  placeholder="Ilimitado"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">Llamadas API/Mes</label>
-                <input
-                  type="number"
-                  value={formData.features.maxApiCallsPerMonth}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    features: { ...formData.features, maxApiCallsPerMonth: e.target.value },
-                  })}
-                  className="w-full border rounded px-2 py-1 text-sm"
-                  placeholder="Ilimitado"
-                />
-              </div>
+              {(
+                ([
+                  ['maxSellers', 'Máx. vendedores'],
+                  [
+                    'maxInventory',
+                    formData.type === 'business' ? 'Máx. piezas / productos' : 'Máx. inventario',
+                  ],
+                  ['maxCampaigns', 'Máx. campañas'],
+                  ['maxPromotions', 'Máx. promociones'],
+                  ['maxLeadsPerMonth', 'Máx. leads nuevos / mes'],
+                  ['maxAppointmentsPerMonth', 'Máx. citas / mes'],
+                  ['maxStorageGB', 'Almacenamiento (GB)'],
+                  ['maxApiCallsPerMonth', 'Llamadas API / mes'],
+                  ['maxCustomerDocumentRequestsPerMonth', 'Máx. solicitudes docs / mes'],
+                ] as const).filter(([key]) => formData.type !== 'business' || key !== 'maxSellers')
+              ).map(([key, label]) => (
+                <div key={key}>
+                  <label className="block text-xs text-gray-600 mb-1">{label}</label>
+                  <input
+                    type="number"
+                    value={str(key)}
+                    onChange={(e) => setFeature(key, e.target.value)}
+                    className="w-full border rounded px-2 py-1 text-sm"
+                    placeholder="Ilimitado"
+                  />
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Features Booleanas - Similar a la página de edición pero más compacto */}
           <div>
-            <div className="flex justify-between items-center mb-2">
-              <label className="block text-sm font-medium">Features</label>
-              <button
-                type="button"
-                onClick={() => setShowAllFeatures(!showAllFeatures)}
-                className="text-xs text-primary-600 hover:text-primary-700"
-              >
-                {showAllFeatures ? 'Mostrar menos' : 'Mostrar todas'}
-              </button>
-            </div>
-            <div className="max-h-96 overflow-y-auto border rounded p-3 space-y-3">
-              {/* Features básicas siempre visibles - igual que en la página de edición */}
-              <div className="space-y-2">
-                <h4 className="text-xs font-semibold text-gray-700 mb-2">🌐 Dominios y Branding</h4>
+            <label className="block text-sm font-medium mb-2">Features</label>
+            <p className="text-xs text-gray-500 mb-3">
+              Todas las opciones del plan (igual que en Editar membresía).
+            </p>
+            <div className="max-h-[28rem] overflow-y-auto border rounded p-3 space-y-4">
+              <div>
+                <h4 className="text-xs font-semibold text-gray-700 mb-2">🌐 Dominios y branding</h4>
                 <FeatureCheckbox
                   label="Subdominio personalizado"
-                  checked={formData.features.customSubdomain}
-                  onChange={(v) => setFormData({
-                    ...formData,
-                    features: { ...formData.features, customSubdomain: v },
-                  })}
+                  checked={bool('customSubdomain')}
+                  onChange={(v) => setFeature('customSubdomain', v)}
                 />
-                {showAllFeatures && (
-                  <>
-                    <FeatureCheckbox label="Dominio propio" checked={formData.features.customDomain} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, customDomain: v } })} />
-                    <FeatureCheckbox label="White Label" checked={formData.features.whiteLabel} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, whiteLabel: v } })} />
-                    <FeatureCheckbox label="Branding personalizado" checked={formData.features.customBranding} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, customBranding: v } })} />
-                  </>
-                )}
+                {formData.type !== 'business' ? (
+                  <FeatureCheckbox
+                    label="Dominio propio"
+                    checked={bool('customDomain')}
+                    onChange={(v) => setFeature('customDomain', v)}
+                  />
+                ) : null}
+                <FeatureCheckbox
+                  label="White Label"
+                  checked={bool('whiteLabel')}
+                  onChange={(v) => setFeature('whiteLabel', v)}
+                />
+                <FeatureCheckbox
+                  label="Branding personalizado"
+                  checked={bool('customBranding')}
+                  onChange={(v) => setFeature('customBranding', v)}
+                />
               </div>
-              <div className="space-y-2">
+
+              <div>
                 <h4 className="text-xs font-semibold text-gray-700 mb-2">🤖 IA</h4>
-                <FeatureCheckbox label="IA habilitada" checked={formData.features.aiEnabled} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, aiEnabled: v } })} />
-                {showAllFeatures && (
-                  <>
-                    <FeatureCheckbox label="Respuestas automáticas" checked={formData.features.aiAutoResponses} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, aiAutoResponses: v } })} />
-                    <FeatureCheckbox label="Generación de contenido" checked={formData.features.aiContentGeneration} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, aiContentGeneration: v } })} />
-                    <FeatureCheckbox label="Clasificación de leads" checked={formData.features.aiLeadClassification} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, aiLeadClassification: v } })} />
-                  </>
-                )}
+                <FeatureCheckbox
+                  label="IA habilitada"
+                  checked={bool('aiEnabled')}
+                  onChange={(v) => setFeature('aiEnabled', v)}
+                />
+                <FeatureCheckbox
+                  label="Respuestas automáticas"
+                  checked={bool('aiAutoResponses')}
+                  onChange={(v) => setFeature('aiAutoResponses', v)}
+                />
+                <FeatureCheckbox
+                  label="Generación de contenido"
+                  checked={bool('aiContentGeneration')}
+                  onChange={(v) => setFeature('aiContentGeneration', v)}
+                />
+                <FeatureCheckbox
+                  label="Clasificación de leads"
+                  checked={bool('aiLeadClassification')}
+                  onChange={(v) => setFeature('aiLeadClassification', v)}
+                />
               </div>
-              <div className="space-y-2">
-                <h4 className="text-xs font-semibold text-gray-700 mb-2">📱 Redes Sociales</h4>
-                <FeatureCheckbox label="Redes sociales" checked={formData.features.socialMediaEnabled} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, socialMediaEnabled: v } })} />
-                {showAllFeatures && (
-                  <>
-                    <FeatureCheckbox label="Programar posts" checked={formData.features.socialMediaScheduling} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, socialMediaScheduling: v } })} />
-                    <FeatureCheckbox label="Analytics sociales" checked={formData.features.socialMediaAnalytics} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, socialMediaAnalytics: v } })} />
-                  </>
-                )}
+
+              <div>
+                <h4 className="text-xs font-semibold text-gray-700 mb-2">📱 Redes sociales</h4>
+                <FeatureCheckbox
+                  label="Redes sociales"
+                  checked={bool('socialMediaEnabled')}
+                  onChange={(v) => setFeature('socialMediaEnabled', v)}
+                />
+                <FeatureCheckbox
+                  label="Programar posts"
+                  checked={bool('socialMediaScheduling')}
+                  onChange={(v) => setFeature('socialMediaScheduling', v)}
+                />
+                <FeatureCheckbox
+                  label="Analytics sociales"
+                  checked={bool('socialMediaAnalytics')}
+                  onChange={(v) => setFeature('socialMediaAnalytics', v)}
+                />
               </div>
-              <div className="space-y-2">
+
+              <div>
                 <h4 className="text-xs font-semibold text-gray-700 mb-2">🛒 Marketplace</h4>
-                <FeatureCheckbox label="Marketplace" checked={formData.features.marketplaceEnabled} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, marketplaceEnabled: v } })} />
-                {showAllFeatures && <FeatureCheckbox label="Destacado" checked={formData.features.marketplaceFeatured} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, marketplaceFeatured: v } })} />}
+                <FeatureCheckbox
+                  label="Marketplace"
+                  checked={bool('marketplaceEnabled')}
+                  onChange={(v) => setFeature('marketplaceEnabled', v)}
+                />
+                <FeatureCheckbox
+                  label="Destacado"
+                  checked={bool('marketplaceFeatured')}
+                  onChange={(v) => setFeature('marketplaceFeatured', v)}
+                />
               </div>
-              <div className="space-y-2">
+
+              <div>
                 <h4 className="text-xs font-semibold text-gray-700 mb-2">📊 Reportes</h4>
-                <FeatureCheckbox label="Reportes avanzados" checked={formData.features.advancedReports} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, advancedReports: v } })} />
-                {showAllFeatures && (
+                <FeatureCheckbox
+                  label="Reportes avanzados"
+                  checked={bool('advancedReports')}
+                  onChange={(v) => setFeature('advancedReports', v)}
+                />
+                <FeatureCheckbox
+                  label="Reportes personalizados"
+                  checked={bool('customReports')}
+                  onChange={(v) => setFeature('customReports', v)}
+                />
+                <FeatureCheckbox
+                  label="Exportar datos"
+                  checked={bool('exportData')}
+                  onChange={(v) => setFeature('exportData', v)}
+                />
+                <FeatureCheckbox
+                  label="Analytics avanzados"
+                  checked={bool('analyticsAdvanced')}
+                  onChange={(v) => setFeature('analyticsAdvanced', v)}
+                />
+                <FeatureCheckbox
+                  label="Pruebas A/B"
+                  checked={bool('aBTesting')}
+                  onChange={(v) => setFeature('aBTesting', v)}
+                />
+              </div>
+
+              <div>
+                <h4 className="text-xs font-semibold text-gray-700 mb-2">🔌 API</h4>
+                <FeatureCheckbox
+                  label="API REST"
+                  checked={bool('apiAccess')}
+                  onChange={(v) => setFeature('apiAccess', v)}
+                />
+                <FeatureCheckbox
+                  label="Webhooks"
+                  checked={bool('webhooks')}
+                  onChange={(v) => setFeature('webhooks', v)}
+                />
+                <FeatureCheckbox
+                  label="Integraciones ilimitadas"
+                  checked={bool('integrationsUnlimited')}
+                  onChange={(v) => setFeature('integrationsUnlimited', v)}
+                />
+                <FeatureCheckbox
+                  label="Integraciones personalizadas"
+                  checked={bool('customIntegrations')}
+                  onChange={(v) => setFeature('customIntegrations', v)}
+                />
+              </div>
+
+              <div>
+                <h4 className="text-xs font-semibold text-gray-700 mb-2">📢 Marketing</h4>
+                <FeatureCheckbox
+                  label="Email marketing"
+                  checked={bool('emailMarketing')}
+                  onChange={(v) => setFeature('emailMarketing', v)}
+                />
+                <FeatureCheckbox
+                  label="SMS marketing"
+                  checked={bool('smsMarketing')}
+                  onChange={(v) => setFeature('smsMarketing', v)}
+                />
+                <FeatureCheckbox
+                  label="WhatsApp marketing"
+                  checked={bool('whatsappMarketing')}
+                  onChange={(v) => setFeature('whatsappMarketing', v)}
+                />
+                <FeatureCheckbox
+                  label="Promociones gratis en landing"
+                  checked={bool('freePromotionsOnLanding')}
+                  onChange={(v) => setFeature('freePromotionsOnLanding', v)}
+                />
+              </div>
+
+              <div>
+                <h4 className="text-xs font-semibold text-gray-700 mb-2">👥 CRM y leads</h4>
+                <FeatureCheckbox
+                  label="CRM avanzado"
+                  checked={bool('crmAdvanced')}
+                  onChange={(v) => setFeature('crmAdvanced', v)}
+                />
+                <FeatureCheckbox
+                  label="Scoring de leads"
+                  checked={bool('leadScoring')}
+                  onChange={(v) => setFeature('leadScoring', v)}
+                />
+                <FeatureCheckbox
+                  label="Workflows"
+                  checked={bool('automationWorkflows')}
+                  onChange={(v) => setFeature('automationWorkflows', v)}
+                />
+                <FeatureCheckbox
+                  label="Solicitar documentos al cliente"
+                  checked={bool('customerDocumentRequestsEnabled')}
+                  onChange={(v) => setFeature('customerDocumentRequestsEnabled', v)}
+                />
+              </div>
+
+              {(formData.type === 'dealer' || formData.type === 'seller') && (
+                <div>
+                  <h4 className="text-xs font-semibold text-gray-700 mb-2">Módulo F&amp;I</h4>
+                  <FeatureCheckbox
+                    label="Módulo F&I (finanzas y seguros)"
+                    checked={bool('fiModule')}
+                    onChange={(v) => setFeature('fiModule', v)}
+                  />
+                  {formData.type === 'dealer' && (
+                    <FeatureCheckbox
+                      label="Varios gerentes F&I"
+                      checked={bool('fiMultipleManagers')}
+                      onChange={(v) => setFeature('fiMultipleManagers', v)}
+                    />
+                  )}
+                </div>
+              )}
+
+              <div>
+                <h4 className="text-xs font-semibold text-gray-700 mb-2">🎙️ Agente de Voz IA</h4>
+                <FeatureCheckbox
+                  label="Agente de Voz IA habilitado"
+                  checked={bool('voiceAIEnabled')}
+                  onChange={(v) => setFeature('voiceAIEnabled', v)}
+                  comingSoon
+                />
+                {bool('voiceAIEnabled') && (
                   <>
-                    <FeatureCheckbox label="Reportes personalizados" checked={formData.features.customReports} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, customReports: v } })} />
-                    <FeatureCheckbox label="Exportar datos" checked={formData.features.exportData} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, exportData: v } })} />
-                    <FeatureCheckbox label="Analytics avanzados" checked={formData.features.analyticsAdvanced} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, analyticsAdvanced: v } })} />
-                    <FeatureCheckbox label="Pruebas A/B" checked={formData.features.aBTesting} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, aBTesting: v } })} />
+                    <FeatureCheckbox
+                      label="Llamadas entrantes IA"
+                      checked={bool('voiceInboundEnabled')}
+                      onChange={(v) => setFeature('voiceInboundEnabled', v)}
+                      comingSoon
+                    />
+                    <FeatureCheckbox
+                      label="Llamadas salientes IA"
+                      checked={bool('voiceOutboundEnabled')}
+                      onChange={(v) => setFeature('voiceOutboundEnabled', v)}
+                      comingSoon
+                    />
+                    <FeatureCheckbox
+                      label="Citas de servicio por voz"
+                      checked={bool('voiceServiceCallsEnabled')}
+                      onChange={(v) => setFeature('voiceServiceCallsEnabled', v)}
+                      comingSoon
+                    />
+                    <FeatureCheckbox
+                      label="Campañas de llamadas"
+                      checked={bool('voiceCampaignsEnabled')}
+                      onChange={(v) => setFeature('voiceCampaignsEnabled', v)}
+                    />
                   </>
                 )}
+                <FeatureCheckbox
+                  label="Facturación automática de excesos (overage)"
+                  checked={bool('overageBillingEnabled')}
+                  onChange={(v) => setFeature('overageBillingEnabled', v)}
+                />
+                <h4 className="text-xs font-semibold text-gray-700 mb-2 mt-3">💼 DMS / Compensación</h4>
+                <FeatureCheckbox
+                  label="Portal Mi Compensación"
+                  checked={bool('compensationPortalEnabled')}
+                  onChange={(v) => setFeature('compensationPortalEnabled', v)}
+                />
+                <FeatureCheckbox
+                  label="DMS Servicio"
+                  checked={bool('dmsServiceEnabled')}
+                  onChange={(v) => setFeature('dmsServiceEnabled', v)}
+                />
+                <FeatureCheckbox
+                  label="DMS Piezas"
+                  checked={bool('dmsPartsEnabled')}
+                  onChange={(v) => setFeature('dmsPartsEnabled', v)}
+                />
+                <FeatureCheckbox
+                  label="DMS Finanzas"
+                  checked={bool('dmsFinanceEnabled')}
+                  onChange={(v) => setFeature('dmsFinanceEnabled', v)}
+                />
+                <FeatureCheckbox
+                  label="DMS RR.HH."
+                  checked={bool('dmsHrEnabled')}
+                  onChange={(v) => setFeature('dmsHrEnabled', v)}
+                />
+                <FeatureCheckbox
+                  label="API pública"
+                  checked={bool('publicApiEnabled')}
+                  onChange={(v) => setFeature('publicApiEnabled', v)}
+                />
               </div>
-              {showAllFeatures && (
-                <>
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-semibold text-gray-700 mb-2">🔌 API</h4>
-                    <FeatureCheckbox label="API REST" checked={formData.features.apiAccess} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, apiAccess: v } })} />
-                    <FeatureCheckbox label="Webhooks" checked={formData.features.webhooks} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, webhooks: v } })} />
-                    <FeatureCheckbox label="Integraciones ilimitadas" checked={formData.features.integrationsUnlimited} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, integrationsUnlimited: v } })} />
-                    <FeatureCheckbox label="Integraciones personalizadas" checked={formData.features.customIntegrations} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, customIntegrations: v } })} />
+
+              <div>
+                <h4 className="text-xs font-semibold text-gray-700 mb-2">🎬 Multimedia</h4>
+                <FeatureCheckbox
+                  label="Videos"
+                  checked={bool('videoUploads')}
+                  onChange={(v) => setFeature('videoUploads', v)}
+                />
+                <FeatureCheckbox
+                  label="Tours virtuales"
+                  checked={bool('virtualTours')}
+                  onChange={(v) => setFeature('virtualTours', v)}
+                />
+                <FeatureCheckbox
+                  label="Templates personalizados"
+                  checked={bool('customTemplates')}
+                  onChange={(v) => setFeature('customTemplates', v)}
+                />
+              </div>
+
+              <div>
+                <h4 className="text-xs font-semibold text-gray-700 mb-2">⚙️ Servicios</h4>
+                <FeatureCheckbox
+                  label="Chat en vivo"
+                  checked={bool('liveChat')}
+                  onChange={(v) => setFeature('liveChat', v)}
+                />
+                <FeatureCheckbox
+                  label="Citas"
+                  checked={bool('appointmentScheduling')}
+                  onChange={(v) => setFeature('appointmentScheduling', v)}
+                />
+                <FeatureCheckbox
+                  label="Pagos"
+                  checked={bool('paymentProcessing')}
+                  onChange={(v) => setFeature('paymentProcessing', v)}
+                />
+                <FeatureCheckbox
+                  label="Sincronización inventario"
+                  checked={bool('inventorySync')}
+                  onChange={(v) => setFeature('inventorySync', v)}
+                />
+                <FeatureCheckbox
+                  label="SSO"
+                  checked={bool('ssoEnabled')}
+                  onChange={(v) => setFeature('ssoEnabled', v)}
+                />
+                <FeatureCheckbox
+                  label="Múltiples idiomas"
+                  checked={bool('multiLanguage')}
+                  onChange={(v) => setFeature('multiLanguage', v)}
+                />
+                <FeatureCheckbox
+                  label="App móvil"
+                  checked={bool('mobileApp')}
+                  onChange={(v) => setFeature('mobileApp', v)}
+                />
+                <FeatureCheckbox
+                  label="Modo offline"
+                  checked={bool('offlineMode')}
+                  onChange={(v) => setFeature('offlineMode', v)}
+                />
+                <FeatureCheckbox
+                  label="Backup automático"
+                  checked={bool('dataBackup')}
+                  onChange={(v) => setFeature('dataBackup', v)}
+                />
+                <FeatureCheckbox
+                  label="Cumplimiento"
+                  checked={bool('complianceTools')}
+                  onChange={(v) => setFeature('complianceTools', v)}
+                />
+                <FeatureCheckbox
+                  label="SEO"
+                  checked={bool('seoTools')}
+                  onChange={(v) => setFeature('seoTools', v)}
+                />
+              </div>
+
+              {(formData.type === 'dealer' || formData.type === 'seller') && (
+                <div className="md:col-span-2 lg:col-span-3">
+                  <h4 className="text-sm font-bold text-gray-900 mb-1">📦 Inventario competitivo</h4>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Activas por defecto (opt-out). Desmarca solo si quieres apagarlas en este plan.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                    <FeatureCheckbox
+                      label="Escaneo VIN con cámara"
+                      checked={bool('vin_camera_scan')}
+                      onChange={(v) => setFeature('vin_camera_scan', v)}
+                    />
+                    <FeatureCheckbox
+                      label="Landing + QR compartir"
+                      checked={bool('share_landing')}
+                      onChange={(v) => setFeature('share_landing', v)}
+                    />
+                    <FeatureCheckbox
+                      label="Guía de fotos"
+                      checked={bool('photo_guide')}
+                      onChange={(v) => setFeature('photo_guide', v)}
+                    />
+                    <FeatureCheckbox
+                      label="Quitar fondo (IA)"
+                      checked={bool('bg_remover')}
+                      onChange={(v) => setFeature('bg_remover', v)}
+                    />
+                    <FeatureCheckbox
+                      label="Escenas dinámicas"
+                      checked={bool('dynamic_scenes')}
+                      onChange={(v) => setFeature('dynamic_scenes', v)}
+                    />
+                    <FeatureCheckbox
+                      label="Etiquetas DACO + QR"
+                      checked={bool('daco_labels')}
+                      onChange={(v) => setFeature('daco_labels', v)}
+                    />
+                    {formData.type === 'dealer' ? (
+                      <>
+                        <FeatureCheckbox
+                          label="Constructor sitio dealer"
+                          checked={bool('dealer_site_builder')}
+                          onChange={(v) => setFeature('dealer_site_builder', v)}
+                        />
+                        <FeatureCheckbox
+                          label="Alianzas de inventario"
+                          checked={bool('inventory_alliances')}
+                          onChange={(v) => setFeature('inventory_alliances', v)}
+                        />
+                        <FeatureCheckbox
+                          label="Sync por feed URL"
+                          checked={bool('inventory_feed_sync')}
+                          onChange={(v) => setFeature('inventory_feed_sync', v)}
+                        />
+                      </>
+                    ) : null}
                   </div>
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-semibold text-gray-700 mb-2">📢 Marketing</h4>
-                    <FeatureCheckbox label="Email marketing" checked={formData.features.emailMarketing} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, emailMarketing: v } })} />
-                    <FeatureCheckbox label="SMS marketing" checked={formData.features.smsMarketing} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, smsMarketing: v } })} />
-                    <FeatureCheckbox label="WhatsApp marketing" checked={formData.features.whatsappMarketing} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, whatsappMarketing: v } })} />
-                  </div>
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-semibold text-gray-700 mb-2">👥 CRM</h4>
-                    <FeatureCheckbox label="CRM avanzado" checked={formData.features.crmAdvanced} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, crmAdvanced: v } })} />
-                    <FeatureCheckbox label="Scoring de leads" checked={formData.features.leadScoring} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, leadScoring: v } })} />
-                    <FeatureCheckbox label="Workflows" checked={formData.features.automationWorkflows} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, automationWorkflows: v } })} />
-                  </div>
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-semibold text-gray-700 mb-2">🎬 Multimedia</h4>
-                    <FeatureCheckbox label="Videos" checked={formData.features.videoUploads} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, videoUploads: v } })} />
-                    <FeatureCheckbox label="Tours virtuales" checked={formData.features.virtualTours} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, virtualTours: v } })} />
-                    <FeatureCheckbox label="Templates personalizados" checked={formData.features.customTemplates} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, customTemplates: v } })} />
-                  </div>
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-semibold text-gray-700 mb-2">⚙️ Servicios</h4>
-                    <FeatureCheckbox label="Chat en vivo" checked={formData.features.liveChat} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, liveChat: v } })} />
-                    <FeatureCheckbox label="Citas" checked={formData.features.appointmentScheduling} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, appointmentScheduling: v } })} />
-                    <FeatureCheckbox label="Pagos" checked={formData.features.paymentProcessing} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, paymentProcessing: v } })} />
-                    <FeatureCheckbox label="Sincronización inventario" checked={formData.features.inventorySync} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, inventorySync: v } })} />
-                    <FeatureCheckbox label="SSO" checked={formData.features.ssoEnabled} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, ssoEnabled: v } })} />
-                    <FeatureCheckbox label="Múltiples idiomas" checked={formData.features.multiLanguage} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, multiLanguage: v } })} />
-                    <FeatureCheckbox label="App móvil" checked={formData.features.mobileApp} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, mobileApp: v } })} />
-                    <FeatureCheckbox label="Modo offline" checked={formData.features.offlineMode} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, offlineMode: v } })} />
-                    <FeatureCheckbox label="Backup automático" checked={formData.features.dataBackup} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, dataBackup: v } })} />
-                    <FeatureCheckbox label="Cumplimiento" checked={formData.features.complianceTools} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, complianceTools: v } })} />
-                    <FeatureCheckbox label="SEO" checked={formData.features.seoTools} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, seoTools: v } })} />
-                  </div>
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-semibold text-gray-700 mb-2">🎧 Soporte</h4>
-                    <FeatureCheckbox label="Soporte prioritario" checked={formData.features.prioritySupport} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, prioritySupport: v } })} />
-                    <FeatureCheckbox label="Gerente dedicado" checked={formData.features.dedicatedManager} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, dedicatedManager: v } })} />
-                    <FeatureCheckbox label="Entrenamiento" checked={formData.features.trainingSessions} onChange={(v) => setFormData({ ...formData, features: { ...formData.features, trainingSessions: v } })} />
-                  </div>
-                </>
+                </div>
               )}
-              <div className="space-y-2">
-                <h4 className="text-xs font-semibold text-gray-700 mb-2">📧 Email Corporativo</h4>
+
+              <div>
+                <h4 className="text-xs font-semibold text-gray-700 mb-2">🎧 Soporte</h4>
+                <FeatureCheckbox
+                  label="Soporte prioritario"
+                  checked={bool('prioritySupport')}
+                  onChange={(v) => setFeature('prioritySupport', v)}
+                />
+                <FeatureCheckbox
+                  label="Gerente dedicado"
+                  checked={bool('dedicatedManager')}
+                  onChange={(v) => setFeature('dedicatedManager', v)}
+                />
+                <FeatureCheckbox
+                  label="Entrenamiento"
+                  checked={bool('trainingSessions')}
+                  onChange={(v) => setFeature('trainingSessions', v)}
+                />
+              </div>
+
+              <div>
+                <h4 className="text-xs font-semibold text-gray-700 mb-2">📧 Email corporativo</h4>
                 <FeatureCheckbox
                   label="Email corporativo habilitado"
-                  checked={formData.features.corporateEmailEnabled}
-                  onChange={(v) => setFormData({
-                    ...formData,
-                    features: { ...formData.features, corporateEmailEnabled: v },
-                  })}
+                  checked={bool('corporateEmailEnabled')}
+                  onChange={(v) => setFeature('corporateEmailEnabled', v)}
                 />
-                {formData.features.corporateEmailEnabled && (
+                {bool('corporateEmailEnabled') && (
                   <>
-                    <div>
-                      <label className="block text-xs text-gray-600 mb-1">Máx. Emails Corporativos</label>
+                    <div className="mt-2">
+                      <label className="block text-xs text-gray-600 mb-1">
+                        Máx. emails corporativos
+                      </label>
                       <input
                         type="number"
-                        value={formData.features.maxCorporateEmails}
-                        onChange={(e) => setFormData({
-                          ...formData,
-                          features: { ...formData.features, maxCorporateEmails: e.target.value },
-                        })}
+                        value={str('maxCorporateEmails')}
+                        onChange={(e) => setFeature('maxCorporateEmails', e.target.value)}
                         className="w-full border rounded px-2 py-1 text-sm"
-                        placeholder="Ilimitado (dejar vacío)"
-                        min="0"
+                        placeholder="Ilimitado"
+                        min={0}
                       />
-                      <p className="text-xs text-gray-500 mt-1">Dejar vacío para ilimitado</p>
                     </div>
                     <FeatureCheckbox
                       label="Firma básica de email"
-                      checked={formData.features.emailSignatureBasic}
-                      onChange={(v) => setFormData({
-                        ...formData,
-                        features: { ...formData.features, emailSignatureBasic: v },
-                      })}
+                      checked={bool('emailSignatureBasic')}
+                      onChange={(v) => setFeature('emailSignatureBasic', v)}
                     />
                     <FeatureCheckbox
                       label="Firma avanzada (HTML, imágenes)"
-                      checked={formData.features.emailSignatureAdvanced}
-                      onChange={(v) => setFormData({
-                        ...formData,
-                        features: { ...formData.features, emailSignatureAdvanced: v },
-                      })}
+                      checked={bool('emailSignatureAdvanced')}
+                      onChange={(v) => setFeature('emailSignatureAdvanced', v)}
                     />
                     <FeatureCheckbox
                       label="Aliases de email (ej: ventas@)"
-                      checked={formData.features.emailAliases}
-                      onChange={(v) => setFormData({
-                        ...formData,
-                        features: { ...formData.features, emailAliases: v },
-                      })}
+                      checked={bool('emailAliases')}
+                      onChange={(v) => setFeature('emailAliases', v)}
                     />
                   </>
                 )}
@@ -644,68 +998,50 @@ export default function CreateMembershipModal({ onClose, onSuccess }: CreateMemb
             <div className="border rounded-lg p-4 bg-slate-50">
               <h3 className="text-sm font-semibold text-gray-900 mb-2">Red multi-concesionario</h3>
               <p className="text-xs text-gray-600 mb-3">
-                No es un tipo aparte: sigue siendo un plan <strong>Dealer</strong> con permisos extra. Así aparece en registro multi-dealer y en precios públicos cuando corresponde.
+                Sigue siendo un plan Dealer con permisos extra para varias sedes.
               </p>
               <FeatureCheckbox
                 label="Plan multi-concesionario (varias sedes / red)"
-                checked={formData.features.multiDealerEnabled}
-                onChange={(v) =>
-                  setFormData({
-                    ...formData,
-                    features: { ...formData.features, multiDealerEnabled: v },
-                  })
-                }
+                checked={bool('multiDealerEnabled')}
+                onChange={(v) => setFeature('multiDealerEnabled', v)}
               />
-              {formData.features.multiDealerEnabled && (
+              {bool('multiDealerEnabled') && (
                 <div className="mt-3 space-y-3 pl-1">
                   <div>
-                    <label className="block text-xs text-gray-600 mb-1">Máx. concesionarios en la red (vacío = ilimitado)</label>
+                    <label className="block text-xs text-gray-600 mb-1">
+                      Máx. concesionarios en la red (vacío = ilimitado)
+                    </label>
                     <input
                       type="number"
                       min={1}
-                      value={formData.features.maxDealers}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          features: { ...formData.features, maxDealers: e.target.value },
-                        })
-                      }
+                      value={str('maxDealers')}
+                      onChange={(e) => setFeature('maxDealers', e.target.value)}
                       className="w-full border rounded px-2 py-1 text-sm"
                       placeholder="Ilimitado"
                     />
                   </div>
                   <FeatureCheckbox
                     label="Alta multi-dealer requiere aprobación administrativa"
-                    checked={formData.features.requiresAdminApproval}
-                    onChange={(v) =>
-                      setFormData({
-                        ...formData,
-                        features: { ...formData.features, requiresAdminApproval: v },
-                      })
-                    }
+                    checked={bool('requiresAdminApproval')}
+                    onChange={(v) => setFeature('requiresAdminApproval', v)}
                   />
                   <FeatureCheckbox
                     label="Compat. legado: multipleDealers"
-                    checked={formData.features.multipleDealers}
-                    onChange={(v) =>
-                      setFormData({
-                        ...formData,
-                        features: { ...formData.features, multipleDealers: v },
-                      })
-                    }
+                    checked={bool('multipleDealers')}
+                    onChange={(v) => setFeature('multipleDealers', v)}
                   />
                 </div>
               )}
             </div>
           )}
 
-          {/* Features Dinámicas */}
           {dynamicFeatures.length > 0 && (
             <div>
               <div className="flex justify-between items-center mb-2">
-                <label className="block text-sm font-medium">✨ Features Dinámicas</label>
+                <label className="block text-sm font-medium">✨ Features dinámicas</label>
                 <span className="text-xs text-gray-500">
-                  {dynamicFeatures.length} feature{dynamicFeatures.length !== 1 ? 's' : ''} disponible{dynamicFeatures.length !== 1 ? 's' : ''}
+                  {dynamicFeatures.length} disponible
+                  {dynamicFeatures.length !== 1 ? 's' : ''}
                 </span>
               </div>
               <div className="max-h-64 overflow-y-auto border rounded p-3 space-y-3">
@@ -720,18 +1056,15 @@ export default function CreateMembershipModal({ onClose, onSuccess }: CreateMemb
                         {feature.type}
                       </span>
                     </div>
-                    
+
                     {feature.type === 'boolean' && (
                       <FeatureCheckbox
                         label={`Habilitar ${feature.name}`}
-                        checked={(formData.features as any)[feature.key] || false}
-                        onChange={(v) => setFormData({
-                          ...formData,
-                          features: { ...formData.features, [feature.key]: v },
-                        })}
+                        checked={bool(feature.key)}
+                        onChange={(v) => setFeature(feature.key, v)}
                       />
                     )}
-                    
+
                     {feature.type === 'number' && (
                       <div>
                         <label className="block text-xs text-gray-600 mb-1">
@@ -740,51 +1073,42 @@ export default function CreateMembershipModal({ onClose, onSuccess }: CreateMemb
                         </label>
                         <input
                           type="number"
-                          value={(formData.features as any)[feature.key] || ''}
-                          onChange={(e) => setFormData({
-                            ...formData,
-                            features: { ...formData.features, [feature.key]: e.target.value } as any,
-                          })}
+                          value={str(feature.key)}
+                          onChange={(e) => setFeature(feature.key, e.target.value)}
                           className="w-full border rounded px-2 py-1 text-sm"
-                          placeholder={feature.min !== undefined && feature.max !== undefined 
-                            ? `${feature.min}-${feature.max}` 
-                            : 'Ilimitado'}
+                          placeholder="Ilimitado"
                           min={feature.min}
                           max={feature.max}
                         />
                       </div>
                     )}
-                    
+
                     {feature.type === 'string' && (
                       <div>
                         <label className="block text-xs text-gray-600 mb-1">{feature.name}</label>
                         <input
                           type="text"
-                          value={(formData.features as any)[feature.key] || ''}
-                          onChange={(e) => setFormData({
-                            ...formData,
-                            features: { ...formData.features, [feature.key]: e.target.value } as any,
-                          })}
+                          value={str(feature.key)}
+                          onChange={(e) => setFeature(feature.key, e.target.value)}
                           className="w-full border rounded px-2 py-1 text-sm"
                           placeholder="Valor personalizado"
                         />
                       </div>
                     )}
-                    
+
                     {feature.type === 'select' && feature.options && (
                       <div>
                         <label className="block text-xs text-gray-600 mb-1">{feature.name}</label>
                         <select
-                          value={(formData.features as any)[feature.key] || ''}
-                          onChange={(e) => setFormData({
-                            ...formData,
-                            features: { ...formData.features, [feature.key]: e.target.value } as any,
-                          })}
+                          value={str(feature.key)}
+                          onChange={(e) => setFeature(feature.key, e.target.value)}
                           className="w-full border rounded px-2 py-1 text-sm"
                         >
                           <option value="">Seleccionar...</option>
                           {feature.options.map((option: string) => (
-                            <option key={option} value={option}>{option}</option>
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
                           ))}
                         </select>
                       </div>
@@ -796,11 +1120,7 @@ export default function CreateMembershipModal({ onClose, onSuccess }: CreateMemb
           )}
 
           <div className="flex gap-2 justify-end pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 border rounded"
-            >
+            <button type="button" onClick={onClose} className="px-4 py-2 border rounded">
               Cancelar
             </button>
             <button
@@ -816,4 +1136,3 @@ export default function CreateMembershipModal({ onClose, onSuccess }: CreateMemb
     </div>
   );
 }
-

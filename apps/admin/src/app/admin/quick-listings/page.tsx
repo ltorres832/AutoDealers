@@ -40,6 +40,7 @@ export default function AdminQuickListingsPage() {
   const [items, setItems] = useState<AdminQuickListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [purging, setPurging] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   async function load() {
     try {
@@ -82,6 +83,28 @@ export default function AdminQuickListingsPage() {
     }
   }
 
+  async function handleExport() {
+    setExporting(true);
+    try {
+      const r = await fetch('/api/admin/quick-listings?includeAll=1&format=csv', { cache: 'no-store' });
+      if (!r.ok) {
+        alert('Error al exportar');
+        return;
+      }
+      const blob = await r.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `anuncios-particulares-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <div className="max-w-6xl mx-auto">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
@@ -92,13 +115,22 @@ export default function AdminQuickListingsPage() {
             configuración (Settings → Publicar gratis).
           </p>
         </div>
-        <button
-          onClick={handlePurge}
-          disabled={purging}
-          className="px-4 py-2 bg-primary-600 text-white rounded-lg disabled:opacity-50"
-        >
-          {purging ? 'Limpiando…' : 'Eliminar vencidos ahora'}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg disabled:opacity-50 hover:bg-slate-50"
+          >
+            {exporting ? 'Exportando…' : 'Exportar CSV'}
+          </button>
+          <button
+            onClick={handlePurge}
+            disabled={purging}
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg disabled:opacity-50"
+          >
+            {purging ? 'Limpiando…' : 'Eliminar vencidos ahora'}
+          </button>
+        </div>
       </div>
 
       {loading ? (

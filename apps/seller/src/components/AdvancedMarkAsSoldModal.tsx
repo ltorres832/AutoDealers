@@ -1863,6 +1863,24 @@ export default function AdvancedMarkAsSoldModal({
         vehicleLabel={vehicleLabel}
         mode={listingMode}
         variant="after_sale"
+        saleDocumentsPayload={{
+          vehicleId: vehicle.id,
+          leadId: formData.leadId || undefined,
+          buyer: {
+            name: formData.buyerFullName,
+            email: formData.buyerEmail,
+            phone: formData.buyerPhone,
+          },
+          vehicle: {
+            year: vehicle.year,
+            make: vehicle.make,
+            model: vehicle.model,
+          },
+          sale: {
+            salePrice: formData.salePrice,
+            paymentMethod: formData.paymentMethod,
+          },
+        }}
         onClose={() => void handleListingConfirm('sold', false)}
         onConfirm={(action, showPublic) => void handleListingConfirm(action, showPublic)}
       />

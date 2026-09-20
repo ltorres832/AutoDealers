@@ -13,7 +13,18 @@ export const META_FACEBOOK_ORGANIC_SCOPES = [
 ] as const;
 
 /** Cuentas publicitarias y campañas de pago (Marketing API). */
-export const META_FACEBOOK_ADS_SCOPES = ['business_management', 'ads_read', 'ads_management'] as const;
+export const META_FACEBOOK_ADS_SCOPES = [
+  'business_management',
+  'ads_read',
+  'ads_management',
+  'catalog_management',
+] as const;
+
+/** Catálogo de vehículos (Commerce) para Automotive Inventory Ads. */
+export const META_REQUIRED_SCOPES_CATALOG: readonly string[] = [
+  'catalog_management',
+  'business_management',
+];
 
 /** Instagram Business vinculado a la página. */
 export const META_INSTAGRAM_OAUTH_SCOPES = [

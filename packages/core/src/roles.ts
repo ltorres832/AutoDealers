@@ -10,6 +10,8 @@ export const ROLES: Record<UserRole, string> = {
   advertiser: 'Advertiser',
   manager: 'Gerente',
   dealer_admin: 'Administrador del Dealer',
+  automotive_business: 'Negocio automotriz',
+  customer: 'Cliente',
 };
 
 export const PERMISSIONS: Record<
@@ -91,6 +93,24 @@ export const PERMISSIONS: Record<
     canManageSellers: true,
     canAccessAdmin: false,
     canManageIntegrations: true,
+    canManageMemberships: false,
+  },
+  automotive_business: {
+    canManageUsers: true,
+    canManageInventory: false,
+    canManageLeads: true,
+    canManageSellers: false,
+    canAccessAdmin: false,
+    canManageIntegrations: true,
+    canManageMemberships: false,
+  },
+  customer: {
+    canManageUsers: false,
+    canManageInventory: false,
+    canManageLeads: false,
+    canManageSellers: false,
+    canAccessAdmin: false,
+    canManageIntegrations: false,
     canManageMemberships: false,
   },
 };

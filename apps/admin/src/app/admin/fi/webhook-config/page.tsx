@@ -7,7 +7,9 @@ import Link from 'next/link';
 
 export default function FIWebhookConfigPage() {
   const [testing, setTesting] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
+  const [createResult, setCreateResult] = useState<string | null>(null);
   const [webhookUrl, setWebhookUrl] = useState('');
 
   useEffect(() => {
@@ -33,6 +35,32 @@ export default function FIWebhookConfigPage() {
       setTestResult('❌ Error al conectar con el webhook. Verifica que esté desplegado.');
     } finally {
       setTesting(false);
+    }
+  };
+
+  const createResendWebhook = async () => {
+    setCreating(true);
+    setCreateResult(null);
+
+    try {
+      const response = await fetch('/api/admin/fi/email-webhook/setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ endpoint: webhookUrl }),
+      });
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setCreateResult(
+          `✅ Webhook creado en Resend. ID: ${data.webhookId || 'sin ID'}`
+        );
+      } else {
+        setCreateResult(data.error || '❌ No se pudo crear el webhook en Resend.');
+      }
+    } catch (error) {
+      setCreateResult('❌ Error al crear el webhook en Resend.');
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -106,13 +134,22 @@ export default function FIWebhookConfigPage() {
           Verificación del Webhook
         </h2>
         
-        <button
-          onClick={testWebhook}
-          disabled={testing}
-          className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
-        >
-          {testing ? 'Probando...' : 'Probar Webhook'}
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={testWebhook}
+            disabled={testing}
+            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+          >
+            {testing ? 'Probando...' : 'Probar Webhook'}
+          </button>
+          <button
+            onClick={createResendWebhook}
+            disabled={creating || !webhookUrl}
+            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50"
+          >
+            {creating ? 'Creando...' : 'Crear Webhook en Resend'}
+          </button>
+        </div>
 
         {testResult && (
           <div className={`mt-4 p-4 rounded-md ${
@@ -123,6 +160,15 @@ export default function FIWebhookConfigPage() {
               : 'bg-red-50 border border-red-200 text-red-800'
           }`}>
             {testResult}
+          </div>
+        )}
+        {createResult && (
+          <div className={`mt-4 p-4 rounded-md ${
+            createResult.includes('✅')
+              ? 'bg-green-50 border border-green-200 text-green-800'
+              : 'bg-red-50 border border-red-200 text-red-800'
+          }`}>
+            {createResult}
           </div>
         )}
       </div>

@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { listAdPlacementOptions } from '@autodealers/core/ad-placements';
+import { resolveAdCreativePreviewSrc } from '@autodealers/core/ad-creative';
+import { AdPlacementPageMap } from '@/components/AdPlacementPageMap';
 
 interface Banner {
   id: string;
@@ -12,7 +15,7 @@ interface Banner {
   linkType: 'vehicle' | 'dealer' | 'seller' | 'filter' | 'url' | 'none';
   linkValue: string;
   status: 'active' | 'paused' | 'expired';
-  placement: 'hero' | 'sidebar' | 'sponsors_section' | 'between_content';
+  placement: 'hero' | 'sidebar' | 'sponsors_section' | 'between_content' | 'vehicle_page';
   isPaid?: boolean;
   price?: number;
   duration?: number;
@@ -130,7 +133,7 @@ export default function InternalBannersPage() {
       </div>
 
       {/* Banners por Ubicación */}
-      {['hero', 'sidebar', 'sponsors_section', 'between_content'].map((placement) => {
+      {['hero', 'sidebar', 'sponsors_section', 'between_content', 'vehicle_page'].map((placement) => {
         const placementBanners = banners.filter(b => b.placement === placement);
         if (placementBanners.length === 0) return null;
 
@@ -146,11 +149,16 @@ export default function InternalBannersPage() {
                   className="bg-white rounded-lg shadow-lg overflow-hidden"
                 >
                   <div className="relative h-48 bg-gray-200">
-                    <img
-                      src={banner.imageUrl}
-                      alt={banner.title}
-                      className="w-full h-full object-cover"
-                    />
+                    {(() => {
+                      const preview = resolveAdCreativePreviewSrc(banner);
+                      return preview.kind === 'video' ? (
+                        <video src={preview.src} className="h-full w-full object-cover" muted playsInline controls />
+                      ) : preview.kind === 'image' ? (
+                        <img src={preview.src} alt={banner.title} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-sm text-gray-500">Sin media</div>
+                      );
+                    })()}
                     <div className="absolute top-2 right-2 flex gap-2">
                       <span className="px-3 py-1 bg-green-600 text-white rounded-full text-xs font-bold">
                         INTERNO
@@ -273,12 +281,14 @@ function CreateBannerModal({
     linkType: 'none' as 'vehicle' | 'dealer' | 'seller' | 'filter' | 'url' | 'none',
     linkValue: '',
     status: 'active' as 'active' | 'paused' | 'expired',
-    placement: 'hero' as 'hero' | 'sidebar' | 'sponsors_section' | 'between_content',
+    placement: 'hero' as 'hero' | 'sidebar' | 'sponsors_section' | 'between_content' | 'vehicle_page',
     isPaid: false,
     price: 0,
     duration: 30,
     priority: 100,
     imageUrl: '',
+    extraImages: '',
+    animation: 'fade' as 'none' | 'fade' | 'slide' | 'kenburns',
   });
 
   const placementSpecs = {
@@ -286,6 +296,7 @@ function CreateBannerModal({
     sidebar: { width: 300, height: 250, aspectRatio: '6:5' },
     sponsors_section: { width: 400, height: 300, aspectRatio: '4:3' },
     between_content: { width: 728, height: 90, aspectRatio: '728:90' },
+    vehicle_page: { width: 760, height: 300, aspectRatio: '38:15' },
   };
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -345,6 +356,14 @@ function CreateBannerModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
+          images: [
+            formData.imageUrl,
+            ...formData.extraImages
+              .split('\n')
+              .map((url) => url.trim())
+              .filter(Boolean),
+          ].filter(Boolean),
+          animation: formData.animation,
           isInternal: true,
           createdByAdmin: true,
           approved: true, // Admin banners auto-aprobados
@@ -401,10 +420,11 @@ function CreateBannerModal({
                 className="w-full border rounded px-3 py-2"
                 required
               >
-                <option value="hero">Hero Banner (1920x600px)</option>
-                <option value="sidebar">Sidebar (300x250px)</option>
-                <option value="sponsors_section">Sección Patrocinadores (400x300px)</option>
-                <option value="between_content">Entre Contenido (728x90px)</option>
+                {listAdPlacementOptions().map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.label} ({item.pixelSize})
+                  </option>
+                ))}
               </select>
               {placementSpecs[formData.placement] && (
                 <p className="text-xs text-gray-500 mt-1">
@@ -412,6 +432,9 @@ function CreateBannerModal({
                   {' '}({placementSpecs[formData.placement].aspectRatio})
                 </p>
               )}
+              <div className="mt-3">
+                <AdPlacementPageMap placement={formData.placement} />
+              </div>
             </div>
           </div>
 
@@ -452,6 +475,25 @@ function CreateBannerModal({
                 Tamaño recomendado: {placementSpecs[formData.placement].width}x{placementSpecs[formData.placement].height}px
               </p>
             )}
+            <label className="block text-sm font-medium mb-2 mt-4">Más fotos del slideshow (una URL por línea)</label>
+            <textarea
+              value={formData.extraImages}
+              onChange={(e) => setFormData({ ...formData, extraImages: e.target.value })}
+              className="w-full border rounded px-3 py-2"
+              rows={3}
+              placeholder="https://..."
+            />
+            <label className="block text-sm font-medium mb-2 mt-4">Animación</label>
+            <select
+              value={formData.animation}
+              onChange={(e) => setFormData({ ...formData, animation: e.target.value as typeof formData.animation })}
+              className="w-full border rounded px-3 py-2"
+            >
+              <option value="fade">Fundido (fade)</option>
+              <option value="slide">Deslizamiento</option>
+              <option value="kenburns">Ken Burns (zoom suave)</option>
+              <option value="none">Sin movimiento</option>
+            </select>
           </div>
 
           {/* Link */}

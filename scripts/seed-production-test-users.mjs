@@ -10,6 +10,9 @@ import admin from 'firebase-admin';
 
 const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'autodealers-7f62e';
 const TEST_TENANT_ID = 'test-tenant-1';
+/** IDs reales en Firestore (memberships collection) */
+const TEST_DEALER_MEMBERSHIP_ID = 'pONQqfToiRvgoLCalzll';
+const TEST_SELLER_MEMBERSHIP_ID = 'yEKJ5Jpt7RQRa6Hb9HGr';
 
 const TEST_USERS = [
   {
@@ -18,8 +21,8 @@ const TEST_USERS = [
     role: 'admin',
     name: 'Admin Usuario',
     tenantId: null,
-    membershipId: 'admin-membership',
-    membershipType: 'dealer',
+    membershipId: null,
+    membershipType: null,
   },
   {
     email: 'dealer@autodealers.test',
@@ -27,7 +30,7 @@ const TEST_USERS = [
     role: 'dealer',
     name: 'Dealer Usuario',
     tenantId: TEST_TENANT_ID,
-    membershipId: 'dealer-membership',
+    membershipId: TEST_DEALER_MEMBERSHIP_ID,
     membershipType: 'dealer',
   },
   {
@@ -36,7 +39,7 @@ const TEST_USERS = [
     role: 'seller',
     name: 'Seller Usuario',
     tenantId: TEST_TENANT_ID,
-    membershipId: 'seller-membership',
+    membershipId: TEST_SELLER_MEMBERSHIP_ID,
     membershipType: 'seller',
   },
   {
@@ -66,6 +69,7 @@ async function ensureTestTenant(db, dealerUid) {
       type: 'dealer',
       status: 'active',
       ownerId: dealerUid,
+      membershipId: TEST_DEALER_MEMBERSHIP_ID,
       subdomain: null,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -161,11 +165,13 @@ async function main() {
   const results = [];
 
   let dealerUid = null;
+  let sellerUid = null;
 
   for (const userData of TEST_USERS) {
     try {
       const userRecord = await upsertAuthUser(auth, userData);
       if (userData.role === 'dealer') dealerUid = userRecord.uid;
+      if (userData.role === 'seller') sellerUid = userRecord.uid;
 
       if (userData.role === 'advertiser') {
         await upsertAdvertiser(db, userRecord.uid, userData);
@@ -192,9 +198,53 @@ async function main() {
   if (dealerUid) {
     try {
       await ensureTestTenant(db, dealerUid);
-      console.log(`OK   tenant ${TEST_TENANT_ID}`);
+      const now = admin.firestore.Timestamp.now();
+      const end = admin.firestore.Timestamp.fromDate(
+        new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+      );
+      await db.collection('subscriptions').doc('test-tenant-1-sub').set(
+        {
+          tenantId: TEST_TENANT_ID,
+          userId: dealerUid,
+          membershipId: TEST_DEALER_MEMBERSHIP_ID,
+          status: 'active',
+          billingSource: 'admin_grant',
+          cancelAtPeriodEnd: false,
+          currentPeriodStart: now,
+          currentPeriodEnd: end,
+          updatedAt: now,
+        },
+        { merge: true }
+      );
+      console.log(`OK   tenant ${TEST_TENANT_ID} + subscription`);
     } catch (err) {
       console.error(`FAIL tenant:`, err?.message || err);
+    }
+  }
+
+  if (sellerUid) {
+    try {
+      const now = admin.firestore.Timestamp.now();
+      const end = admin.firestore.Timestamp.fromDate(
+        new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+      );
+      await db.collection('subscriptions').doc('test-seller-1-sub').set(
+        {
+          tenantId: sellerUid,
+          userId: sellerUid,
+          membershipId: TEST_SELLER_MEMBERSHIP_ID,
+          status: 'active',
+          billingSource: 'admin_grant',
+          cancelAtPeriodEnd: false,
+          currentPeriodStart: now,
+          currentPeriodEnd: end,
+          updatedAt: now,
+        },
+        { merge: true }
+      );
+      console.log(`OK   seller subscription test-seller-1-sub`);
+    } catch (err) {
+      console.error(`FAIL seller subscription:`, err?.message || err);
     }
   }
 

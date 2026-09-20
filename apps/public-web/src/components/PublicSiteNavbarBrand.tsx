@@ -87,7 +87,7 @@ export function PublicSiteNavbarBrand({
     <img
       src={imgSrc!}
       alt={siteInfo.name}
-      className="h-14 sm:h-16 w-auto max-w-[min(92vw,380px)] object-contain object-left"
+      className="h-12 w-auto max-w-[min(58vw,260px)] object-contain object-left sm:h-16 sm:max-w-[min(70vw,380px)]"
     />
   ) : (
     <>
@@ -98,7 +98,7 @@ export function PublicSiteNavbarBrand({
           </span>
         </div>
       ) : null}
-      <div>
+      <div className="min-w-0">
         {showName ? <span className={nameClassName}>{siteInfo.name}</span> : null}
         {showTagline ? <p className={taglineClassName}>{taglineText}</p> : null}
       </div>

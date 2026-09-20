@@ -19,6 +19,9 @@ interface StripePaymentFormProps {
   customerId?: string;
   subscriptionPriceId?: string; // Para suscripciones
   clientSecret?: string; // Si ya tienes un Payment Intent creado
+  intentType?: 'payment' | 'setup';
+  submitLabel?: string;
+  totalLabel?: string;
   /** Si no hay NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY, se obtiene desde esta API (ej. Firestore). */
   publishableKeyUrl?: string;
   publishableKey?: string;
@@ -34,6 +37,9 @@ function PaymentForm({
   customerId,
   subscriptionPriceId,
   clientSecret: providedClientSecret,
+  intentType = 'payment',
+  submitLabel,
+  totalLabel = 'Total a pagar:',
 }: StripePaymentFormProps) {
   const stripe = useStripe();
   const elements = useElements();
@@ -103,7 +109,26 @@ function PaymentForm({
         throw new Error('Elemento de tarjeta no encontrado');
       }
 
-      if (subscriptionPriceId && subscriptionId) {
+      if (intentType === 'setup') {
+        const { error: confirmError, setupIntent } = await stripe.confirmCardSetup(
+          clientSecret,
+          {
+            payment_method: {
+              card: cardElement,
+            },
+          }
+        );
+
+        if (confirmError) {
+          throw new Error(confirmError.message || 'Error al guardar el método de pago');
+        }
+
+        if (setupIntent?.status === 'succeeded') {
+          onSuccess(setupIntent.id);
+        } else {
+          throw new Error('No se pudo guardar el método de pago correctamente');
+        }
+      } else if (subscriptionPriceId && subscriptionId) {
         // Para suscripciones, confirmar el Payment Intent del invoice
         const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(
           clientSecret,
@@ -193,7 +218,7 @@ function PaymentForm({
 
       <div className="bg-gray-50 p-4 rounded-lg">
         <div className="flex justify-between items-center mb-2">
-          <span className="text-gray-600">Total a pagar:</span>
+          <span className="text-gray-600">{totalLabel}</span>
           <span className="text-2xl font-bold text-gray-900">
             ${amount.toFixed(2)} {currency.toUpperCase()}
           </span>
@@ -208,7 +233,7 @@ function PaymentForm({
         disabled={!stripe || loading}
         className="w-full bg-primary-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
-        {loading ? 'Procesando...' : `Pagar $${amount.toFixed(2)}`}
+        {loading ? 'Procesando...' : (submitLabel || `Pagar $${amount.toFixed(2)}`)}
       </button>
 
       <p className="text-xs text-gray-500 text-center">

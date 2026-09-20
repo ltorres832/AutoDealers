@@ -206,6 +206,16 @@ export async function PUT(request: NextRequest) {
 
     await userRef.update(userUpdate);
 
+    if (photo !== undefined && auth.tenantId) {
+      const photoUrl = safeTrim(photo);
+      if (photoUrl) {
+        const { retryRegistrationSocialAnnounceWhenReady } = await import('@autodealers/core');
+        void retryRegistrationSocialAnnounceWhenReady(auth.tenantId, auth.userId).catch((err) =>
+          console.warn('[seller profile] social announce retry:', err)
+        );
+      }
+    }
+
     if (!dealerManaged) {
       const tenantPatch: Record<string, unknown> = {
         address: {

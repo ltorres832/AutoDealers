@@ -27,7 +27,7 @@ export async function GET() {
     // Valores por defecto si no existe configuración
     return NextResponse.json({
       siteInfo: normalizePublicSiteLogoField({
-        name: 'AutoDealers',
+        name: 'AutoDealersOnline',
         description: 'La plataforma completa para encontrar y comprar vehículos. Miles de opciones verificadas.',
         logo: DEFAULT_BRAND_LOGO_PATH,
         tagline: 'Plataforma de Confianza',
@@ -40,7 +40,7 @@ export async function GET() {
         },
         copyright: {
           year: 2025,
-          company: 'AutoDealers',
+          company: 'AutoDealersOnline',
           text: 'Todos los derechos reservados.',
         },
         disclaimer: 'Las promociones aumentan la visibilidad de los anuncios. No garantizan contactos ni ventas.',

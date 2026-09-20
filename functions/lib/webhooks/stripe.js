@@ -261,7 +261,7 @@ async function handlePaymentFailed(invoice) {
             <p>Por favor, actualice su método de pago para continuar usando nuestros servicios.</p>
           `,
                     metadata: {
-                        subject: 'Pago Fallido - AutoDealers',
+                        subject: 'Pago Fallido - AutoDealersOnline',
                     },
                 });
             }
@@ -410,6 +410,19 @@ async function handleCheckoutSessionCompleted(session) {
                     status: 'active',
                     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 });
+                try {
+                    const { ensureVoiceProvisionedForTenant } = await Promise.resolve().then(() => __importStar(require('@autodealers/voice')));
+                    const voiceResult = await ensureVoiceProvisionedForTenant(metadata.tenantId, {
+                        source: 'stripe_checkout_registration',
+                        updatedBy: metadata.userId,
+                    });
+                    if (!voiceResult.ok && !voiceResult.skipped) {
+                        console.warn('[stripe] Voice provision:', voiceResult.reason);
+                    }
+                }
+                catch (voiceErr) {
+                    console.warn('[stripe] Voice provision skipped:', voiceErr);
+                }
             }
         }
         catch (error) {

@@ -19,8 +19,58 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const { getOpenAIApiKey, isAIEnabled, tenantCanGenerateContent, getFirestore } =
+      await import('@autodealers/core');
+
+    // 1) Interruptor maestro de IA del tenant
+    if (!(await isAIEnabled(auth.tenantId))) {
+      return NextResponse.json(
+        { error: 'La IA no está habilitada. Actívala en Configuración → IA.' },
+        { status: 403 }
+      );
+    }
+
+    // 2) La membresía debe permitir Generación de Contenido con IA
+    if (!(await tenantCanGenerateContent(auth.tenantId))) {
+      return NextResponse.json(
+        {
+          error:
+            'Tu plan de membresía no incluye Generación de Contenido con IA. Actualiza tu plan para usarla.',
+        },
+        { status: 403 }
+      );
+    }
+
+    // 3) El toggle específico debe estar encendido (socialContent / emailGeneration)
+    const isSocial = type === 'post' || type === 'social';
+    try {
+      const cfgDoc = await getFirestore()
+        .collection('tenants')
+        .doc(auth.tenantId)
+        .collection('settings')
+        .doc('ai_config')
+        .get();
+      const cfg = cfgDoc.data() as Record<string, unknown> | undefined;
+      const socialContent = cfg?.socialContent as { enabled?: boolean } | undefined;
+      const emailGeneration = cfg?.emailGeneration as { enabled?: boolean } | undefined;
+      const toggleOn = isSocial
+        ? socialContent?.enabled === true
+        : emailGeneration?.enabled === true;
+      if (!toggleOn) {
+        return NextResponse.json(
+          {
+            error: isSocial
+              ? 'La Generación de Contenido para redes está desactivada. Actívala en Configuración → IA.'
+              : 'La Generación de emails con IA está desactivada. Actívala en Configuración → IA.',
+          },
+          { status: 403 }
+        );
+      }
+    } catch (e) {
+      console.warn('[generate-content] no se pudo leer ai_config:', e);
+    }
+
     // Verificar que OpenAI API Key esté configurada
-    const { getOpenAIApiKey } = await import('@autodealers/core');
     const apiKey = await getOpenAIApiKey();
     if (!apiKey) {
       return NextResponse.json(

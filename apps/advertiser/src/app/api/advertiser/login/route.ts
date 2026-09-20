@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth, getAdvertiserById } from '@autodealers/core';
+import { getAuth, getAdvertiserById, getFirestore } from '@autodealers/core';
+import { resolveAuthenticatedUserId } from '@autodealers/core/app-passwords';
 import { getFirebaseWebClientConfig, AUTODEALERS_FIREBASE_WEB_DEFAULTS } from '@autodealers/shared/firebase-web-client-config';
 
 export const dynamic = 'force-dynamic';
@@ -41,19 +42,20 @@ async function signInWithEmailPassword(
   return { error: 'invalid_credentials' };
 }
 
-async function completeLogin(uid: string) {
-  const auth = getAuth();
-  const userRecord = await auth.getUser(uid);
+async function completeLogin(profileId: string) {
+  let advertiser = await getAdvertiserById(profileId);
 
-  const customClaims = userRecord.customClaims || {};
-  if (customClaims.role !== 'advertiser') {
-    return NextResponse.json(
-      { error: 'Esta cuenta no es de anunciante' },
-      { status: 403 }
-    );
+  if (!advertiser) {
+    const snap = await getFirestore()
+      .collection('advertisers')
+      .where('authUserId', '==', profileId)
+      .limit(1)
+      .get();
+    if (!snap.empty) {
+      advertiser = await getAdvertiserById(snap.docs[0].id);
+    }
   }
 
-  const advertiser = await getAdvertiserById(userRecord.uid);
   if (!advertiser) {
     return NextResponse.json(
       { error: 'Anunciante no encontrado' },
@@ -69,7 +71,7 @@ async function completeLogin(uid: string) {
   }
 
   const sessionData = {
-    uid: userRecord.uid,
+    uid: advertiser.id,
     role: 'advertiser',
     advertiserId: advertiser.id,
     exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7,
@@ -110,21 +112,24 @@ export async function POST(request: NextRequest) {
       const decoded = await getAuth().verifyIdToken(idToken);
       uid = decoded.uid;
     } else if (email && password) {
-      const signIn = await signInWithEmailPassword(email, password);
-      if (signIn.error === 'config') {
-        console.error('Advertiser login: Firebase API key unavailable');
-        return NextResponse.json(
-          { error: 'Error interno del servidor' },
-          { status: 500 }
-        );
+      const authResult = await resolveAuthenticatedUserId({
+        appKey: 'advertiser',
+        email,
+        password,
+        firebaseSignIn: async (loginEmail, loginPassword) => {
+          const signIn = await signInWithEmailPassword(loginEmail, loginPassword);
+          if ('error' in signIn) return null;
+          return signIn.uid;
+        },
+      });
+      if ('error' in authResult) {
+        if (authResult.error === 'config') {
+          console.error('Advertiser login: Firebase API key unavailable');
+          return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
+        }
+        return NextResponse.json({ error: 'Credenciales inválidas' }, { status: 401 });
       }
-      if (signIn.error === 'invalid_credentials') {
-        return NextResponse.json(
-          { error: 'Credenciales inválidas' },
-          { status: 401 }
-        );
-      }
-      uid = signIn.uid;
+      uid = authResult.userId;
     } else {
       return NextResponse.json(
         { error: 'Email y contraseña requeridos' },

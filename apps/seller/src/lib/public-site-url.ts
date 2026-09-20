@@ -1,43 +1,40 @@
-const PUBLIC_WEB_BASE =
-  process.env.NEXT_PUBLIC_PUBLIC_WEB_URL?.replace(/\/$/, '') ||
-  'https://autodealers-7f62e.web.app';
+import {
+  buildTenantSiteUrl,
+  formatTenantHostname,
+  resolvePublicWebUrl,
+  tenantHostSuffix,
+} from '@autodealers/shared/platform-urls';
 
-const PLATFORM_DOMAIN =
-  process.env.NEXT_PUBLIC_PLATFORM_DOMAIN?.replace(/^\./, '') || 'autodealers.com';
+export { formatTenantHostname, buildTenantSiteUrl, tenantHostSuffix };
 
-function normalizeExternalUrl(raw: string): string {
-  const s = (raw || '').trim();
-  if (!s) return '';
-  const withProto = /^https?:\/\//i.test(s) ? s : `https://${s}`;
-  return withProto.replace(/\/$/, '');
-}
-
-/** Catálogo público del vendedor: /seller/{userId} en el sitio público. */
-export function buildSellerCatalogUrl(sellerId: string): string {
-  const id = (sellerId || '').trim();
-  if (!id) return '';
-  return `${PUBLIC_WEB_BASE}/seller/${id}`;
-}
-
-/** Mini-sitio por subdominio (sitio del tenant, distinto del catálogo /seller/…). */
+/** @deprecated use buildTenantSiteUrl */
 export function buildSubdomainSiteUrl(subdomain: string): string {
-  const slug = (subdomain || '').trim().toLowerCase();
-  if (!slug) return '';
-  return `https://${slug}.${PLATFORM_DOMAIN}`;
+  return buildTenantSiteUrl(subdomain);
 }
 
 export function publicWebBaseUrl(): string {
-  return PUBLIC_WEB_BASE;
+  return resolvePublicWebUrl();
+}
+
+/** Catálogo público del vendedor: /seller/{userId} en el sitio www. */
+export function buildSellerCatalogUrl(sellerId: string): string {
+  const id = (sellerId || '').trim();
+  if (!id) return '';
+  return `${resolvePublicWebUrl()}/seller/${id}`;
 }
 
 /**
- * Enlace principal para compartir con clientes = catálogo /seller/{uid}.
- * Ej: https://autodealers-7f62e.web.app/seller/BRaL9edMRfNhEXNsMou0l7oCHFI2
+ * Enlace principal para compartir con clientes.
+ * Prioriza mini-sitio por subdominio si existe URL guardada; si no, catálogo /seller/{uid}.
  */
 export function resolvePrimaryPublicSiteUrl(opts: {
   sellerId?: string;
   publicCatalogUrl?: string;
+  subdomain?: string;
 }): string {
+  if (opts.subdomain?.trim()) {
+    return buildTenantSiteUrl(opts.subdomain);
+  }
   if (opts.publicCatalogUrl?.trim()) return opts.publicCatalogUrl.trim();
   return buildSellerCatalogUrl(opts.sellerId || '');
 }

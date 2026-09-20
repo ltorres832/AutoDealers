@@ -1,7 +1,9 @@
 import * as admin from 'firebase-admin';
 import { getFirestore } from '@autodealers/shared';
+import { PLATFORM_NAME } from '@autodealers/shared/platform-sender';
 import { sendOutboundEmail } from './messaging-outbound';
 import { notifyPlatformAdmins } from './notifications';
+import { resolveAdminUrl } from '@autodealers/shared/platform-urls';
 
 export type ContactInquiryStatus = 'new' | 'read' | 'replied' | 'archived';
 export type ContactInquiryBusinessType = 'dealer' | 'seller' | 'other' | 'advertiser';
@@ -119,6 +121,45 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
+export async function submitContactInquiry(input: {
+  name: string;
+  email: string;
+  phone?: string | null;
+  message: string;
+  businessType: ContactInquiryBusinessType;
+  source: string;
+}): Promise<{ id: string }> {
+  const db = getFirestore();
+  const docRef = db.collection(COLLECTION).doc();
+  const id = docRef.id;
+  const phone = input.phone?.trim() || null;
+
+  await docRef.set({
+    id,
+    name: input.name.trim(),
+    email: input.email.trim().toLowerCase(),
+    phone,
+    businessType: input.businessType,
+    message: input.message.trim(),
+    status: 'new',
+    source: input.source,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  void notifyAdminsOfContactInquiry({
+    id,
+    name: input.name.trim(),
+    email: input.email.trim().toLowerCase(),
+    phone,
+    businessType: input.businessType,
+    message: input.message.trim(),
+    source: input.source,
+  }).catch((err) => console.warn('[contact-inquiries] notify failed', err));
+
+  return { id };
+}
+
 export async function notifyAdminsOfContactInquiry(inquiry: {
   id: string;
   name: string;
@@ -128,10 +169,7 @@ export async function notifyAdminsOfContactInquiry(inquiry: {
   message: string;
   source: string;
 }): Promise<void> {
-  const adminUrl =
-    process.env.NEXT_PUBLIC_ADMIN_URL ||
-    'https://admin-app--autodealers-7f62e.us-central1.hosted.app';
-  const detailUrl = `${adminUrl.replace(/\/$/, '')}/admin/contact-inquiries`;
+  const detailUrl = `${resolveAdminUrl()}/admin/contact-inquiries`;
 
   const title = `Nuevo mensaje de contacto: ${inquiry.name}`;
   const summary = inquiry.message.length > 120 ? `${inquiry.message.slice(0, 120)}…` : inquiry.message;
@@ -140,6 +178,7 @@ export async function notifyAdminsOfContactInquiry(inquiry: {
     type: 'system_alert',
     title,
     message: `${inquiry.email}${inquiry.phone ? ` · ${inquiry.phone}` : ''} — ${summary}`,
+    audience: 'public',
     metadata: {
       contactInquiryId: inquiry.id,
       route: '/admin/contact-inquiries',
@@ -150,7 +189,7 @@ export async function notifyAdminsOfContactInquiry(inquiry: {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; color: #111; line-height: 1.6;">
       <div style="border-bottom: 3px solid #E10600; padding-bottom: 12px; margin-bottom: 20px;">
-        <strong style="font-size: 18px;">AutoDealers</strong>
+        <strong style="font-size: 18px;">${PLATFORM_NAME}</strong>
         <div style="font-size: 12px; color: #64748b;">Nuevo mensaje del formulario de contacto</div>
       </div>
       <p><strong>Nombre:</strong> ${escapeHtml(inquiry.name)}</p>
@@ -168,7 +207,7 @@ export async function notifyAdminsOfContactInquiry(inquiry: {
 
   const result = await sendOutboundEmail(
     notifyTo,
-    `[AutoDealers] Nuevo contacto: ${inquiry.name}`,
+    `[${PLATFORM_NAME}] Nuevo contacto: ${inquiry.name}`,
     html,
     'platform'
   );

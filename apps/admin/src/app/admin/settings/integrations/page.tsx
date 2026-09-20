@@ -12,7 +12,9 @@ type PlatformIntegration = { type: string; status: string; name?: string };
 
 type RegistrationSocialSettings = {
   platformFacebookEnabled: boolean;
+  platformInstagramEnabled: boolean;
   tenantFacebookEnabled: boolean;
+  tenantInstagramEnabled: boolean;
   announceSellers: boolean;
   announceDealers: boolean;
   platformMessageTemplate: string;
@@ -35,13 +37,13 @@ type PlatformPageOption = {
 function formatOAuthError(code: string | null): string {
   if (!code) return 'Error desconocido al conectar.';
   if (code === 'no_facebook_page') {
-    return 'Meta no devolvió ninguna página. En el popup de Facebook marca las páginas que quieres compartir, o inicia sesión con la cuenta que administra la página oficial de AutoDealers.';
+    return 'Meta no devolvió ninguna página. En el popup de Facebook marca las páginas que quieres compartir, o inicia sesión con la cuenta que administra la página oficial de AutoDealersOnline.';
   }
   if (code === 'only_seller_pages') {
-    return 'Solo apareció la página de un vendedor (Auto Sales). No se puede usar para la plataforma. Conecta con la cuenta Meta que administra la página oficial de AutoDealers.';
+    return 'Solo apareció la página de un vendedor (Auto Sales). No se puede usar para la plataforma. Conecta con la cuenta Meta que administra la página oficial de AutoDealersOnline.';
   }
   if (code === 'no_official_platform_page') {
-    return 'Tu cuenta no tiene acceso a la página oficial de AutoDealers configurada abajo. Pide acceso en Meta Business o usa otra cuenta.';
+    return 'Tu cuenta no tiene acceso a la página oficial de AutoDealersOnline configurada abajo. Pide acceso en Meta Business o usa otra cuenta.';
   }
   if (code.startsWith('facebook_pages:')) {
     return `Meta rechazó la lista de páginas: ${decodeURIComponent(code.slice('facebook_pages:'.length))}`;
@@ -60,14 +62,16 @@ export default function AdminIntegrationsPage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [registrationSocial, setRegistrationSocial] = useState<RegistrationSocialSettings>({
     platformFacebookEnabled: true,
+    platformInstagramEnabled: true,
     tenantFacebookEnabled: true,
+    tenantInstagramEnabled: true,
     announceSellers: true,
     announceDealers: true,
     platformMessageTemplate:
-      '¡Bienvenido/a {{name}}! Nuevo {{typeLabel}} en AutoDealers. Conoce más: {{link}}',
+      '¡Bienvenido/a {{name}}! Nuevo {{typeLabel}} en AutoDealersOnline. Conoce su perfil, inventario y contáctalo: {{link}}',
     tenantMessageTemplate:
-      '¡Ya estamos en AutoDealers! {{name}} — visita nuestro perfil: {{link}}',
-    hashtags: ['AutoDealers', 'Vehiculos'],
+      '¡Ya estamos en AutoDealersOnline! {{name}} — conoce nuestro perfil y autos: {{link}}',
+    hashtags: ['AutoDealersOnline', 'Vehiculos'],
   });
   const [savingRegistrationSocial, setSavingRegistrationSocial] = useState(false);
   const [platformPagePickerOpen, setPlatformPagePickerOpen] = useState(false);
@@ -80,6 +84,19 @@ export default function AdminIntegrationsPage() {
   });
   const [savingPlatformSocial, setSavingPlatformSocial] = useState(false);
   const [platformHasAllowedPage, setPlatformHasAllowedPage] = useState(false);
+  const [systemUserToken, setSystemUserToken] = useState('');
+  const [savingSystemUserToken, setSavingSystemUserToken] = useState(false);
+  const [platformTokenHealth, setPlatformTokenHealth] = useState<{
+    tokenSource?: string | null;
+    tokenNeverExpires?: boolean;
+    pageId?: string | null;
+    adAccountId?: string | null;
+    userExpiresAt?: number | null;
+    userDataAccessExpiresAt?: number | null;
+  } | null>(null);
+  const [systemUserBmUrl, setSystemUserBmUrl] = useState(
+    'https://business.facebook.com/settings/system-users/122101529703480902?business_id=25825518717087396'
+  );
 
   async function fetchPlatformSocialSettings() {
     try {
@@ -90,6 +107,77 @@ export default function AdminIntegrationsPage() {
       }
     } catch (e) {
       console.error('Error fetching platform social settings:', e);
+    }
+  }
+
+  async function fetchPlatformTokenHealth() {
+    try {
+      const res = await fetch('/api/admin/social/platform-system-user-token', {
+        credentials: 'include',
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.defaults?.businessManagerUrl) {
+        setSystemUserBmUrl(String(data.defaults.businessManagerUrl));
+      }
+      const fb = data.health?.facebook as
+        | {
+            tokenSource?: string | null;
+            tokenNeverExpires?: boolean;
+            pageId?: string | null;
+            adAccountId?: string | null;
+            userToken?: {
+              expires_at?: number;
+              data_access_expires_at?: number;
+            } | null;
+          }
+        | undefined;
+      if (fb) {
+        setPlatformTokenHealth({
+          tokenSource: fb.tokenSource,
+          tokenNeverExpires: fb.tokenNeverExpires === true,
+          pageId: fb.pageId,
+          adAccountId: fb.adAccountId,
+          userExpiresAt: fb.userToken?.expires_at ?? null,
+          userDataAccessExpiresAt: fb.userToken?.data_access_expires_at ?? null,
+        });
+      }
+    } catch (e) {
+      console.error('Error fetching platform token health:', e);
+    }
+  }
+
+  async function handleInstallSystemUserToken() {
+    const token = systemUserToken.trim();
+    if (!token) {
+      setMessage({ type: 'error', text: 'Pega el System User access token generado en Business Manager.' });
+      return;
+    }
+    setSavingSystemUserToken(true);
+    setMessage(null);
+    try {
+      const res = await fetch('/api/admin/social/platform-system-user-token', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ systemUserAccessToken: token }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage({ type: 'error', text: data.error || data.message || 'No se pudo instalar el token' });
+        return;
+      }
+      setSystemUserToken('');
+      setMessage({
+        type: 'success',
+        text: data.message || 'System User instalado correctamente',
+      });
+      void fetchPlatformTokenHealth();
+      void fetchPlatformIntegrations();
+    } catch (e: any) {
+      setMessage({ type: 'error', text: e.message || 'Error al instalar System User token' });
+    } finally {
+      setSavingSystemUserToken(false);
     }
   }
 
@@ -152,7 +240,7 @@ export default function AdminIntegrationsPage() {
 
   async function handleConfirmPlatformPage() {
     if (!selectedPlatformPageId) {
-      setMessage({ type: 'error', text: 'Selecciona la página oficial de AutoDealers.' });
+      setMessage({ type: 'error', text: 'Selecciona la página oficial de AutoDealersOnline.' });
       return;
     }
     try {
@@ -192,6 +280,7 @@ export default function AdminIntegrationsPage() {
     fetchPlatformIntegrations();
     fetchRegistrationSocial();
     void fetchPlatformSocialSettings();
+    void fetchPlatformTokenHealth();
     void loadPlatformPagePicker();
   }, []);
 
@@ -453,7 +542,7 @@ export default function AdminIntegrationsPage() {
       <div className="bg-primary-50 border border-primary-200 rounded-lg p-6 mb-6">
         <h2 className="text-xl font-semibold mb-2 text-primary-900">📱 Cuenta de soporte (publicar por admin)</h2>
         <p className="text-sm text-primary-800 mb-4">
-          Conecta aquí la página de Facebook e Instagram <strong>oficial de AutoDealers</strong> (no la de un
+          Conecta aquí la página de Facebook e Instagram <strong>oficial de AutoDealersOnline</strong> (no la de un
           vendedor). El equipo admin publicará inventario de cualquier concesionario{' '}
           <strong>sin usar las credenciales del cliente</strong>.
         </p>
@@ -478,7 +567,7 @@ export default function AdminIntegrationsPage() {
       </div>
 
       <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-2">📄 Página oficial de Facebook (AutoDealers)</h2>
+        <h2 className="text-xl font-semibold mb-2">📄 Página oficial de Facebook (AutoDealersOnline)</h2>
         <p className="text-sm text-gray-600 mb-4">
           Opcional pero recomendado: pega el ID de la página oficial de la plataforma (no la de vendedores). Lo
           encuentras en Meta → tu página → Información → ID de la página.
@@ -503,7 +592,7 @@ export default function AdminIntegrationsPage() {
               onChange={(e) =>
                 setPlatformSocial((s) => ({ ...s, officialFacebookPageName: e.target.value }))
               }
-              placeholder="Ej. AutoDealers"
+              placeholder="Ej. AutoDealersOnline"
             />
           </div>
         </div>
@@ -519,6 +608,75 @@ export default function AdminIntegrationsPage() {
 
       {/* Sección de OAuth para obtener tokens adicionales */}
       <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 className="text-xl font-semibold mb-4">🔐 Token permanente (System User)</h2>
+        <p className="text-gray-600 mb-4">
+          El OAuth de usuario vence el acceso a datos (~90 días). Para que la plataforma{' '}
+          <strong>nunca pierda Meta</strong>, usa un System User de Business Manager y pega aquí el
+          token generado (no expira hasta que lo revocques).
+        </p>
+        {platformTokenHealth && (
+          <div
+            className={`mb-4 rounded-lg border p-3 text-sm ${
+              platformTokenHealth.tokenNeverExpires
+                ? 'border-green-200 bg-green-50 text-green-900'
+                : 'border-amber-200 bg-amber-50 text-amber-900'
+            }`}
+          >
+            <p>
+              Fuente: <code>{platformTokenHealth.tokenSource || 'desconocida'}</code>
+              {platformTokenHealth.tokenNeverExpires
+                ? ' — permanente'
+                : ' — interino (OAuth de usuario)'}
+            </p>
+            {platformTokenHealth.pageId && <p>Página: {platformTokenHealth.pageId}</p>}
+            {platformTokenHealth.adAccountId && (
+              <p>Ad account: {platformTokenHealth.adAccountId}</p>
+            )}
+            {!platformTokenHealth.tokenNeverExpires &&
+              platformTokenHealth.userDataAccessExpiresAt != null &&
+              platformTokenHealth.userDataAccessExpiresAt > 0 && (
+                <p>
+                  Data access vence:{' '}
+                  {new Date(platformTokenHealth.userDataAccessExpiresAt * 1000).toLocaleString()}
+                </p>
+              )}
+          </div>
+        )}
+        <ol className="list-decimal list-inside text-sm text-gray-700 space-y-1 mb-4">
+          <li>
+            Abre{' '}
+            <a
+              href={systemUserBmUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary-600 hover:underline"
+            >
+              System User «AutoDealersOnline Platform»
+            </a>{' '}
+            en Business Manager
+          </li>
+          <li>Generate new token → app AutoDealersOnline → permisos Pages, Ads e Instagram</li>
+          <li>Copia el token y pégalo abajo (solo se guarda en el servidor)</li>
+        </ol>
+        <textarea
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono mb-3"
+          rows={3}
+          value={systemUserToken}
+          onChange={(e) => setSystemUserToken(e.target.value)}
+          placeholder="EAAB… (System User access token)"
+          autoComplete="off"
+        />
+        <button
+          type="button"
+          onClick={handleInstallSystemUserToken}
+          disabled={savingSystemUserToken || !systemUserToken.trim()}
+          className="bg-primary-600 text-white py-2 px-4 rounded-lg hover:bg-primary-700 disabled:opacity-50"
+        >
+          {savingSystemUserToken ? 'Instalando…' : 'Instalar token permanente'}
+        </button>
+      </div>
+
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
         <h2 className="text-xl font-semibold mb-4">🔗 Conectar cuenta de soporte (OAuth)</h2>
         <p className="text-gray-600 mb-6">
           Una vez configurado el App ID y App Secret, conecta la página de Facebook / Instagram Business que usará el
@@ -529,7 +687,7 @@ export default function AdminIntegrationsPage() {
           <div className="border border-gray-200 rounded-lg p-4">
             <h3 className="font-semibold mb-2">📘 Facebook</h3>
             <p className="text-sm text-gray-600 mb-4">
-              Conecta la página oficial de AutoDealers. Inicia sesión con la cuenta Meta que administra esa página (no la
+              Conecta la página oficial de AutoDealersOnline. Inicia sesión con la cuenta Meta que administra esa página (no la
               de un vendedor).
             </p>
             <button
@@ -571,12 +729,12 @@ export default function AdminIntegrationsPage() {
 
       {platformPagePickerOpen && platformPageOptions.length > 0 && (
         <div className="bg-amber-50 border-2 border-amber-300 rounded-lg p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-2 text-amber-900">Elegir página de AutoDealers</h2>
+          <h2 className="text-xl font-semibold mb-2 text-amber-900">Elegir página de AutoDealersOnline</h2>
           {!platformHasAllowedPage ? (
             <p className="text-sm text-red-800 mb-4">
               Solo apareció una página de vendedor o ninguna página válida para la plataforma.{' '}
               <strong>No uses Auto Sales.</strong> Cancela y reconecta con la cuenta Meta que administra la página
-              oficial de AutoDealers.
+              oficial de AutoDealersOnline.
             </p>
           ) : (
             <p className="text-sm text-amber-900 mb-4">
@@ -615,7 +773,7 @@ export default function AdminIntegrationsPage() {
               }
               className="bg-amber-600 text-white py-2 px-4 rounded-lg hover:bg-amber-700 disabled:opacity-50"
             >
-              {savingPlatformPage ? 'Guardando...' : 'Usar esta página para AutoDealers'}
+              {savingPlatformPage ? 'Guardando...' : 'Usar esta página para AutoDealersOnline'}
             </button>
             <button
               type="button"
@@ -631,8 +789,9 @@ export default function AdminIntegrationsPage() {
       <div className="bg-white rounded-lg shadow p-6 mb-6">
         <h2 className="text-xl font-semibold mb-2">📣 Anuncios automáticos al registrarse</h2>
         <p className="text-sm text-gray-600 mb-4">
-          Al crear un vendedor o concesionario: (1) publica en la página de Facebook de AutoDealers y (2) en su
-          propia página si ya conectó Meta — si aún no, se publica cuando conecte Integraciones.
+          Al crear un vendedor o concesionario se publica en Facebook e Instagram de AutoDealersOnline
+          (con la foto de perfil del miembro) y en sus propias redes si ya conectaron Meta. Todas las
+          publicaciones incluyen imagen obligatoria.
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <label className="flex items-center gap-2 text-sm">
@@ -643,7 +802,17 @@ export default function AdminIntegrationsPage() {
                 setRegistrationSocial((s) => ({ ...s, platformFacebookEnabled: e.target.checked }))
               }
             />
-            Anunciar en página de AutoDealers
+            Anunciar en Facebook de AutoDealersOnline
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={registrationSocial.platformInstagramEnabled}
+              onChange={(e) =>
+                setRegistrationSocial((s) => ({ ...s, platformInstagramEnabled: e.target.checked }))
+              }
+            />
+            Anunciar en Instagram de AutoDealersOnline
           </label>
           <label className="flex items-center gap-2 text-sm">
             <input
@@ -653,7 +822,17 @@ export default function AdminIntegrationsPage() {
                 setRegistrationSocial((s) => ({ ...s, tenantFacebookEnabled: e.target.checked }))
               }
             />
-            Anunciar en página del vendedor/dealer (si conectó Facebook)
+            Anunciar en Facebook del vendedor/dealer (si conectó Meta)
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={registrationSocial.tenantInstagramEnabled}
+              onChange={(e) =>
+                setRegistrationSocial((s) => ({ ...s, tenantInstagramEnabled: e.target.checked }))
+              }
+            />
+            Anunciar en Instagram del vendedor/dealer (si conectó Meta)
           </label>
           <label className="flex items-center gap-2 text-sm">
             <input
@@ -679,7 +858,7 @@ export default function AdminIntegrationsPage() {
         <div className="space-y-4 mb-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Mensaje página AutoDealers
+              Mensaje página AutoDealersOnline
             </label>
             <textarea
               className="w-full border rounded-lg px-3 py-2 text-sm"

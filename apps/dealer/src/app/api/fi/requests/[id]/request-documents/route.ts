@@ -4,8 +4,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { requireTenantFeature } from '@/lib/membership-middleware';
 import { createDocumentRequest, getFIRequestById, getFIClientById } from '@autodealers/crm';
-import { getFirestore } from '@autodealers/core';
+import { getEmailCredentials, getFirestore } from '@autodealers/core';
 import { EmailService } from '@autodealers/messaging';
+import { buildPublicWebUrl } from '@autodealers/shared/platform-urls';
 
 const db = getFirestore();
 
@@ -20,7 +21,7 @@ export async function POST(
     }
 
     // Verificar que el usuario es dealer o tiene permisos F&I
-    const allowedRoles = ['dealer', 'master_dealer', 'manager', 'dealer_admin'];
+    const allowedRoles = ['dealer', 'master_dealer', 'manager', 'dealer_admin', 'fi_manager'];
     if (!allowedRoles.includes(user.role as string)) {
       return NextResponse.json(
         { error: 'No tienes permiso para solicitar documentos' },
@@ -72,12 +73,13 @@ export async function POST(
     );
 
     // Generar link público
-    const publicUrl = `${process.env.NEXT_PUBLIC_PUBLIC_WEB_URL || 'http://localhost:3000'}/fi/documents/${docRequest.token}`;
+    const publicUrl = buildPublicWebUrl(`/fi/documents/${docRequest.token}`);
 
     // Enviar email al cliente con el link
+    let emailSent = false;
+    let emailWarning: string | undefined;
     try {
       if (client.email) {
-        const { getEmailCredentials } = await import('@autodealers/core/src/credentials');
         const emailCreds = await getEmailCredentials();
         if (emailCreds?.apiKey) {
           const emailProvider = emailCreds.apiKey.includes('re_') || emailCreds.apiKey.startsWith('re_') ? 'resend' : 'sendgrid';
@@ -87,7 +89,7 @@ export async function POST(
             `- ${doc.name}${doc.description ? ` (${doc.description})` : ''}`
           ).join('<br>');
 
-          await emailService.sendEmail({
+          const sendResult = await emailService.sendEmail({
             tenantId: user.tenantId,
             channel: 'email',
             direction: 'outbound',
@@ -111,18 +113,31 @@ export async function POST(
               subject: 'Solicitud de Documentos - Financiamiento',
             },
           });
+          if (sendResult.status === 'failed') {
+            emailWarning = sendResult.error || 'El proveedor de email rechazó el envío.';
+          } else {
+            emailSent = true;
+          }
+        } else {
+          emailWarning = 'Servicio de email no configurado. Copia el link y envíalo manualmente.';
         }
+      } else {
+        emailWarning = 'El cliente no tiene email registrado. Copia el link y envíalo manualmente.';
       }
     } catch (emailError) {
       console.error('Error enviando email al cliente:', emailError);
-      // No fallar si el email falla, pero informar al usuario
+      emailWarning = 'No se pudo enviar el email al cliente. Copia el link y envíalo manualmente.';
     }
 
     return NextResponse.json({
       success: true,
       documentRequest: docRequest,
       publicUrl,
-      message: 'Solicitud de documentos creada. El cliente recibirá un email con el link.',
+      emailSent,
+      emailWarning,
+      message: emailSent
+        ? 'Solicitud de documentos creada. El cliente recibió un email con el link.'
+        : 'Solicitud de documentos creada, pero el email no fue enviado automáticamente.',
     });
   } catch (error: any) {
     console.error('Error en POST /api/fi/requests/[id]/request-documents:', error);

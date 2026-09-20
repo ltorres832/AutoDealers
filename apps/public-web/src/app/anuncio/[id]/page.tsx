@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getQuickListingById, incrementQuickListingView } from '@autodealers/core';
+import { buildTelHref, buildWhatsAppHref, normalizePhoneDigits } from '@/lib/contact-links';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,10 +21,6 @@ function mileageLabel(n: number): string {
   const s = n.toLocaleString('es-PR');
   if (n === 1) return `${s} milla`;
   return `${s} millas`;
-}
-
-function digitsOnly(s: string): string {
-  return s.replace(/\D+/g, '');
 }
 
 function conditionEs(c: string): string {
@@ -64,13 +61,12 @@ export default async function AnuncioParticularPage({ params }: { params: Promis
 
   incrementQuickListingView(id).catch(() => {});
 
-  const phoneDigits = digitsOnly(item.contactPhone);
-  const waHref =
-    phoneDigits.length > 0
-      ? `https://wa.me/${phoneDigits}?text=${encodeURIComponent(
-          `Hola ${item.contactName}, vi tu anuncio del ${item.year} ${item.make} ${item.model}.`
-        )}`
-      : null;
+  const phoneDigits = normalizePhoneDigits(item.contactPhone);
+  const telHref = buildTelHref(item.contactPhone);
+  const waHref = buildWhatsAppHref(
+    item.contactPhone,
+    `Hola ${item.contactName}, vi tu anuncio del ${item.year} ${item.make} ${item.model}.`
+  );
 
   return (
     <div className="min-h-screen bg-slate-50 pb-16">
@@ -175,7 +171,7 @@ export default async function AnuncioParticularPage({ params }: { params: Promis
           <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row gap-3">
             {phoneDigits ? (
               <a
-                href={`tel:+${phoneDigits}`}
+                href={telHref || undefined}
                 className="flex-1 py-3 bg-primary-600 text-white text-center font-bold rounded-xl hover:bg-primary-700"
               >
                 Llamar a {item.contactName}

@@ -10,7 +10,7 @@ export async function POST(_request: NextRequest) {
     {
       error: 'payment_required',
       message:
-        'Debes registrar tu método de pago en el checkout. Incluye 7 días de prueba gratis; el cobro mensual inicia automáticamente al terminar.',
+        'Debes registrar tu método de pago en el checkout. Incluye 14 días de prueba gratis; el cobro mensual inicia automáticamente al terminar.',
       requiresCheckout: true,
     },
     { status: 402 }
