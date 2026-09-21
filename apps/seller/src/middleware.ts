@@ -16,9 +16,13 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Permitir acceso si hay algún token (cookie, header, o sessionId de admin)
+  // Los tokens de admin (sessionIds) serán validados en verifyAuth del seller app
   const authToken = request.cookies.get('authToken');
+  const authHeader = request.headers.get('authorization');
+  const hasToken = authToken || authHeader;
 
-  if (!authToken && !pathname.startsWith('/login')) {
+  if (!hasToken && !pathname.startsWith('/login')) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(loginUrl);

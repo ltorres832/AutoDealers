@@ -3,6 +3,7 @@ import { getAuth } from '@autodealers/core';
 import { AUTH_PROFILE_COOKIE, resolveUsersProfileForAuthApp } from '@autodealers/core/app-passwords';
 import { cookies } from 'next/headers';
 import { DEALER_PORTAL_ROLES, canAccessDealerApp, isDealerPortalRole, isSellerRole } from './dealer-portal-roles';
+import * as admin from 'firebase-admin';
 
 const auth = getAuth();
 
@@ -54,7 +55,8 @@ export async function verifyAuth(request: NextRequest): Promise<AuthUser | null>
     const authHeader = request.headers.get('authorization');
     if (authHeader) {
       const headerToken = authHeader.replace('Bearer ', '').trim();
-      if (headerToken && headerToken.length > 200) {
+      // Permitir cualquier token, incluyendo sessionIds del panel admin
+      if (headerToken) {
         token = headerToken;
       }
     }
@@ -121,6 +123,95 @@ export async function verifyAuth(request: NextRequest): Promise<AuthUser | null>
       }
     } catch {
       /* continuar */
+    }
+
+    // Verificar si es un sessionId del panel admin (64 caracteres hex)
+    const ADMIN_SESSION_RE = /^[a-f0-9]{64}$/i;
+    if (ADMIN_SESSION_RE.test(token)) {
+      try {
+        const { getFirestore } = await import('@autodealers/core');
+        const db = getFirestore();
+        
+        // Verificar la sesión en Firestore
+        const sessionDoc = await db.collection('sessions').doc(token).get();
+        
+        if (!sessionDoc.exists) {
+          console.warn('⚠️ Admin session no encontrada en dealer app');
+          return null;
+        }
+        
+        const sessionData = sessionDoc.data();
+        
+        // Verificar expiración
+        if (sessionData?.expiresAt) {
+          const expiresAt = sessionData.expiresAt.toDate();
+          if (expiresAt < new Date()) {
+            console.warn('⚠️ Admin session expirada en dealer app');
+            await sessionDoc.ref.delete();
+            return null;
+          }
+        }
+        
+        // Actualizar última actividad
+        await sessionDoc.ref.update({
+          lastActivity: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        
+        // Buscar usuario (admin o regular)
+        const adminDoc = await db.collection('admin_users').doc(sessionData.userId).get();
+        let userDoc;
+        let userData;
+        let role;
+        
+        if (adminDoc.exists) {
+          const adminData = adminDoc.data();
+          if (adminData?.isActive === false) {
+            console.warn('⚠️ Admin inactivo en dealer app');
+            return null;
+          }
+          userData = adminData;
+          role = 'admin';
+        } else {
+          userDoc = await db.collection('users').doc(sessionData.userId).get();
+          if (!userDoc.exists) {
+            console.warn('⚠️ Usuario no encontrado en dealer app');
+            return null;
+          }
+          userData = userDoc.data();
+          role = userData?.role as string;
+          
+          if (userData?.status === 'suspended' || userData?.status === 'cancelled') {
+            console.warn('⚠️ Usuario suspendido en dealer app');
+            return null;
+          }
+        }
+        
+        // Verificar si el rol puede acceder al dealer app
+        if (!canAccessDealerApp(role)) {
+          console.warn('⚠️ Rol no tiene acceso al dealer app:', role);
+          return null;
+        }
+        
+        const primaryTenantId = userData?.tenantId as string | undefined;
+        const associatedDealers = (userData?.associatedDealers as string[] | undefined) ?? [];
+        const employeeTenantIds = (userData?.tenantIds as string[] | undefined) ?? [];
+        
+        return {
+          userId: sessionData.userId,
+          email: sessionData.email || userData?.email || '',
+          role: role || 'dealer',
+          tenantId: primaryTenantId,
+          primaryTenantId,
+          associatedDealers,
+          tenantIds: employeeTenantIds,
+          permissions: (userData?.permissions as Record<string, boolean> | undefined) || undefined,
+          dealerId: userData?.dealerId as string | undefined,
+          supportMode: role === 'admin', // Admins acceden en modo soporte
+        };
+      } catch (error: any) {
+        console.error('❌ Error verificando admin session en dealer app:', error.message);
+        return null;
+      }
     }
 
     if (token.length < 200) {

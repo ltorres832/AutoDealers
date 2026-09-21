@@ -8,11 +8,19 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const customer = await getCustomerFromRequest(request);
+
+    // Requerir autenticación obligatoria
+    if (!customer) {
+      return NextResponse.json(
+        { error: 'Mi Garage requiere autenticación. Por favor inicia sesión para acceder.' },
+        { status: 401 }
+      );
+    }
+
     const garage = await addManualGarageVehicle({
-      userId: customer?.id,
-      token: body.token ? String(body.token) : undefined,
-      email: body.email ? String(body.email) : customer?.email,
-      phone: body.phone ? String(body.phone) : customer?.phone,
+      userId: customer.id,
+      email: customer.email,
+      phone: customer.phone,
       year: Number(body.year),
       make: String(body.make || ''),
       model: String(body.model || ''),
@@ -43,7 +51,7 @@ export async function POST(request: NextRequest) {
       garage,
       selectedVehicle: selectedVehicle || null,
       suggestions,
-      authenticated: Boolean(customer),
+      authenticated: true,
     });
   } catch (error: any) {
     console.error('Error adding garage vehicle:', error);

@@ -142,6 +142,7 @@ export async function GET(
       },
       contactEmail: tenantData.contactEmail,
       contactPhone: tenantData.contactPhone,
+      whatsapp: tenantData.whatsapp,
       address: tenantData.address,
       website: tenantData.website,
       description: tenantData.description,

@@ -77,17 +77,44 @@ export default function VinDecodeField({
     try {
       stopScan();
       setScanning(true);
+      
+      console.log('📷 Iniciando escaneo de cámara...');
       const reader = new BrowserMultiFormatReader();
       readerRef.current = reader;
+      
       const devices = await BrowserMultiFormatReader.listVideoInputDevices();
+      console.log('📷 Dispositivos de video encontrados:', devices.length);
+      console.log('📷 Lista de dispositivos:', devices.map(d => ({ label: d.label, deviceId: d.deviceId })));
+      
+      if (devices.length === 0) {
+        throw new Error('No se encontraron cámaras disponibles. Verifica que tu dispositivo tenga cámara.');
+      }
+      
       const back =
-        devices.find((d) => /back|rear|environment|trasera/i.test(d.label)) || devices[devices.length - 1];
+        devices.find((d) => /back|rear|environment|trasera/i.test(d.label)) || devices[0];
       const deviceId = back?.deviceId;
-      const result = await reader.decodeOnceFromVideoDevice(deviceId, videoRef.current!);
+      console.log('📷 Usando dispositivo:', back?.label || 'Primer dispositivo', 'ID:', deviceId);
+      
+      if (!videoRef.current) {
+        throw new Error('Elemento de video no disponible');
+      }
+      
+      console.log('📷 Elemento de video encontrado, iniciando decodificación...');
+      console.log('📷 URL del elemento de video:', videoRef.current.src);
+      console.log('📷 Estado del elemento de video:', videoRef.current.readyState);
+      
+      // Esperar un momento para que el video esté listo
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      console.log('📷 Iniciando decodeOnceFromVideoDevice...');
+      const result = await reader.decodeOnceFromVideoDevice(deviceId, videoRef.current);
+      console.log('📷 Código detectado:', result.getText());
+      
       const raw = String(result.getText() || '')
         .toUpperCase()
         .replace(/[^A-HJ-NPR-Z0-9]/g, '');
       stopScan();
+      
       if (raw.length < 11) {
         setError('Código leído pero no parece un VIN. Pégalo manualmente.');
         return;
@@ -97,11 +124,16 @@ export default function VinDecodeField({
       setOk(`VIN leído: ${vin}`);
       await decodeVinValue(vin);
     } catch (err) {
+      console.error('❌ Error en escaneo:', err);
+      console.error('❌ Tipo de error:', err instanceof Error ? err.constructor.name : typeof err);
+      console.error('❌ Mensaje de error:', err instanceof Error ? err.message : String(err));
+      console.error('❌ Stack:', err instanceof Error ? err.stack : 'No stack available');
       stopScan();
+      const errorMessage = err instanceof Error ? err.message : String(err);
       setError(
         err instanceof Error && /NotAllowedError|Permission/i.test(err.name + err.message)
           ? 'Permiso de cámara denegado. Pega el VIN y pulsa Decodificar.'
-          : 'No se pudo escanear. Pega el VIN y pulsa Decodificar.'
+          : `No se pudo escanear: ${errorMessage}. Pega el VIN y pulsa Decodificar.`
       );
     }
   }
@@ -161,7 +193,16 @@ export default function VinDecodeField({
         ) : null}
       </div>
       {scanning ? (
-        <video ref={videoRef} className="w-full max-w-md rounded-lg border bg-black aspect-video" muted playsInline />
+        <video 
+          ref={videoRef} 
+          className="w-full max-w-md rounded-lg border bg-black aspect-video" 
+          muted 
+          playsInline 
+          autoPlay
+          onLoadedMetadata={() => console.log('📷 Video metadata loaded')}
+          onPlay={() => console.log('📷 Video started playing')}
+          onError={(e) => console.error('📷 Video error:', e)}
+        />
       ) : null}
       <p className="text-xs text-slate-500">
         Escanea el código del cristal/puerta o pega el VIN. Completa marca/modelo/año automáticamente.

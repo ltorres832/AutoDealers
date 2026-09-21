@@ -19,6 +19,7 @@ interface WebsiteSettings {
     mediaMode?: WebsiteHeroMediaMode;
     backgroundImage?: string;
     backgroundVideoUrl?: string;
+    showText?: boolean;
   };
   sections: {
     about: {
@@ -377,6 +378,7 @@ export default function WebsiteSettingsPage() {
                 mediaMode={settings.hero.mediaMode || 'gradient'}
                 backgroundImage={settings.hero.backgroundImage}
                 backgroundVideoUrl={settings.hero.backgroundVideoUrl}
+                showText={settings.hero.showText}
                 uploading={mediaUploading}
                 disabled={saving}
                 onChange={(next) =>
@@ -387,6 +389,7 @@ export default function WebsiteSettingsPage() {
                       mediaMode: next.mediaMode,
                       backgroundImage: next.backgroundImage,
                       backgroundVideoUrl: next.backgroundVideoUrl,
+                      showText: next.showText,
                     },
                   })
                 }

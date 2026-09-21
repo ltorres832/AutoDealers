@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   attachGarageToAccount,
-  getGarageByToken,
   getGarageByUserId,
   pickSelectedGarageVehicle,
   suggestBusinessesForVehicle,
@@ -12,23 +11,25 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.nextUrl.searchParams.get('token') || '';
     const vehicleId = request.nextUrl.searchParams.get('vehicleId') || '';
     const customer = await getCustomerFromRequest(request);
 
-    let garage = null;
-    if (customer) {
-      garage = await attachGarageToAccount({
-        userId: customer.id,
-        email: customer.email,
-        phone: customer.phone,
-        token: token || undefined,
-      });
-      if (!garage) {
-        garage = await getGarageByUserId(customer.id);
-      }
-    } else if (token) {
-      garage = await getGarageByToken(token);
+    // Requerir autenticación obligatoria
+    if (!customer) {
+      return NextResponse.json(
+        { error: 'Mi Garage requiere autenticación. Por favor inicia sesión para acceder.' },
+        { status: 401 }
+      );
+    }
+
+    let garage = await attachGarageToAccount({
+      userId: customer.id,
+      email: customer.email,
+      phone: customer.phone,
+    });
+    
+    if (!garage) {
+      garage = await getGarageByUserId(customer.id);
     }
 
     if (!garage) {
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
         garage: null,
         selectedVehicle: null,
         suggestions: { groups: [] },
-        authenticated: Boolean(customer),
+        authenticated: true,
       });
     }
 
@@ -53,7 +54,7 @@ export async function GET(request: NextRequest) {
       garage,
       selectedVehicle: selectedVehicle || null,
       suggestions,
-      authenticated: Boolean(customer),
+      authenticated: true,
     });
   } catch (error: any) {
     console.error('Error loading garage:', error);

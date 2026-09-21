@@ -63,44 +63,27 @@ function isActivatingOrPublishing(
 
 /**
  * Genera un número de stock único para un vehículo
- * Formato: STK-YYYYMMDD-XXXX (donde XXXX es un número secuencial)
+ * Formato: STK-YYYYMMDD-XXXX (donde XXXX son los últimos 4 dígitos del VIN)
  */
-async function generateStockNumber(tenantId: string): Promise<string> {
+async function generateStockNumber(tenantId: string, vin?: string): Promise<string> {
   const today = new Date();
   const dateStr = today.toISOString().split('T')[0].replace(/-/g, ''); // YYYYMMDD
 
-  // Buscar el último número de stock del día para este tenant
-  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
-
   try {
-    const vehiclesSnapshot = await getDb()
-      .collection('tenants')
-      .doc(tenantId)
-      .collection('vehicles')
-      .where('stockNumber', '>=', `STK-${dateStr}-0001`)
-      .where('stockNumber', '<=', `STK-${dateStr}-9999`)
-      .get();
+    // Si se proporciona VIN, usar los últimos 4 dígitos
+    if (vin && vin.length >= 4) {
+      const lastFourDigits = vin.slice(-4).toUpperCase();
+      return `STK-${dateStr}-${lastFourDigits}`;
+    }
 
-    // Encontrar el número más alto del día
-    let maxNumber = 0;
-    vehiclesSnapshot.docs.forEach((doc: any) => {
-      const stockNumber = doc.data()?.stockNumber;
-      if (stockNumber && stockNumber.startsWith(`STK-${dateStr}-`)) {
-        const numberPart = parseInt(stockNumber.split('-')[2] || '0');
-        if (numberPart > maxNumber) {
-          maxNumber = numberPart;
-        }
-      }
-    });
-
-    // Generar nuevo número (incrementar en 1)
-    const nextNumber = (maxNumber + 1).toString().padStart(4, '0');
-    return `STK-${dateStr}-${nextNumber}`;
+    // Fallback sin VIN: usar timestamp
+    console.warn('⚠️ No se proporcionó VIN, usando timestamp para stockNumber');
+    const timestamp = Date.now().toString().slice(-4); // Últimos 4 dígitos del timestamp
+    return `STK-${dateStr}-${timestamp}`;
   } catch (error) {
     // Si hay error, usar timestamp como fallback
-    console.warn('⚠️ Error generando número de stock secuencial, usando timestamp:', error);
-    const timestamp = Date.now().toString().slice(-6); // Últimos 6 dígitos del timestamp
+    console.warn('⚠️ Error generando número de stock, usando timestamp:', error);
+    const timestamp = Date.now().toString().slice(-4); // Últimos 4 dígitos del timestamp
     return `STK-${dateStr}-${timestamp}`;
   }
 }
@@ -129,13 +112,15 @@ export async function createVehicle(
   if (!stockNumber || (typeof stockNumber === 'string' && stockNumber.trim() === '')) {
     console.log('📦 Generando número de stock automáticamente para tenant:', tenantId);
     try {
-      stockNumber = await generateStockNumber(tenantId);
+      // Obtener el VIN para usar los últimos 4 dígitos
+      const vin = (vehicleData as any).vin || (vehicleData as any).specifications?.vin;
+      stockNumber = await generateStockNumber(tenantId, vin);
       console.log('✅ Número de stock generado automáticamente:', stockNumber);
     } catch (error: any) {
       console.error('❌ Error generando stockNumber:', error.message);
       // Fallback: usar timestamp
       const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
-      const timestamp = Date.now().toString().slice(-6);
+      const timestamp = Date.now().toString().slice(-4);
       stockNumber = `STK-${dateStr}-${timestamp}`;
       console.log('⚠️ Usando fallback:', stockNumber);
     }
@@ -146,7 +131,7 @@ export async function createVehicle(
   // Asegurar que siempre tengamos un stockNumber válido (doble verificación)
   if (!stockNumber || (typeof stockNumber === 'string' && stockNumber.trim() === '')) {
     const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
-    const timestamp = Date.now().toString().slice(-6);
+    const timestamp = Date.now().toString().slice(-4);
     stockNumber = `STK-${dateStr}-${timestamp}`;
     console.log('⚠️ Generando stockNumber de emergencia (doble verificación):', stockNumber);
   }
@@ -681,7 +666,10 @@ export async function updateVehicle(
       // Si no existe, generar uno nuevo automáticamente
       console.log('📦 No hay stockNumber existente, generando uno automáticamente...');
       try {
-        const newStockNumber = await generateStockNumber(tenantId);
+        // Obtener el VIN para usar los últimos 4 dígitos
+        const vin = (updates as any).vin || (updates as any).specifications?.vin || 
+                    existingData?.vin || existingData?.specifications?.vin;
+        const newStockNumber = await generateStockNumber(tenantId, vin);
         cleanUpdates.stockNumber = newStockNumber;
         console.log('✅ StockNumber generado automáticamente:', newStockNumber);
 
@@ -703,7 +691,7 @@ export async function updateVehicle(
         console.error('❌ Error generando stockNumber:', error.message);
         // Fallback: usar timestamp
         const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
-        const timestamp = Date.now().toString().slice(-6);
+        const timestamp = Date.now().toString().slice(-4);
         const fallbackStockNumber = `STK-${dateStr}-${timestamp}`;
         cleanUpdates.stockNumber = fallbackStockNumber;
         console.log('⚠️ Usando fallback:', fallbackStockNumber);

@@ -7,10 +7,12 @@ export type WebsiteHeroMediaEditorProps = {
   mediaMode: WebsiteHeroMediaMode;
   backgroundImage?: string;
   backgroundVideoUrl?: string;
+  showText?: boolean;
   onChange: (next: {
     mediaMode: WebsiteHeroMediaMode;
     backgroundImage?: string;
     backgroundVideoUrl?: string;
+    showText?: boolean;
   }) => void;
   onUploadImage: (file: File) => Promise<string | null>;
   onUploadVideo: (file: File) => Promise<string | null>;
@@ -40,6 +42,7 @@ export function WebsiteHeroMediaEditor({
   mediaMode,
   backgroundImage,
   backgroundVideoUrl,
+  showText = true,
   onChange,
   onUploadImage,
   onUploadVideo,
@@ -53,6 +56,7 @@ export function WebsiteHeroMediaEditor({
     mediaMode: WebsiteHeroMediaMode;
     backgroundImage?: string;
     backgroundVideoUrl?: string;
+    showText?: boolean;
   }>) {
     onChange({
       mediaMode: partial.mediaMode ?? mediaMode,
@@ -62,6 +66,7 @@ export function WebsiteHeroMediaEditor({
         partial.backgroundVideoUrl !== undefined
           ? partial.backgroundVideoUrl
           : backgroundVideoUrl,
+      showText: partial.showText !== undefined ? partial.showText : showText,
     });
   }
 
@@ -252,6 +257,28 @@ export function WebsiteHeroMediaEditor({
           </p>
         </div>
       ) : null}
+
+      {(mediaMode === 'image' || mediaMode === 'video') && (
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showText}
+              disabled={disabled}
+              onChange={(e) => patch({ showText: e.target.checked })}
+              className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+            />
+            <div>
+              <span className="block text-sm font-medium text-gray-900">
+                Mostrar texto sobre el fondo
+              </span>
+              <span className="block text-xs text-gray-500">
+                Activa esto para mostrar el título y subtítulo sobre la imagen o video
+              </span>
+            </div>
+          </label>
+        </div>
+      )}
 
       {localError ? <p className="text-sm text-red-600">{localError}</p> : null}
     </div>

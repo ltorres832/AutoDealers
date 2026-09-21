@@ -47,8 +47,18 @@ export default function MiGaragePage() {
   useEffect(() => {
     const query = token ? `?token=${encodeURIComponent(token)}` : '';
     fetch(`/api/public/garage${query}`, { credentials: 'include' })
-      .then((res) => res.json())
+      .then((res) => {
+        if (res.status === 401) {
+          // Redirigir a login si no está autenticado
+          if (typeof window !== 'undefined') {
+            window.location.href = '/login?redirect=/mi-garage';
+          }
+          return null;
+        }
+        return res.json();
+      })
       .then((json) => {
+        if (!json) return;
         setData(json);
         if (json?.garage?.accessToken) {
           window.localStorage.setItem('garageToken', json.garage.accessToken);

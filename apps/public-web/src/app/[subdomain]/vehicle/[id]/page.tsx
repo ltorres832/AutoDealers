@@ -10,11 +10,14 @@ import ChatWidget from '../../../../components/ChatWidget';
 import VehicleServiceRecommendations from '../../../../components/VehicleServiceRecommendations';
 import { getVehiclePhotos, handleImageError } from '../../../../lib/vehicle-image';
 import { getCatalogClickContext } from '@/lib/catalog-vehicle-click';
+import { buildWhatsAppHref } from '../../../../lib/contact-links';
 
 interface Vehicle {
   id: string;
   tenantId: string;
   tenantName?: string;
+  tenantPhone?: string;
+  tenantWhatsapp?: string;
   sellerId?: string | null;
   sellerName?: string;
   sellerPhoto?: string;
@@ -155,6 +158,10 @@ export default function VehicleDetailPage() {
     welcomeMessage?: string;
     enabled?: boolean;
   } | null>(null);
+  const [tenantData, setTenantData] = useState<{
+    contactPhone?: string;
+    whatsapp?: string;
+  } | null>(null);
 
   const sellerDisplayName =
     vehicle?.sellerName?.trim() ||
@@ -179,6 +186,11 @@ export default function VehicleDetailPage() {
         } else {
           setPublicSiteChat({ enabled: true });
         }
+        // Guardar información de contacto del tenant
+        setTenantData({
+          contactPhone: d.tenant?.contactPhone,
+          whatsapp: d.tenant?.whatsapp,
+        });
       } catch {
         if (!cancelled) setPublicSiteChat({ enabled: true });
       }
@@ -1043,7 +1055,10 @@ export default function VehicleDetailPage() {
                         </button>
                       )}
                   <a
-                    href={`https://wa.me/?text=Hola, estoy interesado en el vehículo: ${vehicle.year} ${vehicle.make} ${vehicle.model} - ${vehicle.currency || '$'} ${(vehicle.price || 0).toLocaleString()}`}
+                    href={buildWhatsAppHref(
+                      tenantData?.whatsapp || tenantData?.contactPhone,
+                      `Hola, estoy interesado en el vehículo: ${vehicle.year} ${vehicle.make} ${vehicle.model} - ${vehicle.currency || '$'} ${(vehicle.price || 0).toLocaleString()}`
+                    ) || '#'}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-4 rounded-xl hover:from-green-600 hover:to-emerald-700 font-semibold text-lg text-center block shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
@@ -1054,7 +1069,7 @@ export default function VehicleDetailPage() {
                     Contactar por WhatsApp
                   </a>
                   <a
-                    href={`tel:+1234567890`}
+                    href={`tel:${tenantData?.contactPhone || ''}`}
                     className="w-full bg-gradient-to-r from-primary-600 to-primary-600 text-white px-6 py-4 rounded-xl hover:from-primary-700 hover:to-primary-700 font-semibold text-lg text-center block shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
                   >
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

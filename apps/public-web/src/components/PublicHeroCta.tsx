@@ -17,6 +17,7 @@ export type PublicHeroCtaProps = {
     backgroundImage?: string;
     backgroundVideoUrl?: string;
     heroVideoUrl?: string;
+    showText?: boolean;
   } | null;
   /** Gradiente cuando mediaMode === 'gradient' o no hay media usable */
   gradientCss: string;
@@ -52,6 +53,9 @@ export default function PublicHeroCta({
     media.mediaMode === 'image' && Boolean(media.backgroundImage);
   const useVideo = media.mediaMode === 'video' && Boolean(videoParsed);
   const useCover = useImage || useVideo;
+  
+  // Determinar si mostrar texto basado en showText setting
+  const shouldShowText = media.showText !== false;
 
   return (
     <section
@@ -84,17 +88,19 @@ export default function PublicHeroCta({
         </div>
       ) : null}
 
-      <div className={contentClassName}>
-        <h1 className="mx-auto mb-4 max-w-4xl px-2 text-3xl font-bold break-words whitespace-normal sm:text-4xl md:text-5xl">
-          {title}
-        </h1>
-        {subtitle ? (
-          <p className="mx-auto mb-8 max-w-3xl px-2 text-base break-words whitespace-normal text-white/90 sm:text-xl">
-            {subtitle}
-          </p>
-        ) : null}
-        {cta}
-      </div>
+      {shouldShowText ? (
+        <div className={contentClassName}>
+          <h1 className="mx-auto mb-4 max-w-4xl px-2 text-3xl font-bold break-words whitespace-normal sm:text-4xl md:text-5xl">
+            {title}
+          </h1>
+          {subtitle ? (
+            <p className="mx-auto mb-8 max-w-3xl px-2 text-base break-words whitespace-normal text-white/90 sm:text-xl">
+              {subtitle}
+            </p>
+          ) : null}
+          {cta}
+        </div>
+      ) : null}
     </section>
   );
 }

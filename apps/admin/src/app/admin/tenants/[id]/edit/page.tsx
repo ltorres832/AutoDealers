@@ -21,6 +21,7 @@ type HeroForm = {
   mediaMode: WebsiteHeroMediaMode;
   backgroundImage?: string;
   backgroundVideoUrl?: string;
+  showText?: boolean;
 };
 
 export default function EditTenantPage() {
@@ -117,6 +118,7 @@ export default function EditTenantPage() {
           mediaMode: media.mediaMode,
           backgroundImage: media.backgroundImage,
           backgroundVideoUrl: media.backgroundVideoUrl,
+          showText: media.showText,
         },
         settingsJson: JSON.stringify(
           t.settings && typeof t.settings === 'object' ? t.settings : {},
@@ -518,6 +520,7 @@ export default function EditTenantPage() {
               mediaMode={formData.hero.mediaMode || 'gradient'}
               backgroundImage={formData.hero.backgroundImage}
               backgroundVideoUrl={formData.hero.backgroundVideoUrl}
+              showText={formData.hero.showText}
               uploading={mediaUploading}
               disabled={saving}
               onChange={(next) =>
@@ -528,6 +531,7 @@ export default function EditTenantPage() {
                     mediaMode: next.mediaMode,
                     backgroundImage: next.backgroundImage,
                     backgroundVideoUrl: next.backgroundVideoUrl,
+                    showText: next.showText,
                   },
                 })
               }

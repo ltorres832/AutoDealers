@@ -5,6 +5,7 @@ export type WebsiteHeroMediaFields = {
   mediaMode: WebsiteHeroMediaMode;
   backgroundImage?: string;
   backgroundVideoUrl?: string;
+  showText?: boolean; // Controla si se muestra el texto cuando hay imagen/video
 };
 
 const VALID_MODES = new Set<WebsiteHeroMediaMode>(['gradient', 'image', 'video']);
@@ -39,10 +40,14 @@ export function normalizeWebsiteHeroMedia(
     else if (backgroundImage) mediaMode = 'image';
   }
 
+  // showText: por defecto true si no está especificado
+  const showText = h.showText === false ? false : true;
+
   return {
     mediaMode,
     backgroundImage,
     backgroundVideoUrl,
+    showText,
   };
 }
 
@@ -56,5 +61,6 @@ export function applyWebsiteHeroMediaToHero(
   else delete hero.backgroundImage;
   if (media.backgroundVideoUrl) hero.backgroundVideoUrl = media.backgroundVideoUrl;
   else delete hero.backgroundVideoUrl;
+  hero.showText = media.showText;
   return hero;
 }
