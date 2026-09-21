@@ -69,6 +69,18 @@ const nextConfig = {
           { key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' },
         ],
       },
+      {
+        source: '/mi-garage',
+        headers: [
+          { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
+        ],
+      },
+      {
+        source: '/mi-garage/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
+        ],
+      },
     ];
   },
   webpack: (config, { isServer, webpack }) => {
