@@ -1,3 +1,4 @@
+import {getSupportTabToken} from '@autodealers/shared/support-tab-session';
 // Utilidad para renovar tokens de Firebase automáticamente
 
 import { auth } from './firebase-client';
@@ -6,6 +7,7 @@ import { auth } from './firebase-client';
  * Obtiene un token fresco de Firebase Auth y actualiza la cookie
  */
 export async function refreshAuthToken(): Promise<string | null> {
+  const support=getSupportTabToken();if(support)return support;
   try {
     if (!auth || !auth.currentUser) {
       console.log('⚠️ refreshAuthToken: No hay usuario autenticado');
@@ -38,6 +40,7 @@ export async function refreshAuthToken(): Promise<string | null> {
  * Verifica si el token está expirado y lo renueva si es necesario
  */
 export async function ensureFreshToken(): Promise<string | null> {
+  const support=getSupportTabToken();if(support)return support;
   try {
     if (!auth || !auth.currentUser) {
       return null;

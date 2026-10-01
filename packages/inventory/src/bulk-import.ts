@@ -3,6 +3,9 @@
  * Matching por VIN o número de stock, decodificación VIN (NHTSA vPIC) y commit por lotes.
  */
 import * as XLSX from 'xlsx';
+import { normalizeVpicRecord } from './vin-details';
+import type { VinDecodeResult } from '@autodealers/shared/vehicle-equipment';
+export type { VinDecodeResult } from '@autodealers/shared/vehicle-equipment';
 import { getFirestore, getFirestoreFieldValue } from '@autodealers/shared';
 import {
   normalizeVin,
@@ -267,110 +270,35 @@ export {
   toVinNormalized,
 };
 
-export interface VinDecodeResult {
-  make?: string;
-  model?: string;
-  year?: number;
-  bodyType?: string;
-  engine?: string;
-  fuelType?: string;
-  transmission?: string;
-  doors?: number;
-}
+const VIN_CACHE_VERSION = 2;
+const VIN_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
-const VPIC_BODY_MAP: Record<string, string> = {
-  'sport utility vehicle (suv)/multi-purpose vehicle (mpv)': 'suv',
-  'sedan/saloon': 'sedan',
-  pickup: 'pickup-truck',
-  truck: 'pickup-truck',
-  coupe: 'coupe',
-  hatchback: 'hatchback',
-  'hatchback/liftback/notchback': 'hatchback',
-  wagon: 'wagon',
-  'convertible/cabriolet': 'convertible',
-  minivan: 'minivan',
-  van: 'van',
-  'cargo van': 'van',
-  crossover: 'crossover',
-};
-
-const VPIC_FUEL_MAP: Record<string, string> = {
-  gasoline: 'gasoline',
-  diesel: 'diesel',
-  electric: 'electric',
-  'battery electric vehicle (bev)': 'electric',
-  'hybrid electric vehicle (hev)': 'hybrid',
-  'plug-in hybrid electric vehicle (phev)': 'plug-in-hybrid',
-  'flexible fuel vehicle (ffv)': 'gasoline',
-};
-
-/**
- * Decodifica un VIN con la API pública NHTSA vPIC (gratis, sin key).
- * Cachea el resultado en Firestore (`vin_decode_cache/{vin}`) para no repetir llamadas.
- */
+/** Decode all available vPIC fields. Never permanently cache unavailable VINs. */
 export async function decodeVin(vin: string): Promise<VinDecodeResult | null> {
   const v = normalizeVin(vin);
   if (!isValidVinFormat(v)) return null;
-
   const cacheRef = getDb().collection('vin_decode_cache').doc(v);
   try {
     const cached = await cacheRef.get();
-    if (cached.exists) {
-      const data = cached.data();
-      return (data?.result as VinDecodeResult) ?? null;
-    }
-  } catch {
-    // cache es best-effort
-  }
-
+    const data = cached.exists ? cached.data() : null;
+    const cachedAt = data?.cachedAt?.toMillis?.() || 0;
+    if (data?.version === VIN_CACHE_VERSION && data?.result?.equipment && Date.now() - cachedAt < VIN_CACHE_TTL_MS) return data.result as VinDecodeResult;
+  } catch { /* cache is optional */ }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
   let result: VinDecodeResult | null = null;
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 10000);
-    const res = await fetch(
-      `https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/${encodeURIComponent(v)}?format=json`,
-      { signal: controller.signal }
-    );
-    clearTimeout(timer);
-    if (res.ok) {
-      const json: any = await res.json();
-      const r = json?.Results?.[0];
-      if (r && (r.Make || r.Model || r.ModelYear)) {
-        result = {};
-        if (r.Make) result.make = titleCase(String(r.Make));
-        if (r.Model) result.model = String(r.Model);
-        const year = Number(r.ModelYear);
-        if (Number.isFinite(year) && year > 1950) result.year = year;
-        const body = normalizeHeader(String(r.BodyClass || ''));
-        if (body && VPIC_BODY_MAP[body]) result.bodyType = VPIC_BODY_MAP[body];
-        const engineParts = [r.EngineCylinders ? `${r.EngineCylinders} cil` : '', r.DisplacementL ? `${r.DisplacementL}L` : '']
-          .filter(Boolean)
-          .join(' ');
-        if (engineParts) result.engine = engineParts;
-        const fuel = normalizeHeader(String(r.FuelTypePrimary || ''));
-        if (fuel && VPIC_FUEL_MAP[fuel]) result.fuelType = VPIC_FUEL_MAP[fuel];
-        const trans = normalizeHeader(String(r.TransmissionStyle || ''));
-        if (trans.includes('automatic')) result.transmission = 'automatic';
-        else if (trans.includes('manual')) result.transmission = 'manual';
-        else if (trans.includes('cvt')) result.transmission = 'cvt';
-        const doors = Number(r.Doors);
-        if (Number.isFinite(doors) && doors > 0) result.doors = doors;
-      }
-    }
+    const response = await fetch('https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValuesExtended/' + encodeURIComponent(v) + '?format=json', { signal: controller.signal });
+    if (!response.ok) return null;
+    const json = await response.json();
+    const raw = json?.Results?.[0];
+    if (raw && typeof raw === 'object') result = normalizeVpicRecord(raw, v);
   } catch (error) {
-    console.warn('decodeVin: fallo NHTSA vPIC para', v, error instanceof Error ? error.message : error);
-    return null;
+    console.warn('VIN lookup unavailable:', error instanceof Error ? error.message : 'network error');
+  } finally { clearTimeout(timer); }
+  if (result) {
+    try { await cacheRef.set({ version: VIN_CACHE_VERSION, result, cachedAt: getFirestoreFieldValue().serverTimestamp() }); } catch { /* cache is optional */ }
   }
-
-  try {
-    await cacheRef.set({
-      result: result ?? null,
-      cachedAt: getFirestoreFieldValue().serverTimestamp(),
-    });
-  } catch {
-    // cache es best-effort
-  }
-
   return result;
 }
 

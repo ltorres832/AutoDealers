@@ -1,4 +1,7 @@
 'use client';
+import VehicleDescriptionEditor from '@autodealers/shared/components/VehicleDescriptionEditor';
+import {descriptionVehicleFromForm,officialVehicleDescription,type DescriptionMeta} from '@autodealers/shared/vehicle-description';
+
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRealtimeInventory, type RealtimeInventoryVehicle } from '@/hooks/useRealtimeInventory';
@@ -17,6 +20,8 @@ import { useFeatureFlag } from '@/hooks/useFeatureFlag';
 import UpgradeModal from '@/components/UpgradeModal';
 import ShareVehicleModal from '@/components/ShareVehicleModal';
 import VinDecodeField from '@/components/VinDecodeField';
+import VehicleEquipmentEditor from '@autodealers/shared/components/VehicleEquipmentEditor';
+import { equipmentFromSpecifications, applyVinDecode, changeEquipmentVin, equipmentForForm, applyEquipmentEdit } from '@autodealers/shared/vehicle-equipment';
 
 type SessionUser = { tenantId?: string } | null;
 type InventoryFilter = 'all' | 'available' | 'sold' | 'hidden';
@@ -315,9 +320,22 @@ function EditVehicleMediaModal({
   const [videos, setVideos] = useState<File[]>([]);
   const [existingPhotos, setExistingPhotos] = useState<string[]>(vehicle.photos || []);
   const [existingVideos, setExistingVideos] = useState<string[]>(vehicle.videos || []);
-  const [vin, setVin] = useState(
-    String((vehicle as { vin?: string }).vin || vehicle.specifications?.vin || '')
-  );
+  const [description,setDescription] = useState(officialVehicleDescription(vehicle as any));
+  const [descriptionMeta,setDescriptionMeta] = useState<DescriptionMeta>({expectedRevision:(vehicle as any).descriptionRevision||0});
+  const savedSpecs = vehicle.specifications || {};
+  const [technical, setTechnical] = useState({
+    packages: (vehicle as any).packages || [], accessories: (vehicle as any).accessories || [], modifications: (vehicle as any).modifications || [], confirmedNotes: (vehicle as any).confirmedNotes || '',
+    vin: String(vehicle.vin || savedSpecs.vin || ''),
+    make: vehicle.make, model: vehicle.model, year: vehicle.year,
+    bodyType: vehicle.bodyType || String(savedSpecs.bodyType || ''),
+    transmission: String(savedSpecs.transmission || ''), fuelType: String(savedSpecs.fuelType || ''),
+    engine: String(savedSpecs.engine || ''), driveType: String(savedSpecs.driveType || ''),
+    doors: String(savedSpecs.doors || ''), seats: String(savedSpecs.seats || ''),
+    interiorColor: String(savedSpecs.interiorColor || ''), exteriorColor: String(savedSpecs.exteriorColor || savedSpecs.color || ''),
+    mpgCity: String(savedSpecs.mpgCity || ''), mpgHighway: String(savedSpecs.mpgHighway || ''),
+    equipment: equipmentFromSpecifications(savedSpecs, String(vehicle.vin || savedSpecs.vin || '')),
+  });
+  const vin = technical.vin;
   const [loading, setLoading] = useState(false);
 
   async function uploadFile(file: File): Promise<string | null> {
@@ -360,9 +378,19 @@ function EditVehicleMediaModal({
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          description, masterDescription:description, descriptionMeta, mileageUnit:'mi',
+          packages:technical.packages,accessories:technical.accessories,modifications:technical.modifications,confirmedNotes:technical.confirmedNotes,
           photos: photoUrls,
           videos: videoUrls,
           vin: vinCheck.toUpperCase(),
+          make: technical.make, model: technical.model, year: technical.year, bodyType: technical.bodyType,
+          specifications: {
+            ...savedSpecs, vin: vinCheck.toUpperCase(), equipment: equipmentForForm(technical),
+            engine: technical.engine, transmission: technical.transmission, fuelType: technical.fuelType, driveType: technical.driveType,
+            interiorColor: technical.interiorColor, exteriorColor: technical.exteriorColor, color: technical.exteriorColor,
+            doors: technical.doors ? Number(technical.doors) : null, seats: technical.seats ? Number(technical.seats) : null,
+            mpgCity: technical.mpgCity ? Number(technical.mpgCity) : null, mpgHighway: technical.mpgHighway ? Number(technical.mpgHighway) : null,
+          },
         }),
       });
       if (!res.ok) {
@@ -389,9 +417,15 @@ function EditVehicleMediaModal({
             enabled={vinCameraEnabled}
             required
             value={vin}
-            onChange={setVin}
-            onDecoded={() => undefined}
+            onChange={vin => setTechnical(prev => changeEquipmentVin(prev, vin))}
+            onDecoded={result => setTechnical(prev => applyVinDecode(prev, result))}
           />
+          <div className="grid grid-cols-2 gap-3">
+            {(['make', 'model', 'engine', 'bodyType'] as const).map((key, index) => <label key={key} className="text-sm">{['Marca', 'Modelo', 'Motor', 'Carrocería'][index]}<input value={technical[key]} onChange={event => setTechnical(prev => ({ ...prev, [key]: event.target.value }))} className="mt-1 w-full rounded border px-2 py-2" /></label>)}
+            <label className="text-sm">Año<input type="number" value={technical.year} onChange={event => setTechnical(prev => ({ ...prev, year: Number(event.target.value) }))} className="mt-1 w-full rounded border px-2 py-2" /></label>
+          </div>
+          <VehicleDescriptionEditor vehicle={descriptionVehicleFromForm({...vehicle,...technical})} vehicleId={vehicle.id} value={description} onChange={setDescription} onMetaChange={setDescriptionMeta} onAdditionalDataChange={data=>setTechnical(prev=>({...prev,...data}))} onConfirmedEquipment={equipment=>setTechnical(prev=>applyEquipmentEdit(prev,equipment))} request={fetchWithAuth} disabled={loading} />
+          <VehicleEquipmentEditor value={equipmentForForm(technical)} onChange={equipment => setTechnical(prev => applyEquipmentEdit(prev, equipment))} disabled={loading} />
           <div>
             <label className="mb-2 block text-sm font-medium">Fotos existentes</label>
             {existingPhotos.length > 0 ? (

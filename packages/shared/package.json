@@ -4,6 +4,11 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
+    "./vehicle-marketing": {
+      "types": "./dist/vehicle-marketing.d.ts",
+      "import": "./dist/vehicle-marketing.js",
+      "require": "./dist/vehicle-marketing.js"
+    },
     ".": "./dist/index.js",
     "./components/StripePaymentForm": "./dist/components/StripePaymentForm.js",
     "./firebase-server": {
@@ -93,7 +98,26 @@
       "require": "./dist/delete-with-feedback.js",
       "types": "./dist/delete-with-feedback.d.ts"
     },
-    "./platform-visit-tracker": "./src/platform-visit-tracker.tsx"
+    "./platform-visit-tracker": "./src/platform-visit-tracker.tsx",
+    "./vehicle-equipment": {
+      "types": "./dist/vehicle-equipment.d.ts",
+      "import": "./dist/vehicle-equipment.js",
+      "require": "./dist/vehicle-equipment.js"
+    },
+    "./components/VehicleEquipmentEditor": {
+      "types": "./dist/components/VehicleEquipmentEditor.d.ts",
+      "import": "./dist/components/VehicleEquipmentEditor.js",
+      "require": "./dist/components/VehicleEquipmentEditor.js"
+    },
+    "./components/VehicleEquipmentDetails": {
+      "types": "./dist/components/VehicleEquipmentDetails.d.ts",
+      "import": "./dist/components/VehicleEquipmentDetails.js",
+      "require": "./dist/components/VehicleEquipmentDetails.js"
+    },
+    "./vehicle-description": "./src/vehicle-description.ts",
+    "./components/VehicleDescriptionEditor": "./src/components/VehicleDescriptionEditor.tsx",
+    "./components/VehiclePhotoOrder": "./src/components/VehiclePhotoOrder.tsx",
+    "./support-tab-session": "./src/support-tab-session.ts"
   },
   "scripts": {
     "build": "tsc",

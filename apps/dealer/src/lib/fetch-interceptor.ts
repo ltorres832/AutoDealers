@@ -1,3 +1,4 @@
+import {getSupportTabToken} from '@autodealers/shared/support-tab-session';
 /**
  * Interceptor global de fetch: Authorization + refresh de tokens expirados
  */
@@ -45,7 +46,7 @@ if (typeof window !== 'undefined') {
 
     let response = await originalFetch(input, withAuth(init));
 
-    if (response.status === 401) {
+    if (response.status === 401 && !getSupportTabToken()) {
       const newToken = await refreshTokenIfNeeded();
       if (newToken) {
         response = await originalFetch(input, withAuth(init));

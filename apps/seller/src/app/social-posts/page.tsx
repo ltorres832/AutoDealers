@@ -2,13 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { vehicleShareDescription, type MarketingVehicle } from '@autodealers/shared/vehicle-marketing';
 
 interface Integration {
   type: 'facebook' | 'instagram';
   status: 'active' | 'inactive';
 }
 
-interface Vehicle {
+interface Vehicle extends MarketingVehicle {
+  photos?: string[];
   id: string;
   make: string;
   model: string;
@@ -23,6 +25,8 @@ interface Vehicle {
 }
 
 interface AIGeneratedPost {
+  generationMode?: 'ai' | 'facts';
+  notice?: string;
   text: string;
   hashtags: string[];
   cta: string;
@@ -71,6 +75,8 @@ export default function SocialPostsPage() {
   });
   const [selectedPlatforms, setSelectedPlatforms] = useState<('facebook' | 'instagram')[]>([]);
   const [aiGenerating, setAiGenerating] = useState(false);
+  const [generationNotice, setGenerationNotice] = useState('');
+  const [aiGenerated, setAiGenerated] = useState(false);
   const [publishMode, setPublishMode] = useState<'now' | 'schedule'>('now');
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState('');
@@ -129,7 +135,7 @@ export default function SocialPostsPage() {
       const response = await fetch('/api/vehicles');
       if (response.ok) {
         const data = await response.json();
-        setVehicles(data.vehicles || []);
+        setVehicles((data.vehicles || []).map((vehicle: Vehicle) => ({ ...vehicle, images: vehicle.images?.length ? vehicle.images : vehicle.photos, mileageUnit: vehicle.mileageUnit || String(vehicle.specifications?.mileageUnit || 'mi') })));
       }
     } catch (error) {
       console.error('Error fetching vehicles:', error);
@@ -188,6 +194,13 @@ export default function SocialPostsPage() {
             mileage: vehicle.mileage,
             location: vehicle.location,
             features: vehicle.features,
+      description: vehicle.description, masterDescription: (vehicle as any).masterDescription,
+            currency: vehicle.currency,
+            specifications: vehicle.specifications,
+            mileageUnit: vehicle.mileageUnit,
+            vin: vehicle.vin,
+            bodyType: vehicle.bodyType,
+            status: vehicle.status,
             images: vehicle.images,
           },
           objective: adForm.objective,
@@ -197,6 +210,8 @@ export default function SocialPostsPage() {
       if (response.ok) {
         const data = await response.json();
         const post: AIGeneratedPost = data.post;
+        setGenerationNotice(post.notice || 'Texto preparado con los datos disponibles.');
+        setAiGenerated(post.generationMode === 'ai');
         
         // Usar contenido optimizado según plataformas seleccionadas
         if (selectedPlatforms.includes('facebook') && selectedPlatforms.includes('instagram')) {
@@ -264,11 +279,8 @@ export default function SocialPostsPage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            content: postContent,
-            platforms: selectedPlatforms,
-            scheduledFor,
-            vehicleId: selectedVehicle || undefined,
-            aiGenerated: true,
+            content: postContent, vehicleId: selectedVehicle || undefined, platforms: selectedPlatforms, scheduledFor,
+            aiGenerated,
           }),
         });
 
@@ -286,7 +298,7 @@ export default function SocialPostsPage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            content: postContent,
+            content: postContent, vehicleId: selectedVehicle || undefined,
             platforms: selectedPlatforms,
           }),
         });
@@ -594,7 +606,7 @@ export default function SocialPostsPage() {
             <div className="bg-white rounded-lg shadow border border-gray-200 p-6">
               <h2 className="text-xl font-bold mb-4">Posts Generados Automáticamente</h2>
               <p className="text-gray-600 mb-4">
-                Los posts se generan automáticamente con IA. Solo selecciona el vehículo y el sistema hace el resto.
+                Las publicaciones utilizan la descripción maestra del vehículo.
               </p>
               <div className="text-center py-12 text-gray-500">
                 <p className="text-lg mb-2">🤖 Post generado automáticamente</p>
@@ -759,9 +771,9 @@ export default function SocialPostsPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white rounded-lg max-w-3xl w-full my-8">
             <div className="p-6 border-b">
-              <h2 className="text-2xl font-bold">🤖 Crear Post con IA</h2>
+              <h2 className="text-2xl font-bold">🤖 Publicar vehículo</h2>
               <p className="text-sm text-gray-600 mt-1">
-                Selecciona un vehículo y la IA generará el contenido automáticamente
+                Selecciona el vehículo para utilizar su descripción maestra guardada
               </p>
             </div>
 
@@ -774,9 +786,9 @@ export default function SocialPostsPage() {
                   onChange={(e) => {
                     setSelectedVehicle(e.target.value);
                     const vehicle = vehicles.find(v => v.id === e.target.value);
-                    if (vehicle && vehicle.images && vehicle.images.length > 0) {
-                      setPostContent(prev => ({ ...prev, imageUrl: vehicle.images[0] }));
-                    }
+                    setPostContent({ text: vehicle ? vehicleShareDescription(vehicle) : '', imageUrl: vehicle?.images?.[0] || '', hashtags: [] });
+                    setAiGenerated(false);
+                    setGenerationNotice(vehicle ? 'Se comparte la descripción guardada del vehículo. Puedes editarla antes de publicar.' : '');
                   }}
                   className="w-full border rounded px-3 py-2"
                 >
@@ -821,21 +833,22 @@ export default function SocialPostsPage() {
                     {aiGenerating ? (
                       <>
                         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                        <span>Generando con IA...</span>
+                        <span>Cargando descripción...</span>
                       </>
                     ) : (
                       <>
                         <span>✨</span>
-                        <span>Generar Post Automáticamente</span>
+                        <span>Usar descripción maestra</span>
                       </>
                     )}
                   </button>
                   <p className="text-xs text-gray-500 mt-2 text-center">
-                    La IA analizará el vehículo y generará texto, hashtags y CTA optimizados
+                    Para editar o regenerar el texto, abre el vehículo en Inventario.
                   </p>
                 </div>
               )}
 
+              {generationNotice && <p className="text-sm text-gray-600" role="status">{generationNotice}</p>}
               {/* Contenido Generado */}
               {postContent.text && (
                 <>
@@ -843,8 +856,9 @@ export default function SocialPostsPage() {
                     <label className="block text-sm font-medium mb-2">Contenido Generado</label>
                     <textarea
                       value={postContent.text}
+                      readOnly={!!selectedVehicle}
                       onChange={(e) => setPostContent(prev => ({ ...prev, text: e.target.value }))}
-                      className="w-full border rounded px-3 py-2 min-h-[120px]"
+                      className="w-full border rounded px-3 py-2 min-h-[280px]"
                       placeholder="El contenido se generará automáticamente..."
                     />
                   </div>

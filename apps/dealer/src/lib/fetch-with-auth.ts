@@ -1,3 +1,4 @@
+import {getSupportTabToken} from '@autodealers/shared/support-tab-session';
 // Wrapper de fetch: usa token fresco sin borrar la cookie (evita redirects a /login).
 
 import { auth } from './firebase-client';
@@ -10,7 +11,7 @@ function headerBagWithAuth(base: HeadersInit | undefined, token: string): Header
   if (typeof window !== 'undefined') {
     try {
       const active = sessionStorage.getItem(DEALER_ACTIVE_TENANT_KEY)?.trim();
-      if (active) {
+      if (active && !getSupportTabToken()) {
         headers.set('X-Dealer-Tenant-Id', active);
       }
     } catch {
@@ -62,6 +63,8 @@ async function waitForFirebaseUser(timeoutMs = 5000): Promise<import('firebase/a
  * Serializa refreshes concurrentes para no pisar la cookie en paralelo.
  */
 export async function getFreshToken(force = false): Promise<string | null> {
+  const support=getSupportTabToken();
+  if(support)return support;
   if (refreshPromise && force) {
     // Si ya hay un force en curso, esperar ese
   }

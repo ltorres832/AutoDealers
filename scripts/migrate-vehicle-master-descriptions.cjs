@@ -1,0 +1,13 @@
+// Safe, idempotent compatibility migration. Default is read-only; --apply writes only missing master fields.
+const admin=require('firebase-admin');
+const {createHash}=require('node:crypto');
+const {descriptionInputKey}=require('../functions/lib/inventory/description-runtime/vehicle-description');
+let db;
+if(process.argv.includes('--use-gcloud')){
+ const {execSync}=require('node:child_process'),{OAuth2Client}=require('google-auth-library'),{Firestore}=require('@google-cloud/firestore');
+ const token=execSync('"C:/Users/ltorr/AppData/Local/Google/Cloud SDK/google-cloud-sdk/bin/gcloud.cmd" auth print-access-token',{encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim();
+ const client=new OAuth2Client();client.setCredentials({access_token:token});db=new Firestore({projectId:'autodealers-7f62e',authClient:client});
+}else{if(!admin.apps.length)admin.initializeApp({projectId:'autodealers-7f62e',credential:admin.credential.applicationDefault()});db=admin.firestore();}
+const apply=process.argv.includes('--apply');const tenant=process.argv.find(a=>a.startsWith('--tenant='))?.slice(9);let changed=0,scanned=0;
+async function main(){let cursor;for(;;){let query=tenant?db.collection('tenants').doc(tenant).collection('vehicles'):db.collectionGroup('vehicles');query=query.orderBy(admin.firestore.FieldPath.documentId()).limit(100);if(cursor)query=query.startAfter(cursor);const page=await query.get();if(page.empty)break;for(const snap of page.docs){if(!/^tenants\/[^/]+\/vehicles\/[^/]+$/.test(snap.ref.path))continue;scanned++;const data=snap.data();if(typeof data.masterDescription==='string')continue;if(apply){await db.runTransaction(async tx=>{const fresh=await tx.get(snap.ref);if(!fresh.exists||typeof fresh.data().masterDescription==='string')return;const text=typeof fresh.data().description==='string'?fresh.data().description:'';const createdAt=new Date().toISOString();const factHash=createHash('sha256').update(descriptionInputKey(fresh.data())).digest('hex');tx.set(snap.ref.collection('description_versions').doc('legacy'),{text,source:'migration',revision:0,userId:'system:migration',createdAt,factHash});tx.set(db.collection('tenants').doc(snap.ref.parent.parent.id).collection('vehicle_description_audit').doc(),{vehicleId:snap.id,userId:'system:migration',action:'migration',status:'success',createdAt});tx.update(snap.ref,{masterDescription:text,descriptionRevision:1,descriptionNeedsReview:false,descriptionSource:'migration',descriptionFactHash:factHash,descriptionUpdatedAt:createdAt});});}changed++;}cursor=page.docs.at(-1);}console.log(JSON.stringify({mode:apply?'apply':'dry-run',scanned,eligible:changed}));}
+main().catch(error=>{console.error('Migration failed:',error.code||'unknown');process.exitCode=1});

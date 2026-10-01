@@ -254,6 +254,23 @@ export async function PATCH(
       Object.assign(updates, sellerPromoVideoFields(urls));
     }
 
+    if (body.email !== undefined) {
+      const newEmail = String(body.email).trim().toLowerCase();
+      if (newEmail && newEmail !== sellerData.email) {
+        try {
+          const { syncLoginEmail } = await import('@autodealers/core/user-auth-sync');
+          await syncLoginEmail(sellerId, newEmail);
+          updates.email = newEmail;
+        } catch (syncErr: any) {
+          const code = syncErr?.code || '';
+          const msg = code === 'auth/email-already-exists' 
+            ? 'Ese email ya está en uso en otra cuenta' 
+            : syncErr.message || 'No se pudo actualizar el email';
+          return NextResponse.json({ error: msg }, { status: 400 });
+        }
+      }
+    }
+
     await db.collection('users').doc(sellerId).update(updates);
 
     // Si se cambia el status, también actualizar en Firebase Auth

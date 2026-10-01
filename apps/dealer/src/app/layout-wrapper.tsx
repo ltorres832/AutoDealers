@@ -1,4 +1,7 @@
 'use client';
+import '@/lib/fetch-interceptor';
+import {getSupportTabToken,clearSupportTab,installSupportTabFetch} from '@autodealers/shared/support-tab-session';
+installSupportTabFetch();
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
@@ -138,6 +141,12 @@ export default function DealerLayoutWrapper({
   const [showPolicyModal, setShowPolicyModal] = useState(false);
 
   async function fetchUser() {
+    if(getSupportTabToken()){
+      const {fetchWithAuth}=await import('@/lib/fetch-with-auth');
+      const response=await fetchWithAuth('/api/user');
+      setUser(response.ok?(await response.json()).user:null);
+      return;
+    }
     try {
       const { auth } = await import('@/lib/firebase-client');
       if (auth && auth.currentUser) {
@@ -350,6 +359,7 @@ export default function DealerLayoutWrapper({
         if (auth) {
           const { onAuthStateChanged } = require('firebase/auth');
           authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser: any) => {
+            if(getSupportTabToken()){await fetchUser();return;}
             if (firebaseUser) {
               if (!user) {
                 await fetchUser();
@@ -410,6 +420,10 @@ export default function DealerLayoutWrapper({
   }, [user, pathname, router]);
 
   async function handleLogout() {
+    if(getSupportTabToken()){
+      try{await fetch('/api/auth/support-exit',{method:'POST'});}finally{clearSupportTab();window.location.href='/login';}
+      return;
+    }
     try {
       const { unregisterWebPushToken } = await import('@autodealers/shared/client');
       await unregisterWebPushToken('/api/notifications/fcm-token');

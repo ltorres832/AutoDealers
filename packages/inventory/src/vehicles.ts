@@ -1,3 +1,6 @@
+import { descriptionPatch, getVehicleDescriptionConfig, stripDescriptionMetadata, type DescriptionActor } from './vehicle-description-service';
+import { officialVehicleDescription } from '@autodealers/shared/vehicle-description';
+import { mergeVehicleSpecifications, readEquipment } from '@autodealers/shared/vehicle-equipment';
 // Gestión de vehículos
 
 import { Vehicle, VehicleFilters, VehicleStatus, VehicleStockSnapshot } from './types';
@@ -94,7 +97,8 @@ async function generateStockNumber(tenantId: string, vin?: string): Promise<stri
 export async function createVehicle(
   tenantId: string,
   vehicleData: Omit<Vehicle, 'id' | 'tenantId' | 'createdAt' | 'updatedAt' | 'stockNumber'>,
-  sellerId?: string // ID del seller que crea el vehículo (se asigna automáticamente si se proporciona)
+  sellerId?: string, // ID del seller que crea el vehículo (se asigna automáticamente si se proporciona)
+  descriptionActor?: DescriptionActor
 ): Promise<Vehicle> {
   const docRef = getDb()
     .collection('tenants')
@@ -102,6 +106,8 @@ export async function createVehicle(
     .collection('vehicles')
     .doc();
 
+  const descriptionMeta = (vehicleData as any).descriptionMeta || {};
+  const actor = descriptionActor || {userId:sellerId || 'system',role:'admin',tenantId};
   const requiredVin = assertVinRequired(resolveVehicleVin(vehicleData as Record<string, unknown>));
 
   // SIEMPRE generar número de stock automáticamente si no se proporciona uno válido
@@ -188,6 +194,19 @@ export async function createVehicle(
     stockNumber, // También guardarlo en specifications para compatibilidad
   };
 
+  if (finalVehicleData.specifications.equipment) finalVehicleData.specifications.equipment = readEquipment(finalVehicleData.specifications.equipment, requiredVin);
+
+  // Si el cliente envió especificaciones decodificadas (desde UI), preservarlas
+  // en `specifications.decoded` para diferenciarlas de las especificaciones manuales.
+  try {
+    const decoded = (vehicleData as any).specifications?.decoded ?? (vehicleData as any).decodedSpecifications;
+    if (decoded && typeof decoded === 'object') {
+      finalVehicleData.specifications.decoded = decoded;
+    }
+  } catch {
+    // ignore
+  }
+
   // Solo incluir bodyType en specifications si tiene un valor válido
   if (bodyType) {
     finalVehicleData.specifications.bodyType = bodyType;
@@ -231,7 +250,13 @@ export async function createVehicle(
     specificationsKeys: dataToSave.specifications ? Object.keys(dataToSave.specifications) : [],
   });
 
-  await docRef.set(dataToSave as any);
+  stripDescriptionMetadata(dataToSave);
+  const descriptionConfig = await getVehicleDescriptionConfig();
+  let descriptionFields: Record<string, unknown> = {};
+  await getDb().runTransaction(async tx => {
+    descriptionFields = await descriptionPatch(tx, docRef, null, dataToSave, actor, descriptionMeta, descriptionConfig);
+    tx.set(docRef, {...dataToSave,...descriptionFields});
+  });
 
   // Verificar que se guardó correctamente
   const savedDoc = await docRef.get();
@@ -250,6 +275,7 @@ export async function createVehicle(
     id: docRef.id,
     tenantId,
     ...finalVehicleData,
+    ...descriptionFields,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -282,6 +308,8 @@ export async function getVehicleById(
   return {
     id: vehicleDoc.id,
     ...data,
+    masterDescription: officialVehicleDescription(data || {}),
+    description: officialVehicleDescription(data || {}),
     photos,
     createdAt: data?.createdAt?.toDate() || new Date(),
     updatedAt: data?.updatedAt?.toDate() || new Date(),
@@ -349,6 +377,8 @@ export async function getVehicleByStockNumber(
   return {
     id: doc.id,
     ...data,
+    masterDescription: officialVehicleDescription(data || {}),
+    description: officialVehicleDescription(data || {}),
     photos,
     createdAt: data?.createdAt?.toDate() || new Date(),
     updatedAt: data?.updatedAt?.toDate() || new Date(),
@@ -385,6 +415,8 @@ function mapVehicleDocs(docs: any[]): Vehicle[] {
     return {
       id: doc.id,
       ...data,
+    masterDescription: officialVehicleDescription(data || {}),
+    description: officialVehicleDescription(data || {}),
       photos,
       createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : data.createdAt,
       updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : data.updatedAt,
@@ -564,9 +596,12 @@ export async function getVehicles(
 export async function updateVehicle(
   tenantId: string,
   vehicleId: string,
-  updates: Partial<Vehicle>
+  updates: Partial<Vehicle>,
+  descriptionActor?: DescriptionActor
 ): Promise<void> {
-  console.log('🔄 updateVehicle llamado:', { tenantId, vehicleId, updates });
+  const descriptionMeta = (updates as any).descriptionMeta || {};
+  const actor = descriptionActor || {userId:'system',role:'admin',tenantId};
+  stripDescriptionMetadata(updates as any);
 
   // Obtener el vehículo existente para preservar el stockNumber si no se proporciona
   const existingVehicleDoc = await getDb()
@@ -630,6 +665,12 @@ export async function updateVehicle(
       cleanUpdates[key] = value;
     }
   });
+
+  if (cleanUpdates.specifications || Object.prototype.hasOwnProperty.call(cleanUpdates, 'vin')) {
+    const existingSpecs = existingData?.specifications || {};
+    const nextVin = Object.prototype.hasOwnProperty.call(cleanUpdates, 'vin') ? cleanUpdates.vin : cleanUpdates.specifications?.vin ?? existingData?.vin ?? existingSpecs.vin ?? '';
+    cleanUpdates.specifications = mergeVehicleSpecifications(existingSpecs, cleanUpdates.specifications || {}, String(nextVin || ''));
+  }
 
   // Reposición de inventario: si un vehículo agotado/vendido recibe cantidad > 0, se reactiva
   if (
@@ -738,12 +779,14 @@ export async function updateVehicle(
   console.log('🎥 Videos a guardar:', cleanUpdates.videos);
 
   try {
-    await getDb()
-      .collection('tenants')
-      .doc(tenantId)
-      .collection('vehicles')
-      .doc(vehicleId)
-      .update(cleanUpdates);
+    const ref = getDb().collection('tenants').doc(tenantId).collection('vehicles').doc(vehicleId);
+    const descriptionConfig = await getVehicleDescriptionConfig();
+    await getDb().runTransaction(async tx => {
+      const current = await tx.get(ref);
+      if (!current.exists) throw new Error('Vehicle not found');
+      const fields = await descriptionPatch(tx, ref, current.data()!, cleanUpdates, actor, descriptionMeta, descriptionConfig);
+      tx.update(ref, {...cleanUpdates,...fields});
+    });
 
     console.log('✅ Vehículo actualizado en Firestore exitosamente');
   } catch (error: any) {

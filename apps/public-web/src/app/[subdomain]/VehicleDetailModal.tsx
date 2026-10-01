@@ -1,5 +1,7 @@
 'use client';
 
+import VehicleEquipmentDetails from '@autodealers/shared/components/VehicleEquipmentDetails';
+
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getVehiclePhotos, handleImageError } from '../../lib/vehicle-image';
@@ -7,6 +9,7 @@ import { getPublicVehicleConditionLabel } from '@/lib/vehicle-condition-label';
 import { pingCatalogVehicleClick } from '@/lib/catalog-vehicle-click';
 
 interface Vehicle {
+  vin?: string;
   id: string;
   make: string;
   model: string;
@@ -135,7 +138,7 @@ export default function VehicleDetailModal({ vehicle, subdomain, catalogTenantId
                   {vehicle.year} {vehicle.make} {vehicle.model}
                 </h3>
                 <p className="text-4xl font-bold text-green-600 mb-4">
-                  {vehicle.currency} {vehicle.price.toLocaleString()}
+                  {(vehicle.currency && vehicle.currency.length === 1 ? vehicle.currency : '$')} {vehicle.price.toLocaleString()}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {getPublicVehicleConditionLabel(vehicle) ? (
@@ -201,6 +204,8 @@ export default function VehicleDetailModal({ vehicle, subdomain, catalogTenantId
                   </div>
                 </div>
               )}
+
+              <VehicleEquipmentDetails specifications={vehicle.specifications} vin={vehicle.vin} />
 
               {/* Description */}
               {vehicle.description && (

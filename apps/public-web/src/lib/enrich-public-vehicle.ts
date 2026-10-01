@@ -1,3 +1,4 @@
+import {officialVehicleDescription} from '@autodealers/shared/vehicle-description';
 import { getFirestore } from '@autodealers/core';
 import { resolveSellerPublicRating } from '@autodealers/crm';
 
@@ -47,7 +48,13 @@ export async function enrichPublicVehicleDetail(
         (typeof s.photo === 'string' && s.photo) ||
         (typeof s.profilePhoto === 'string' && s.profilePhoto) ||
         (typeof s.photoUrl === 'string' && s.photoUrl) ||
+        (typeof s.photoURL === 'string' && s.photoURL) ||
         '';
+      if (!sellerPhoto && s.role === 'dealer') {
+        const branding = tenantData.branding as { logo?: string } | undefined;
+        sellerPhoto = [tenantData.logo, branding?.logo, tenantData.photo, tenantData.photoUrl]
+          .find((value): value is string => typeof value === 'string' && !!value.trim()) || '';
+      }
       sellerTitle =
         (typeof s.title === 'string' && s.title) ||
         (typeof s.jobTitle === 'string' && s.jobTitle) ||
@@ -70,11 +77,14 @@ export async function enrichPublicVehicleDetail(
 
   if (!sellerName && sellerInfo?.name) {
     sellerName = sellerInfo.name;
+  }
+  if (!sellerPhoto && sellerInfo?.id === sellerId) {
     sellerPhoto = sellerInfo.photo || '';
   }
 
   return {
     ...vehicle,
+    masterDescription:officialVehicleDescription(vehicle), description:officialVehicleDescription(vehicle),
     tenantId,
     tenantName,
     sellerId: sellerId || null,

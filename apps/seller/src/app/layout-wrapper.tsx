@@ -1,4 +1,7 @@
 'use client';
+import '@/lib/fetch-interceptor';
+import {getSupportTabToken,clearSupportTab,installSupportTabFetch} from '@autodealers/shared/support-tab-session';
+installSupportTabFetch();
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -170,6 +173,7 @@ export default function SellerLayoutWrapper({
         if (!auth) return;
         const { onAuthStateChanged } = require('firebase/auth');
         authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser: any) => {
+            if(getSupportTabToken()){await fetchUser();return;}
           if (firebaseUser) {
             await fetchUser();
           } else {
@@ -215,6 +219,10 @@ export default function SellerLayoutWrapper({
   }, [user?.id, pathname]);
 
   async function handleLogout() {
+    if(getSupportTabToken()){
+      try{await fetch('/api/auth/support-exit',{method:'POST'});}finally{clearSupportTab();window.location.href='/login';}
+      return;
+    }
     try {
       const { unregisterWebPushToken } = await import('@autodealers/shared/client');
       await unregisterWebPushToken('/api/notifications/fcm-token');

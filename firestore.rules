@@ -190,11 +190,18 @@ service cloud.firestore {
     // Vehicles collection
     match /tenants/{tenantId}/vehicles/{vehicleId} {
       allow read: if true; // Público para webs (sin autenticación requerida)
-      allow create: if isOwner(tenantId);
-      allow update: if isOwner(tenantId);
+      allow create: if isOwner(tenantId) && !request.resource.data.keys().hasAny(['masterDescription','descriptionRevision','descriptionSource','descriptionHistory','descriptionFactHash','descriptionNeedsReview','descriptionUpdatedBy','descriptionUpdatedAt','suggestedFeatures']);
+      allow update: if isOwner(tenantId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['masterDescription','descriptionRevision','descriptionSource','descriptionHistory','descriptionFactHash','descriptionNeedsReview','descriptionUpdatedBy','descriptionUpdatedAt','suggestedFeatures']) && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['description']) || !exists(/databases/$(database)/documents/system/vehicle_descriptions) || get(/databases/$(database)/documents/system/vehicle_descriptions).data.get('allowManualEdit', true));
       allow delete: if isAdmin() || isDealer(tenantId) || isManagerOrAdmin(tenantId);
+      match /description_versions/{id} { allow read, write: if false; }
+      match /description_private/{id} { allow read, write: if false; }
     }
     
+    match /tenants/{tenantId}/vehicle_description_drafts/{id} { allow read, write: if false; }
+    match /tenants/{tenantId}/vehicle_description_audit/{id} { allow read, write: if false; }
+    match /tenants/{tenantId}/vehicle_description_limits/{id} { allow read, write: if false; }
+    match /system/vehicle_descriptions { allow read, write: if false; }
+
     // Appointments collection
     match /tenants/{tenantId}/appointments/{appointmentId} {
       allow read: if isOwner(tenantId);

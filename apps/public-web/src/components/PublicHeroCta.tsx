@@ -27,8 +27,8 @@ export type PublicHeroCtaProps = {
 };
 
 /**
- * Hero CTA público: gradiente por defecto, o foto/video a pantalla completa
- * (object-cover / iframe cover) con overlay para legibilidad.
+ * Hero de extremo a extremo. La imagen/video se muestra completa sin recortes.
+ * El `<section>` es w-full y no está envuelto en ningún contenedor limitante.
  */
 export default function PublicHeroCta({
   title,
@@ -53,34 +53,41 @@ export default function PublicHeroCta({
     media.mediaMode === 'image' && Boolean(media.backgroundImage);
   const useVideo = media.mediaMode === 'video' && Boolean(videoParsed);
   const useCover = useImage || useVideo;
-  
+
   // Determinar si mostrar texto basado en showText setting
   const shouldShowText = media.showText !== false;
 
   return (
     <section
-      className={`relative overflow-hidden text-white flex items-center justify-center py-14 sm:py-16 ${minHeightClassName} ${className}`}
+      className={`relative w-full overflow-hidden text-white ${useCover ? '' : `flex items-center justify-center py-14 sm:py-16 ${minHeightClassName}`} ${className}`}
       style={useCover ? undefined : { background: gradientCss }}
     >
+      {/* === IMAGEN: de extremo a extremo, completa, sin recorte === */}
       {useImage && media.backgroundImage ? (
-        <>
+        <div
+          className="w-full flex items-center justify-center"
+          style={{ background: '#000', lineHeight: 0 }}
+        >
           <img
             src={media.backgroundImage}
             alt=""
-            className="absolute inset-0 h-full w-full object-cover object-center"
             decoding="async"
+            className="w-full h-auto max-h-[420px] sm:max-h-[520px] md:max-h-[620px]"
+            style={{
+              objectFit: 'contain',
+              objectPosition: 'center',
+              display: 'block',
+            }}
           />
-          <div className="absolute inset-0 bg-black/45" aria-hidden />
-        </>
+        </div>
       ) : null}
 
+      {/* === VIDEO: de extremo a extremo, completo, sin recorte === */}
       {useVideo && videoParsed ? (
-        <>
-          <HeroVideoBackground parsed={videoParsed} poster={media.backgroundImage} />
-          <div className="absolute inset-0 bg-black/50" aria-hidden />
-        </>
+        <HeroVideoBackground parsed={videoParsed} poster={media.backgroundImage} />
       ) : null}
 
+      {/* Decoración para modo gradiente */}
       {!useCover ? (
         <div className="pointer-events-none absolute inset-0 opacity-10" aria-hidden>
           <div className="absolute top-0 left-0 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white" />
@@ -88,17 +95,23 @@ export default function PublicHeroCta({
         </div>
       ) : null}
 
+      {/* Banda de texto (debajo del media cuando hay imagen/video) */}
       {shouldShowText ? (
-        <div className={contentClassName}>
-          <h1 className="mx-auto mb-4 max-w-4xl px-2 text-3xl font-bold break-words whitespace-normal sm:text-4xl md:text-5xl">
-            {title}
-          </h1>
-          {subtitle ? (
-            <p className="mx-auto mb-8 max-w-3xl px-2 text-base break-words whitespace-normal text-white/90 sm:text-xl">
-              {subtitle}
-            </p>
-          ) : null}
-          {cta}
+        <div
+          className={useCover ? 'w-full py-10 sm:py-12' : undefined}
+          style={useCover ? { background: gradientCss } : undefined}
+        >
+          <div className={contentClassName}>
+            <h1 className="mx-auto mb-4 max-w-4xl px-2 text-3xl font-bold break-words whitespace-normal sm:text-4xl md:text-5xl">
+              {title}
+            </h1>
+            {subtitle ? (
+              <p className="mx-auto mb-8 max-w-3xl px-2 text-base break-words whitespace-normal text-white/90 sm:text-xl">
+                {subtitle}
+              </p>
+            ) : null}
+            {cta}
+          </div>
         </div>
       ) : null}
     </section>
@@ -112,34 +125,45 @@ function HeroVideoBackground({
   parsed: NonNullable<ReturnType<typeof parsePromoVideoUrl>>;
   poster?: string;
 }) {
+  /* ── Video directo (archivo mp4, webm, etc.) ── */
   if (parsed.kind === 'direct') {
     return (
-      <video
-        className="absolute inset-0 h-full w-full object-cover object-center"
-        src={parsed.url}
-        poster={poster}
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="metadata"
-      />
+      <div
+        className="w-full flex items-center justify-center"
+        style={{ background: '#000', lineHeight: 0 }}
+      >
+        <video
+          className="w-full h-auto max-h-[420px] sm:max-h-[520px] md:max-h-[620px]"
+          style={{ objectFit: 'contain', objectPosition: 'center', display: 'block' }}
+          src={parsed.url}
+          poster={poster}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+        />
+      </div>
     );
   }
 
+  /* ── YouTube / Vimeo embed: aspect-ratio 16/9, de borde a borde ── */
   const embedSrc =
     parsed.kind === 'youtube'
       ? `https://www.youtube.com/embed/${parsed.id}?autoplay=1&mute=1&controls=0&loop=1&playlist=${parsed.id}&playsinline=1&rel=0&modestbranding=1`
       : `https://player.vimeo.com/video/${parsed.id}?autoplay=1&muted=1&loop=1&background=1`;
 
-  // Cover technique: iframe oversized and centered so nothing looks letterboxed/cropped oddly.
   return (
-    <div className="absolute inset-0 overflow-hidden">
+    <div
+      className="w-full"
+      style={{ aspectRatio: '16 / 9', background: '#000', lineHeight: 0 }}
+    >
       <iframe
         title="Hero video"
         src={embedSrc}
         allow="autoplay; encrypted-media; picture-in-picture"
-        className="pointer-events-none absolute left-1/2 top-1/2 h-[56.25vw] min-h-full w-[177.78vh] min-w-full -translate-x-1/2 -translate-y-1/2 border-0"
+        className="pointer-events-none w-full h-full border-0 block"
+        style={{ display: 'block' }}
       />
     </div>
   );

@@ -1,4 +1,5 @@
 'use client';
+import VehicleEquipmentSummary from '@/components/VehicleEquipmentSummary';
 
 import { useCallback, useState } from 'react';
 import Link from 'next/link';
@@ -431,6 +432,7 @@ export default function SellerPublicWebsite({
                         <p className="text-xl font-bold mb-2" style={{ color: primaryColor }}>
                           {v.currency} {v.price.toLocaleString()}
                         </p>
+<VehicleEquipmentSummary vehicle={v} />
                         <p className="text-xs text-gray-600 mb-1.5">
                           Millaje: {(v.mileage ?? 0).toLocaleString()}{' '}
                           {(v.mileage ?? 0) === 1 ? 'milla' : 'millas'}

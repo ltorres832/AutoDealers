@@ -1,3 +1,4 @@
+import {getSupportTabToken} from '@autodealers/shared/support-tab-session';
 /** sessionStorage: tenant cuyo contexto muestra el dashboard (sede propia o asociada). */
 export const DEALER_ACTIVE_TENANT_KEY = 'dealerActiveTenantId';
 
@@ -11,6 +12,7 @@ export function getDealerActiveTenantId(fallback?: string | null): string | unde
     return t || undefined;
   }
   try {
+    if(getSupportTabToken())return fallback?.trim()||undefined;
     const active = sessionStorage.getItem(DEALER_ACTIVE_TENANT_KEY)?.trim();
     if (active) return active;
   } catch {

@@ -126,3 +126,6 @@ try {
 } catch (err) {
   console.warn('Twilio recording webhook no cargado:', err && err.message ? err.message : err);
 }
+
+// Canonical descriptions for legacy direct-Firestore inventory clients.
+exports.reconcileVehicleDescription = require('./lib/inventory/vehicle-description-compat').reconcileVehicleDescription;

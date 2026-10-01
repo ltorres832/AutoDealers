@@ -1,3 +1,4 @@
+import {officialVehicleDescription} from '@autodealers/shared/vehicle-description';
 // Hook para obtener inventario en tiempo real (Seller)
 
 import { useState, useEffect } from 'react';
@@ -112,10 +113,11 @@ export function useRealtimeInventory(options: UseRealtimeInventoryOptions = {}) 
               const vehicle = {
                 id: doc.id,
                 ...data,
+              masterDescription:officialVehicleDescription(data),description:officialVehicleDescription(data),
                 tenantId: tid,
                 createdAt: data.createdAt?.toDate() || new Date(),
                 updatedAt: data.updatedAt?.toDate() || new Date(),
-              } as RealtimeInventoryVehicle;
+              } as unknown as RealtimeInventoryVehicle;
 
               if (options.status && vehicle.status !== options.status) return;
               if (options.search) {

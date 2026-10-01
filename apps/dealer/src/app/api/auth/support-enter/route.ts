@@ -21,7 +21,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL('/login?error=support_invalid', origin));
     }
 
-    const res = NextResponse.redirect(new URL('/dashboard', origin));
+    const safeToken=JSON.stringify(token).replace(/</g,'\\u003c');
+    const res = new NextResponse('<!doctype html><html lang="es"><meta charset="utf-8"><title>Abriendo cuenta</title><body><p>Abriendo la cuenta seleccionada…</p><script>try{sessionStorage.setItem("autodealers.support.tab",'+safeToken+');sessionStorage.removeItem("dealerActiveTenantId");location.replace("/dashboard");}catch(e){document.body.textContent="No se pudo abrir la cuenta. Habilita el almacenamiento de esta pestaña e inténtalo nuevamente.";}</script></body></html>',{headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Referrer-Policy':'no-referrer'}});
     const isSecure = origin.startsWith('https:');
     const maxAge = Math.max(
       60,

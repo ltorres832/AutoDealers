@@ -1,3 +1,4 @@
+import {officialVehicleDescription} from '@autodealers/shared/vehicle-description';
 /**
  * Normalización de fotos (solo lógica, sin React) — usar en API routes y servidor.
  */
@@ -22,7 +23,7 @@ export function getVehiclePhotosRaw(vehicle: { photos?: unknown; images?: unknow
 export function normalizeVehiclePayload<T extends Record<string, unknown>>(v: T): T & { photos: string[] } {
   const photos = getVehiclePhotosRaw(v);
   const { images: _i, ...rest } = v;
-  return { ...rest, photos } as T & { photos: string[] };
+  return { ...rest, photos, masterDescription:officialVehicleDescription(v), description:officialVehicleDescription(v) } as T & { photos: string[] };
 }
 
 export function normalizeVehiclesArray<T extends Record<string, unknown>>(list: T[]): (T & { photos: string[] })[] {

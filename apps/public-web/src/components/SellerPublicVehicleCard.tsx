@@ -1,4 +1,5 @@
 'use client';
+import VehicleEquipmentSummary from '@/components/VehicleEquipmentSummary';
 
 import Link from 'next/link';
 import { getFirstPhoto, handleImageError } from '@/lib/vehicle-image';
@@ -74,6 +75,7 @@ export default function SellerPublicVehicleCard({
           <p className="text-base font-extrabold text-primary-600 mb-1">
             {vehicle.currency} {vehicle.price.toLocaleString()}
           </p>
+<VehicleEquipmentSummary vehicle={vehicle} />
           <p className="text-[11px] text-slate-500 mb-1">
             {(vehicle.mileage ?? 0).toLocaleString()}{' '}
             {(vehicle.mileage ?? 0) === 1 ? 'milla' : 'millas'}

@@ -1,3 +1,4 @@
+import {getSupportTabToken} from '@autodealers/shared/support-tab-session';
 const ADMIN_SESSION_RE = /^[a-f0-9]{64}$/i;
 
 function readCookieToken(): string {
@@ -37,6 +38,8 @@ function pickSellerToken(...candidates: string[]): string {
 
 export function resolveClientAuthToken(): string {
   if (typeof window === 'undefined') return '';
+  const support=getSupportTabToken();
+  if(support)return support;
 
   clearCrossAppTokens();
 
@@ -49,7 +52,7 @@ export function resolveClientAuthToken(): string {
 export function authHeaders(init?: HeadersInit): Headers {
   const headers = new Headers(init);
   const token = resolveClientAuthToken();
-  if (token && !headers.has('Authorization')) {
+  if (token && (getSupportTabToken() || !headers.has('Authorization'))) {
     headers.set('Authorization', `Bearer ${token}`);
   }
   return headers;

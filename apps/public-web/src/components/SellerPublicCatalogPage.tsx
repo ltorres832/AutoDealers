@@ -1,4 +1,5 @@
 'use client';
+import {groupSellerInventoryByMakeAndModel} from '@/lib/seller-inventory-grouping';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
@@ -95,28 +96,10 @@ function sortSellerInventoryVehicles(items: Vehicle[]): Vehicle[] {
 
 /** Agrupa inventario por marca; dentro de cada marca va en fila horizontal (scroll). */
 function groupSellerInventoryByMake(vehicles: Vehicle[]): SellerInventoryMakeGroup[] {
-  const byMakeKey = new Map<string, { displayMake: string; items: Vehicle[] }>();
-
-  for (const v of vehicles) {
-    const rawMake = (v.make || '').trim() || 'Sin marca';
-    const makeKey = rawMake.toLowerCase();
-    let bucket = byMakeKey.get(makeKey);
-    if (!bucket) {
-      bucket = { displayMake: rawMake, items: [] };
-      byMakeKey.set(makeKey, bucket);
-    } else if (rawMake.length > bucket.displayMake.length) {
-      bucket.displayMake = rawMake;
-    }
-    bucket.items.push(v);
-  }
-
-  return [...byMakeKey.entries()]
-    .sort(([ka], [kb]) => ka.localeCompare(kb, 'es', { sensitivity: 'base' }))
-    .map(([makeKey, bucket]) => ({
-      slug: makeKey,
-      make: bucket.displayMake,
-      vehicles: sortSellerInventoryVehicles(bucket.items),
-    }));
+ return groupSellerInventoryByMakeAndModel(vehicles).flatMap(make=>make.models.map(model=>({
+  slug:make.slug+'-'+model.slug,make:make.make+' · '+model.model,
+  vehicles:sortSellerInventoryVehicles(model.variants.flatMap(variant=>variant.vehicles) as Vehicle[]),
+ })));
 }
 
 function SellerBrandInventoryRail({
@@ -775,7 +758,7 @@ export default function SellerPublicCatalogPage({
           ) : (
             <div className="space-y-10">
               <p className="text-sm text-gray-500 -mt-2 mb-2">
-                Por marca, en filas horizontales de hasta 4 vehículos. Desliza hacia el lado si hay más unidades.
+                Por marca y modelo, en filas horizontales de hasta 4 vehículos. Desliza hacia el lado si hay más unidades.
               </p>
               {inventoryByMake.map((makeGroup) => (
                 <SellerBrandInventoryRail key={makeGroup.slug} makeGroup={makeGroup} seller={seller} />

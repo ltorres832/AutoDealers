@@ -1,4 +1,9 @@
 'use client';
+import VehiclePhotoOrder from '@autodealers/shared/components/VehiclePhotoOrder';
+import {fetchWithAuth} from '@/lib/fetch-with-auth';
+import VehicleDescriptionEditor from '@autodealers/shared/components/VehicleDescriptionEditor';
+import {descriptionVehicleFromForm,officialVehicleDescription,type DescriptionMeta} from '@autodealers/shared/vehicle-description';
+
 
 import VehiclesList from '@/components/VehiclesList';
 import { useState } from 'react';
@@ -7,6 +12,8 @@ import { VEHICLE_TYPES, TRANSMISSION_OPTIONS, FUEL_TYPE_OPTIONS, DRIVE_TYPE_OPTI
 import { useFeatureFlag } from '@/hooks/useFeatureFlag';
 import UpgradeModal from '@/components/UpgradeModal';
 import VinDecodeField from '@/components/VinDecodeField';
+import VehicleEquipmentEditor from '@autodealers/shared/components/VehicleEquipmentEditor';
+import { emptyEquipment, equipmentFromSpecifications, applyVinDecode, changeEquipmentVin, equipmentForForm, applyEquipmentEdit } from '@autodealers/shared/vehicle-equipment';
 
 export default function InventoryPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -71,6 +78,7 @@ export default function InventoryPage() {
 }
 
 function CreateVehicleModal({ onClose }: { onClose: () => void }) {
+  const [descriptionMeta,setDescriptionMeta] = useState<DescriptionMeta>({});
   const [formData, setFormData] = useState({
     make: '',
     model: '',
@@ -80,6 +88,7 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
     currency: 'USD',
     condition: 'used' as const,
     description: '',
+    packages: [] as string[], accessories: [] as string[], modifications: [] as string[], confirmedNotes: '',
     mileage: '',
     quantity: '',
     sellerCommissionType: 'percentage' as 'percentage' | 'fixed',
@@ -93,6 +102,7 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
     accessoriesCommissionFixed: '',
     // Features & Specs
     vin: '',
+    equipment: emptyEquipment(),
     stockNumber: '',
     transmission: '',
     fuelType: '',
@@ -162,7 +172,7 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
         }
       }
 
-      const specifications: any = {};
+      const specifications: any = { equipment: equipmentForForm(formData) };
       
       // Agregar campos de especificaciones si están llenos
       if (formData.vin) specifications.vin = formData.vin;
@@ -195,6 +205,8 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
           currency: formData.currency,
           condition: formData.condition,
           description: formData.description,
+          masterDescription: formData.description, descriptionMeta, mileageUnit:'mi',
+          packages:formData.packages,accessories:formData.accessories,modifications:formData.modifications,confirmedNotes:formData.confirmedNotes,
           mileage: formData.mileage ? parseInt(formData.mileage) : undefined,
           quantity:
             formData.quantity && parseInt(formData.quantity) > 0
@@ -265,20 +277,8 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
                 enabled={vinCameraEnabled}
                 required
                 value={formData.vin}
-                onChange={(vin) => setFormData({ ...formData, vin })}
-                onDecoded={(result) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    make: result.make || prev.make,
-                    model: result.model || prev.model,
-                    year: result.year || prev.year,
-                    bodyType: result.bodyType || prev.bodyType,
-                    engine: result.engine || prev.engine,
-                    fuelType: result.fuelType || prev.fuelType,
-                    transmission: result.transmission || prev.transmission,
-                    doors: result.doors != null ? String(result.doors) : prev.doors,
-                  }))
-                }
+                onChange={(vin) => setFormData(prev => changeEquipmentVin(prev, vin))}
+                onDecoded={(result) => setFormData(prev => applyVinDecode(prev, result))}
               />
             </div>
             <div className="grid grid-cols-2 gap-4 mb-4">
@@ -425,26 +425,15 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
               </div>
             </div>
 
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-2">
-                Descripción
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) =>
-                  setFormData({ ...formData, description: e.target.value })
-                }
-                className="w-full border rounded px-3 py-2"
-                rows={4}
-                required
-              />
-            </div>
+            <VehicleDescriptionEditor vehicle={descriptionVehicleFromForm({...formData})} value={formData.description} onChange={description=>setFormData(prev=>({...prev,description}))} onMetaChange={setDescriptionMeta} onAdditionalDataChange={data=>setFormData(prev=>({...prev,...data}))} onConfirmedEquipment={equipment=>setFormData(prev=>applyEquipmentEdit(prev,equipment))} request={fetchWithAuth} disabled={loading} />
           </div>
+
+          <VehicleEquipmentEditor value={equipmentForForm(formData)} onChange={equipment => setFormData(prev => applyEquipmentEdit(prev, equipment))} disabled={loading} />
 
           {/* Features & Specs */}
           <div className="mb-6">
             <div className="flex items-center justify-between mb-4 pb-2 border-b">
-              <h3 className="text-lg font-semibold">Features & Specs (Opcional)</h3>
+              <h3 className="text-lg font-semibold">Otros datos de inventario</h3>
               <button
                 type="button"
                 onClick={() => setShowSpecs(!showSpecs)}
@@ -727,6 +716,7 @@ function CreateVehicleModal({ onClose }: { onClose: () => void }) {
                   {photos.length} foto(s) seleccionada(s)
                 </p>
               )}
+              <VehiclePhotoOrder photos={photos} onChange={setPhotos} />
             </div>
 
             <div className="mb-4">

@@ -153,7 +153,8 @@ export function WebsiteHeroMediaEditor({
               <img
                 src={backgroundImage}
                 alt="Vista previa del hero"
-                className="absolute inset-0 h-full w-full object-cover"
+                className="absolute inset-0 h-full w-full object-contain object-center"
+                style={{ objectFit: 'contain' }}
               />
             </div>
           ) : (

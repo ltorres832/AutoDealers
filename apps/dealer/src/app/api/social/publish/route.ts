@@ -1,3 +1,4 @@
+import {masterVehiclePost} from '@/lib/master-vehicle-post';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { SocialPublisherService, PostContent } from '@autodealers/messaging';
@@ -22,6 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+    body.content = await masterVehiclePost(auth, body.vehicleId || body.content?.vehicleId, body.content || {});
     const { content, platforms: rawPlatforms }: {
       content: PostContent;
       platforms: ('facebook' | 'instagram' | 'tiktok' | 'youtube')[];

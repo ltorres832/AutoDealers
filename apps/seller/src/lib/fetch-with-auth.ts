@@ -1,3 +1,4 @@
+import {getSupportTabToken} from '@autodealers/shared/support-tab-session';
 /**
  * Fetch wrapper que maneja automáticamente el refresh de tokens expirados
  */
@@ -55,7 +56,7 @@ export async function fetchWithAuth(
   // EXCEPCIÓN: No redirigir para rutas del chat interno (polling)
   const isInternalChat = url.includes('/api/internal-chat/');
   
-  if (response.status === 401) {
+  if (response.status === 401 && !getSupportTabToken()) {
     // Para el chat interno, solo intentar refrescar pero NO redirigir
     if (isInternalChat) {
       const newToken = await refreshTokenIfNeeded();

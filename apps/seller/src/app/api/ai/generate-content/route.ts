@@ -88,10 +88,21 @@ export async function POST(request: NextRequest) {
     if (type === 'post' || type === 'social') {
       const result = await generator.generatePostContent(
         {
-          make: context.make || 'N/A',
-          model: context.model || 'N/A',
-          year: context.year || new Date().getFullYear(),
-          price: context.price || 0,
+          make: context.make,
+          model: context.model,
+          year: context.year,
+          price: context.price,
+          currency: context.currency,
+          condition: context.condition,
+          status: context.status,
+          mileage: context.mileage,
+          mileageUnit: context.mileageUnit,
+          vin: context.vin,
+          specifications: context.specifications,
+          bodyType: context.bodyType,
+          location: context.location,
+          features: context.features,
+          description: context.description,
           keyFeatures: context.keyFeatures || [],
         },
         context.platform || 'facebook'

@@ -1,3 +1,4 @@
+import {masterVehiclePost} from '@/lib/master-vehicle-post';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { generateSocialPost, analyzeVehicleForSocial } from '@autodealers/core';
@@ -16,7 +17,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Vehicle data is required' }, { status: 400 });
     }
 
-    // Generar post con IA
+    const master=await masterVehiclePost(auth,vehicle.id,{text:''});
+    vehicle.masterDescription=master.text;
+    // Reuse the saved master description
     const post = await generateSocialPost(
       vehicle,
       customerProfile,

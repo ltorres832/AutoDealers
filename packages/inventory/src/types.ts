@@ -1,3 +1,4 @@
+import type { VehicleEquipment } from '@autodealers/shared/vehicle-equipment';
 // Tipos del módulo de inventario
 
 export type VehicleCondition = 'new' | 'used' | 'certified';
@@ -24,6 +25,7 @@ export type VehicleBodyType =
   | 'crossover';
 
 export interface VehicleSpecs {
+  equipment?: VehicleEquipment;
   make: string;
   model: string;
   year: number;
@@ -99,6 +101,24 @@ export interface Vehicle {
   /** Vistas en catálogo público (contador en Firestore). */
   views?: number;
   lastViewedAt?: Date;
+  /** Descripción maestra generada/guardada para este vehículo (oficial). */
+  masterDescription?: string;
+  descriptionRevision?: number;
+  descriptionMeta?: import('@autodealers/shared/vehicle-description').DescriptionMeta;
+  confirmedNotes?: string;
+  suggestedFeatures?: import('@autodealers/shared/vehicle-description').SuggestedFeature[];
+  /** Marca que la descripción requiere revisión por cambios en datos relevantes. */
+  descriptionNeedsReview?: boolean;
+  /** Historial de descripciones (metadatos): generación IA o ediciones manuales.
+   * Se recomienda almacenar también en subcolección `descriptions` en Firestore. */
+  descriptionHistory?: Array<{
+    id: string;
+    text: string;
+    createdAt: Date | { toDate?: () => Date } | string;
+    userId?: string;
+    source: 'ai' | 'manual' | 'regeneration';
+    model?: string;
+  }>;
 }
 
 /**

@@ -491,7 +491,7 @@ export default function AppointmentPage() {
                   return (
                     <option key={vehicle.id} value={vehicle.id}>
                       {stk ? `[${stk}] ` : ''}
-                      {vehicle.year} {vehicle.make} {vehicle.model} — {vehicle.currency}{' '}
+                      {vehicle.year} {vehicle.make} {vehicle.model} — {(vehicle.currency && vehicle.currency.length === 1 ? vehicle.currency : '$')}{' '}
                       {vehicle.price.toLocaleString()}
                     </option>
                   );

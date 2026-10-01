@@ -1,4 +1,5 @@
 'use client';
+import {getSupportTabToken} from '@autodealers/shared/support-tab-session';
 
 import { doc, getDoc } from 'firebase/firestore';
 

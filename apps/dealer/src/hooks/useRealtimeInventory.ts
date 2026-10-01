@@ -1,3 +1,4 @@
+import {officialVehicleDescription} from '@autodealers/shared/vehicle-description';
 // Hook para obtener inventario en tiempo real (Dealer)
 
 import { useState, useEffect } from 'react';
@@ -24,7 +25,8 @@ export interface RealtimeInventoryVehicle {
   fuelType?: string;
   driveType?: string;
   stockNumber?: string;
-  specifications?: { stockNumber?: string };
+  vin?: string;
+  specifications?: { vin?: string; stockNumber?: string; [key: string]: unknown };
   publishedOnPublicPage?: boolean;
   views?: number;
   lastViewedAt?: Date;
@@ -80,9 +82,10 @@ export function useRealtimeInventory(options: UseRealtimeInventoryOptions = {}) 
             const vehicle = {
               id: doc.id,
               ...data,
+              masterDescription:officialVehicleDescription(data),description:officialVehicleDescription(data),
               createdAt: data.createdAt?.toDate() || new Date(),
               updatedAt: data.updatedAt?.toDate() || new Date(),
-            } as RealtimeInventoryVehicle;
+            } as unknown as RealtimeInventoryVehicle;
 
             if (options.status && vehicle.status !== options.status) return;
             if (options.make && vehicle.make !== options.make) return;

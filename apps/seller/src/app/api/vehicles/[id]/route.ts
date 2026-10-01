@@ -85,6 +85,10 @@ export async function PUT(
     // Preparar los datos de actualización
     const updateData: any = {};
     
+    if (body.masterDescription !== undefined) updateData.masterDescription = body.masterDescription;
+    if (body.descriptionMeta !== undefined) updateData.descriptionMeta = body.descriptionMeta;
+    for (const key of ['packages','accessories','modifications']) if (Array.isArray(body[key])) updateData[key] = body[key].filter((value:unknown)=>typeof value==='string').slice(0,40);
+    if (body.confirmedNotes !== undefined) updateData.confirmedNotes = body.confirmedNotes;
     if (body.make !== undefined) updateData.make = body.make;
     if (body.model !== undefined) updateData.model = body.model;
     if (body.bodyType !== undefined) {
@@ -117,6 +121,7 @@ export async function PUT(
     if (body.currency !== undefined) updateData.currency = body.currency;
     if (body.condition !== undefined) updateData.condition = body.condition;
     if (body.description !== undefined) updateData.description = body.description;
+    if (body.mileageUnit === 'mi' || body.mileageUnit === 'km') updateData.mileageUnit = body.mileageUnit;
     if (body.mileage !== undefined) updateData.mileage = body.mileage ? parseInt(body.mileage) : undefined;
     if (body.status !== undefined) updateData.status = body.status;
     if (body.vin !== undefined) {
@@ -179,15 +184,15 @@ export async function PUT(
       updateData,
     });
 
-    await updateVehicle(tenantId, id, updateData);
+    await updateVehicle(tenantId, id, updateData, {userId:auth.userId,role:auth.role,tenantId});
 
     const updatedFound = await findSellerVehicleById(auth, id);
     const updatedVehicle = updatedFound?.vehicle as typeof existingVehicle | undefined;
     
     console.log('✅ Vehículo actualizado, datos retornados:', {
       vehicleId: updatedVehicle?.id,
-      photosCount: updatedVehicle?.photos?.length || 0,
-      videosCount: updatedVehicle?.videos?.length || 0,
+      photosCount: Array.isArray(updatedVehicle?.photos) ? updatedVehicle.photos.length : 0,
+      videosCount: Array.isArray(updatedVehicle?.videos) ? updatedVehicle.videos.length : 0,
       photos: updatedVehicle?.photos,
     });
 

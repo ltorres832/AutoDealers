@@ -3,8 +3,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { SocialIcon } from './SocialIcon';
 import { ToastNotification, type ToastData } from './ToastNotification';
+import { vehicleShareDescription, type MarketingVehicle } from '../vehicle-marketing';
 
-export interface PublishSocialVehicle {
+export interface PublishSocialVehicle extends MarketingVehicle {
   id: string;
   make: string;
   model: string;
@@ -83,7 +84,9 @@ export function PublishVehicleToSocialModal({
   const [integrations, setIntegrations] = useState<Platform[]>([]);
   const [loadingIntegrations, setLoadingIntegrations] = useState(true);
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>([]);
-  const [postText, setPostText] = useState('');
+  const [postText, setPostText] = useState(() => vehicleShareDescription(vehicle));
+  const [generationMode, setGenerationMode] = useState<'facts' | 'ai'>('facts');
+  const [generationNotice, setGenerationNotice] = useState('Se comparte la descripción guardada del vehículo. Para cambiarla, edita el vehículo en Inventario.');
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [imageUrl, setImageUrl] = useState(images[0] ?? '');
   const [videoUrl, setVideoUrl] = useState(videos[0] ?? '');
@@ -150,6 +153,13 @@ export function PublishVehicleToSocialModal({
       mileage: vehicle.mileage,
       location: vehicle.location,
       features: vehicle.features,
+      description: vehicle.description, masterDescription: vehicle.masterDescription,
+      currency: vehicle.currency,
+      mileageUnit: vehicle.mileageUnit || String(vehicle.specifications?.mileageUnit || 'mi'),
+      specifications: vehicle.specifications,
+      vin: vehicle.vin,
+      bodyType: vehicle.bodyType,
+      status: vehicle.status,
       images,
     }),
     [vehicle, images]
@@ -174,6 +184,8 @@ export function PublishVehicleToSocialModal({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al generar contenido');
+      setGenerationMode(data.post?.generationMode === 'ai' ? 'ai' : 'facts');
+      setGenerationNotice(data.post?.notice || 'Texto organizado con IA a partir de la información disponible. Revisa los datos antes de publicar.');
 
       const post = data.post as {
         text?: string;
@@ -197,7 +209,7 @@ export function PublishVehicleToSocialModal({
 
       setPostText(text);
       setHashtags(tags);
-      showToast('success', 'Contenido generado', 'Revisa el texto antes de publicar.');
+      showToast('success', data.post?.generationMode === 'facts' ? 'Texto preparado con la ficha' : 'Contenido generado', 'Revisa el texto antes de publicar.');
     } catch (e) {
       showToast('error', 'Error al generar', e instanceof Error ? e.message : 'Intenta de nuevo');
     } finally {
@@ -261,7 +273,7 @@ export function PublishVehicleToSocialModal({
           platforms: selectedPlatforms,
           scheduledFor,
           vehicleId: vehicle.id,
-          aiGenerated: true,
+          aiGenerated: generationMode === 'ai',
         };
         const res = await fetch(resolvedSchedule, {
           method: 'POST',
@@ -273,7 +285,7 @@ export function PublishVehicleToSocialModal({
         if (!res.ok) throw new Error(data.error || 'Error al programar');
         showToast('success', 'Post programado', 'Se publicará en la fecha indicada.');
       } else {
-        const body: Record<string, unknown> = { content, platforms: selectedPlatforms };
+        const body: Record<string, unknown> = { content, platforms: selectedPlatforms, vehicleId:vehicle.id, vehicleTenantId:vehicle.tenantId };
 
         const res = await fetch(resolvedPublish, {
           method: 'POST',
@@ -511,7 +523,7 @@ export function PublishVehicleToSocialModal({
                       Generando con IA…
                     </>
                   ) : (
-                    <>✨ Generar texto con IA</>
+                    <>✨ Usar descripción maestra</>
                   )}
                 </button>
 
@@ -519,11 +531,12 @@ export function PublishVehicleToSocialModal({
                   <label className="block text-sm font-medium text-gray-700 mb-1">Texto del post</label>
                   <textarea
                     value={postText}
-                    onChange={(e) => setPostText(e.target.value)}
-                    rows={5}
+                    readOnly
+                    rows={12}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                     placeholder="Describe el vehículo o usa IA para generar…"
                   />
+                  <p className="mt-2 text-xs text-gray-600" role="status">{generationNotice}</p>
                 </div>
 
                 {hashtags.length > 0 ? (

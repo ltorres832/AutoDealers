@@ -1,4 +1,9 @@
 'use client';
+import VehiclePhotoOrder from '@autodealers/shared/components/VehiclePhotoOrder';
+import {fetchWithAuth} from '@/lib/fetch-with-auth';
+import VehicleDescriptionEditor from '@autodealers/shared/components/VehicleDescriptionEditor';
+import {descriptionVehicleFromForm,officialVehicleDescription,type DescriptionMeta} from '@autodealers/shared/vehicle-description';
+
 
 import Link from 'next/link';
 import { useState, useEffect, useMemo } from 'react';
@@ -7,6 +12,8 @@ import { useRealtimeInventory, type RealtimeInventoryVehicle } from '@/hooks/use
 import VehicleInventoryCard from '@/components/VehicleInventoryCard';
 import ShareVehicleModal from '@/components/ShareVehicleModal';
 import VinDecodeField from '@/components/VinDecodeField';
+import VehicleEquipmentEditor from '@autodealers/shared/components/VehicleEquipmentEditor';
+import { emptyEquipment, equipmentFromSpecifications, applyVinDecode, changeEquipmentVin, equipmentForForm, applyEquipmentEdit } from '@autodealers/shared/vehicle-equipment';
 import { VEHICLE_TYPES, TRANSMISSION_OPTIONS, FUEL_TYPE_OPTIONS, DRIVE_TYPE_OPTIONS } from '@autodealers/inventory/client';
 import AdvancedMarkAsSoldModal from '@/components/AdvancedMarkAsSoldModal';
 import ScheduleFromInventoryModal, {
@@ -991,6 +998,7 @@ function CreateVehicleModal({
   onClose: () => void;
   onSuccess: (created?: PublishSocialVehicle) => void;
 }) {
+  const [descriptionMeta,setDescriptionMeta] = useState<DescriptionMeta>({});
   const [formData, setFormData] = useState({
     make: '',
     model: '',
@@ -1000,6 +1008,7 @@ function CreateVehicleModal({
     currency: 'USD',
     condition: 'used' as const,
     description: '',
+    packages: [] as string[], accessories: [] as string[], modifications: [] as string[], confirmedNotes: '',
     mileage: '',
     sellerCommissionType: 'percentage' as 'percentage' | 'fixed',
     sellerCommissionRate: '',
@@ -1012,6 +1021,7 @@ function CreateVehicleModal({
     accessoriesCommissionFixed: '',
     // Features & Specs
     vin: '',
+    equipment: emptyEquipment(),
     stockNumber: '',
     transmission: '',
     fuelType: '',
@@ -1025,6 +1035,7 @@ function CreateVehicleModal({
     driveType: '',
     hasAccidents: false,
     premiumFeatures: '',
+    // Decoded specs from VIN decode API
     publishedOnPublicPage: true, // Por defecto publicar en página pública
   });
   const [loading, setLoading] = useState(false);
@@ -1058,11 +1069,13 @@ function CreateVehicleModal({
           currency: formData.currency,
           condition: formData.condition,
           description: formData.description,
+          masterDescription: formData.description, descriptionMeta, mileageUnit:'mi',
+          packages:formData.packages,accessories:formData.accessories,modifications:formData.modifications,confirmedNotes:formData.confirmedNotes,
           mileage: formData.mileage ? parseInt(formData.mileage) : undefined,
           photos: [], // Inicialmente vacío
           videos: [], // Inicialmente vacío
           specifications: (() => {
-            const specs: any = {};
+            const specs: any = { equipment: equipmentForForm(formData) };
             if (formData.vin) specs.vin = formData.vin;
             if (formData.stockNumber) specs.stockNumber = formData.stockNumber;
             if (formData.transmission) specs.transmission = formData.transmission;
@@ -1572,20 +1585,8 @@ function CreateVehicleModal({
                 enabled={vinCameraEnabled}
                 required
                 value={formData.vin}
-                onChange={(vin) => setFormData({ ...formData, vin })}
-                onDecoded={(result) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    make: result.make || prev.make,
-                    model: result.model || prev.model,
-                    year: result.year || prev.year,
-                    bodyType: result.bodyType || prev.bodyType,
-                    engine: result.engine || prev.engine,
-                    fuelType: result.fuelType || prev.fuelType,
-                    transmission: result.transmission || prev.transmission,
-                    doors: result.doors != null ? String(result.doors) : prev.doors,
-                  }))
-                }
+                onChange={(vin) => setFormData(prev => changeEquipmentVin(prev, vin))}
+                onDecoded={(result) => setFormData(prev => applyVinDecode(prev, result))}
               />
             </div>
             <div className="grid grid-cols-2 gap-4 mb-4">
@@ -1702,25 +1703,14 @@ function CreateVehicleModal({
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-2">Descripción</label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full border rounded px-3 py-2"
-              rows={4}
-              required
-            />
-          </div>
+          <VehicleDescriptionEditor vehicle={descriptionVehicleFromForm({...formData})} value={formData.description} onChange={description=>setFormData(prev=>({...prev,description}))} onMetaChange={setDescriptionMeta} onAdditionalDataChange={data=>setFormData(prev=>({...prev,...data}))} onConfirmedEquipment={equipment=>setFormData(prev=>applyEquipmentEdit(prev,equipment))} request={fetchWithAuth} disabled={loading} />
+
+
+          <VehicleEquipmentEditor value={equipmentForForm(formData)} onChange={equipment => setFormData(prev => applyEquipmentEdit(prev, equipment))} disabled={loading} />
 
           {/* Features & Specs */}
-          <div className="mb-6 border-t pt-6">
-            <div className="mb-4 pb-2 border-b">
-              <h3 className="text-lg font-semibold">Features & Specs (Opcional)</h3>
-              <p className="text-sm text-gray-600 mt-1">
-                Información detallada y completa del vehículo para una mejor descripción y búsqueda
-              </p>
-            </div>
+          <details className="mb-6 border-t pt-6">
+            <summary className="cursor-pointer py-3 text-sm font-medium text-slate-700">Otros datos de inventario y ajustes manuales</summary>
             
             <div className="space-y-4">
                 <div>
@@ -1953,7 +1943,7 @@ function CreateVehicleModal({
                   />
                 </div>
             </div>
-          </div>
+          </details>
 
           {/* Multimedia */}
           <div className="mb-6 border-t pt-6">
@@ -1973,6 +1963,7 @@ function CreateVehicleModal({
                   {photos.length} foto(s) seleccionada(s)
                 </p>
               )}
+              <VehiclePhotoOrder photos={photos} onChange={setPhotos} />
             </div>
 
             <div className="mb-4">
@@ -2140,6 +2131,7 @@ function EditVehicleModal({ vehicle, onClose, onSuccess }: { vehicle: Vehicle; o
   // Obtener stockNumber del nivel superior o de specifications
   const vehicleStockNumber = (vehicle as any).stockNumber || specs.stockNumber || '';
   
+  const [descriptionMeta,setDescriptionMeta] = useState<DescriptionMeta>({});
   const [formData, setFormData] = useState({
     make: vehicle.make,
     model: vehicle.model,
@@ -2148,7 +2140,8 @@ function EditVehicleModal({ vehicle, onClose, onSuccess }: { vehicle: Vehicle; o
     price: vehicle.price.toString(),
     currency: vehicle.currency,
     condition: vehicle.status === 'available' ? 'used' as const : 'used' as const,
-    description: (vehicle as any).description || '',
+    description: officialVehicleDescription(vehicle as any),
+    packages: (vehicle as any).packages || [], accessories: (vehicle as any).accessories || [], modifications: (vehicle as any).modifications || [], confirmedNotes: (vehicle as any).confirmedNotes || '',
     mileage: (vehicle as any).mileage?.toString() || '',
     sellerCommissionType: (vehicle.sellerCommissionType || 'percentage') as 'percentage' | 'fixed',
     sellerCommissionRate: vehicle.sellerCommissionRate?.toString() || '',
@@ -2160,7 +2153,8 @@ function EditVehicleModal({ vehicle, onClose, onSuccess }: { vehicle: Vehicle; o
     accessoriesCommissionRate: vehicle.accessoriesCommissionRate?.toString() || '',
     accessoriesCommissionFixed: vehicle.accessoriesCommissionFixed?.toString() || '',
     // Features & Specs
-    vin: specs.vin || '',
+    vin: (vehicle as any).vin || specs.vin || '',
+    equipment: equipmentFromSpecifications(specs, (vehicle as any).vin || specs.vin || ''),
     stockNumber: vehicleStockNumber,
     transmission: specs.transmission || '',
     fuelType: specs.fuelType || '',
@@ -2299,10 +2293,14 @@ function EditVehicleModal({ vehicle, onClose, onSuccess }: { vehicle: Vehicle; o
           currency: formData.currency,
           condition: formData.condition,
           description: formData.description,
+          masterDescription: formData.description, descriptionMeta, mileageUnit:'mi',
+          packages:formData.packages,accessories:formData.accessories,modifications:formData.modifications,confirmedNotes:formData.confirmedNotes,
           mileage: formData.mileage ? parseInt(formData.mileage) : undefined,
           photos: photoUrls,
           videos: videoUrls,
           specifications: {
+            ...specs,
+            equipment: equipmentForForm(formData),
             vin: formData.vin.trim().toUpperCase(),
             // NO enviar stockNumber - se generará automáticamente en el servidor
             transmission: formData.transmission || undefined,
@@ -2392,20 +2390,8 @@ function EditVehicleModal({ vehicle, onClose, onSuccess }: { vehicle: Vehicle; o
                 enabled={vinCameraEnabled}
                 required
                 value={formData.vin}
-                onChange={(vin) => setFormData({ ...formData, vin })}
-                onDecoded={(result) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    make: result.make || prev.make,
-                    model: result.model || prev.model,
-                    year: result.year || prev.year,
-                    bodyType: result.bodyType || prev.bodyType,
-                    engine: result.engine || prev.engine,
-                    fuelType: result.fuelType || prev.fuelType,
-                    transmission: result.transmission || prev.transmission,
-                    doors: result.doors != null ? String(result.doors) : prev.doors,
-                  }))
-                }
+                onChange={(vin) => setFormData(prev => changeEquipmentVin(prev, vin))}
+                onDecoded={(result) => setFormData(prev => applyVinDecode(prev, result))}
               />
             </div>
             <div className="grid grid-cols-2 gap-4 mb-4">
@@ -2522,25 +2508,13 @@ function EditVehicleModal({ vehicle, onClose, onSuccess }: { vehicle: Vehicle; o
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-2">Descripción</label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full border rounded px-3 py-2"
-              rows={4}
-              required
-            />
-          </div>
+          <VehicleDescriptionEditor vehicle={descriptionVehicleFromForm({...(vehicle as any), ...formData})} vehicleId={vehicle.id} value={formData.description} onChange={description=>setFormData(prev=>({...prev,description}))} onMetaChange={setDescriptionMeta} onAdditionalDataChange={data=>setFormData(prev=>({...prev,...data}))} onConfirmedEquipment={equipment=>setFormData(prev=>applyEquipmentEdit(prev,equipment))} request={fetchWithAuth} disabled={loading} />
+
+          <VehicleEquipmentEditor value={equipmentForForm(formData)} onChange={equipment => setFormData(prev => applyEquipmentEdit(prev, equipment))} disabled={loading} />
 
           {/* Features & Specs */}
-          <div className="mb-6 border-t pt-6">
-            <div className="mb-4 pb-2 border-b">
-              <h3 className="text-lg font-semibold">Features & Specs (Opcional)</h3>
-              <p className="text-sm text-gray-600 mt-1">
-                Información detallada y completa del vehículo para una mejor descripción y búsqueda
-              </p>
-            </div>
+          <details className="mb-6 border-t pt-6">
+            <summary className="cursor-pointer py-3 text-sm font-medium text-slate-700">Otros datos de inventario y ajustes manuales</summary>
             
             <div className="space-y-4">
                 <div>
@@ -2773,7 +2747,7 @@ function EditVehicleModal({ vehicle, onClose, onSuccess }: { vehicle: Vehicle; o
                   />
                 </div>
             </div>
-          </div>
+          </details>
 
           {/* Multimedia */}
           <div className="mb-6 border-t pt-6">
@@ -2811,6 +2785,7 @@ function EditVehicleModal({ vehicle, onClose, onSuccess }: { vehicle: Vehicle; o
                 {photos.length} foto(s) nueva(s) seleccionada(s)
               </p>
             )}
+              <VehiclePhotoOrder photos={photos} onChange={setPhotos} />
           </div>
 
           <div>

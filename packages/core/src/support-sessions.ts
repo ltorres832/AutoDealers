@@ -350,4 +350,4 @@ export async function resolveSupportTarget(input: {
 
   throw new Error('No hay un usuario titular para este tenant');
 }
-
+

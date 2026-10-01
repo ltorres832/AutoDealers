@@ -66,8 +66,8 @@ export async function GET(request: NextRequest, context: Ctx) {
         absoluteUrl: absolute,
         qrImageUrl: buildQrImageUrl(absolute),
         whatsappShareUrl: payload.dealer.whatsapp
-          ? `https://wa.me/${payload.dealer.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(`Mira este vehículo: ${absolute}`)}`
-          : `https://wa.me/?text=${encodeURIComponent(`Mira este vehículo: ${absolute}`)}`,
+          ? `https://wa.me/${payload.dealer.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent([payload.vehicle.description || [payload.vehicle.year, payload.vehicle.make, payload.vehicle.model].join(' '), absolute].join('\n\n'))}`
+          : `https://wa.me/?text=${encodeURIComponent([payload.vehicle.description || [payload.vehicle.year, payload.vehicle.make, payload.vehicle.model].join(' '), absolute].join('\n\n'))}`,
       });
     }
 

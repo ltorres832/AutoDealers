@@ -905,7 +905,7 @@ function WebsitePreview({
                   );
                 }
                 if (u.protocol === 'https:' && /\.(mp4|webm|ogg)(\?|$)/i.test(u.pathname)) {
-                  return <video className="w-full h-full object-contain" controls src={u.toString()} />;
+                  return <video className="w-full h-full object-contain" controls src={u.toString()} style={{ objectFit: 'contain' }} />;
                 }
                 return <p className="text-white text-center p-8 text-sm">Formato no reconocido en vista previa</p>;
               })()}

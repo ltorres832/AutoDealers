@@ -440,12 +440,18 @@ function LoginPageContent() {
             <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left">
               <p className="text-sm font-semibold text-gray-800 mb-1">¿Eres cliente?</p>
               <p className="text-sm text-gray-600 mb-2">
-                Mi garage guarda tu vehículo y sugerencias de negocios registrados. Requiere
-                iniciar sesión. Esto no es el registro de dealer, vendedor o negocio.
+                Mi garage guarda tu vehículo y sugerencias de negocios registrados. Crea una cuenta
+                para guardar tus vehículos y recibir notificaciones. Esto no es el registro de dealer, vendedor o negocio.
               </p>
               <div className="flex flex-wrap gap-x-3 gap-y-1">
                 <Link href="/mi-garage" className="text-sm text-primary-600 hover:text-primary-700 font-medium">
-                  Ir a Mi garage
+                  Ver Mi garage
+                </Link>
+                <Link
+                  href="/mi-garage/crear-cuenta"
+                  className="text-sm text-gray-600 hover:text-primary-700 font-medium"
+                >
+                  Crear cuenta
                 </Link>
               </div>
             </div>

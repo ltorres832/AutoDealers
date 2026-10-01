@@ -10,6 +10,8 @@ export interface ScheduledPost {
   tenantId: string;
   userId: string;
   content: {
+    vehicleId?: string;
+    vehicleTenantId?: string;
     text: string;
     imageUrl?: string;
     videoUrl?: string;
@@ -91,6 +93,8 @@ export async function publishScheduledPost(
       tenantId,
       {
         text: post.content.text,
+        vehicleId: post.vehicleId || post.content.vehicleId,
+        vehicleTenantId: post.content.vehicleTenantId,
         imageUrl: post.content.imageUrl,
         videoUrl: post.content.videoUrl,
         hashtags: post.content.hashtags,

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { buildQrImageUrl } from '@autodealers/inventory/client';
+import VehicleEquipmentDetails from '@autodealers/shared/components/VehicleEquipmentDetails';
 import VehicleImageFrame from '@/components/VehicleImageFrame';
 import { buildTelHref, buildWhatsAppHref } from '@/lib/contact-links';
 import { buildPublicVehicleDetailHref } from '@/lib/public-vehicle-detail-href';
@@ -21,6 +22,8 @@ type SharePayload = {
     mileage?: number;
     condition?: string;
     description?: string;
+    vin?: string;
+    specifications?: Record<string, unknown>;
     photos: string[];
     videos: string[];
     publishedOnPublicPage?: boolean;
@@ -290,6 +293,7 @@ export default function ShareLandingPage() {
               {vehicle.description.trim()}
             </p>
           )}
+          <VehicleEquipmentDetails specifications={vehicle.specifications} vin={vehicle.vin} />
           {marketplaceHref && (
             <Link
               href={marketplaceHref}

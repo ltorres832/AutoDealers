@@ -18,6 +18,8 @@ try {
   console.warn('⚠️  functions TypeScript reportó diagnósticos heredados, pero emitió lib/. Continuando build.');
 }
 
+require('./build-vehicle-description');
+
 const { validateDeployPackage } = require('./deploy-manifest');
 const existing = validateDeployPackage(functionsDir);
 if (existing.ok) {

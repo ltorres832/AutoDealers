@@ -1,9 +1,11 @@
+import {officialVehicleDescription} from '@autodealers/shared/vehicle-description';
 /**
  * Servidor: share landings, photo sets, dealer site, alianzas, feeds, etiquetas DACO.
  * Aditivo — no modifica ni borra vehículos existentes.
  */
 
 import * as admin from 'firebase-admin';
+import { equipmentFromSpecifications } from '@autodealers/shared/vehicle-equipment';
 import { getFirestore } from '@autodealers/shared';
 import { getVehicleById, getVehicles } from './vehicles';
 import {
@@ -190,7 +192,8 @@ export async function getShareLandingPayload(tenantId: string, vehicleId: string
       currency: vehicle.currency || 'USD',
       mileage: vehicle.mileage,
       condition: vehicle.condition,
-      description: vehicle.description || '',
+      description: officialVehicleDescription(vehicle), masterDescription:officialVehicleDescription(vehicle),
+      specifications: { equipment: equipmentFromSpecifications(vehicle.specifications || {}, vehicle.vin || vehicle.specifications?.vin) },
       vin: vehicle.vin || vehicle.specifications?.vin,
       stockNumber: vehicle.stockNumber,
       photos: displayPhotos,

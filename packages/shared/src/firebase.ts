@@ -114,11 +114,17 @@ export function initializeFirebase(): AdminType['app']['App'] {
     return firebaseApp;
   }
 
-  // MODO DESARROLLO O BUILD: Permitir trabajar sin Firebase (basado en flag, entorno local o fase de build)
-  const isDevelopment = process.env.NODE_ENV === 'development' || process.env.SKIP_FIREBASE === 'true';
+  // MODO DESARROLLO O BUILD: Permitir trabajar sin Firebase cuando el proyecto
+  // no está configurado localmente, cuando se solicita explícitamente con
+  // `SKIP_FIREBASE=true`, o durante la fase de build.
+  const isDevelopment = process.env.NODE_ENV === 'development';
   const isBuild = process.env.NEXT_PHASE === 'phase-production-build';
+  const skipFlag = process.env.SKIP_FIREBASE === 'true';
+  const missingProjectId = !process.env.FIREBASE_PROJECT_ID;
 
-  if ((isDevelopment && process.env.SKIP_FIREBASE === 'true') || isBuild) {
+  // Usar mock si se indicó explícitamente, si estamos en build, o si estamos
+  // en desarrollo y no hay FIREBASE_PROJECT_ID configurada (flujo local seguro).
+  if (skipFlag || isBuild || (isDevelopment && missingProjectId)) {
     if (isBuild) {
       console.log('⚠️  BUILD PHASE: Usando Firebase Admin mock para compilación');
     } else {

@@ -1,3 +1,4 @@
+import {getSupportTabToken} from '@autodealers/shared/support-tab-session';
 import { DEALER_ACTIVE_TENANT_KEY } from './dealer-tenant-storage';
 
 const ADMIN_SESSION_RE = /^[a-f0-9]{64}$/i;
@@ -23,19 +24,21 @@ function pickFirebaseJwt(...candidates: string[]): string {
 
 export function resolveClientAuthToken(): string {
   if (typeof window === 'undefined') return '';
+  const support=getSupportTabToken();
+  if(support)return support;
   return pickFirebaseJwt(localStorage.getItem('authToken') || '', readCookieToken());
 }
 
 export function authHeaders(init?: HeadersInit): Headers {
   const headers = new Headers(init);
   const token = resolveClientAuthToken();
-  if (token && !headers.has('Authorization')) {
+  if (token && (getSupportTabToken() || !headers.has('Authorization'))) {
     headers.set('Authorization', `Bearer ${token}`);
   }
   if (typeof window !== 'undefined') {
     try {
       const active = sessionStorage.getItem(DEALER_ACTIVE_TENANT_KEY)?.trim();
-      if (active && !headers.has('X-Dealer-Tenant-Id')) {
+      if (active && !getSupportTabToken() && !headers.has('X-Dealer-Tenant-Id')) {
         headers.set('X-Dealer-Tenant-Id', active);
       }
     } catch {

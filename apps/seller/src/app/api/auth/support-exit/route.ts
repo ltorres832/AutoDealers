@@ -16,14 +16,14 @@ export async function POST(request: NextRequest) {
       /* keep */
     }
     const payload = tryParseSupportSessionToken(raw);
-    if (payload?.sid) {
-      await endSupportSession(payload.sid, 'ended');
-    } else if (auth?.supportSessionId) {
+    if (auth?.supportSessionId) {
       await endSupportSession(auth.supportSessionId, 'ended');
+    } else if (payload?.sid && auth?.supportMode) {
+      await endSupportSession(payload.sid, 'ended');
     }
 
     const res = NextResponse.json({ success: true });
-    res.cookies.set('authToken', '', { path: '/', maxAge: 0 });
+    // The ended session is invalid server-side; do not clear another tab's navigation cookie.
     return res;
   } catch (error) {
     console.error('[seller support-exit]', error);

@@ -1,4 +1,5 @@
 'use client';
+import {clearSupportTab} from '@autodealers/shared/support-tab-session';
 
 import { useState } from 'react';
 
@@ -20,6 +21,7 @@ export function SupportModeBanner({
     } catch {
       /* ignore */
     }
+    clearSupportTab();
     window.location.href = '/login';
   }
 

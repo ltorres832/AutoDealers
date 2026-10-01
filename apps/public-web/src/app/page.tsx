@@ -1,4 +1,5 @@
 'use client';
+import VehicleEquipmentSummary from '@/components/VehicleEquipmentSummary';
 
 import { useState, useEffect, useCallback, useMemo, Fragment, useRef } from 'react';
 import Link from 'next/link';
@@ -1297,6 +1298,7 @@ export default function LandingPage() {
                                 <p className="text-xl sm:text-2xl font-bold text-slate-900 tabular-nums">
                                   {vehicle.currency} {vehicle.price.toLocaleString()}
                                 </p>
+<VehicleEquipmentSummary vehicle={vehicle} />
                                 <h3 className="mt-2 text-base sm:text-lg font-semibold text-slate-800 leading-snug line-clamp-2 group-hover:text-primary-600 transition-colors">
                                   {vehicle.year} {vehicle.make} {vehicle.model}
                                 </h3>
@@ -1441,6 +1443,7 @@ export default function LandingPage() {
                                 <span className="text-3xl font-black text-slate-900 tracking-tighter">
                                   {vehicle.currency} {vehicle.price.toLocaleString()}
                                 </span>
+<VehicleEquipmentSummary vehicle={vehicle} />
                                 <span className="text-primary-500 text-[10px] font-black uppercase tracking-widest mt-1">Precio Online</span>
                               </div>
                             </div>

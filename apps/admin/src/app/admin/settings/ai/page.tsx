@@ -1,4 +1,5 @@
 'use client';
+import VehicleDescriptionSettings from '@/components/VehicleDescriptionSettings';
 
 import { useState, useEffect } from 'react';
 
@@ -276,6 +277,7 @@ export default function AISettingsPage() {
         </div>
       </div>
 
+      <VehicleDescriptionSettings />
       <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
         <h3 className="font-semibold text-primary-900 mb-2">ℹ️ ¿Para qué se usa la IA?</h3>
         <ul className="list-disc list-inside space-y-2 text-sm text-primary-800">

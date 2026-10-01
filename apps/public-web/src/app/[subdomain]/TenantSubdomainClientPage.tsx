@@ -1,4 +1,5 @@
 'use client';
+import VehicleEquipmentSummary from '@/components/VehicleEquipmentSummary';
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
@@ -171,6 +172,7 @@ export default function TenantSubdomainClientPage() {
   const [filteredVehicles, setFilteredVehicles] = useState<Vehicle[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMake, setSelectedMake] = useState<string>('all');
+  const [selectedModel,setSelectedModel]=useState('all');
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [priceRange, setPriceRange] = useState<{ min: number; max: number }>({ min: 0, max: 0 });
@@ -295,7 +297,7 @@ export default function TenantSubdomainClientPage() {
         max: Math.max(...prices),
       });
     }
-  }, [vehicles, searchTerm, selectedMake]);
+  }, [vehicles, searchTerm, selectedMake, selectedModel]);
 
   useEffect(() => {
     // Manejar scroll para mostrar bot├│n "volver arriba"
@@ -422,6 +424,7 @@ export default function TenantSubdomainClientPage() {
       );
     }
 
+    if (selectedModel !== 'all') filtered=filtered.filter(v=>v.model===selectedModel);
     if (selectedMake !== 'all') {
       filtered = filtered.filter((v) => v.make === selectedMake);
     }
@@ -429,6 +432,7 @@ export default function TenantSubdomainClientPage() {
     setFilteredVehicles(filtered);
   }
 
+  const uniqueModels=Array.from(new Set(vehicles.filter(v=>selectedMake==='all'||v.make===selectedMake).map(v=>v.model))).sort();
   const uniqueMakes = Array.from(new Set(vehicles.map((v) => v.make))).sort();
 
   // VERIFICACI├ôN CR├ìTICA: Si estamos en la ra├¡z sin subdominio, redirigir
@@ -922,7 +926,7 @@ export default function TenantSubdomainClientPage() {
               </div>
               <select
                 value={selectedMake}
-                onChange={(e) => setSelectedMake(e.target.value)}
+                onChange={(e) => {setSelectedMake(e.target.value);setSelectedModel('all');}}
                 className="border rounded-lg px-4 py-2"
               >
                 <option value="all">Todas las marcas</option>
@@ -931,6 +935,10 @@ export default function TenantSubdomainClientPage() {
                     {make}
                   </option>
                 ))}
+              </select>
+              <select aria-label="Modelo" value={selectedModel} onChange={e=>setSelectedModel(e.target.value)} className="border rounded-lg px-4 py-2">
+                <option value="all">Todos los modelos</option>
+                {uniqueModels.map(model=><option key={model} value={model}>{model}</option>)}
               </select>
             </div>
 
@@ -1002,8 +1010,9 @@ export default function TenantSubdomainClientPage() {
                           {vehicle.year} {vehicle.make} {vehicle.model}
                         </h3>
                         <p className="mb-4 text-2xl font-bold text-green-600 sm:text-3xl">
-                          {vehicle.currency} {vehicle.price.toLocaleString()}
+                          {(vehicle.currency && vehicle.currency.length === 1 ? vehicle.currency : '$')} {vehicle.price.toLocaleString()}
                         </p>
+<VehicleEquipmentSummary vehicle={vehicle} />
                         <div className="flex flex-wrap gap-2 mb-4 text-sm text-gray-600">
                           <span className="flex items-center gap-1">
                             <span className="text-gray-500 font-medium">Millaje:</span>

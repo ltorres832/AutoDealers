@@ -8,17 +8,9 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const customer = await getCustomerFromRequest(request);
-
-    // Requerir autenticación obligatoria
-    if (!customer) {
-      return NextResponse.json(
-        { error: 'Mi Garage requiere autenticación. Por favor inicia sesión para acceder.' },
-        { status: 401 }
-      );
-    }
-
     const garage = await setSelectedGarageVehicle({
-      userId: customer.id,
+      userId: customer?.id,
+      token: body.token ? String(body.token) : undefined,
       vehicleId: String(body.vehicleId || ''),
     });
 
@@ -37,7 +29,7 @@ export async function POST(request: NextRequest) {
       garage,
       selectedVehicle: selectedVehicle || null,
       suggestions,
-      authenticated: true,
+      authenticated: Boolean(customer),
     });
   } catch (error: any) {
     console.error('Error selecting garage vehicle:', error);

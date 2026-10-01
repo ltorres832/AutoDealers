@@ -469,13 +469,15 @@ function EditSellerModal({
   onSuccess: () => void;
 }) {
   const [name, setName] = useState(seller.name);
+  const [email, setEmail] = useState(seller.email);
   const [publicPromoVideoUrl, setPublicPromoVideoUrl] = useState(seller.publicPromoVideoUrl || '');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setName(seller.name);
+    setEmail(seller.email);
     setPublicPromoVideoUrl(seller.publicPromoVideoUrl || '');
-  }, [seller.name, seller.publicPromoVideoUrl]);
+  }, [seller.name, seller.email, seller.publicPromoVideoUrl]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -486,7 +488,7 @@ function EditSellerModal({
       const response = await fetchWithAuth(`/api/sellers/${seller.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, publicPromoVideoUrl }),
+        body: JSON.stringify({ name, email, publicPromoVideoUrl }),
       });
 
       if (response.ok) {
@@ -524,11 +526,14 @@ function EditSellerModal({
             <label className="block text-sm font-medium mb-2">Email</label>
             <input
               type="email"
-              value={seller.email}
-              disabled
-              className="w-full border rounded px-3 py-2 bg-gray-100"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full border rounded px-3 py-2"
+              required
             />
-            <p className="text-xs text-gray-500 mt-1">El email no se puede cambiar</p>
+            <p className="text-xs text-gray-500 mt-1">
+              Al cambiar el email, el vendedor usará este nuevo correo para iniciar sesión.
+            </p>
           </div>
           <div>
             <label className="block text-sm font-medium mb-2">Video en página pública del vendedor (opcional)</label>

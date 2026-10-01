@@ -40,6 +40,9 @@ async function resolveRequestToken(request: NextRequest): Promise<string | undef
     ?.replace(/^Bearer\s+/i, '')
     ?.trim();
 
+  // An explicit tab credential must never be replaced by a different browser cookie.
+  if (header) return decodeToken(header);
+
   const cookieRaw = request.cookies.get('authToken')?.value;
   let cookieStoreRaw: string | undefined;
   try {

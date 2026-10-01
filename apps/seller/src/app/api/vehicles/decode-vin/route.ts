@@ -23,7 +23,10 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
-    return NextResponse.json({ success: true, vin, result });
+    // Agrupar especificaciones en categorías útiles para la UI
+    const groupedSpecifications = Object.fromEntries(['identity', 'interior', 'exterior', 'entertainment', 'safety', 'mechanical', 'efficiency', 'dimensions', 'other'].map(group => [group, Object.fromEntries(Object.entries(result.equipment?.fields || {}).filter(([, field]) => field.group === group).map(([key, field]) => [key, field.value]))]));
+
+    return NextResponse.json({ success: true, vin, result, groupedSpecifications });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Error al decodificar VIN';
     return NextResponse.json({ error: message }, { status: 500 });

@@ -960,7 +960,7 @@ function WebsitePreview({
                       <div className="h-48 bg-white border-b border-gray-100 flex items-center justify-center overflow-hidden">
                         {src ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={src} alt="" className="w-full h-full object-contain object-center" />
+                          <img src={src} alt="" className="w-full h-full object-contain object-center" style={{ objectFit: 'contain' }} />
                         ) : (
                           <span className="text-gray-400 text-sm">Sin foto</span>
                         )}

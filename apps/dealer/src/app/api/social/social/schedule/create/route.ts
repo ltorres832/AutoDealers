@@ -1,3 +1,4 @@
+import {masterVehiclePost} from '@/lib/master-vehicle-post';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { schedulePost } from '@autodealers/core';
@@ -10,6 +11,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+    body.content = await masterVehiclePost(auth, body.vehicleId || body.content?.vehicleId, body.content || {});
     const { content, platforms, scheduledFor, vehicleId, promotionId, aiGenerated } = body;
 
     if (!content || !platforms || !scheduledFor) {

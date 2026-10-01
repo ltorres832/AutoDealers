@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { createVehicle, findActiveVinConflicts } from '@autodealers/inventory';
 import { createNotification, resolveSellerVehicleCreatePolicy } from '@autodealers/core';
+
 import {
   findSellerVehicleById,
   filterVehiclesOwnedBySeller,
@@ -130,9 +131,7 @@ export async function POST(request: NextRequest) {
       bodyType: body.bodyType || 'NO ENVIADO',
     });
     console.log(`💾 Guardando vehículo con tenantId: "${auth.tenantId}" y sellerId: "${auth.userId}"`);
-    const vehicle = await createVehicle(auth.tenantId, payload, auth.userId);
-    console.log(`✅ Vehículo creado con sellerId: ${(vehicle as any).sellerId || 'NO ASIGNADO'}`);
-
+    const vehicle = await createVehicle(auth.tenantId, payload, auth.userId, {userId:auth.userId,role:auth.role,tenantId:auth.tenantId});
     let vinWarnings: { tenantId: string; vehicleId: string; make?: string; model?: string; year?: number }[] = [];
     try {
       const vin = (vehicle as any).vin || body.vin;

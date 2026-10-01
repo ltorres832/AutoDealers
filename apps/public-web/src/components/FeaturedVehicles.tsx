@@ -1,4 +1,5 @@
 'use client';
+import VehicleEquipmentSummary from '@/components/VehicleEquipmentSummary';
 
 import Link from 'next/link';
 import { useRef } from 'react';
@@ -6,6 +7,8 @@ import { getFirstPhoto, handleImageError } from '@/lib/vehicle-image';
 import { pingCatalogVehicleClick } from '@/lib/catalog-vehicle-click';
 
 interface Vehicle {
+  vin?: string;
+  specifications?: Record<string, unknown>;
   id: string;
   tenantId: string;
   year: number;
@@ -150,6 +153,7 @@ export default function FeaturedVehicles({ vehicles }: FeaturedVehiclesProps) {
                     <p className="text-xl font-bold text-slate-900 tabular-nums">
                       {vehicle.currency} {vehicle.price.toLocaleString()}
                     </p>
+<VehicleEquipmentSummary vehicle={vehicle} />
                     <h3 className="mt-1 text-base font-semibold text-slate-800 group-hover:text-primary-600 transition-colors line-clamp-2">
                       {vehicle.year} {vehicle.make} {vehicle.model}
                     </h3>

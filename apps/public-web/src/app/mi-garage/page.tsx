@@ -47,18 +47,8 @@ export default function MiGaragePage() {
   useEffect(() => {
     const query = token ? `?token=${encodeURIComponent(token)}` : '';
     fetch(`/api/public/garage${query}`, { credentials: 'include' })
-      .then((res) => {
-        if (res.status === 401) {
-          // Redirigir a login si no está autenticado
-          if (typeof window !== 'undefined') {
-            window.location.href = '/login?redirect=/mi-garage';
-          }
-          return null;
-        }
-        return res.json();
-      })
+      .then((res) => res.json())
       .then((json) => {
-        if (!json) return;
         setData(json);
         if (json?.garage?.accessToken) {
           window.localStorage.setItem('garageToken', json.garage.accessToken);
@@ -137,7 +127,7 @@ export default function MiGaragePage() {
         <h1 className="text-4xl font-black mb-3">Mi garage</h1>
         <p className="text-slate-600 mb-6 max-w-2xl">
           Agrega tu vehículo a mano. Si tienes varios, elige uno: talleres, gomeras y piezas se
-          muestran solo para ese carro. Requiere iniciar sesión.
+          muestran solo para ese carro. Crea una cuenta para guardar tus vehículos y recibir notificaciones.
         </p>
 
         <section className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 mb-8" aria-labelledby="garage-para-que">
@@ -161,11 +151,17 @@ export default function MiGaragePage() {
                 href="/login?redirect=/mi-garage"
                 className="inline-flex items-center rounded-xl bg-primary-600 text-white font-bold px-5 py-3 hover:bg-primary-700"
               >
-                Iniciar sesión
+                Iniciar sesión para agregar vehículos
+              </Link>
+              <Link
+                href="/mi-garage/crear-cuenta"
+                className="inline-flex items-center rounded-xl border-2 border-primary-100 text-primary-700 font-bold px-5 py-3 hover:border-primary-600"
+              >
+                Crear cuenta
               </Link>
             </div>
             <p className="text-sm text-slate-500">
-              Mi Garage requiere autenticación para guardar tus vehículos y recibir notificaciones.
+              Inicia sesión o crea una cuenta para agregar vehículos a tu garage y recibir notificaciones.
             </p>
           </div>
         ) : (

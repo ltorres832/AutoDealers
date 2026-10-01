@@ -1,19 +1,10 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { fetchWithAuth } from '@/lib/fetch-with-auth';
-import { BrowserMultiFormatReader } from '@zxing/library';
+import { startVinCameraScan, VIN_SCAN_TIP, VIN_TEXT_REGION, type VinCameraScanHandle, type VinScanMode } from '@autodealers/core/vin-camera-scan';
 
-type VinResult = {
-  make?: string;
-  model?: string;
-  year?: number;
-  bodyType?: string;
-  engine?: string;
-  fuelType?: string;
-  transmission?: string;
-  doors?: number;
-};
+import type { VinDecodeResult as VinResult } from '@autodealers/shared/vehicle-equipment';
 
 type Props = {
   value: string;
@@ -23,22 +14,57 @@ type Props = {
   required?: boolean;
 };
 
-export default function VinDecodeField({
-  value,
-  onChange,
-  onDecoded,
-  enabled = true,
-  required = true,
-}: Props) {
+export default function VinDecodeField({ value, onChange, onDecoded, enabled = true, required = true }: Props) {
   const [busy, setBusy] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState('');
   const [ok, setOk] = useState('');
+  const [scanMode, setScanMode] = useState<VinScanMode>('text');
+  const [scanStatus, setScanStatus] = useState('');
   const videoRef = useRef<HTMLVideoElement>(null);
-  const readerRef = useRef<BrowserMultiFormatReader | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+  const scanRef = useRef<VinCameraScanHandle | null>(null);
+  const callbacksRef = useRef({ onChange, decodeVinValue });
+  const requestId = useRef(0);
+  const lookupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { requestId.current++; if (lookupTimer.current) clearTimeout(lookupTimer.current); }, []);
+
+  useEffect(() => {
+    callbacksRef.current = { onChange, decodeVinValue };
+  });
+
+  useEffect(() => {
+    if (!scanning || !enabled || !videoRef.current) return;
+    const handle = startVinCameraScan({
+      video: videoRef.current,
+      mode: scanMode,
+      onStatus: setScanStatus,
+      onDetected: (vin) => {
+        setScanning(false);
+        setScanStatus('');
+        callbacksRef.current.onChange(vin);
+        void callbacksRef.current.decodeVinValue(vin);
+      },
+      onTimeout: () => {
+        setScanning(false);
+        setScanStatus('');
+        setError(scanMode === 'text' ? VIN_SCAN_TIP : 'No se detectó un código de barras con VIN. Acerca la etiqueta o cambia a Letras y números.');
+      },
+      onError: (message) => {
+        setScanning(false);
+        setScanStatus('');
+        setError(message);
+      },
+    });
+    scanRef.current = handle;
+    return () => {
+      handle.stop();
+      if (scanRef.current === handle) scanRef.current = null;
+    };
+  }, [scanning, scanMode, enabled]);
 
   async function decodeVinValue(vinRaw: string) {
+    if (lookupTimer.current) clearTimeout(lookupTimer.current);
+    const currentRequest = ++requestId.current;
     setBusy(true);
     setError('');
     setOk('');
@@ -49,93 +75,42 @@ export default function VinDecodeField({
         body: JSON.stringify({ vin: vinRaw }),
       });
       const json = await res.json();
+      if (currentRequest !== requestId.current) return;
       if (!res.ok) throw new Error(json.error || 'No se pudo decodificar');
-      onDecoded(json.result || {});
-      setOk('VIN decodificado. Revisa marca, modelo y año.');
+      onDecoded({ ...(json.result || {}), vin: json.vin || vinRaw.trim().toUpperCase() });
+      // Optional: expose grouped specifications to parent via onDecoded as well
+      // Parent can read `specificationsRaw` or `groupedSpecifications` from result
+      setOk('Ficha del VIN cargada. Revisa el equipamiento y completa los datos pendientes.');
+      if (json.result?.warnings?.length) setError(json.result.warnings.join(' '));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error');
+      if (currentRequest === requestId.current) setError(err instanceof Error ? err.message : 'Error');
     } finally {
-      setBusy(false);
+      if (currentRequest === requestId.current) setBusy(false);
     }
   }
 
-  async function decode() {
-    await decodeVinValue(value);
+  function changeVinInput(raw: string) {
+    const vin = raw.toUpperCase().replace(/[\s-]/g, '').slice(0, 17);
+    onChange(vin);
+    setOk(''); setError('');
+    if (lookupTimer.current) clearTimeout(lookupTimer.current);
+    if (enabled && /^[A-HJ-NPR-Z0-9]{17}$/.test(vin)) {
+      lookupTimer.current = setTimeout(() => void callbacksRef.current.decodeVinValue(vin), 500);
+    }
   }
 
   function stopScan() {
-    readerRef.current?.reset();
-    readerRef.current = null;
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    streamRef.current = null;
+    scanRef.current?.stop();
+    scanRef.current = null;
     setScanning(false);
+    setScanStatus('');
   }
 
-  async function scanFromCamera() {
+  function scanFromCamera() {
     setError('');
     setOk('');
-    try {
-      stopScan();
-      setScanning(true);
-      
-      console.log('📷 Iniciando escaneo de cámara...');
-      const reader = new BrowserMultiFormatReader();
-      readerRef.current = reader;
-      
-      const devices = await BrowserMultiFormatReader.listVideoInputDevices();
-      console.log('📷 Dispositivos de video encontrados:', devices.length);
-      console.log('📷 Lista de dispositivos:', devices.map(d => ({ label: d.label, deviceId: d.deviceId })));
-      
-      if (devices.length === 0) {
-        throw new Error('No se encontraron cámaras disponibles. Verifica que tu dispositivo tenga cámara.');
-      }
-      
-      const back =
-        devices.find((d) => /back|rear|environment|trasera/i.test(d.label)) || devices[0];
-      const deviceId = back?.deviceId;
-      console.log('📷 Usando dispositivo:', back?.label || 'Primer dispositivo', 'ID:', deviceId);
-      
-      if (!videoRef.current) {
-        throw new Error('Elemento de video no disponible');
-      }
-      
-      console.log('📷 Elemento de video encontrado, iniciando decodificación...');
-      console.log('📷 URL del elemento de video:', videoRef.current.src);
-      console.log('📷 Estado del elemento de video:', videoRef.current.readyState);
-      
-      // Esperar un momento para que el video esté listo
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      console.log('📷 Iniciando decodeOnceFromVideoDevice...');
-      const result = await reader.decodeOnceFromVideoDevice(deviceId, videoRef.current);
-      console.log('📷 Código detectado:', result.getText());
-      
-      const raw = String(result.getText() || '')
-        .toUpperCase()
-        .replace(/[^A-HJ-NPR-Z0-9]/g, '');
-      stopScan();
-      
-      if (raw.length < 11) {
-        setError('Código leído pero no parece un VIN. Pégalo manualmente.');
-        return;
-      }
-      const vin = raw.slice(0, 17);
-      onChange(vin);
-      setOk(`VIN leído: ${vin}`);
-      await decodeVinValue(vin);
-    } catch (err) {
-      console.error('❌ Error en escaneo:', err);
-      console.error('❌ Tipo de error:', err instanceof Error ? err.constructor.name : typeof err);
-      console.error('❌ Mensaje de error:', err instanceof Error ? err.message : String(err));
-      console.error('❌ Stack:', err instanceof Error ? err.stack : 'No stack available');
-      stopScan();
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      setError(
-        err instanceof Error && /NotAllowedError|Permission/i.test(err.name + err.message)
-          ? 'Permiso de cámara denegado. Pega el VIN y pulsa Decodificar.'
-          : `No se pudo escanear: ${errorMessage}. Pega el VIN y pulsa Decodificar.`
-      );
-    }
+    setScanStatus('Abriendo cámara…');
+    setScanning(true);
   }
 
   if (!enabled) {
@@ -144,14 +119,7 @@ export default function VinDecodeField({
         <label className="block text-sm font-medium text-slate-800">
           VIN {required ? <span className="text-red-600">*</span> : null}
         </label>
-        <input
-          value={value}
-          onChange={(e) => onChange(e.target.value.toUpperCase())}
-          placeholder="VIN (17 caracteres)"
-          className="w-full border rounded-lg px-3 py-2"
-          maxLength={17}
-          required={required}
-        />
+        <input disabled={busy} value={value} onChange={(e) => changeVinInput(e.target.value)} placeholder="VIN (17 caracteres)" className="w-full border rounded-lg px-3 py-2" maxLength={32} required={required} />
       </div>
     );
   }
@@ -162,53 +130,37 @@ export default function VinDecodeField({
         VIN (Quick VIN) {required ? <span className="text-red-600">*</span> : null}
       </label>
       <div className="flex flex-wrap gap-2">
-        <input
-          value={value}
-          onChange={(e) => onChange(e.target.value.toUpperCase())}
-          placeholder="17 caracteres"
-          className="flex-1 min-w-[160px] border rounded-lg px-3 py-2 font-mono"
-          maxLength={17}
-          required={required}
-        />
-        <button
-          type="button"
-          onClick={() => void decode()}
-          disabled={busy || value.trim().length < 11}
-          className="px-3 py-2 rounded-lg bg-slate-900 text-white text-sm disabled:opacity-50"
-        >
+        <input disabled={busy} value={value} onChange={(e) => changeVinInput(e.target.value)} placeholder="17 caracteres" className="flex-1 min-w-[160px] border rounded-lg px-3 py-2 font-mono" maxLength={32} required={required} />
+        <button type="button" onClick={() => void decodeVinValue(value)} disabled={busy || scanning || value.trim().length !== 17} className="px-3 py-2 rounded-lg bg-slate-900 text-white text-sm disabled:opacity-50">
           {busy ? '…' : 'Decodificar'}
         </button>
-        <button
-          type="button"
-          onClick={() => void scanFromCamera()}
-          disabled={busy || scanning}
-          className="px-3 py-2 rounded-lg border text-sm"
-        >
+        <button type="button" onClick={scanFromCamera} disabled={busy || scanning} className="px-3 py-2 rounded-lg border text-sm disabled:opacity-50">
           {scanning ? 'Escaneando…' : 'Cámara'}
         </button>
-        {scanning ? (
-          <button type="button" onClick={stopScan} className="px-3 py-2 rounded-lg border text-sm text-red-700">
-            Detener
-          </button>
-        ) : null}
+        {scanning ? <button type="button" onClick={stopScan} className="px-3 py-2 rounded-lg border text-sm text-red-700">Detener</button> : null}
       </div>
+      <label className="flex items-center gap-2 text-xs text-slate-600">
+        Leer con cámara:
+        <select aria-label="Tipo de lectura del VIN" value={scanMode} onChange={(event) => setScanMode(event.target.value as VinScanMode)} disabled={busy} className="rounded border px-2 py-1">
+          <option value="text">Letras y números</option>
+          <option value="barcode">Código de barras</option>
+        </select>
+      </label>
       {scanning ? (
-        <video 
-          ref={videoRef} 
-          className="w-full max-w-md rounded-lg border bg-black aspect-video" 
-          muted 
-          playsInline 
-          autoPlay
-          onLoadedMetadata={() => console.log('📷 Video metadata loaded')}
-          onPlay={() => console.log('📷 Video started playing')}
-          onError={(e) => console.error('📷 Video error:', e)}
-        />
+        <div className="relative w-full max-w-md overflow-hidden rounded-lg border bg-black">
+          <video ref={videoRef} className="block w-full" muted playsInline autoPlay />
+          {scanMode === 'text' ? (
+            <div aria-hidden="true" className="pointer-events-none absolute rounded border-2 border-emerald-400"
+              style={{ left: VIN_TEXT_REGION.x * 100 + '%', top: VIN_TEXT_REGION.y * 100 + '%', width: VIN_TEXT_REGION.width * 100 + '%', height: VIN_TEXT_REGION.height * 100 + '%' }} />
+          ) : null}
+        </div>
       ) : null}
+      {scanning && scanStatus ? <p role="status" className="text-xs text-slate-600">{scanStatus}</p> : null}
       <p className="text-xs text-slate-500">
-        Escanea el código del cristal/puerta o pega el VIN. Completa marca/modelo/año automáticamente.
+        Apunta a los 17 caracteres del VIN dentro del recuadro. La lectura completa marca, modelo y año automáticamente. Si usas la etiqueta, puedes elegir Código de barras.
       </p>
-      {error ? <p className="text-xs text-red-600">{error}</p> : null}
-      {ok ? <p className="text-xs text-green-700">{ok}</p> : null}
+      {error ? <p role="alert" className="text-xs text-red-600">{error}</p> : null}
+      {ok ? <p role="status" className="text-xs text-green-700">{ok}</p> : null}
     </div>
   );
 }

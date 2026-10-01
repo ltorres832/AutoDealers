@@ -1,5 +1,7 @@
 'use client';
 
+import VehicleEquipmentDetails from '@autodealers/shared/components/VehicleEquipmentDetails';
+
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -13,6 +15,7 @@ import { getCatalogClickContext } from '@/lib/catalog-vehicle-click';
 import { buildWhatsAppHref } from '../../../../lib/contact-links';
 
 interface Vehicle {
+  vin?: string;
   id: string;
   tenantId: string;
   tenantName?: string;
@@ -162,6 +165,9 @@ export default function VehicleDetailPage() {
     contactPhone?: string;
     whatsapp?: string;
   } | null>(null);
+
+  const [failedSellerPhoto, setFailedSellerPhoto] = useState<string | null>(null);
+  const sellerPhoto = vehicle?.sellerPhoto?.trim() || '';
 
   const sellerDisplayName =
     vehicle?.sellerName?.trim() ||
@@ -688,6 +694,8 @@ export default function VehicleDetailPage() {
                 </div>
               )}
 
+              <VehicleEquipmentDetails specifications={vehicle.specifications} vin={vehicle.vin} />
+
               {/* Botón para ver todas las especificaciones */}
               <button
                 onClick={() => setShowFullSpecs(!showFullSpecs)}
@@ -929,8 +937,26 @@ export default function VehicleDetailPage() {
                       href={`/seller/${vehicle.sellerId}`}
                       className="group flex items-center gap-3 mb-3"
                     >
-                      <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md group-hover:shadow-lg transition-shadow">
-                        {sellerDisplayName.charAt(0).toUpperCase()}
+                      {vehicle.sellerPhoto ? (
+                        <img
+                          src={vehicle.sellerPhoto}
+                          alt={sellerDisplayName}
+                          className="w-12 h-12 rounded-full object-cover shadow-md group-hover:shadow-lg transition-shadow"
+                          onError={(e) => {
+                            const target = e.currentTarget;
+                            target.style.display = 'none';
+                            const fallback = target.nextElementSibling as HTMLElement | null;
+                            if (fallback) fallback.style.display = 'flex';
+                          }}
+                        />
+                      ) : null}
+                      <div
+                        className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full items-center justify-center text-white font-bold text-lg shadow-md group-hover:shadow-lg transition-shadow"
+                        style={{ display: vehicle.sellerPhoto ? 'none' : 'flex' }}
+                      >
+                        {sellerPhoto && failedSellerPhoto !== sellerPhoto ? (
+                          <img src={sellerPhoto} alt={`Foto de ${sellerDisplayName}`} className="h-full w-full object-cover bg-white" onError={() => setFailedSellerPhoto(sellerPhoto)} />
+                        ) : sellerDisplayName.charAt(0).toUpperCase()}
                       </div>
                       <div className="flex-1">
                         <div className="font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">
@@ -998,7 +1024,7 @@ export default function VehicleDetailPage() {
                             if (navigator.share) {
                               navigator.share({
                                 title: `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
-                                text: `Mira este vehículo: ${vehicle.year} ${vehicle.make} ${vehicle.model} - ${vehicle.currency || '$'} ${(vehicle.price || 0).toLocaleString()}`,
+                                text: vehicle.description || `${vehicle.year} ${vehicle.make} ${vehicle.model}`,
                                 url: window.location.href,
                               }).catch(() => {});
                             } else {

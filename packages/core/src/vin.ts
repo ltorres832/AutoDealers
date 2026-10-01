@@ -55,3 +55,20 @@ export function toVinNormalized(vin: string | null | undefined): string {
   const n = normalizeVin(vin);
   return isValidVinFormat(n) ? n : '';
 }
+
+/**
+ * Extrae un VIN de 17 caracteres desde el texto de un código de barras/QR.
+ * Los stickers a menudo incluyen prefijos o payload PDF417 más largo.
+ */
+export function extractVinFromBarcodeText(raw: string | null | undefined): string | null {
+  const text = String(raw || '').toUpperCase();
+  // Preserve boundaries: stripping every non-VIN character can fabricate a VIN
+  // from a label/payload or silently remove an OCR mistake such as I, O or Q.
+  const candidates: string[] = text.match(/(?<![A-Z0-9])[A-HJ-NPR-Z0-9]{17}(?![A-Z0-9])/g) || [];
+  for (const line of text.split(/[\r\n]+/)) {
+    const candidate = normalizeVin(line.replace(/^\s*VIN\s*[:#=]?\s*/i, ''));
+    if (isValidVinFormat(candidate)) candidates.push(candidate);
+  }
+  const unique = [...new Set(candidates)];
+  return unique.length === 1 ? unique[0] : null;
+}

@@ -1,6 +1,7 @@
 // Generación de contenido con IA
 
 import OpenAI from 'openai';
+import { type MarketingVehicle } from '@autodealers/shared/vehicle-marketing';
 import { ContentGenerationRequest } from './types';
 
 export class AIContentGenerator {
@@ -14,65 +15,14 @@ export class AIContentGenerator {
    * Genera contenido para posts en redes sociales
    */
   async generatePostContent(
-    vehicleInfo: {
-      make: string;
-      model: string;
-      year: number;
-      price: number;
-      keyFeatures?: string[];
-    },
+    vehicleInfo: MarketingVehicle,
     platform: 'facebook' | 'instagram' | 'tiktok'
   ): Promise<{
     content: string;
     hashtags: string[];
     suggestedTime?: string;
   }> {
-    try {
-      const platformPrompts = {
-        facebook: 'Genera un post profesional para Facebook sobre este vehículo.',
-        instagram: 'Genera un post atractivo para Instagram con emojis y hashtags relevantes.',
-        tiktok: 'Genera un texto corto y llamativo para TikTok sobre este vehículo.',
-      };
-
-      const prompt = `${platformPrompts[platform]}
-
-Vehículo:
-- ${vehicleInfo.year} ${vehicleInfo.make} ${vehicleInfo.model}
-- Precio: $${vehicleInfo.price.toLocaleString()}
-- Características: ${vehicleInfo.keyFeatures?.join(', ') || 'N/A'}
-
-Genera:
-1. Contenido del post (${platform === 'tiktok' ? 'muy corto' : 'medio'})
-2. Hashtags relevantes (5-10)
-3. Sugerencia de mejor horario para publicar (opcional)`;
-
-      const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: 'Eres un experto en marketing de autos para redes sociales.',
-          },
-          { role: 'user', content: prompt },
-        ],
-        temperature: 0.8,
-        max_tokens: 300,
-      });
-
-      const content = completion.choices[0]?.message?.content || '';
-
-      // Extraer hashtags (simplificado)
-      const hashtagMatches = content.match(/#\w+/g) || [];
-      const hashtags = hashtagMatches.map((h) => h.substring(1));
-
-      return {
-        content: content.replace(/#\w+/g, '').trim(),
-        hashtags,
-      };
-    } catch (error) {
-      console.error('Error generating post content:', error);
-      throw error;
-    }
+    return {content: typeof vehicleInfo.masterDescription === 'string' ? vehicleInfo.masterDescription : vehicleInfo.description || '', hashtags: []};
   }
 
   /**

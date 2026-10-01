@@ -1,3 +1,4 @@
+import {getSupportTabToken} from '@autodealers/shared/support-tab-session';
 /**
  * Interceptor global de fetch: Authorization + refresh de tokens expirados
  */
@@ -65,7 +66,7 @@ if (typeof window !== 'undefined') {
     // EXCEPCIÓN: No redirigir para rutas del chat interno (polling)
     const isInternalChat = url.includes('/api/internal-chat/');
     
-    if (response.status === 401) {
+    if (response.status === 401 && !getSupportTabToken()) {
       const { resolveClientAuthToken } = await import('./auth-token-client');
       if (!resolveClientAuthToken()) {
         document.cookie = 'authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';

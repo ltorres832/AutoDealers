@@ -1,6 +1,10 @@
+
+import { equipmentFromSpecifications } from '@autodealers/shared/vehicle-equipment';
+import VehicleEquipmentDetails from '@autodealers/shared/components/VehicleEquipmentDetails';
 import { getPublicVehicleConditionLabel } from '@/lib/vehicle-condition-label';
 
 type Specs = {
+  [key: string]: unknown;
   transmission?: string;
   fuelType?: string;
   engine?: string;
@@ -20,6 +24,7 @@ type Specs = {
 };
 
 export type VehicleSpecSource = {
+  vin?: string;
   mileage?: number;
   condition?: string;
   stockNumber?: string;
@@ -90,13 +95,14 @@ export default function VehicleSpecSheet({
   const rows = rowsFromVehicle(vehicle);
   const specs = vehicle.specifications || {};
   const features = Array.isArray(specs.features) ? specs.features.filter(Boolean) : [];
-  const vin = specs.vin;
+  const vin = vehicle.vin || specs.vin;
+  const hasEquipment = Object.values(equipmentFromSpecifications(specs, vin).fields).some(field => field.value.trim());
   const stock = hideStock ? undefined : vehicle.stockNumber || specs.stockNumber;
   const mid = Math.ceil(rows.length / 2);
   const left = rows.slice(0, mid);
   const right = rows.slice(mid);
 
-  if (rows.length === 0 && features.length === 0 && !vin && !stock) return null;
+  if (rows.length === 0 && features.length === 0 && !vin && !stock && !hasEquipment) return null;
 
   return (
     <section>
@@ -137,6 +143,8 @@ export default function VehicleSpecSheet({
           </ul>
         </div>
       ) : null}
+
+              <VehicleEquipmentDetails specifications={vehicle.specifications} vin={vin} />
 
       {(vin || stock) && (
         <div className="mt-6 flex flex-wrap gap-x-8 gap-y-2 border-t border-neutral-200 pt-4 text-xs text-neutral-500">

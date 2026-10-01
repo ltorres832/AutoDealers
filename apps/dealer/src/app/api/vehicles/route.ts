@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     // Si el body incluye sellerId, pasarlo
     const sellerId = body.sellerId || undefined;
-    const vehicle = await createVehicle(auth.tenantId!, body, sellerId);
+    const vehicle = await createVehicle(auth.tenantId!, body, sellerId, {userId:auth.userId,role:auth.role,tenantId:auth.tenantId!});
     console.log(`✅ Vehículo creado por ${auth.role} con sellerId: ${(vehicle as any).sellerId || 'NO ASIGNADO'}`);
 
     let vinWarnings: { tenantId: string; vehicleId: string; make?: string; model?: string; year?: number }[] = [];

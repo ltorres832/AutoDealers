@@ -1,3 +1,4 @@
+import {officialVehicleDescription} from '@autodealers/shared/vehicle-description';
 // Servicio para publicar posts en Facebook e Instagram usando credenciales del tenant
 
 import { getFirestore } from '@autodealers/shared';
@@ -92,6 +93,8 @@ async function fetchGraphWithRetry(url: string, init: RequestInit): Promise<Resp
 }
 
 export interface PostContent {
+  vehicleId?: string;
+  vehicleTenantId?: string;
   text: string;
   imageUrl?: string;
   videoUrl?: string;
@@ -675,6 +678,13 @@ export class SocialPublisherService {
     content: PostContent,
     platforms: ('facebook' | 'instagram' | 'tiktok' | 'youtube')[]
   ): Promise<PublishResult[]> {
+    if(content.vehicleId){
+      const snapshot=await this.db.collection('tenants').doc(content.vehicleTenantId||tenantId).collection('vehicles').doc(content.vehicleId).get();
+      if(!snapshot.exists)throw new Error('Vehículo no disponible');
+      content={...content,text:officialVehicleDescription(snapshot.data()||{}),hashtags:[]};
+      if(!content.text.trim())throw new Error('El vehículo no tiene descripción maestra.');
+      if(platforms.includes('instagram')&&content.text.length>2200)throw new Error('La descripción maestra supera 2200 caracteres. Edítala en Inventario antes de publicar en Instagram.');
+    }
     const results: PublishResult[] = [];
 
     for (const platform of platforms) {
@@ -880,7 +890,7 @@ export class SocialPublisherService {
             'Content-Length': String(videoSize),
             'Content-Range': `bytes 0-${videoSize - 1}/${videoSize}`,
           },
-          body: buffer,
+          body: new Uint8Array(buffer),
         });
         if (!uploadRes.ok) {
           lastError = `Error al subir video a TikTok (${uploadRes.status})`;
@@ -926,7 +936,7 @@ export class SocialPublisherService {
             'Content-Length': String(videoSize),
             'Content-Range': `bytes 0-${videoSize - 1}/${videoSize}`,
           },
-          body: buffer,
+          body: new Uint8Array(buffer),
         });
         if (uploadRes.ok) {
           return {
@@ -1060,7 +1070,7 @@ export class SocialPublisherService {
           'Content-Type': contentType.includes('video') ? contentType : 'video/mp4',
           'Content-Length': String(buffer.byteLength),
         },
-        body: buffer,
+        body: new Uint8Array(buffer),
       });
       const uploadJson = (await uploadRes.json()) as {
         id?: string;

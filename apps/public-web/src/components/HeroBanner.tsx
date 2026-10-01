@@ -118,7 +118,7 @@ export default function HeroBanner() {
   };
 
   return (
-    <div className="relative w-full h-[500px] md:h-[600px] rounded-3xl overflow-hidden shadow-[0_30px_100px_-15px_rgba(0,0,0,0.5)] border border-white/5 bg-slate-900 group/hero">
+    <div className="relative w-full h-[500px] md:h-[600px] rounded-3xl overflow-hidden shadow-[0_30px_100px_-15px_rgba(0,0,0,0.5)] border border-white/5 bg-transparent group/hero">
       {/* Premium Content Slider */}
       <div className="relative w-full h-full">
         {content.map((banner, index) => (
@@ -133,12 +133,12 @@ export default function HeroBanner() {
               linkUrl={banner.linkUrl}
               className={`block w-full h-full relative group overflow-hidden ${banner.linkType !== 'none' && banner.linkUrl ? 'cursor-pointer' : ''}`}
             >
-              {banner.imageUrl ? (
+              {banner.imageUrl && (
                 <>
                   <img
                     src={banner.imageUrl}
                     alt={banner.title}
-                    className="w-full h-full object-contain bg-brand-black-deep transition-transform duration-[10000ms] ease-linear group-hover:scale-105"
+                    className="w-full h-full object-contain bg-transparent transition-transform duration-[10000ms] ease-linear group-hover:scale-105"
                     referrerPolicy="no-referrer"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
@@ -146,20 +146,9 @@ export default function HeroBanner() {
                       target.onerror = null;
                     }}
                   />
-                  {/* Advanced Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-900/60 to-transparent"></div>
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent"></div>
-                </>
-              ) : (
-                <div className="w-full h-full bg-gradient-to-br from-brand-black-deep via-slate-900 to-slate-950 flex items-center justify-center">
-                  <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '40px 40px' }}></div>
-                  <div className="text-center z-10">
-                    <div className="text-7xl mb-6 animate-pulse">✨</div>
-                  </div>
-                </div>
-              )}
-
-              {/* Premium Floating Label */}
+                  {/* Advanced Overlay (suave para no oscurecer la imagen) */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-black/10 via-black/5 to-transparent pointer-events-none"></div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent pointer-events-none"></div>
               <div className="absolute top-8 left-8 z-30 flex items-center gap-3">
                 <span className="bg-primary-600/90 text-white px-4 py-1.5 rounded-full text-[10px] font-black tracking-[0.2em] shadow-lg backdrop-blur-md uppercase border border-primary-400/30">
                   Exclusivo
@@ -167,7 +156,9 @@ export default function HeroBanner() {
                 <span className="bg-white/10 text-white/80 px-4 py-1.5 rounded-full text-[10px] font-bold tracking-widest backdrop-blur-md border border-white/10 uppercase">
                   Oportunidad Premium
                 </span>
-              </div>
+                  </div>
+
+                </>)}
 
               {/* Main Information - Ultra Responsive and Elegant */}
               <div className="absolute inset-0 flex items-center">
